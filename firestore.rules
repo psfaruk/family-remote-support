@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// ============================================================
+// Remote Family Support — Phase 3 starter rules (least privilege)
+// Owner pastes this into Firebase console → Firestore → Rules.
+// Principle: a signed-in user may only touch their own profile
+// and their own device records, with an explicit field allowlist.
+// Everything else is denied by default.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(
+          ['displayName', 'email', 'photoUrl', 'createdAt', 'updatedAt']
+        );
+      allow delete: if false;
+
+      match /devices/{deviceId} {
+        allow get, list: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(
+            ['model', 'manufacturer', 'androidVersion', 'sdkInt',
+             'appVersionName', 'appVersionCode', 'createdAt', 'updatedAt']
+          )
+          && request.resource.data.model is string
+          && request.resource.data.manufacturer is string
+          && request.resource.data.androidVersion is string
+          && request.resource.data.sdkInt is int
+          && request.resource.data.appVersionName is string
+          && request.resource.data.appVersionCode is int;
+        allow delete: if isSelf(uid);
+      }
+    }
+
+    // Catch-all: deny everything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
