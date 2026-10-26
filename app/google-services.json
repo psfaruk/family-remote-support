@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1001946927282",
+    "project_id": "remote-family-support",
+    "storage_bucket": "remote-family-support.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1001946927282:android:49b7a630132e097fe579ab",
+        "android_client_info": {
+          "package_name": "com.family.remote.support"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1001946927282-hm0drsfbfb6acuu742i4qcqfqge1696h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHNAylmX3Oj1uPStU1WjOk11nfMPi4W3I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1001946927282-hm0drsfbfb6acuu742i4qcqfqge1696h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
