@@ -27,18 +27,34 @@ jobs:
       - name: Decode release keystore from Secrets
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS_SECRET: ${{ secrets.KEY_ALIAS }}
+          KEY_PASS_SECRET: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > app/release.keystore
-            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASS" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=$KEY_ALIAS_SECRET" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$KEY_PASS_SECRET" >> "$GITHUB_ENV"
             echo "Keystore decoded: $(wc -c < app/release.keystore) bytes"
+            # Export SHA-1/SHA-256 fingerprints (needed for Firebase Google
+            # Sign-In) into the run summary so they are easy to copy.
+            FP=$(keytool -list -v -keystore app/release.keystore -storetype PKCS12 -storepass "$KEYSTORE_PASS" 2>/dev/null | grep -E 'SHA1:|SHA256:' | sed 's/^[[:space:]]*//')
+            {
+              echo "## Release keystore fingerprints (for Firebase console)"
+              echo ""
+              echo '```'
+              echo "$FP"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "$FP"
           else
             echo "No keystore secret found - release falls back to debug signing"
           fi
 
       - name: Build debug and release APKs
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
         run: gradle assembleDebug assembleRelease --stacktrace
 
       - name: Upload debug APK
