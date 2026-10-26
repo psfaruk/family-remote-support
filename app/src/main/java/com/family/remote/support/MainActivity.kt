@@ -17,9 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +37,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen() {
+    val firebaseProjectId = remember {
+        try {
+            FirebaseApp.getInstance().options.projectId ?: "not loaded"
+        } catch (e: Exception) {
+            "not loaded"
+        }
+    }
+    val firebaseAppId = remember {
+        try {
+            FirebaseApp.getInstance().options.applicationId
+        } catch (e: Exception) {
+            "not loaded"
+        }
+    }
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -61,19 +77,21 @@ fun HomeScreen() {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Phase 1 build check",
+                        text = "Phase 2 build check",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "If you can read this on your phone, the whole pipeline works: Codespaces, GitHub Actions, APK install.",
+                        text = "If the Firebase project below shows remote-family-support, Firebase is wired up correctly.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
-            StatusRow(label = "App version", value = "0.2.0 (Phase 1)")
+            StatusRow(label = "App version", value = "0.3.0 (Phase 2)")
             StatusRow(label = "Package", value = "com.family.remote.support")
-            StatusRow(label = "Next milestone", value = "Phase 2 - Firebase")
+            StatusRow(label = "Firebase project", value = firebaseProjectId)
+            StatusRow(label = "Firebase app ID", value = firebaseAppId)
+            StatusRow(label = "Next milestone", value = "Phase 3 - Sign-In")
         }
     }
 }
