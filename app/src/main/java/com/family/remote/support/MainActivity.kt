@@ -71,7 +71,7 @@ fun HomeScreen() {
                     )
                 }
             }
-            StatusRow(label = "App version", value = "0.1.0 (Phase 1)")
+            StatusRow(label = "App version", value = "0.2.0 (Phase 1)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Next milestone", value = "Phase 2 - Firebase")
         }
