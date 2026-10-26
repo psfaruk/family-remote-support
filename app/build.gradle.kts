@@ -13,8 +13,17 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
+
+        // Phase 3: Web Client ID for Google Sign-In. Injected by CI from the
+        // GitHub Actions variable GOOGLE_WEB_CLIENT_ID; stays empty (sign-in
+        // shows a clear setup message) until the Owner provides it.
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: ""}\""
+        )
     }
 
     // Release signing: uses app/release.keystore when present (decoded from
@@ -52,6 +61,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -71,4 +81,10 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+
+    // Phase 3 — Google Sign-In via Credential Manager + Firestore await()
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }
