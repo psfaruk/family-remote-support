@@ -82,7 +82,9 @@ private suspend fun signInWithGoogle(activity: ComponentActivity): FirebaseUser 
         .build()
     val response = credentialManager.getCredential(activity, request)
     val credential = response.credential
-    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_TOKEN) {
+    if (credential is CustomCredential &&
+        credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+    ) {
         val googleId = GoogleIdTokenCredential.createFrom(credential.data)
         val firebaseCredential = GoogleAuthProvider.getCredential(googleId.idToken, null)
         val result = FirebaseAuth.getInstance().signInWithCredential(firebaseCredential).await()
