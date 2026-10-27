@@ -10,8 +10,14 @@ A trusted family member helps fix another family phone — always with the recei
   hash stored, 5-min expiry, atomic redemption) + QR display + live watchers + cancel/redeem.
   Verified on Owner's phone: profile saved ("Registered ✓"), device list read, pairing code +
   QR + countdown + snapshot listeners all live. No hangs, no "Could not reach Firestore".
-- **Phase 5 🚧 (v0.6.0)** — device presence (heartbeat + TTL badges), FCM token registration,
+- **Phase 5 🚧 (v0.6.0 → v0.6.1)** — device presence (heartbeat + TTL badges), FCM token registration,
   QR camera scan (CameraX + ML Kit), revoke UI.
+  - **v0.6.1 bugfix:** `redeemCode` failed for everyone with `INVALID_ARGUMENT: Firestore
+    transactions require all reads to be executed before all writes` — the relationship doc was
+    read *after* the invitation update inside the transaction; now both reads happen first.
+  - **v0.6.1 features:** the pairing QR panel now has **Copy code** (clipboard), **Save QR**
+    (PNG → `Download/pairing-code-<ID>.png`, MediaStore on Android 10+, runtime permission on
+    Android 8–9) and **Share** (share sheet via FileProvider: QR image + readable code text).
 
 ## Firestore
 
