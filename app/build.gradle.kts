@@ -13,8 +13,8 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.5.2"
+        versionCode = 9
+        versionName = "0.6.0"
 
         // Phase 3: Web Client ID (serverClientId) for Google Sign-In. CI can
         // still override it via the GOOGLE_WEB_CLIENT_ID env var, but the
@@ -102,4 +102,14 @@ dependencies {
     // Phase 4 — QR code *generation* for pairing invites (display only;
     // scanning arrives in Phase 5). Pure Java lib, no camera permission.
     implementation("com.google.zxing:core:3.5.3")
+
+    // Phase 5 — QR camera scan (CameraX + on-device ML Kit), background
+    // presence heartbeat (WorkManager), push token registration (messaging).
+    implementation(platform("androidx.camera:camera-bom:1.3.4"))
+    implementation("androidx.camera:camera-camera2")
+    implementation("androidx.camera:camera-lifecycle")
+    implementation("androidx.camera:camera-view")
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("com.google.firebase:firebase-messaging")
 }
