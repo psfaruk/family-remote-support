@@ -7,6 +7,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,19 +23,25 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -156,6 +163,7 @@ fun HomeScreen() {
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var deviceStatus by remember { mutableStateOf("Not checked yet") }
     var deviceList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var registerRetryKey by remember { mutableStateOf(0) }
 
     val webClientConfigured = remember { BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank() }
     val firebaseProjectId = remember {
@@ -174,7 +182,9 @@ fun HomeScreen() {
     }
 
     // After sign-in (or on app open while signed in): refresh device record + list.
-    LaunchedEffect(signedInUser?.uid) {
+    // registerRetryKey lets the user retry manually if the Firestore write failed
+    // (e.g. rules not published yet or a flaky network).
+    LaunchedEffect(signedInUser?.uid, registerRetryKey) {
         val user = signedInUser ?: return@LaunchedEffect
         deviceStatus = "Registering this device…"
         try {
@@ -317,6 +327,11 @@ fun HomeScreen() {
                         text = deviceStatus,
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    if (deviceStatus.startsWith("Registration failed")) {
+                        OutlinedButton(onClick = { registerRetryKey++ }) {
+                            Text("Retry registration")
+                        }
+                    }
                     if (deviceList.isEmpty()) {
                         Text(
                             text = "No devices on this account yet.",
@@ -339,6 +354,8 @@ fun HomeScreen() {
                 }
             }
 
+            PairingCard(signedInUser = signedInUser)
+
             Card {
                 Column(
                     modifier = Modifier
@@ -358,12 +375,322 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.4.1 (Phase 3)")
+            StatusRow(label = "App version", value = "0.5.0 (Phase 4)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(label = "Next milestone", value = "Phase 4 - QR pairing")
+            StatusRow(label = "Next milestone", value = "Phase 5 - QR scan, presence & FCM")
         }
+    }
+}
+
+/**
+ * Phase 4 — pairing card. The phone that needs help creates a 5-minute code;
+ * the helper's phone types the same code. Redemption is one atomic Firestore
+ * transaction, verified again by the security rules. Works across two Google
+ * accounts (during testing, two accounts on this same phone work as well).
+ */
+@Composable
+fun PairingCard(signedInUser: FirebaseUser?) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Phase 4 — Pair a trusted family device",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "The phone that needs help shows a 5-minute code. The helper's phone " +
+                    "types the same code. Pairing registers a trusted relationship — every " +
+                    "future support session will still ask for separate permission.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            if (signedInUser == null) {
+                Text(
+                    text = "Sign in first — pairing needs a Google account.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                PairingSections(signedInUser)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PairingSections(user: FirebaseUser) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var invite by remember { mutableStateOf<InviteCode?>(null) }
+    var inviteStatus by remember { mutableStateOf<String?>(null) }
+    var claimerEmail by remember { mutableStateOf<String?>(null) }
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var creating by remember { mutableStateOf(false) }
+    var pairingError by remember { mutableStateOf<String?>(null) }
+    var codeInput by remember { mutableStateOf("") }
+    var redeeming by remember { mutableStateOf(false) }
+    var redeemMessage by remember { mutableStateOf<String?>(null) }
+    var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
+    var revokingId by remember { mutableStateOf<String?>(null) }
+
+    // Ticks the countdown once per second while an invitation exists.
+    LaunchedEffect(invite?.invitationId) {
+        if (invite != null) {
+            while (true) {
+                nowMillis = System.currentTimeMillis()
+                delay(1000)
+            }
+        }
+    }
+
+    // Live status of the invitation we created (waiting → paired/cancelled).
+    DisposableEffect(invite?.invitationId) {
+        val registration = invite?.invitationId?.let { id ->
+            watchInvitation(id) { view ->
+                inviteStatus = view?.status
+                claimerEmail = view?.claimedEmail
+            }
+        }
+        onDispose { registration?.remove() }
+    }
+
+    // Live list of trusted relationships (both directions).
+    DisposableEffect(user.uid) {
+        val stopWatching = watchRelationships(user) { relationships = it }
+        onDispose { stopWatching() }
+    }
+
+    val currentInvite = invite
+    val expired = currentInvite != null &&
+        (nowMillis >= currentInvite.expiresAtMillis ||
+            (inviteStatus != null && inviteStatus != "PENDING"))
+    val showCode = currentInvite != null && !expired
+
+    val createCode: () -> Unit = {
+        scope.launch {
+            creating = true
+            pairingError = null
+            try {
+                val deviceId = stableDeviceId(context)
+                invite = createInvitation(user, deviceId, Build.MODEL)
+                inviteStatus = "PENDING"
+                claimerEmail = null
+            } catch (e: Exception) {
+                pairingError = "Could not create a code: ${e.message}"
+            } finally {
+                creating = false
+            }
+        }
+    }
+
+    // ---------- Section A: this phone needs help ----------
+    HorizontalDivider()
+    Text(
+        text = "Does this phone need help?",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+
+    if (showCode && currentInvite != null) {
+        Text(
+            text = currentInvite.code,
+            style = MaterialTheme.typography.bodyLarge,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "Share this code only with the family member who will help you.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        val totalSeconds = (currentInvite.expiresAtMillis - nowMillis) / 1000
+        Text(
+            text = "Expires in ${totalSeconds / 60}:${(totalSeconds % 60)
+                .toString().padStart(2, '0')}",
+            style = MaterialTheme.typography.bodySmall
+        )
+        val qr = remember(currentInvite.code) { qrBitmap(currentInvite.qrPayload) }
+        if (qr != null) {
+            Image(
+                bitmap = qr.asImageBitmap(),
+                contentDescription = "Pairing QR code",
+                modifier = Modifier.size(160.dp)
+            )
+        }
+        when (inviteStatus) {
+            "PENDING" -> Text(
+                text = "Waiting for the other device…",
+                style = MaterialTheme.typography.bodySmall
+            )
+            "PAIRED" -> Text(
+                text = "Paired ✓ with ${claimerEmail ?: "the helper"}",
+                style = MaterialTheme.typography.bodySmall
+            )
+            else -> {}
+        }
+        if (inviteStatus == "PENDING") {
+            OutlinedButton(
+                enabled = !creating,
+                onClick = {
+                    scope.launch {
+                        try {
+                            cancelInvitation(currentInvite.id)
+                        } catch (e: Exception) {
+                            pairingError = "Could not cancel: ${e.message}"
+                        }
+                    }
+                }
+            ) {
+                Text("Cancel this code")
+            }
+        }
+    } else {
+        if (currentInvite != null) {
+            val statusText = when (inviteStatus) {
+                "PAIRED" -> "Paired ✓ with ${claimerEmail ?: "the helper"} — you can create a new code anytime."
+                "CANCELLED" -> "Code cancelled. Create a new one below."
+                else -> "Code expired. Create a new one below."
+            }
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Button(enabled = !creating, onClick = createCode) {
+            if (creating) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    if (currentInvite == null) "Create pairing code (5 min)"
+                    else "Create a new code"
+                )
+            }
+        }
+    }
+
+    // ---------- Section B: this phone is the helper ----------
+    HorizontalDivider()
+    Text(
+        text = "Are you the helper? Redeem a code",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+    OutlinedTextField(
+        value = codeInput,
+        onValueChange = { codeInput = it },
+        label = { Text("Pairing code") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
+    Button(
+        enabled = !redeeming && codeInput.isNotBlank(),
+        onClick = {
+            scope.launch {
+                redeeming = true
+                redeemMessage = null
+                try {
+                    val rel = redeemCode(user, codeInput)
+                    redeemMessage =
+                        "Paired ✓ You can now help ${rel.recipientEmail} (${rel.recipientDeviceModel})."
+                    codeInput = ""
+                } catch (e: RedemptionException) {
+                    redeemMessage = e.message
+                } catch (e: Exception) {
+                    redeemMessage = "Pairing failed: ${e.message}"
+                } finally {
+                    redeeming = false
+                }
+            }
+        }
+    ) {
+        if (redeeming) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text("Pair with code")
+        }
+    }
+    redeemMessage?.let { message ->
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (message.startsWith("Paired")) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.error
+            }
+        )
+    }
+
+    // ---------- Section C: trusted relationships ----------
+    HorizontalDivider()
+    Text(
+        text = "Paired devices",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+    if (relationships.isEmpty()) {
+        Text(
+            text = "No trusted relationships yet. Pair with a code above.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    } else {
+        relationships.forEach { rel ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    val role = if (rel.helperUid == user.uid) "You help" else "Helped by"
+                    val otherEmail =
+                        if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
+                    Text(
+                        text = "$role ${otherEmail.ifBlank { "(no email)" }}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (rel.status == "ACTIVE") {
+                    OutlinedButton(
+                        enabled = revokingId != rel.id,
+                        onClick = {
+                            revokingId = rel.id
+                            scope.launch {
+                                try {
+                                    revokeRelationship(rel.id)
+                                } catch (e: Exception) {
+                                    pairingError = "Could not revoke: ${e.message}"
+                                } finally {
+                                    revokingId = null
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Revoke")
+                    }
+                }
+            }
+        }
+    }
+
+    pairingError?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }
 
