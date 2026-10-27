@@ -286,9 +286,13 @@ service cloud.firestore {
 
       // ---------- Phase 7: WebRTC signaling (screen share) ----------
       // Short-lived docs: {aud, from, type: offer|answer|ice|watch|bye,
-      // payload, createdAt}. aud = the INTENDED READER, so every side only
+      // payload, ep, createdAt}. aud = the INTENDED READER, so every side only
       // ever lists documents addressed to it; the writer can only address
       // the other participant, and only while the session is ACTIVE.
+      // v0.8.1: "ep" is a per-round epoch token both apps use to ignore stale
+      // documents from an earlier negotiation round. It carries no authority
+      // (the reader's own epoch filter does the work), so the rules only
+      // require it to be a short string.
       match /signal/{sigId} {
         function sessionNow() {
           return get(/databases/$(database)/documents/supportSessions/$(sessionId)).data;
@@ -305,10 +309,12 @@ service cloud.firestore {
           && request.resource.data.aud == (sessionNow().helperUid == request.auth.uid
               ? sessionNow().recipientUid : sessionNow().helperUid)
           && request.resource.data.keys().hasOnly(
-            ['aud', 'from', 'type', 'payload', 'createdAt'])
+            ['aud', 'from', 'type', 'payload', 'ep', 'createdAt'])
           && request.resource.data.type in ['offer', 'answer', 'ice', 'watch', 'bye']
           && request.resource.data.payload is string
-          && request.resource.data.payload.size() < 100000;
+          && request.resource.data.payload.size() < 100000
+          && request.resource.data.ep is string
+          && request.resource.data.ep.size() <= 64;
 
         allow update: if false;
 
