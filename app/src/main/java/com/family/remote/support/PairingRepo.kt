@@ -255,12 +255,18 @@ suspend fun cancelInvitation(invId: String) {
  * Redeem a code as the helper. One atomic transaction:
  * verify PENDING + expiry + token hash → invitation PENDING → PAIRED →
  * trusted relationship created (or re-activated if the pair re-invited).
+ *
+ * Firestore transactions require ALL reads to happen before ANY write
+ * (v0.6.1: the relationship read used to sit after the invitation update,
+ * which made every redemption fail with INVALID_ARGUMENT). So: read both
+ * documents first, run every validation, and only then write.
  */
 suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
     val code = parsePairingCode(rawCode)
     val tokenHash = sha256Hex(code.token)
     val db = Fb.db
     return db.runTransaction { tx ->
+        // ---------- reads (must all come before any write) ----------
         val invRef = db.collection(INVITATION_COLLECTION).document(code.invitationId)
         val snap = tx.get(invRef)
         if (!snap.exists()) {
@@ -284,6 +290,14 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
             throw RedemptionException("Wrong code — compare every character with the other phone.")
         }
 
+        val recipientEmail = snap.getString("inviterEmail") ?: ""
+        val recipientDeviceId = snap.getString("recipientDeviceId") ?: ""
+        val recipientDeviceModel = snap.getString("recipientDeviceModel") ?: ""
+        val relRef = db.collection(RELATIONSHIP_COLLECTION)
+            .document("${user.uid}_$inviterUid")
+        val existing = tx.get(relRef)
+
+        // ---------- writes (only after every read above) ----------
         tx.update(
             invRef,
             mapOf(
@@ -295,17 +309,16 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
             )
         )
 
-        val recipientEmail = snap.getString("inviterEmail") ?: ""
-        val recipientDeviceId = snap.getString("recipientDeviceId") ?: ""
-        val recipientDeviceModel = snap.getString("recipientDeviceModel") ?: ""
-        val relRef = db.collection(RELATIONSHIP_COLLECTION)
-            .document("${user.uid}_$inviterUid")
-        val existing = tx.get(relRef)
         if (existing.exists()) {
             tx.update(
                 relRef,
                 mapOf(
                     "status" to "ACTIVE",
+                    "recipientUid" to inviterUid,
+                    "recipientEmail" to recipientEmail,
+                    "recipientDeviceId" to recipientDeviceId,
+                    "recipientDeviceModel" to recipientDeviceModel,
+                    "createdByInvitation" to code.invitationId,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             )
