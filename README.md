@@ -8,7 +8,7 @@ A trusted family member helps fix another family phone — always with the recei
 - **Phase 0–5 ✅** — planning, skeleton, Firebase + Google Sign-In, device registry, pairing
   (code + QR + Copy/Save/Share), presence + FCM registration + QR scan + revoke. Pairing verified
   end-to-end on two Google accounts by the Owner (v0.6.2).
-- **Phase 6 🚧 (v0.7.0, versionCode 12)** — **support session consent flow**:
+- **Phase 6 🚧 (v0.7.1, versionCode 13)** — **support session consent flow**:
   helper taps **Start session** on a paired device → the recipient phone gets a live permission
   card (and a notification while the app is backgrounded) with a **2-minute** Allow/Deny ask →
   allowed sessions run for **15 minutes** with a live countdown and auto-end (either side can end
@@ -18,7 +18,15 @@ A trusted family member helps fix another family phone — always with the recei
   - Notification transport today is a process-lifetime Firestore listener — works while the app
     is backgrounded but alive. Push-when-killed arrives with the Phase 7 server (FCM HTTP v1),
     using the tokens registered in Phase 5.
-  - **The new rules MUST be re-published** (same console paste path as v0.6.2) before testing.
+  - **v0.7.1 fixes**: (1) the duplicate-check query now also constrains `helperUid` — Firestore
+    rules can only prove `list` for queries that pin helperUid/recipientUid to the caller, so a
+    bare `relId` filter failed with PERMISSION_DENIED even with correct rules; (2) the live
+    session watches no longer use `orderBy` — they are equality-only (helperUid/recipientUid +
+    status-in), which needs **no composite index** and stays rules-provable; finished sessions
+    are fetched one-shot when an open one closes (the "Last session:" line).
+  - **The Phase 6 rules MUST be published** (console paste path: copy
+    `firestore.rules` from the repo → Firebase console → Firestore Database → Rules →
+    replace all → Publish) before testing.
 
 ## Firestore
 
