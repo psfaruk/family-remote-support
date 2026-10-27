@@ -105,10 +105,12 @@ dependencies {
 
     // Phase 5 — QR camera scan (CameraX + on-device ML Kit), background
     // presence heartbeat (WorkManager), push token registration (messaging).
-    implementation(platform("androidx.camera:camera-bom:1.3.4"))
-    implementation("androidx.camera:camera-camera2")
-    implementation("androidx.camera:camera-lifecycle")
-    implementation("androidx.camera:camera-view")
+    // (No camera-bom — that artifact is not published on the Google Maven we
+    // resolve from; versions are pinned explicitly instead.)
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("com.google.firebase:firebase-messaging")
