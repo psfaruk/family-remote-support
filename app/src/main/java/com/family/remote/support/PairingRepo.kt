@@ -120,6 +120,7 @@ data class RelationshipView(
     val helperEmail: String,
     val recipientUid: String,
     val recipientEmail: String,
+    val recipientDeviceId: String,
     val recipientDeviceModel: String,
     val status: String            // ACTIVE | REVOKED
 )
@@ -267,7 +268,10 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         }
         val inviterUid = snap.getString("inviterUid") ?: ""
         if (inviterUid == user.uid) {
-            throw RedemptionException("This is your own code — the family member who needs help must read it to you.")
+            throw RedemptionException(
+                "This is your own code — the helper must type it on THEIR phone while " +
+                    "signed in with their own Google account."
+            )
         }
         if (snap.getString("status") != "PENDING") {
             throw RedemptionException("This code was already used or cancelled. Ask for a new one.")
@@ -331,6 +335,7 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
             helperEmail = user.email ?: "",
             recipientUid = inviterUid,
             recipientEmail = recipientEmail,
+            recipientDeviceId = recipientDeviceId,
             recipientDeviceModel = recipientDeviceModel,
             status = "ACTIVE"
         )
@@ -397,6 +402,7 @@ private fun DocumentSnapshot.toRelationshipView(): RelationshipView? {
         helperEmail = getString("helperEmail") ?: "",
         recipientUid = recipientUid,
         recipientEmail = getString("recipientEmail") ?: "",
+        recipientDeviceId = getString("recipientDeviceId") ?: "",
         recipientDeviceModel = getString("recipientDeviceModel") ?: "",
         status = getString("status") ?: "ACTIVE"
     )
