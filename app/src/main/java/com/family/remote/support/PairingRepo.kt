@@ -7,7 +7,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
@@ -177,7 +176,7 @@ suspend fun createInvitation(
     deviceId: String,
     deviceModel: String
 ): InviteCode {
-    val db = FirebaseFirestore.getInstance()
+    val db = Fb.db
     repeat(3) {
         val invite = generateInviteCode()
         val ref = db.collection(INVITATION_COLLECTION).document(invite.invitationId)
@@ -215,7 +214,7 @@ fun watchInvitation(
     onChange: (InvitationView?) -> Unit,
     onError: (Exception) -> Unit = {}
 ): ListenerRegistration =
-    FirebaseFirestore.getInstance()
+    Fb.db
         .collection(INVITATION_COLLECTION)
         .document(invId)
         .addSnapshotListener { snap, error ->
@@ -239,7 +238,7 @@ fun watchInvitation(
 
 /** Inviter cancels their own pending invitation. */
 suspend fun cancelInvitation(invId: String) {
-    FirebaseFirestore.getInstance()
+    Fb.db
         .collection(INVITATION_COLLECTION)
         .document(invId)
         .update(
@@ -259,7 +258,7 @@ suspend fun cancelInvitation(invId: String) {
 suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
     val code = parsePairingCode(rawCode)
     val tokenHash = sha256Hex(code.token)
-    val db = FirebaseFirestore.getInstance()
+    val db = Fb.db
     return db.runTransaction { tx ->
         val invRef = db.collection(INVITATION_COLLECTION).document(code.invitationId)
         val snap = tx.get(invRef)
@@ -344,7 +343,7 @@ fun watchRelationships(
     onUpdate: (List<RelationshipView>) -> Unit,
     onError: (Exception) -> Unit = {}
 ): () -> Unit {
-    val db = FirebaseFirestore.getInstance()
+    val db = Fb.db
     var helperSide: List<RelationshipView> = emptyList()
     var recipientSide: List<RelationshipView> = emptyList()
     fun emit() = onUpdate(helperSide + recipientSide)
@@ -377,7 +376,7 @@ fun watchRelationships(
 
 /** Either participant may revoke the relationship (rules enforce this too). */
 suspend fun revokeRelationship(relId: String) {
-    FirebaseFirestore.getInstance()
+    Fb.db
         .collection(RELATIONSHIP_COLLECTION)
         .document(relId)
         .update(
