@@ -1,11 +1,18 @@
 rules_version = '2';
 
 // ============================================================
-// Remote Family Support — Phase 3 starter rules (least privilege)
+// Remote Family Support — Phase 4 rules (least privilege)
 // Owner pastes this into Firebase console → Firestore → Rules.
-// Principle: a signed-in user may only touch their own profile
-// and their own device records, with an explicit field allowlist.
-// Everything else is denied by default.
+//
+// Phase 3: users/{uid} self profile + own devices.
+// Phase 4: pairingInvitations + trustedDeviceRelationships.
+//   - A pairing code = invitationId (6 public chars) + one-time
+//     token (20 hex chars). Firestore stores ONLY the SHA-256
+//     hash of the token, never the token itself.
+//   - Redemption is one atomic client transaction; the rules
+//     re-verify every condition server-side (including the
+//     post-transaction state via getAfter()).
+// Everything not matched below is denied by default.
 // ============================================================
 
 service cloud.firestore {
@@ -19,6 +26,7 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // ---------- Phase 3: profiles + registered devices ----------
     match /users/{uid} {
       allow get, list: if isSelf(uid);
       allow create, update: if isSelf(uid)
@@ -42,6 +50,98 @@ service cloud.firestore {
           && request.resource.data.appVersionCode is int;
         allow delete: if isSelf(uid);
       }
+    }
+
+    // ---------- Phase 4: pairing invitations ----------
+    match /pairingInvitations/{invId} {
+      // Reading one invitation by id is allowed for any signed-in user:
+      // redeeming requires proving knowledge of the one-time token, and the
+      // doc itself only holds its hash.
+      allow get: if signedIn();
+      // No listing — codes travel out-of-band, nobody may enumerate invites.
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+          ['inviterUid', 'inviterEmail', 'recipientDeviceId', 'recipientDeviceModel',
+           'status', 'tokenHash', 'createdAt', 'expiresAt']
+        )
+        && request.resource.data.inviterUid == request.auth.uid
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.tokenHash is string
+        && request.resource.data.tokenHash.size() == 64
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(10, 'm');
+
+      // Out of PENDING there are exactly two doors:
+      //   1) the inviter cancels their own pending invitation
+      //   2) another signed-in user redeems it (PENDING -> PAIRED)
+      // In both cases the token hash can never change.
+      allow update: if signedIn()
+        && resource.data.status == 'PENDING'
+        && request.resource.data.tokenHash == resource.data.tokenHash
+        && (
+          (resource.data.inviterUid == request.auth.uid
+            && request.resource.data.status == 'CANCELLED'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'updatedAt']))
+          || (resource.data.inviterUid != request.auth.uid
+            && request.time < resource.data.expiresAt
+            && request.resource.data.status == 'PAIRED'
+            && request.resource.data.claimedBy == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'claimedBy', 'claimedEmail', 'claimedAt', 'updatedAt']))
+        );
+
+      allow delete: if signedIn() && resource.data.inviterUid == request.auth.uid;
+    }
+
+    // ---------- Phase 4: trusted relationships ----------
+    match /trustedDeviceRelationships/{relId} {
+      // Post-transaction state of the invitation that created this
+      // relationship — lets the rules verify the atomic claim.
+      function inviteAfter(relData) {
+        return getAfter(/databases/$(database)/documents/pairingInvitations/$(relData.createdByInvitation)).data;
+      }
+
+      allow get: if signedIn()
+        && (resource.data.helperUid == request.auth.uid
+            || resource.data.recipientUid == request.auth.uid);
+
+      // Listing is only allowed when the query itself constrains the
+      // results to the caller's own relationships (helperUid/recipientUid).
+      allow list: if signedIn()
+        && (resource.data.helperUid == request.auth.uid
+            || resource.data.recipientUid == request.auth.uid);
+
+      // Created only inside the redeem transaction: the invitation must end
+      // up PAIRED with this exact helper, and the recipient must be its owner.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+          ['helperUid', 'helperEmail', 'recipientUid', 'recipientEmail',
+           'recipientDeviceId', 'recipientDeviceModel', 'pairKey', 'status',
+           'createdByInvitation', 'createdAt', 'updatedAt']
+        )
+        && request.resource.data.helperUid == request.auth.uid
+        && request.resource.data.status == 'ACTIVE'
+        && request.resource.data.pairKey == (request.resource.data.helperUid + '_' + request.resource.data.recipientUid)
+        && inviteAfter(request.resource.data).status == 'PAIRED'
+        && inviteAfter(request.resource.data).claimedBy == request.auth.uid
+        && request.resource.data.recipientUid == inviteAfter(request.resource.data).inviterUid;
+
+      // After creation only status changes: REVOKED by either participant,
+      // or re-activated through a fresh PAIRED invitation of the same pair.
+      allow update: if signedIn()
+        && (resource.data.helperUid == request.auth.uid
+            || resource.data.recipientUid == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in ['ACTIVE', 'REVOKED']
+        && (request.resource.data.status == 'REVOKED'
+            || (inviteAfter(request.resource.data).status == 'PAIRED'
+                && inviteAfter(request.resource.data).claimedBy == request.auth.uid));
+
+      allow delete: if false;
     }
 
     // Catch-all: deny everything not matched above.
