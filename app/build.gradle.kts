@@ -13,8 +13,8 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 6
+        versionName = "0.5.0"
 
         // Phase 3: Web Client ID (serverClientId) for Google Sign-In. CI can
         // still override it via the GOOGLE_WEB_CLIENT_ID env var, but the
@@ -89,4 +89,8 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+
+    // Phase 4 — QR code *generation* for pairing invites (display only;
+    // scanning arrives in Phase 5). Pure Java lib, no camera permission.
+    implementation("com.google.zxing:core:3.5.3")
 }
