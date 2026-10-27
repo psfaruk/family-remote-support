@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================
-// Remote Family Support — Phase 5 rules (least privilege)
+// Remote Family Support — Phase 6 rules (least privilege)
 // Owner pastes this into Firebase console → Firestore → Rules.
 //
 // Phase 3: users/{uid} self profile + own devices.
@@ -14,6 +14,12 @@ rules_version = '2';
 //     post-transaction state via getAfter()).
 // Phase 5: devicePresence (heartbeat, TTL badges in the UI) +
 //   fcmTokens (push registration; sending comes later).
+// Phase 6: supportSessions — the explicit per-instance consent
+//   grant. Helper asks (REQUESTED, 2-min deadline), recipient
+//   allows (ACTIVE, 15-min sessionEndsAt) or denies, either side
+//   ends early; EXPIRED/timeout are lazy cleanups. A session doc
+//   grants NO data access by itself — future capabilities must
+//   reference an ACTIVE session.
 // Everything not matched below is denied by default.
 // ============================================================
 
@@ -193,6 +199,86 @@ service cloud.firestore {
         && request.resource.data.token is string
         && request.resource.data.token.size() >= 32;
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---------- Phase 6: support sessions (explicit consent) ----------
+    // Lifecycle (client transactions + these server-side re-checks):
+    //   REQUESTED -> ACTIVE   recipient only, within the 2-min deadline,
+    //                         sessionEndsAt <= request.time + 20 min
+    //   REQUESTED -> DENIED   recipient only
+    //   REQUESTED -> CANCELLED helper only
+    //   REQUESTED -> EXPIRED  either participant (lazy cleanup)
+    //   ACTIVE    -> ENDED    either participant (endedBy = uid or "timeout")
+    // Nothing else is possible; deletes are impossible.
+    match /supportSessions/{sessionId} {
+      function isSessionParticipant() {
+        return resource.data.helperUid == request.auth.uid
+          || resource.data.recipientUid == request.auth.uid;
+      }
+
+      allow get: if signedIn() && isSessionParticipant();
+      allow list: if signedIn() && isSessionParticipant();
+
+      // Only the helper of an ACTIVE relationship may ask, only for that
+      // relationship, and only with a sane (0 < deadline <= 5 min) deadline.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+          ['relId', 'helperUid', 'helperEmail', 'recipientUid', 'recipientEmail',
+           'recipientDeviceModel', 'status', 'requestedAt', 'respondDeadline',
+           'createdAt', 'updatedAt']
+        )
+        && request.resource.data.helperUid == request.auth.uid
+        && request.resource.data.status == 'REQUESTED'
+        && request.resource.data.relId is string
+        && request.resource.data.helperEmail is string
+        && request.resource.data.recipientEmail is string
+        && request.resource.data.recipientDeviceModel is string
+        && request.resource.data.relId == (request.resource.data.helperUid + '_' + request.resource.data.recipientUid)
+        && exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.resource.data.relId))
+        && get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.resource.data.relId)).data.status == 'ACTIVE'
+        && request.resource.data.respondDeadline is timestamp
+        && request.resource.data.respondDeadline > request.time
+        && request.resource.data.respondDeadline < request.time + duration.value(5, 'm');
+
+      allow update: if signedIn() && isSessionParticipant()
+        && request.resource.data.status in ['ACTIVE', 'DENIED', 'CANCELLED', 'EXPIRED', 'ENDED']
+        && (
+          // recipient grants within the deadline
+          (resource.data.status == 'REQUESTED'
+            && request.resource.data.status == 'ACTIVE'
+            && resource.data.recipientUid == request.auth.uid
+            && request.time < resource.data.respondDeadline
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'respondedAt', 'grantedAt', 'sessionEndsAt', 'updatedAt'])
+            && request.resource.data.sessionEndsAt is timestamp
+            && request.resource.data.sessionEndsAt > request.time
+            && request.resource.data.sessionEndsAt < request.time + duration.value(20, 'm'))
+          // recipient denies
+          || (resource.data.status == 'REQUESTED'
+            && request.resource.data.status == 'DENIED'
+            && resource.data.recipientUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'respondedAt', 'updatedAt']))
+          // helper cancels their own ask
+          || (resource.data.status == 'REQUESTED'
+            && request.resource.data.status == 'CANCELLED'
+            && resource.data.helperUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'respondedAt', 'updatedAt']))
+          // lazy expiry of a stale ask (either participant)
+          || (resource.data.status == 'REQUESTED'
+            && request.resource.data.status == 'EXPIRED'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'updatedAt']))
+          // either side ends an active session (or the auto-timeout does)
+          || (resource.data.status == 'ACTIVE'
+            && request.resource.data.status == 'ENDED'
+            && request.resource.data.endedBy in [request.auth.uid, 'timeout']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'endedAt', 'endedBy', 'updatedAt']))
+        );
+
+      allow delete: if false;
     }
 
     // Catch-all: deny everything not matched above.
