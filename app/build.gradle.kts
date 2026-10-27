@@ -13,17 +13,19 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.4.1"
 
-        // Phase 3: Web Client ID for Google Sign-In. Injected by CI from the
-        // GitHub Actions variable GOOGLE_WEB_CLIENT_ID; stays empty (sign-in
-        // shows a clear setup message) until the Owner provides it.
-        buildConfigField(
-            "String",
-            "GOOGLE_WEB_CLIENT_ID",
-            "\"${System.getenv("GOOGLE_WEB_CLIENT_ID") ?: ""}\""
-        )
+        // Phase 3: Web Client ID (serverClientId) for Google Sign-In. CI can
+        // still override it via the GOOGLE_WEB_CLIENT_ID env var, but the
+        // Owner-provided Web OAuth client is baked in as the default so a
+        // plain push always produces a working build. (OAuth client IDs are
+        // public identifiers, not secrets.)
+        val envClientId = System.getenv("GOOGLE_WEB_CLIENT_ID").orEmpty()
+        val webClientId = envClientId.ifBlank {
+            "1001946927282-k0orohct2gg0jojtclpd00jafikqsim3.apps.googleusercontent.com"
+        }
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$webClientId\"")
     }
 
     // Release signing: uses app/release.keystore when present (decoded from
