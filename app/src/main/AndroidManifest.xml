@@ -13,6 +13,11 @@
     <!-- Phase 6: lets the recipient see a support-session request while the
          app is backgrounded. Runtime prompt happens in the session section. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Phase 7: live screen share (MediaProjection). The projection consent
+         dialog is the only user gate; the foreground service keeps Android
+         from killing the capture mid-session. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <application
         android:name=".App"
@@ -30,6 +35,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Phase 7: keeps the screen capture alive; mediaProjection is a
+             required declared type on Android 14+ (the engine touches the
+             MediaProjection only AFTER startForeground, as required). -->
+        <service
+            android:name=".ScreenShareService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <!-- v0.6.1: lets the share sheet receive the QR PNG staged in the
              app cache without exposing any other file. -->
