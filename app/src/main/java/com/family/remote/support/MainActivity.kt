@@ -2,7 +2,9 @@ package com.family.remote.support
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +50,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
+import org.webrtc.SurfaceViewRenderer
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -415,11 +421,11 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.7.1 (Phase 6)")
+            StatusRow(label = "App version", value = "0.8.0 (Phase 7)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(label = "Next milestone", value = "Phase 7 - signaling server & screen share")
+            StatusRow(label = "Next milestone", value = "Phase 8 - assisted remote control")
         }
     }
 }
@@ -600,6 +606,16 @@ private fun PairingSections(user: FirebaseUser) {
                     // best effort
                 }
             }
+        }
+    }
+
+    // Phase 7 — when the session closes (ended/denied/expired) or the app
+    // restarts with no session, make sure no screen share survives. Both calls
+    // are no-ops when nothing is running.
+    LaunchedEffect(openSession == null) {
+        if (openSession == null) {
+            ScreenShareEngine.stopHelper()
+            ScreenShareService.stop(context)
         }
     }
 
@@ -1189,6 +1205,16 @@ private fun PairingSections(user: FirebaseUser) {
                         text = "Ends automatically in ${mmss(secondsLeft)}. You can end it earlier below.",
                         style = MaterialTheme.typography.bodySmall
                     )
+                    ScreenSharePanel(
+                        isHelper = currentSession.helperUid == user.uid,
+                        sessionId = currentSession.id,
+                        myUid = user.uid,
+                        otherUid = if (currentSession.helperUid == user.uid) {
+                            currentSession.recipientUid
+                        } else {
+                            currentSession.helperUid
+                        }
+                    )
                     OutlinedButton(
                         enabled = !sessionBusy,
                         onClick = { finishSession(currentSession) }
@@ -1238,6 +1264,106 @@ private fun PairingSections(user: FirebaseUser) {
 
 /** "M:SS" countdown text used by the session cards. */
 private fun mmss(seconds: Long): String = "%d:%02d".format(seconds / 60, seconds % 60)
+
+/**
+ * Phase 7 — screen share controls inside the ACTIVE session card.
+ *
+ * Recipient side: "Share screen" runs the system MediaProjection consent
+ * dialog; on approval the foreground service starts and the engine captures.
+ * "Stop sharing" tears it down (a "bye" signal stops the helper's viewer).
+ *
+ * Helper side: "Watch screen" asks the recipient's engine for an offer and
+ * renders the incoming track on a SurfaceViewRenderer (view only — no touch
+ * control in this phase).
+ */
+@Composable
+private fun ScreenSharePanel(
+    isHelper: Boolean,
+    sessionId: String,
+    myUid: String,
+    otherUid: String
+) {
+    val state by ScreenShareEngine.state.collectAsState()
+    val info by ScreenShareEngine.info.collectAsState()
+    val context = LocalContext.current
+    val active = state != ShareState.IDLE
+
+    if (isHelper) {
+        if (!active) {
+            OutlinedButton(
+                onClick = {
+                    ScreenShareEngine.startHelper(context, sessionId, myUid, otherUid)
+                }
+            ) {
+                Text("Watch screen (view only)")
+            }
+        } else {
+            var rendererView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+            DisposableEffect(rendererView) {
+                val view = rendererView
+                onDispose {
+                    ScreenShareEngine.detachRenderer()
+                    view?.release()
+                }
+            }
+            val egl = ScreenShareEngine.eglBaseContext
+            if (egl != null) {
+                AndroidView(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp),
+                    factory = { ctx ->
+                        SurfaceViewRenderer(ctx).apply {
+                            init(egl, null)
+                            setMirror(false)
+                            setEnableHardwareScaler(true)
+                            rendererView = this
+                            ScreenShareEngine.attachRenderer(this)
+                        }
+                    }
+                )
+            }
+            OutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
+                Text("Stop watching")
+            }
+        }
+    } else {
+        if (!active) {
+            val projectionManager = remember {
+                context.getSystemService(Context.MEDIA_PROJECTION_SERVICE)
+                    as MediaProjectionManager
+            }
+            val consentLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartActivityForResult()
+            ) { result ->
+                val data = result.data
+                if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+                    ScreenShareService.start(
+                        context, sessionId, myUid, otherUid, result.resultCode, data
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = { consentLauncher.launch(projectionManager.createScreenCaptureIntent()) }
+            ) {
+                Text("Share screen with helper")
+            }
+            Text(
+                text = "Everything visible on this phone can be seen by the helper " +
+                    "until you stop or the session ends. Nothing is controlled remotely.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            OutlinedButton(onClick = { ScreenShareService.stop(context) }) {
+                Text("Stop sharing")
+            }
+        }
+    }
+
+    info?.let {
+        Text(text = it, style = MaterialTheme.typography.bodySmall)
+    }
+}
 
 @Composable
 fun StatusRow(label: String, value: String) {
