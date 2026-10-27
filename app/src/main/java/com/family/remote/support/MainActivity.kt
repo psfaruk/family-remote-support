@@ -421,7 +421,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.8.0 (Phase 7)")
+            StatusRow(label = "App version", value = "0.8.1 (Phase 7)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
@@ -1354,6 +1354,40 @@ private fun ScreenSharePanel(
                 style = MaterialTheme.typography.bodySmall
             )
         } else {
+            // v0.8.1 — a small self-preview so the recipient can SEE that the
+            // capture actually produces frames (it mirrors whatever the phone
+            // is showing right now — usually this very app, nested). It is the
+            // fastest way to tell "my capture works" from "the connection is
+            // broken" when the helper reports a black picture.
+            var previewView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+            DisposableEffect(previewView) {
+                val view = previewView
+                onDispose {
+                    ScreenShareEngine.detachLocalPreview()
+                    view?.release()
+                }
+            }
+            val previewEgl = ScreenShareEngine.eglBaseContext
+            if (previewEgl != null) {
+                Text(
+                    text = "Preview — this is what the helper sees:",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                AndroidView(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    factory = { ctx ->
+                        SurfaceViewRenderer(ctx).apply {
+                            init(previewEgl, null)
+                            setMirror(false)
+                            setEnableHardwareScaler(true)
+                            previewView = this
+                            ScreenShareEngine.attachLocalPreview(this)
+                        }
+                    }
+                )
+            }
             OutlinedButton(onClick = { ScreenShareService.stop(context) }) {
                 Text("Stop sharing")
             }
