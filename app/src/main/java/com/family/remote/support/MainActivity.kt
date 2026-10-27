@@ -1,12 +1,16 @@
 package com.family.remote.support
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,6 +51,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.core.content.ContextCompat
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseApp
@@ -57,8 +62,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -403,7 +410,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.6.0 (Phase 5)")
+            StatusRow(label = "App version", value = "0.6.1 (Phase 5)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
@@ -565,6 +572,106 @@ private fun PairingSections(user: FirebaseUser) {
                 contentDescription = "Pairing QR code",
                 modifier = Modifier.size(160.dp)
             )
+
+            // v0.6.1 — copy the readable code, save the QR as a PNG into the
+            // Download folder, or hand both to the Android share sheet.
+            var copiedJustNow by remember(currentInvite.invitationId) { mutableStateOf(false) }
+            var saveBusy by remember(currentInvite.invitationId) { mutableStateOf(false) }
+            var saveRequest by remember(currentInvite.invitationId) { mutableStateOf(false) }
+            var saveFeedback by remember(currentInvite.invitationId) { mutableStateOf<String?>(null) }
+
+            val storagePermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                if (granted) {
+                    saveRequest = true
+                } else {
+                    saveFeedback = "Storage permission is needed to save the QR image."
+                }
+            }
+
+            LaunchedEffect(saveRequest) {
+                if (!saveRequest) return@LaunchedEffect
+                saveRequest = false
+                val bitmap = qr
+                if (bitmap == null) return@LaunchedEffect
+                saveBusy = true
+                saveFeedback = withContext(Dispatchers.IO) {
+                    val fileName = "pairing-code-${currentInvite.invitationId}.png"
+                    saveQrToDownloads(context, bitmap, fileName)
+                        ?.let { "Saved ✓ $it" }
+                        ?: "Could not save the QR image."
+                }
+                saveBusy = false
+            }
+
+            LaunchedEffect(copiedJustNow) {
+                if (copiedJustNow) {
+                    delay(2000)
+                    copiedJustNow = false
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    enabled = !saveBusy,
+                    onClick = {
+                        copiedJustNow =
+                            copyToClipboard(context, "Pairing code", currentInvite.code)
+                    }
+                ) {
+                    Text(if (copiedJustNow) "Copied ✓" else "Copy code")
+                }
+                OutlinedButton(
+                    enabled = !saveBusy,
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ||
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            saveRequest = true
+                        } else {
+                            storagePermissionLauncher.launch(
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            )
+                        }
+                    }
+                ) {
+                    if (saveBusy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Save QR")
+                    }
+                }
+                OutlinedButton(
+                    enabled = !saveBusy,
+                    onClick = {
+                        val intent = buildQrShareIntent(context, qr, currentInvite.code)
+                        if (intent != null) {
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                saveFeedback = "No app available for sharing."
+                            }
+                        } else {
+                            saveFeedback = "Could not prepare the QR image for sharing."
+                        }
+                    }
+                ) {
+                    Text("Share")
+                }
+            }
+            saveFeedback?.let {
+                Text(text = it, style = MaterialTheme.typography.bodySmall)
+            }
         }
         when (inviteStatus) {
             "PENDING" -> Text(
