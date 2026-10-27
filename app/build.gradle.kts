@@ -13,8 +13,8 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.5.1"
+        versionCode = 8
+        versionName = "0.5.2"
 
         // Phase 3: Web Client ID (serverClientId) for Google Sign-In. CI can
         // still override it via the GOOGLE_WEB_CLIENT_ID env var, but the
@@ -26,6 +26,15 @@ android {
             "1001946927282-k0orohct2gg0jojtclpd00jafikqsim3.apps.googleusercontent.com"
         }
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$webClientId\"")
+
+        // Firestore database id. Databases created through the current Firebase
+        // console flow get the id "default" (NOT the legacy "(default)"). All
+        // Firestore access must go through Fb.db which reads this value, so a
+        // plain push always matches the Owner's actual database. CI can still
+        // override it via the FIRESTORE_DATABASE_ID env var.
+        val envDbId = System.getenv("FIRESTORE_DATABASE_ID").orEmpty()
+        val firestoreDbId = envDbId.ifBlank { "default" }
+        buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"$firestoreDbId\"")
     }
 
     // Release signing: uses app/release.keystore when present (decoded from
