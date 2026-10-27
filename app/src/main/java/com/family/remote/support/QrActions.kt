@@ -38,8 +38,8 @@ fun copyToClipboard(context: Context, label: String, text: String): Boolean =
  * WRITE_EXTERNAL_STORAGE (declared with maxSdkVersion="28" and requested
  * at runtime by the caller before this function is used).
  */
-fun saveQrToDownloads(context: Context, bitmap: Bitmap, fileName: String): String? =
-    try {
+fun saveQrToDownloads(context: Context, bitmap: Bitmap, fileName: String): String? {
+    return try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
@@ -50,7 +50,7 @@ fun saveQrToDownloads(context: Context, bitmap: Bitmap, fileName: String): Strin
                 ?: return null
             val ok = context.contentResolver.openOutputStream(uri)?.use { out ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-            } ?: return null
+            } ?: false
             if (!ok) return null
             "Download/$fileName"
         } else {
@@ -68,6 +68,7 @@ fun saveQrToDownloads(context: Context, bitmap: Bitmap, fileName: String): Strin
     } catch (_: Exception) {
         null
     }
+}
 
 /**
  * Build a share-sheet intent carrying the QR PNG (via FileProvider, because a
