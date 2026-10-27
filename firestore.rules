@@ -20,6 +20,10 @@ rules_version = '2';
 //   ends early; EXPIRED/timeout are lazy cleanups. A session doc
 //   grants NO data access by itself — future capabilities must
 //   reference an ACTIVE session.
+// Phase 7: supportSessions/{id}/signal — WebRTC signaling for live
+//   screen share (offer/answer/ICE/watch/bye). Docs are addressed to
+//   one reader (aud), only participants of an ACTIVE session may
+//   write, and a writer may only address the OTHER participant.
 // Everything not matched below is denied by default.
 // ============================================================
 
@@ -279,6 +283,40 @@ service cloud.firestore {
         );
 
       allow delete: if false;
+
+      // ---------- Phase 7: WebRTC signaling (screen share) ----------
+      // Short-lived docs: {aud, from, type: offer|answer|ice|watch|bye,
+      // payload, createdAt}. aud = the INTENDED READER, so every side only
+      // ever lists documents addressed to it; the writer can only address
+      // the other participant, and only while the session is ACTIVE.
+      match /signal/{sigId} {
+        function sessionNow() {
+          return get(/databases/$(database)/documents/supportSessions/$(sessionId)).data;
+        }
+
+        allow get, list: if signedIn()
+          && resource.data.aud == request.auth.uid;
+
+        allow create: if signedIn()
+          && sessionNow().status == 'ACTIVE'
+          && (sessionNow().helperUid == request.auth.uid
+              || sessionNow().recipientUid == request.auth.uid)
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.aud == (sessionNow().helperUid == request.auth.uid
+              ? sessionNow().recipientUid : sessionNow().helperUid)
+          && request.resource.data.keys().hasOnly(
+            ['aud', 'from', 'type', 'payload', 'createdAt'])
+          && request.resource.data.type in ['offer', 'answer', 'ice', 'watch', 'bye']
+          && request.resource.data.payload is string
+          && request.resource.data.payload.size() < 100000;
+
+        allow update: if false;
+
+        // Either participant may clean up the queue (best-effort wipes).
+        allow delete: if signedIn()
+          && (sessionNow().helperUid == request.auth.uid
+              || sessionNow().recipientUid == request.auth.uid);
+      }
     }
 
     // Catch-all: deny everything not matched above.
