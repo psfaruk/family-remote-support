@@ -78,68 +78,65 @@ private fun DocumentSnapshot.toSessionView(): SessionView? {
 
 /**
  * Helper side: ask permission to start a support session on the paired
- * recipient's phone. One atomic transaction:
- *   read  - any still-open session (REQUESTED or ACTIVE) for this pair
- *   write - the new REQUESTED session with a 2-minute answer deadline
- * The rules double-check that the caller really is the helper of an ACTIVE
- * relationship and that the deadline is sane.
+ * recipient's phone. The duplicate-check runs as a plain query (the Android
+ * Firestore SDK does not support query reads inside transactions); the write
+ * itself is one atomic set whose conditions the security rules re-verify.
+ * The UI keeps this action single-shot, so the check + write gap is not a
+ * realistic race: only the helper's phone can start a session.
  */
 suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionView {
     val db = Fb.db
-    return db.runTransaction { tx ->
-        // ---------- read (all reads before any write) ----------
-        val open = tx.get(
-            db.collection(SESSION_COLLECTION)
-                .whereEqualTo("relId", rel.id)
-                .whereIn("status", listOf("REQUESTED", "ACTIVE"))
-                .limit(1)
+    // ---------- duplicate-check: one open session per pair ----------
+    val open = db.collection(SESSION_COLLECTION)
+        .whereEqualTo("relId", rel.id)
+        .whereIn("status", listOf("REQUESTED", "ACTIVE"))
+        .limit(1)
+        .get()
+        .awaitWithTimeout("checking for an open session")
+    if (!open.isEmpty) {
+        val existing = open.documents.first().toSessionView()
+        throw SessionException(
+            if (existing?.status == "REQUESTED") {
+                "A request is already waiting for ${rel.recipientEmail}. " +
+                    "Wait for an answer or cancel it."
+            } else {
+                "A support session is already active with ${rel.recipientEmail}."
+            }
         )
-        if (!open.isEmpty) {
-            val existing = open.documents.first().toSessionView()
-            throw SessionException(
-                if (existing?.status == "REQUESTED") {
-                    "A request is already waiting for ${rel.recipientEmail}. " +
-                        "Wait for an answer or cancel it."
-                } else {
-                    "A support session is already active with ${rel.recipientEmail}."
-                }
-            )
-        }
+    }
 
-        // ---------- write ----------
-        val deadline = Date(System.currentTimeMillis() + SESSION_RESPONSE_TTL_MILLIS)
-        val ref = db.collection(SESSION_COLLECTION).document()
-        tx.set(
-            ref,
-            mapOf(
-                "relId" to rel.id,
-                "helperUid" to user.uid,
-                "helperEmail" to (user.email ?: ""),
-                "recipientUid" to rel.recipientUid,
-                "recipientEmail" to rel.recipientEmail,
-                "recipientDeviceModel" to rel.recipientDeviceModel,
-                "status" to "REQUESTED",
-                "requestedAt" to FieldValue.serverTimestamp(),
-                "respondDeadline" to Timestamp(deadline),
-                "createdAt" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp()
-            )
+    // ---------- write ----------
+    val deadline = Date(System.currentTimeMillis() + SESSION_RESPONSE_TTL_MILLIS)
+    val ref = db.collection(SESSION_COLLECTION).document()
+    ref.set(
+        mapOf(
+            "relId" to rel.id,
+            "helperUid" to user.uid,
+            "helperEmail" to (user.email ?: ""),
+            "recipientUid" to rel.recipientUid,
+            "recipientEmail" to rel.recipientEmail,
+            "recipientDeviceModel" to rel.recipientDeviceModel,
+            "status" to "REQUESTED",
+            "requestedAt" to FieldValue.serverTimestamp(),
+            "respondDeadline" to Timestamp(deadline),
+            "createdAt" to FieldValue.serverTimestamp(),
+            "updatedAt" to FieldValue.serverTimestamp()
         )
-        SessionView(
-            id = ref.id,
-            relId = rel.id,
-            helperUid = user.uid,
-            helperEmail = user.email ?: "",
-            recipientUid = rel.recipientUid,
-            recipientEmail = rel.recipientEmail,
-            recipientDeviceModel = rel.recipientDeviceModel,
-            status = "REQUESTED",
-            requestedAtMillis = System.currentTimeMillis(),
-            respondDeadlineMillis = deadline.time,
-            sessionEndsAtMillis = 0L,
-            endedBy = null
-        )
-    }.awaitWithTimeout("asking for permission to help")
+    ).awaitWithTimeout("asking for permission to help")
+    return SessionView(
+        id = ref.id,
+        relId = rel.id,
+        helperUid = user.uid,
+        helperEmail = user.email ?: "",
+        recipientUid = rel.recipientUid,
+        recipientEmail = rel.recipientEmail,
+        recipientDeviceModel = rel.recipientDeviceModel,
+        status = "REQUESTED",
+        requestedAtMillis = System.currentTimeMillis(),
+        respondDeadlineMillis = deadline.time,
+        sessionEndsAtMillis = 0L,
+        endedBy = null
+    )
 }
 
 /**
@@ -182,7 +179,7 @@ suspend fun grantSession(sessionId: String, uid: String): SessionView {
                 "updatedAt" to FieldValue.serverTimestamp()
             )
         )
-        session.copy(status = "ACTIVE", sessionEndsAtMillis = endsAt.time)
+        session.copy(status = "ACTIVE", sessionEndsAtMillis = endsAt.toDate().time)
     }.awaitWithTimeout("allowing the session")
 }
 
