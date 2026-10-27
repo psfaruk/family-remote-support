@@ -415,7 +415,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.7.0 (Phase 6)")
+            StatusRow(label = "App version", value = "0.7.1 (Phase 6)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
@@ -489,6 +489,12 @@ private fun PairingSections(user: FirebaseUser) {
     var sessionBusy by remember { mutableStateOf(false) }
     var sessionMessage by remember { mutableStateOf<String?>(null) }
     var sessionNow by remember { mutableStateOf(System.currentTimeMillis()) }
+    // The last session that closed (ended/denied/cancelled/expired) — kept in
+    // memory for the "Last session:" line. The live watches only track OPEN
+    // sessions (index-free + rules-provable), so when one disappears from the
+    // open set we fetch its final state once and remember it here.
+    var lastFinishedSession by remember { mutableStateOf<SessionView?>(null) }
+    var lastOpenSessionId by remember { mutableStateOf<String?>(null) }
 
     // Ticks the countdown once per second while an invitation exists.
     LaunchedEffect(invite?.invitationId) {
@@ -538,6 +544,23 @@ private fun PairingSections(user: FirebaseUser) {
 
     val openSession = sessions.firstOrNull {
         it.status == "REQUESTED" || it.status == "ACTIVE"
+    }
+
+    // When a session leaves the open set it has reached a final state — fetch
+    // it once for the history line. Fires only on the open→closed transition.
+    LaunchedEffect(sessions) {
+        val currentOpenId = openSession?.id
+        val prevOpenId = lastOpenSessionId
+        if (prevOpenId != null && prevOpenId != currentOpenId) {
+            try {
+                lastFinishedSession = getSession(prevOpenId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // best effort — the history line is informational only
+            }
+        }
+        lastOpenSessionId = currentOpenId
     }
 
     // Ticks once per second while a session is open so countdowns stay live.
@@ -1176,10 +1199,8 @@ private fun PairingSections(user: FirebaseUser) {
             }
         }
         else -> {
-            val lastFinished = sessions.firstOrNull {
-                it.status != "REQUESTED" && it.status != "ACTIVE"
-            }
-            if (lastFinished != null) {
+            if (lastFinishedSession != null) {
+                val lastFinished = lastFinishedSession!!
                 val byWhom = when (lastFinished.endedBy) {
                     null, "" -> ""
                     "timeout" -> " (auto-timeout)"
