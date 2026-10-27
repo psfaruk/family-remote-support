@@ -4,10 +4,10 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.QueryDocumentSnapshot
 import com.google.firebase.firestore.SetOptions
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -36,7 +36,9 @@ class RedemptionException(message: String) : Exception(message)
 
 data class InviteCode(
     val invitationId: String,
-    val token: String
+    val token: String,
+    /** When this invitation expires (client clock); 0 until created in Firestore. */
+    val expiresAtMillis: Long = 0L
 ) {
     /** The string the user sees, types or reads aloud: ABC123-1a2b3c… */
     val code: String get() = "$invitationId-$token"
@@ -130,6 +132,7 @@ suspend fun createInvitation(
         }
         if (exists) return@repeat // astronomically unlikely; try another id
 
+        val expiryMillis = System.currentTimeMillis() + INVITE_TTL_MILLIS
         val doc = hashMapOf(
             "inviterUid" to user.uid,
             "inviterEmail" to (user.email ?: ""),
@@ -138,10 +141,10 @@ suspend fun createInvitation(
             "status" to "PENDING",
             "tokenHash" to sha256Hex(invite.token),
             "createdAt" to FieldValue.serverTimestamp(),
-            "expiresAt" to Timestamp(Date(System.currentTimeMillis() + INVITE_TTL_MILLIS))
+            "expiresAt" to Timestamp(Date(expiryMillis))
         )
         ref.set(doc).await()
-        return invite
+        return invite.copy(expiresAtMillis = expiryMillis)
     }
     throw IllegalStateException("Could not generate a unique code — please try again.")
 }
@@ -312,7 +315,7 @@ suspend fun revokeRelationship(relId: String) {
         .await()
 }
 
-private fun QueryDocumentSnapshot.toRelationshipView(): RelationshipView? {
+private fun DocumentSnapshot.toRelationshipView(): RelationshipView? {
     val helperUid = getString("helperUid") ?: return null
     val recipientUid = getString("recipientUid") ?: return null
     return RelationshipView(
