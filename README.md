@@ -10,18 +10,34 @@ A trusted family member helps fix another family phone — always with the recei
   **support session consent flow** — Start session → 2-min Allow/Deny ask → 15-min auto-ending
   session. Verified end-to-end on two Google accounts by the Owner (v0.7.1) AND at the data
   layer (ENDED + EXPIRED transitions confirmed in Firestore via the service account).
-- **Phase 7 🚧 (v0.8.0, versionCode 14)** — **live screen share (view only)**:
+- **Phase 7 🚧 (v0.8.1, versionCode 15)** — **live screen share (view only)**:
   - Recipient taps **Share screen** on an ACTIVE session → system MediaProjection consent →
     a `mediaProjection` foreground service (notification shown) captures ~720p @ 15 fps.
+    A small **self-preview** ("this is what the helper sees") proves the capture works.
   - Helper taps **Watch screen** → the recipient's engine posts a WebRTC offer → helper
     answers → live video renders in the app. Either side can stop; the session ending (or
     timing out) stops everything automatically.
+  - **v0.8.1 fixes (black-screen report):**
+    - **Epoch rounds**: every signal carries a per-round `ep` token; stale documents from an
+      earlier round in Firestore are now ignored instead of poisoning a fresh negotiation
+      (the main cause of the black "Answer sent — connecting video…" hang).
+    - **ICE restart on re-watch**: each new "watch" produces an offer with brand-new ICE
+      credentials and re-gathered candidates (re-watching used to leave the helper with
+      zero candidates).
+    - **Stale-callback guards** so a closing PeerConnection cannot corrupt a fresh round
+      (spurious "Connection failed" messages).
+    - **Honest status + frame watchdog**: helper shows "Connection established…",
+      "Live — receiving the screen ✓" on first decoded frame, or an explicit
+      "Connected, but no video is arriving" warning; "Stop watching" no longer sends "bye",
+      so the recipient keeps sharing and the helper can simply watch again.
+    - **VP8 preferred** (software codec — identical behaviour on every phone) and a free
+      community TURN relay (openrelay.metered.ca) added after Google STUN for hard-NAT
+      cases; if the relay is unavailable ICE falls back to STUN.
   - **No signaling server**: offers/answers/ICE travel as short-lived Firestore docs under
     `supportSessions/{id}/signal`, addressed to one reader (`aud`) — the security rules
     re-check participant, direction, ACTIVE status and payload size server-side.
   - WebRTC via `io.getstream:stream-webrtc-android:1.3.8` (org.webrtc API), ARM ABIs only
-    to keep the APK lean. Google STUN included; **no TURN yet** — direct/mild-NAT networks
-    work, symmetric-NAT (some mobile data) may not. No touch control in this phase.
+    to keep the APK lean. No touch control in this phase.
   - Rules are now published by the automation via the project service account
     (`scripts/publish-firestore-rules.mjs`) — no console paste needed anymore.
 
