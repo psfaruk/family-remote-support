@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v0.6.1: FileProvider paths for sharing the staged pairing-QR PNG. -->
+<paths>
+    <cache-path
+        name="qr_share"
+        path="qr_share/" />
+</paths>
