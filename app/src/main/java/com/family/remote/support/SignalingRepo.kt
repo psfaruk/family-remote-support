@@ -5,7 +5,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
 
 /**
- * Phase 7 — Firestore-based WebRTC signaling.
+ * Phase 7.1 — Firestore-based WebRTC signaling.
  *
  * There is NO signaling server in this project (zero-cost, phone-only Owner).
  * The realtime database we already trust does the job: WebRTC offers, answers
@@ -14,9 +14,18 @@ import com.google.firebase.firestore.ListenerRegistration
  *     supportSessions/{sessionId}/signal/{autoId}
  *         aud      = uid of the INTENDED READER (queryable by that reader)
  *         from     = uid of the writer
- *         type     = "offer" | "answer" | "ice" | "bye"
- *         payload  = JSON-encoded SDP / ICE candidate
+ *         type     = "offer" | "answer" | "ice" | "watch" | "bye"
+ *         payload  = JSON-encoded SDP / ICE candidate (or an epoch for "watch")
+ *         ep       = round token ("epoch", see below); "" for "watch"/"bye"
  *         createdAt
+ *
+ * v0.8.1 fix — the "ep" (epoch) field: every engine round generates a fresh
+ * random token. The helper stamps its epoch into "watch"; the recipient echoes
+ * that token on every offer/ice it sends; the helper stamps its own epoch on
+ * answer/ice. A reader only applies signals whose epoch matches its CURRENT
+ * round, so stale documents left in Firestore by an earlier round (an old
+ * offer, old candidates) can NEVER poison a fresh negotiation again — they are
+ * simply ignored, and cleaned up lazily by clearAsync.
  *
  * The security rules re-check every field server-side: only participants of
  * an ACTIVE session may write, a writer may only address the OTHER
@@ -34,7 +43,8 @@ internal object SignalingRepo {
         fromUid: String,
         audUid: String,
         type: String,
-        payload: String
+        payload: String,
+        ep: String = ""
     ) {
         Fb.db.collection(SESSION_COLLECTION)
             .document(sessionId)
@@ -45,6 +55,7 @@ internal object SignalingRepo {
                     "from" to fromUid,
                     "type" to type,
                     "payload" to payload,
+                    "ep" to ep,
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             )
@@ -59,7 +70,7 @@ internal object SignalingRepo {
     fun watch(
         sessionId: String,
         audUid: String,
-        onSignal: (type: String, payload: String) -> Unit,
+        onSignal: (type: String, ep: String, payload: String) -> Unit,
         onError: (Exception) -> Unit = {}
     ): () -> Unit {
         val reg: ListenerRegistration = Fb.db.collection(SESSION_COLLECTION)
@@ -75,7 +86,8 @@ internal object SignalingRepo {
                     if (change.type != DocumentChange.Type.ADDED) continue
                     val type = change.document.getString("type") ?: continue
                     val payload = change.document.getString("payload") ?: ""
-                    onSignal(type, payload)
+                    val ep = change.document.getString("ep") ?: ""
+                    onSignal(type, ep, payload)
                 }
             }
         return { reg.remove() }
@@ -84,7 +96,8 @@ internal object SignalingRepo {
     /**
      * Best-effort wipe of the documents addressed to [audUid] — called when a
      * side starts watching (clear stale rounds) and when it stops. Failures
-     * are harmless: docs are tiny and per-session only.
+     * are harmless: docs are tiny and per-session only, and the epoch filter
+     * makes stale docs inert even if this wipe never runs.
      */
     fun clearAsync(sessionId: String, audUid: String) {
         Fb.db.collection(SESSION_COLLECTION)
