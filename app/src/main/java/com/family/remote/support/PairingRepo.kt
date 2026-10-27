@@ -310,15 +310,12 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         )
 
         if (existing.exists()) {
+            // Rules (Phase 4) only allow re-activation to change status +
+            // updatedAt — identity fields are frozen after first pairing.
             tx.update(
                 relRef,
                 mapOf(
                     "status" to "ACTIVE",
-                    "recipientUid" to inviterUid,
-                    "recipientEmail" to recipientEmail,
-                    "recipientDeviceId" to recipientDeviceId,
-                    "recipientDeviceModel" to recipientDeviceModel,
-                    "createdByInvitation" to code.invitationId,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             )
