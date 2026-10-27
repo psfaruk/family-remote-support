@@ -5,7 +5,6 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.Query
 import java.util.Date
 import kotlinx.coroutines.CancellationException
 
@@ -87,8 +86,13 @@ private fun DocumentSnapshot.toSessionView(): SessionView? {
 suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionView {
     val db = Fb.db
     // ---------- duplicate-check: one open session per pair ----------
+    // The query MUST constrain helperUid to the caller: the security rules can
+    // only prove `list` permission for queries that pin helperUid/recipientUid
+    // to request.auth.uid (a bare relId filter proves nothing to the rules
+    // engine and would fail with PERMISSION_DENIED even with correct rules).
     val open = db.collection(SESSION_COLLECTION)
         .whereEqualTo("relId", rel.id)
+        .whereEqualTo("helperUid", user.uid)
         .whereIn("status", listOf("REQUESTED", "ACTIVE"))
         .limit(1)
         .get()
@@ -297,8 +301,32 @@ suspend fun expireSession(sessionId: String) {
 }
 
 /**
- * Live list of this account's recent sessions (both roles), newest first.
- * The UI only ever needs the newest open session plus a little history.
+ * One-shot read of one session's final state. Used by the UI when an open
+ * session closes, so the "Last session: ended/denied…" line survives even
+ * though the live watches below only track open sessions.
+ */
+suspend fun getSession(sessionId: String): SessionView? {
+    val snap = Fb.db
+        .collection(SESSION_COLLECTION)
+        .document(sessionId)
+        .get()
+        .awaitWithTimeout("loading the session result")
+    return if (snap.exists()) snap.toSessionView() else null
+}
+
+/**
+ * Live list of this account's OPEN sessions (both roles), newest first.
+ *
+ * Deliberately equality-only — helperUid/recipientUid + status-in, no orderBy:
+ *   - runs on single-field automatic indexes, so NO composite index is needed
+ *     (an orderBy(requestedAt) query would require one and fail with
+ *     FAILED_PRECONDITION until it exists),
+ *   - and it is provable against the security rules, which only allow listing
+ *     sessions whose helperUid/recipientUid is the caller.
+ *
+ * The result set is complete: every REQUESTED/ACTIVE session of this account
+ * is returned, which is exactly what the consent UI needs. Finished sessions
+ * are fetched one-shot when an open one closes (see getSession + MainActivity).
  */
 fun watchSessions(
     user: FirebaseUser,
@@ -316,8 +344,8 @@ fun watchSessions(
 
     val regHelper = db.collection(SESSION_COLLECTION)
         .whereEqualTo("helperUid", user.uid)
-        .orderBy("requestedAt", Query.Direction.DESCENDING)
-        .limit(8)
+        .whereIn("status", listOf("REQUESTED", "ACTIVE"))
+        .limit(10)
         .addSnapshotListener { snap, error ->
             if (error != null) {
                 onError(error)
@@ -328,8 +356,8 @@ fun watchSessions(
         }
     val regRecipient = db.collection(SESSION_COLLECTION)
         .whereEqualTo("recipientUid", user.uid)
-        .orderBy("requestedAt", Query.Direction.DESCENDING)
-        .limit(8)
+        .whereIn("status", listOf("REQUESTED", "ACTIVE"))
+        .limit(10)
         .addSnapshotListener { snap, error ->
             if (error != null) {
                 onError(error)
