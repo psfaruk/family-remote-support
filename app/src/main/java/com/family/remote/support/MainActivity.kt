@@ -540,7 +540,7 @@ private fun PairingSections(user: FirebaseUser) {
                 onClick = {
                     scope.launch {
                         try {
-                            cancelInvitation(currentInvite.id)
+                            cancelInvitation(currentInvite.invitationId)
                         } catch (e: Exception) {
                             pairingError = "Could not cancel: ${e.message}"
                         }
