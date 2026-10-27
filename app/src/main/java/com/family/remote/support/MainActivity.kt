@@ -57,6 +57,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -120,7 +121,7 @@ private suspend fun registerDevice(context: Context, user: FirebaseUser): String
         "updatedAt" to FieldValue.serverTimestamp()
     )
     db.collection("users").document(user.uid)
-        .set(profile, SetOptions.merge()).await()
+        .set(profile, SetOptions.merge()).awaitWithTimeout("saving your profile")
 
     val device = hashMapOf(
         "model" to Build.MODEL,
@@ -134,7 +135,7 @@ private suspend fun registerDevice(context: Context, user: FirebaseUser): String
     val deviceId = stableDeviceId(context)
     db.collection("users").document(user.uid)
         .collection("devices").document(deviceId)
-        .set(device, SetOptions.merge()).await()
+        .set(device, SetOptions.merge()).awaitWithTimeout("saving this device")
     return deviceId
 }
 
@@ -144,7 +145,7 @@ private suspend fun loadDevices(user: FirebaseUser): List<String> {
         .collection("users").document(user.uid)
         .collection("devices")
         .get()
-        .await()
+        .awaitWithTimeout("reading your devices")
     return snapshot.documents.map { doc ->
         val model = doc.getString("model") ?: "Unknown model"
         val version = doc.getString("appVersionName") ?: "?"
@@ -191,8 +192,10 @@ fun HomeScreen() {
             val deviceId = registerDevice(context, user)
             deviceStatus = "Registered ✓ (id ${deviceId.take(8)}…)"
             deviceList = loadDevices(user)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            deviceStatus = "Registration failed: ${e.message ?: "unknown error"}"
+            deviceStatus = "Registration failed: ${describeFirestoreError(e)}"
         }
     }
 
@@ -375,7 +378,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.5.0 (Phase 4)")
+            StatusRow(label = "App version", value = "0.5.1 (Phase 4)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
@@ -431,6 +434,7 @@ private fun PairingSections(user: FirebaseUser) {
     var invite by remember { mutableStateOf<InviteCode?>(null) }
     var inviteStatus by remember { mutableStateOf<String?>(null) }
     var claimerEmail by remember { mutableStateOf<String?>(null) }
+    var inviteSyncError by remember { mutableStateOf<String?>(null) }
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var creating by remember { mutableStateOf(false) }
     var pairingError by remember { mutableStateOf<String?>(null) }
@@ -438,6 +442,7 @@ private fun PairingSections(user: FirebaseUser) {
     var redeeming by remember { mutableStateOf(false) }
     var redeemMessage by remember { mutableStateOf<String?>(null) }
     var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
+    var relationshipsSyncError by remember { mutableStateOf<String?>(null) }
     var revokingId by remember { mutableStateOf<String?>(null) }
 
     // Ticks the countdown once per second while an invitation exists.
@@ -453,17 +458,26 @@ private fun PairingSections(user: FirebaseUser) {
     // Live status of the invitation we created (waiting → paired/cancelled).
     DisposableEffect(invite?.invitationId) {
         val registration = invite?.invitationId?.let { id ->
-            watchInvitation(id) { view ->
-                inviteStatus = view?.status
-                claimerEmail = view?.claimedEmail
-            }
+            watchInvitation(
+                id,
+                onChange = { view ->
+                    inviteSyncError = null
+                    inviteStatus = view?.status
+                    claimerEmail = view?.claimedEmail
+                },
+                onError = { e -> inviteSyncError = describeFirestoreError(e) }
+            )
         }
         onDispose { registration?.remove() }
     }
 
     // Live list of trusted relationships (both directions).
     DisposableEffect(user.uid) {
-        val stopWatching = watchRelationships(user) { relationships = it }
+        val stopWatching = watchRelationships(
+            user,
+            onUpdate = { relationshipsSyncError = null; relationships = it },
+            onError = { e -> relationshipsSyncError = describeFirestoreError(e) }
+        )
         onDispose { stopWatching() }
     }
 
@@ -482,8 +496,11 @@ private fun PairingSections(user: FirebaseUser) {
                 invite = createInvitation(user, deviceId, Build.MODEL)
                 inviteStatus = "PENDING"
                 claimerEmail = null
+                inviteSyncError = null
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                pairingError = "Could not create a code: ${e.message}"
+                pairingError = "Could not create a code: ${describeFirestoreError(e)}"
             } finally {
                 creating = false
             }
@@ -541,14 +558,23 @@ private fun PairingSections(user: FirebaseUser) {
                     scope.launch {
                         try {
                             cancelInvitation(currentInvite.invitationId)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            pairingError = "Could not cancel: ${e.message}"
+                            pairingError = "Could not cancel: ${describeFirestoreError(e)}"
                         }
                     }
                 }
             ) {
                 Text("Cancel this code")
             }
+        }
+        inviteSyncError?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     } else {
         if (currentInvite != null) {
@@ -604,8 +630,10 @@ private fun PairingSections(user: FirebaseUser) {
                     codeInput = ""
                 } catch (e: RedemptionException) {
                     redeemMessage = e.message
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    redeemMessage = "Pairing failed: ${e.message}"
+                    redeemMessage = "Pairing failed: ${describeFirestoreError(e)}"
                 } finally {
                     redeeming = false
                 }
@@ -641,10 +669,18 @@ private fun PairingSections(user: FirebaseUser) {
         fontWeight = FontWeight.Bold
     )
     if (relationships.isEmpty()) {
-        Text(
-            text = "No trusted relationships yet. Pair with a code above.",
-            style = MaterialTheme.typography.bodySmall
-        )
+        if (relationshipsSyncError != null) {
+            Text(
+                text = relationshipsSyncError!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        } else {
+            Text(
+                text = "No trusted relationships yet. Pair with a code above.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     } else {
         relationships.forEach { rel ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -670,8 +706,10 @@ private fun PairingSections(user: FirebaseUser) {
                             scope.launch {
                                 try {
                                     revokeRelationship(rel.id)
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
-                                    pairingError = "Could not revoke: ${e.message}"
+                                    pairingError = "Could not revoke: ${describeFirestoreError(e)}"
                                 } finally {
                                     revokingId = null
                                 }
