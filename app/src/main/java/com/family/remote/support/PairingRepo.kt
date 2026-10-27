@@ -2,11 +2,13 @@ package com.family.remote.support
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import com.google.android.gms.tasks.Task
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.google.zxing.BarcodeFormat
@@ -16,7 +18,10 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Date
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 
 /**
  * Phase 4 — Pairing data layer.
@@ -33,6 +38,57 @@ import kotlinx.coroutines.tasks.await
 
 /** Thrown when a pairing code cannot be redeemed (user-facing message inside). */
 class RedemptionException(message: String) : Exception(message)
+
+/**
+ * Thrown when a Firestore call cannot finish within [RPC_TIMEOUT_MILLIS].
+ * Firestore writes/reads have NO built-in timeout: when the app cannot reach
+ * the Firestore backend (offline, database never created, network blocking
+ * gRPC) the Task stays pending forever and the UI would spin endlessly.
+ * Every Firestore call therefore goes through [awaitWithTimeout].
+ */
+class FirestoreUnreachableException(what: String) : Exception(
+    "Could not reach Firestore while $what (waited ${RPC_TIMEOUT_MILLIS / 1000} s). " +
+        "Check the internet connection, and in the Firebase console verify that the " +
+        "Firestore Database was actually created (Build → Firestore Database must show " +
+        "data, not a \"Create database\" button)."
+)
+
+/** Hard ceiling for every single Firestore round-trip. */
+private const val RPC_TIMEOUT_MILLIS = 30_000L
+
+/** Await a Firestore Task with a hard timeout so the UI can never hang forever. */
+suspend fun <T> Task<T>.awaitWithTimeout(what: String): T =
+    try {
+        withTimeout(RPC_TIMEOUT_MILLIS) { this@awaitWithTimeout.await() }
+    } catch (e: TimeoutCancellationException) {
+        throw FirestoreUnreachableException(what)
+    }
+
+/**
+ * Translate a Firestore failure into a short, actionable user-facing message.
+ * Distinguishes the three realistic root causes: rules, missing database,
+ * unreachable network.
+ */
+fun describeFirestoreError(e: Exception): String = when (e) {
+    is FirestoreUnreachableException -> e.message ?: "Could not reach Firestore."
+    is FirebaseFirestoreException -> when (e.code) {
+        FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+            "Permission denied by the security rules — open the Firebase console → " +
+                "Firestore Database → Rules and make sure the latest (Phase 4) rules are published."
+        FirebaseFirestoreException.Code.FAILED_PRECONDITION,
+        FirebaseFirestoreException.Code.NOT_FOUND ->
+            "Firestore database not found — in the Firebase console open " +
+                "Build → Firestore Database and finish creating the database."
+        FirebaseFirestoreException.Code.UNAVAILABLE,
+        FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
+        FirebaseFirestoreException.Code.INTERNAL,
+        FirebaseFirestoreException.Code.UNKNOWN ->
+            "Cannot reach Firestore right now (network hiccup). Check the internet " +
+                "connection and try again."
+        else -> "Firestore error ${e.code}: ${e.message ?: "unknown"}"
+    }
+    else -> e.message ?: "Unknown error"
+}
 
 data class InviteCode(
     val invitationId: String,
@@ -126,11 +182,15 @@ suspend fun createInvitation(
         val invite = generateInviteCode()
         val ref = db.collection(INVITATION_COLLECTION).document(invite.invitationId)
         val exists = try {
-            ref.get().await().exists()
+            ref.get().awaitWithTimeout("checking the new code").exists()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: FirestoreUnreachableException) {
+            throw e // surface connectivity problems immediately, do not swallow
         } catch (_: Exception) {
-            false
+            false // id collision is astronomically unlikely; try another id
         }
-        if (exists) return@repeat // astronomically unlikely; try another id
+        if (exists) return@repeat
 
         val expiryMillis = System.currentTimeMillis() + INVITE_TTL_MILLIS
         val doc = hashMapOf(
@@ -143,7 +203,7 @@ suspend fun createInvitation(
             "createdAt" to FieldValue.serverTimestamp(),
             "expiresAt" to Timestamp(Date(expiryMillis))
         )
-        ref.set(doc).await()
+        ref.set(doc).awaitWithTimeout("creating the pairing code")
         return invite.copy(expiresAtMillis = expiryMillis)
     }
     throw IllegalStateException("Could not generate a unique code — please try again.")
@@ -152,12 +212,17 @@ suspend fun createInvitation(
 /** Live status of one invitation (waiting → paired / cancelled / expired). */
 fun watchInvitation(
     invId: String,
-    onChange: (InvitationView?) -> Unit
+    onChange: (InvitationView?) -> Unit,
+    onError: (Exception) -> Unit = {}
 ): ListenerRegistration =
     FirebaseFirestore.getInstance()
         .collection(INVITATION_COLLECTION)
         .document(invId)
-        .addSnapshotListener { snap, _ ->
+        .addSnapshotListener { snap, error ->
+            if (error != null) {
+                onError(error)
+                return@addSnapshotListener
+            }
             if (snap == null || !snap.exists()) {
                 onChange(null)
                 return@addSnapshotListener
@@ -183,7 +248,7 @@ suspend fun cancelInvitation(invId: String) {
                 "updatedAt" to FieldValue.serverTimestamp()
             )
         )
-        .await()
+        .awaitWithTimeout("cancelling the code")
 }
 
 /**
@@ -270,13 +335,14 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
             recipientDeviceModel = recipientDeviceModel,
             status = "ACTIVE"
         )
-    }.await()
+    }.awaitWithTimeout("pairing the two devices")
 }
 
 /** Live list of relationships where [user] is helper or recipient. */
 fun watchRelationships(
     user: FirebaseUser,
-    onUpdate: (List<RelationshipView>) -> Unit
+    onUpdate: (List<RelationshipView>) -> Unit,
+    onError: (Exception) -> Unit = {}
 ): () -> Unit {
     val db = FirebaseFirestore.getInstance()
     var helperSide: List<RelationshipView> = emptyList()
@@ -285,13 +351,21 @@ fun watchRelationships(
 
     val regHelper = db.collection(RELATIONSHIP_COLLECTION)
         .whereEqualTo("helperUid", user.uid)
-        .addSnapshotListener { snap, _ ->
+        .addSnapshotListener { snap, error ->
+            if (error != null) {
+                onError(error)
+                return@addSnapshotListener
+            }
             helperSide = snap?.documents?.mapNotNull { it.toRelationshipView() } ?: emptyList()
             emit()
         }
     val regRecipient = db.collection(RELATIONSHIP_COLLECTION)
         .whereEqualTo("recipientUid", user.uid)
-        .addSnapshotListener { snap, _ ->
+        .addSnapshotListener { snap, error ->
+            if (error != null) {
+                onError(error)
+                return@addSnapshotListener
+            }
             recipientSide = snap?.documents?.mapNotNull { it.toRelationshipView() } ?: emptyList()
             emit()
         }
@@ -312,7 +386,7 @@ suspend fun revokeRelationship(relId: String) {
                 "updatedAt" to FieldValue.serverTimestamp()
             )
         )
-        .await()
+        .awaitWithTimeout("revoking the pair")
 }
 
 private fun DocumentSnapshot.toRelationshipView(): RelationshipView? {
