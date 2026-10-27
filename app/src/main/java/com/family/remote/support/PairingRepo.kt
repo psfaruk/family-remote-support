@@ -73,7 +73,8 @@ fun describeFirestoreError(e: Exception): String = when (e) {
     is FirebaseFirestoreException -> when (e.code) {
         FirebaseFirestoreException.Code.PERMISSION_DENIED ->
             "Permission denied by the security rules — open the Firebase console → " +
-                "Firestore Database → Rules and make sure the latest (Phase 4) rules are published."
+                "Firestore Database → Rules, replace everything with the newest " +
+                "firestore.rules file from the repo (Phase 6 version) and press Publish."
         FirebaseFirestoreException.Code.FAILED_PRECONDITION,
         FirebaseFirestoreException.Code.NOT_FOUND ->
             "Firestore database not found — in the Firebase console open " +
