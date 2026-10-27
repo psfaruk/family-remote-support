@@ -5,6 +5,11 @@
     <!-- Phase 5: QR pairing-code scan (CameraX + ML Kit). Runtime prompt happens
          in the scan dialog; the app works fully without it (code typing). -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- v0.6.1: saving the pairing QR into the public Download folder on
+         Android 8–9 only. Android 10+ uses MediaStore (no permission). -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <application
         android:allowBackup="true"
@@ -21,6 +26,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- v0.6.1: lets the share sheet receive the QR PNG staged in the
+             app cache without exposing any other file. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
