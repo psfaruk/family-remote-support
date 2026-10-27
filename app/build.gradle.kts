@@ -13,8 +13,8 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.6.1"
+        versionCode = 11
+        versionName = "0.6.2"
 
         // Phase 3: Web Client ID (serverClientId) for Google Sign-In. CI can
         // still override it via the GOOGLE_WEB_CLIENT_ID env var, but the
