@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================
-// Remote Family Support — Phase 4 rules (least privilege)
+// Remote Family Support — Phase 5 rules (least privilege)
 // Owner pastes this into Firebase console → Firestore → Rules.
 //
 // Phase 3: users/{uid} self profile + own devices.
@@ -12,6 +12,8 @@ rules_version = '2';
 //   - Redemption is one atomic client transaction; the rules
 //     re-verify every condition server-side (including the
 //     post-transaction state via getAfter()).
+// Phase 5: devicePresence (heartbeat, TTL badges in the UI) +
+//   fcmTokens (push registration; sending comes later).
 // Everything not matched below is denied by default.
 // ============================================================
 
@@ -142,6 +144,48 @@ service cloud.firestore {
                 && inviteAfter(request.resource.data).claimedBy == request.auth.uid));
 
       allow delete: if false;
+    }
+
+    // ---------- Phase 5: device presence (heartbeat) ----------
+    // One heartbeat doc per device: {uid}_{deviceId}. Writers may only touch
+    // their own device's doc (doc id must match uid + 24-hex device id);
+    // readers may read their own or a paired counterpart's (relationship doc
+    // id == pairKey == helperUid_recipientUid).
+    match /devicePresence/{docId} {
+      function myPairing(deviceUid) {
+        return exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid))
+          || exists(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid));
+      }
+
+      allow get: if signedIn()
+        && (resource.data.uid == request.auth.uid || myPairing(resource.data.uid));
+      allow list: if signedIn()
+        && (resource.data.uid == request.auth.uid || myPairing(resource.data.uid));
+
+      allow create, update: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && docId.matches(request.auth.uid + '_[0-9a-f]{24}')
+        && request.resource.data.keys().hasOnly(
+          ['uid', 'deviceId', 'model', 'heartbeatAt', 'updatedAt']
+        )
+        && request.resource.data.uid is string
+        && request.resource.data.deviceId is string
+        && request.resource.data.model is string;
+
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---------- Phase 5: FCM token registry ----------
+    // Push registration only — sending notifications is a server-side concern
+    // in a later phase. Tokens are strictly private to their owner.
+    match /fcmTokens/{tokenId} {
+      allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'deviceId', 'token', 'updatedAt'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() >= 32;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     // Catch-all: deny everything not matched above.
