@@ -5,19 +5,20 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **Phase 0–3 ✅** — planning, project skeleton, Firebase + Google Sign-In, trusted device registry.
-- **Phase 4 ✅ (v0.5.2, versionCode 8)** — code-based pairing (6-char id + one-time token, SHA-256
-  hash stored, 5-min expiry, atomic redemption) + QR display + live watchers + cancel/redeem.
-  Verified on Owner's phone: profile saved ("Registered ✓"), device list read, pairing code +
-  QR + countdown + snapshot listeners all live. No hangs, no "Could not reach Firestore".
-- **Phase 5 🚧 (v0.6.0 → v0.6.1)** — device presence (heartbeat + TTL badges), FCM token registration,
-  QR camera scan (CameraX + ML Kit), revoke UI.
-  - **v0.6.1 bugfix:** `redeemCode` failed for everyone with `INVALID_ARGUMENT: Firestore
-    transactions require all reads to be executed before all writes` — the relationship doc was
-    read *after* the invitation update inside the transaction; now both reads happen first.
-  - **v0.6.1 features:** the pairing QR panel now has **Copy code** (clipboard), **Save QR**
-    (PNG → `Download/pairing-code-<ID>.png`, MediaStore on Android 10+, runtime permission on
-    Android 8–9) and **Share** (share sheet via FileProvider: QR image + readable code text).
+- **Phase 0–5 ✅** — planning, skeleton, Firebase + Google Sign-In, device registry, pairing
+  (code + QR + Copy/Save/Share), presence + FCM registration + QR scan + revoke. Pairing verified
+  end-to-end on two Google accounts by the Owner (v0.6.2).
+- **Phase 6 🚧 (v0.7.0, versionCode 12)** — **support session consent flow**:
+  helper taps **Start session** on a paired device → the recipient phone gets a live permission
+  card (and a notification while the app is backgrounded) with a **2-minute** Allow/Deny ask →
+  allowed sessions run for **15 minutes** with a live countdown and auto-end (either side can end
+  early) → DENIED / CANCELLED / EXPIRED / timeout are all first-class outcomes. One open session
+  per pair at a time. Every transition is a Firestore transaction re-checked by security rules
+  (`supportSessions` in firestore.rules).
+  - Notification transport today is a process-lifetime Firestore listener — works while the app
+    is backgrounded but alive. Push-when-killed arrives with the Phase 7 server (FCM HTTP v1),
+    using the tokens registered in Phase 5.
+  - **The new rules MUST be re-published** (same console paste path as v0.6.2) before testing.
 
 ## Firestore
 
@@ -26,8 +27,9 @@ A trusted family member helps fix another family phone — always with the recei
   (`FirebaseFirestore.getInstance(BuildConfig.FIRESTORE_DATABASE_ID)`), overridable in CI
   via the `FIRESTORE_DATABASE_ID` env var.
 - Security rules: `firestore.rules` (Phase 4: users, users/{uid}/devices, pairingInvitations,
-  trustedDeviceRelationships; catch-all deny). Published live as ruleset `732d38cb…`
-  on release `cloud.firestore/default`.
+  trustedDeviceRelationships; Phase 5: devicePresence + fcmTokens; Phase 6: supportSessions;
+  catch-all deny). Rules are re-published by the Owner via the console paste path after every
+  rules change (latest paste: Phase 6 block).
 - Realtime Database exists in the project but is locked deny-all and unused by the app.
 
 ## Build
