@@ -13,8 +13,15 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.7.1"
+        versionCode = 14
+        versionName = "0.8.0"
+
+        // Phase 7 — WebRTC screen share ships native .so libraries for all four
+        // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
+        // APK half the size.
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
 
         // Phase 3: Web Client ID (serverClientId) for Google Sign-In. CI can
         // still override it via the GOOGLE_WEB_CLIENT_ID env var, but the
@@ -117,4 +124,9 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("com.google.firebase:firebase-messaging")
+
+    // Phase 7 — WebRTC screen share. stream-webrtc-android is the maintained
+    // Maven-Central build of libwebrtc (org.webrtc.* API, same as the old
+    // google-webrtc artifact that was dropped from JCenter).
+    implementation("io.getstream:stream-webrtc-android:1.3.8")
 }
