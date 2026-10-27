@@ -54,7 +54,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
@@ -113,7 +112,7 @@ private fun stableDeviceId(context: Context): String {
 
 /** Write/merge the user profile + this device's record in Firestore. */
 private suspend fun registerDevice(context: Context, user: FirebaseUser): String {
-    val db = FirebaseFirestore.getInstance()
+    val db = Fb.db
     val profile = hashMapOf(
         "displayName" to (user.displayName ?: ""),
         "email" to (user.email ?: ""),
@@ -141,7 +140,7 @@ private suspend fun registerDevice(context: Context, user: FirebaseUser): String
 
 /** Read back the device list registered under this account. */
 private suspend fun loadDevices(user: FirebaseUser): List<String> {
-    val snapshot = FirebaseFirestore.getInstance()
+    val snapshot = Fb.db
         .collection("users").document(user.uid)
         .collection("devices")
         .get()
