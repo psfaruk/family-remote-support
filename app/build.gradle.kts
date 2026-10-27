@@ -111,6 +111,9 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
+    // ProcessCameraProvider.getInstance() returns a ListenableFuture; the
+    // type must be on the compile classpath (camera-core keeps it internal).
+    implementation("androidx.concurrent:concurrent-futures:1.2.0")
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("com.google.firebase:firebase-messaging")
