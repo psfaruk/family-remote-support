@@ -88,7 +88,7 @@ object SessionNotifier {
                     if (deadline > now) post(context, doc)
                 }
                 if (seenRequestIds.size > 50) {
-                    seenRequestIds = seenRequestIds.takeLast(20).toMutableSet()
+                    seenRequestIds = seenRequestIds.toList().takeLast(20).toMutableSet()
                 }
             }
     }
