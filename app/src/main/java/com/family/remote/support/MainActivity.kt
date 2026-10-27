@@ -358,7 +358,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.4.0 (Phase 3)")
+            StatusRow(label = "App version", value = "0.4.1 (Phase 3)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
