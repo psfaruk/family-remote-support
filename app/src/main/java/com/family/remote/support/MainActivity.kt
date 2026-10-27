@@ -101,7 +101,7 @@ private suspend fun signInWithGoogle(activity: ComponentActivity): FirebaseUser 
 }
 
 /** Stable per-device id (hashed ANDROID_ID) used as the Firestore doc id. */
-private fun stableDeviceId(context: Context): String {
+internal fun stableDeviceId(context: Context): String {
     val androidId = Settings.Secure.getString(
         context.contentResolver,
         Settings.Secure.ANDROID_ID
@@ -164,6 +164,8 @@ fun HomeScreen() {
     var deviceStatus by remember { mutableStateOf("Not checked yet") }
     var deviceList by remember { mutableStateOf<List<String>>(emptyList()) }
     var registerRetryKey by remember { mutableStateOf(0) }
+    var presenceStatus by remember { mutableStateOf("Not sent yet") }
+    var pushStatus by remember { mutableStateOf("Not set up yet") }
 
     val webClientConfigured = remember { BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank() }
     val firebaseProjectId = remember {
@@ -181,6 +183,9 @@ fun HomeScreen() {
         }
     }
 
+    // Phase 5 — schedule the 15-minute background heartbeat (idempotent).
+    LaunchedEffect(Unit) { schedulePeriodicHeartbeat(context) }
+
     // After sign-in (or on app open while signed in): refresh device record + list.
     // registerRetryKey lets the user retry manually if the Firestore write failed
     // (e.g. rules not published yet or a flaky network).
@@ -190,6 +195,23 @@ fun HomeScreen() {
         try {
             val deviceId = registerDevice(context, user)
             deviceStatus = "Registered ✓ (id ${deviceId.take(8)}…)"
+            // Phase 5 — presence heartbeat + push token registration.
+            try {
+                sendHeartbeat(user.uid, deviceId, Build.MODEL)
+                presenceStatus = "Online ✓ — heartbeat sent just now"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                presenceStatus = "Presence failed: ${describeFirestoreError(e)}"
+            }
+            try {
+                registerFcmToken(user.uid, deviceId)
+                pushStatus = "Push notifications ready ✓"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                pushStatus = "Push setup failed: ${describeFirestoreError(e)}"
+            }
             deviceList = loadDevices(user)
         } catch (e: CancellationException) {
             throw e
@@ -334,6 +356,10 @@ fun HomeScreen() {
                             Text("Retry registration")
                         }
                     }
+                    if (signedInUser != null) {
+                        StatusRow(label = "Presence (Phase 5)", value = presenceStatus)
+                        StatusRow(label = "Push notifications", value = pushStatus)
+                    }
                     if (deviceList.isEmpty()) {
                         Text(
                             text = "No devices on this account yet.",
@@ -377,11 +403,11 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.5.1 (Phase 4)")
+            StatusRow(label = "App version", value = "0.6.0 (Phase 5)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(label = "Next milestone", value = "Phase 5 - QR scan, presence & FCM")
+            StatusRow(label = "Next milestone", value = "Phase 6 - support session & screen share")
         }
     }
 }
@@ -443,6 +469,7 @@ private fun PairingSections(user: FirebaseUser) {
     var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
     var relationshipsSyncError by remember { mutableStateOf<String?>(null) }
     var revokingId by remember { mutableStateOf<String?>(null) }
+    var showScanner by remember { mutableStateOf(false) }
 
     // Ticks the countdown once per second while an invitation exists.
     LaunchedEffect(invite?.invitationId) {
@@ -609,13 +636,34 @@ private fun PairingSections(user: FirebaseUser) {
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold
     )
-    OutlinedTextField(
-        value = codeInput,
-        onValueChange = { codeInput = it },
-        label = { Text("Pairing code") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = codeInput,
+            onValueChange = { codeInput = it },
+            label = { Text("Pairing code") },
+            singleLine = true,
+            modifier = Modifier.weight(1f)
+        )
+        Button(
+            enabled = !redeeming,
+            onClick = { showScanner = true }
+        ) {
+            Text("Scan QR")
+        }
+    }
+    if (showScanner) {
+        QrScanDialog(
+            onCode = { code ->
+                codeInput = code
+                redeemMessage = null
+                showScanner = false
+            },
+            onDismiss = { showScanner = false }
+        )
+    }
     Button(
         enabled = !redeeming && codeInput.isNotBlank(),
         onClick = {
@@ -692,10 +740,20 @@ private fun PairingSections(user: FirebaseUser) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
-                    Text(
-                        text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
+                        }
+                    } else {
+                        Text(
+                            text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
                 if (rel.status == "ACTIVE") {
                     OutlinedButton(
@@ -747,4 +805,59 @@ fun StatusRow(label: String, value: String) {
             fontWeight = FontWeight.Medium
         )
     }
+}
+
+/**
+ * Phase 5 — live presence dot for one device (doc devicePresence/{uid}_{deviceId}).
+ * Shows "Online" while the heartbeat is fresh, "Last seen … ago" up to an hour,
+ * then "Offline". Refreshes the age every 10 seconds.
+ */
+@Composable
+fun PresenceBadge(uid: String, deviceId: String) {
+    var heartbeatAt by remember(uid, deviceId) { mutableStateOf<Long?>(null) }
+    var unavailable by remember(uid, deviceId) { mutableStateOf(false) }
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(uid, deviceId) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(10_000)
+        }
+    }
+    DisposableEffect(uid, deviceId) {
+        val stopWatching = watchDevicePresence(
+            uid,
+            deviceId,
+            onChange = { view ->
+                unavailable = false
+                heartbeatAt = view?.heartbeatAtMillis
+            },
+            onError = { unavailable = true }
+        )
+        onDispose { stopWatching() }
+    }
+
+    val label = when {
+        unavailable -> "presence unavailable"
+        heartbeatAt == null || heartbeatAt == 0L -> "never seen"
+        else -> {
+            val age = nowMillis - heartbeatAt!!
+            when {
+                age < 0 -> "Online"
+                age < PRESENCE_ONLINE_MILLIS -> "Online"
+                age < PRESENCE_STALE_MILLIS -> "last seen ${age / 60000} min ago"
+                else -> "offline"
+            }
+        }
+    }
+    Text(
+        text = " · $label",
+        style = MaterialTheme.typography.bodySmall,
+        color = when {
+            label == "Online" -> MaterialTheme.colorScheme.primary
+            unavailable -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        fontWeight = FontWeight.Medium
+    )
 }
