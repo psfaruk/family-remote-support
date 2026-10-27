@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -191,7 +192,11 @@ fun HomeScreen() {
     }
 
     // Phase 5 — schedule the 15-minute background heartbeat (idempotent).
-    LaunchedEffect(Unit) { schedulePeriodicHeartbeat(context) }
+    // Phase 6 — session-request notifications while the app is backgrounded.
+    LaunchedEffect(Unit) {
+        schedulePeriodicHeartbeat(context)
+        SessionNotifier.start(context)
+    }
 
     // After sign-in (or on app open while signed in): refresh device record + list.
     // registerRetryKey lets the user retry manually if the Firestore write failed
@@ -410,11 +415,11 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.6.2 (Phase 5)")
+            StatusRow(label = "App version", value = "0.7.0 (Phase 6)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(label = "Next milestone", value = "Phase 6 - support session & screen share")
+            StatusRow(label = "Next milestone", value = "Phase 7 - signaling server & screen share")
         }
     }
 }
@@ -478,6 +483,13 @@ private fun PairingSections(user: FirebaseUser) {
     var revokingId by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
 
+    // Phase 6 — support session state.
+    var sessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
+    var sessionSyncError by remember { mutableStateOf<String?>(null) }
+    var sessionBusy by remember { mutableStateOf(false) }
+    var sessionMessage by remember { mutableStateOf<String?>(null) }
+    var sessionNow by remember { mutableStateOf(System.currentTimeMillis()) }
+
     // Ticks the countdown once per second while an invitation exists.
     LaunchedEffect(invite?.invitationId) {
         if (invite != null) {
@@ -512,6 +524,123 @@ private fun PairingSections(user: FirebaseUser) {
             onError = { e -> relationshipsSyncError = describeFirestoreError(e) }
         )
         onDispose { stopWatching() }
+    }
+
+    // Phase 6 — live list of this account's support sessions (both roles).
+    DisposableEffect(user.uid) {
+        val stopWatching = watchSessions(
+            user,
+            onUpdate = { sessionSyncError = null; sessions = it },
+            onError = { e -> sessionSyncError = describeFirestoreError(e) }
+        )
+        onDispose { stopWatching() }
+    }
+
+    val openSession = sessions.firstOrNull {
+        it.status == "REQUESTED" || it.status == "ACTIVE"
+    }
+
+    // Ticks once per second while a session is open so countdowns stay live.
+    LaunchedEffect(openSession?.id, openSession?.status) {
+        if (openSession != null) {
+            while (true) {
+                sessionNow = System.currentTimeMillis()
+                delay(1000)
+            }
+        } else {
+            sessionNow = System.currentTimeMillis()
+        }
+    }
+
+    // Lazy server-less expiry: a stale ask turns EXPIRED, an over-time active
+    // session turns ENDED("timeout"). Whichever app notices first does it.
+    LaunchedEffect(openSession?.id, openSession?.status, sessionNow) {
+        val s = openSession ?: return@LaunchedEffect
+        when (s.status) {
+            "REQUESTED" -> if (sessionNow > s.respondDeadlineMillis + 4000) {
+                try {
+                    expireSession(s.id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // best effort — the other side will clean it up
+                }
+            }
+            "ACTIVE" -> if (s.sessionEndsAtMillis > 0 &&
+                sessionNow > s.sessionEndsAtMillis + 4000
+            ) {
+                try {
+                    endSession(s.id, user.uid, byTimeout = true)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // best effort
+                }
+            }
+        }
+    }
+
+    val startSessionFor: (RelationshipView) -> Unit = { rel ->
+        scope.launch {
+            sessionBusy = true
+            sessionMessage = null
+            try {
+                requestSession(user, rel)
+                sessionMessage =
+                    "Request sent — waiting for ${rel.recipientEmail} to allow."
+            } catch (e: SessionException) {
+                sessionMessage = e.message
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                sessionMessage = "Could not send the request: ${describeFirestoreError(e)}"
+            } finally {
+                sessionBusy = false
+            }
+        }
+    }
+
+    val answerSession: (SessionView, Boolean) -> Unit = { s, allow ->
+        scope.launch {
+            sessionBusy = true
+            sessionMessage = null
+            try {
+                if (allow) {
+                    grantSession(s.id, user.uid)
+                    sessionMessage =
+                        "Session allowed ✓ — it ends automatically in 15 minutes."
+                } else {
+                    denySession(s.id, user.uid)
+                    sessionMessage = "Request denied."
+                }
+            } catch (e: SessionException) {
+                sessionMessage = e.message
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                sessionMessage = "Could not answer the request: ${describeFirestoreError(e)}"
+            } finally {
+                sessionBusy = false
+            }
+        }
+    }
+
+    val finishSession: (SessionView) -> Unit = { s ->
+        scope.launch {
+            sessionBusy = true
+            try {
+                endSession(s.id, user.uid)
+                sessionMessage = "Session ended."
+            } catch (e: SessionException) {
+                sessionMessage = e.message
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                sessionMessage = "Could not end the session: ${describeFirestoreError(e)}"
+            } finally {
+                sessionBusy = false
+            }
+        }
     }
 
     val currentInvite = invite
@@ -861,6 +990,15 @@ private fun PairingSections(user: FirebaseUser) {
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                    // Phase 6 — helper can ask to start a support session.
+                    if (rel.status == "ACTIVE" && rel.helperUid == user.uid) {
+                        Button(
+                            enabled = !sessionBusy && openSession == null,
+                            onClick = { startSessionFor(rel) }
+                        ) {
+                            Text("Start session (asks permission)")
+                        }
+                    }
                 }
                 if (rel.status == "ACTIVE") {
                     OutlinedButton(
@@ -887,6 +1025,187 @@ private fun PairingSections(user: FirebaseUser) {
         }
     }
 
+    // ---------- Section D: Phase 6 — support session ----------
+    HorizontalDivider()
+    Text(
+        text = "Phase 6 — Support session",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+    Text(
+        text = "Pairing alone never grants access. Every session starts with a live " +
+            "permission ask on the phone that needs help, and ends automatically.",
+        style = MaterialTheme.typography.bodySmall
+    )
+
+    // Android 13+ gates notifications behind a runtime permission.
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        OutlinedButton(
+            onClick = {
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        ) {
+            Text("Enable notifications")
+        }
+        Text(
+            text = "Needed to see help requests while this app is closed or in the background.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+
+    val currentSession = openSession
+    when {
+        currentSession != null && currentSession.status == "REQUESTED" &&
+            currentSession.recipientUid == user.uid -> {
+            // This phone was asked — the prominent consent card.
+            val secondsLeft =
+                ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${currentSession.helperEmail.ifBlank { "Someone" }} wants to help with this phone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Allow only if you know them and want help right now. " +
+                            "The ask expires in ${mmss(secondsLeft)}.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            enabled = !sessionBusy,
+                            onClick = { answerSession(currentSession, true) }
+                        ) {
+                            Text("Allow")
+                        }
+                        OutlinedButton(
+                            enabled = !sessionBusy,
+                            onClick = { answerSession(currentSession, false) }
+                        ) {
+                            Text("Deny")
+                        }
+                    }
+                }
+            }
+        }
+        currentSession != null && currentSession.status == "REQUESTED" -> {
+            // Helper waiting for the answer.
+            val secondsLeft =
+                ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
+            Text(
+                text = "Asking ${currentSession.recipientEmail} to allow a support session… " +
+                    "The ask expires in ${mmss(secondsLeft)}.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            OutlinedButton(
+                enabled = !sessionBusy,
+                onClick = {
+                    scope.launch {
+                        sessionBusy = true
+                        try {
+                            cancelSession(currentSession.id, user.uid)
+                            sessionMessage = "Request cancelled."
+                        } catch (e: SessionException) {
+                            sessionMessage = e.message
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            sessionMessage = "Could not cancel: ${describeFirestoreError(e)}"
+                        } finally {
+                            sessionBusy = false
+                        }
+                    }
+                }
+            ) {
+                Text("Cancel request")
+            }
+        }
+        currentSession != null && currentSession.status == "ACTIVE" -> {
+            // Live session on either side.
+            val secondsLeft =
+                ((currentSession.sessionEndsAtMillis - sessionNow) / 1000).coerceAtLeast(0)
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (currentSession.helperUid == user.uid) {
+                            "Support session active — you are helping ${currentSession.recipientEmail}."
+                        } else {
+                            "Support session active — ${currentSession.helperEmail} is helping you."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Ends automatically in ${mmss(secondsLeft)}. You can end it earlier below.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    OutlinedButton(
+                        enabled = !sessionBusy,
+                        onClick = { finishSession(currentSession) }
+                    ) {
+                        Text("End session")
+                    }
+                }
+            }
+        }
+        else -> {
+            val lastFinished = sessions.firstOrNull {
+                it.status != "REQUESTED" && it.status != "ACTIVE"
+            }
+            if (lastFinished != null) {
+                val byWhom = when (lastFinished.endedBy) {
+                    null, "" -> ""
+                    "timeout" -> " (auto-timeout)"
+                    lastFinished.helperUid -> " (ended by helper)"
+                    lastFinished.recipientUid -> " (ended by recipient)"
+                    else -> ""
+                }
+                Text(
+                    text = "Last session: ${lastFinished.status.lowercase()}$byWhom",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+
+    if (sessionSyncError != null) {
+        Text(
+            text = sessionSyncError!!,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
+    }
+    sessionMessage?.let {
+        Text(text = it, style = MaterialTheme.typography.bodySmall)
+    }
+
     pairingError?.let {
         Text(
             text = it,
@@ -895,6 +1214,9 @@ private fun PairingSections(user: FirebaseUser) {
         )
     }
 }
+
+/** "M:SS" countdown text used by the session cards. */
+private fun mmss(seconds: Long): String = "%d:%02d".format(seconds / 60, seconds % 60)
 
 @Composable
 fun StatusRow(label: String, value: String) {
