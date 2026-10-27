@@ -107,8 +107,15 @@ service cloud.firestore {
         return getAfter(/databases/$(database)/documents/pairingInvitations/$(relData.createdByInvitation)).data;
       }
 
+      // v0.6.2 fix: the redeem transaction READS the relationship doc to
+      // decide create-vs-update BEFORE it exists. A get on a non-existent
+      // document has no fields, so the ownership-only condition used to
+      // deny it and every pairing failed with PERMISSION_DENIED. Allow the
+      // read while the document is still absent — it carries no data, so
+      // nothing leaks.
       allow get: if signedIn()
-        && (resource.data.helperUid == request.auth.uid
+        && (!exists(/databases/$(database)/documents/trustedDeviceRelationships/$(relId))
+            || resource.data.helperUid == request.auth.uid
             || resource.data.recipientUid == request.auth.uid);
 
       // Listing is only allowed when the query itself constrains the
