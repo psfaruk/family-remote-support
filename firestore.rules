@@ -325,6 +325,17 @@ service cloud.firestore {
       }
     }
 
+    // ---------- Phase 7.2 (v0.8.3): runtime app config ----------
+    // config/turn holds optional TURN relay credentials the app reads at
+    // session start. Apps may READ only; writes happen exclusively through
+    // the Owner's service account (the Admin SDK bypasses these rules), so
+    // relay credentials can be rotated without ever shipping a new APK.
+    match /config/{docId} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
     // Catch-all: deny everything not matched above.
     match /{document=**} {
       allow read, write: if false;
