@@ -437,10 +437,16 @@ object ScreenShareEngine {
             val source = factory!!.createVideoSource(true)
             val cap = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {})
             cap.initialize(helper, context.applicationContext, source.capturerObserver)
-            cap.startCapture(w, h, 15)
+            // v0.9.3 — 20 fps: 15 felt like a slideshow on family calls;
+            // 576x1280 VP8 encodes 20 fps comfortably on the fleet's SoCs.
+            cap.startCapture(w, h, 20)
 
             val track = factory!!.createVideoTrack("screen", source)
             peerConnection?.addTrack(track, listOf("screen"))
+            // v0.9.3 — give the screen stream a real bitrate budget
+            // (see applyScreenBitrate): without it a relayed 4G path sits
+            // blurry-laggy at the estimator's tiny default.
+            applyScreenBitrate(peerConnection, track)
             // v0.9.2 — the local track carries its one permanent proxy sink;
             // the UI's preview surface is just a swappable target.
             try {
@@ -453,13 +459,44 @@ object ScreenShareEngine {
             videoTrack = track
             capturer = cap
             captureAlive = true
-            diagLog("capture started ${w}x${h}@15")
+            diagLog("capture started ${w}x${h}@20")
             _state.value = ShareState.WAITING_PEER
             _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
             watchSignals()
         } catch (e: Exception) {
             captureAlive = false
             fail("Screen capture failed: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * v0.9.3 — QUALITY FIX. The 21:24 Dhaka session was CONNECTED and
+     * decoding, yet blurry and laggy: with no explicit bitrate the
+     * bandwidth estimator on a relayed mobile path starts tiny (a few
+     * hundred kbps) and is slow to climb, and VP8 then starves. Give the
+     * screen stream a real budget — min 800 kbps / max 2.5 Mbps — and
+     * keep the resolution (text must stay readable) instead of letting
+     * the encoder pump the resolution down. Best-effort: any build that
+     * rejects the parameters just keeps libwebrtc's defaults.
+     */
+    private fun applyScreenBitrate(pc: PeerConnection?, track: VideoTrack?) {
+        if (pc == null || track == null) return
+        try {
+            val sender = pc.senders.firstOrNull { it.track() === track } ?: return
+            val params = sender.parameters ?: return
+            params.encodings.firstOrNull()?.let { enc ->
+                enc.minBitrateBps = 800_000
+                enc.maxBitrateBps = 2_500_000
+            }
+            try {
+                params.degradationPreference =
+                    org.webrtc.RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
+            } catch (_: Exception) {
+            }
+            sender.setParameters(params)
+            diagLog("bitrate 800k–2.5M · keep-resolution set")
+        } catch (e: Exception) {
+            diagLog("bitrate set skipped: ${e.javaClass.simpleName}")
         }
     }
 
@@ -700,7 +737,11 @@ object ScreenShareEngine {
         // the screen track must be re-attached to the NEW pc. On the very
         // first round this is a no-op (the track is created afterwards).
         if (!isHelper && captureAlive) {
-            videoTrack?.let { pc.addTrack(it, listOf("screen")) }
+            videoTrack?.let { t ->
+                pc.addTrack(t, listOf("screen"))
+                // v0.9.3 — rebuilt pc ⇒ the bitrate budget must be re-applied.
+                applyScreenBitrate(pc, t)
+            }
         }
     }
 
@@ -859,18 +900,28 @@ object ScreenShareEngine {
         } catch (_: Exception) {
             return
         }
-        _assistStatus.value = if (obj.optBoolean("ok")) {
-            when (obj.optString("kind")) {
+        if (obj.optBoolean("ok")) {
+            _assistStatus.value = when (obj.optString("kind")) {
                 "back" -> "Back delivered ✓"
                 "home" -> "Home delivered ✓"
                 "recents" -> "Recents delivered ✓"
                 else -> "Tap delivered ✓"
             }
+            // Success clears itself shortly.
+            main.removeCallbacks(assistClear)
+            main.postDelayed(assistClear, 4000)
         } else {
-            "The recipient's phone cannot tap — Remote assist is switched off there."
+            // v0.9.3 — PERSISTENT + actionable. The 4-second auto-clear made
+            // the warning easy to miss: the 21:25 Dhaka session fired 30+
+            // taps while the recipient's assist stayed OFF the whole time.
+            // The banner now stays until a tap is actually delivered (each
+            // new ack replaces it) or the viewer closes.
+            _assistStatus.value =
+                "Remote assist is OFF on their phone — taps cannot land. " +
+                    "On THEIR screen's share card tap “Turn on Remote assist” " +
+                    "(one-time Android Accessibility setup)."
+            main.removeCallbacks(assistClear)
         }
-        main.removeCallbacks(assistClear)
-        main.postDelayed(assistClear, 4000)
     }
 
     /**
