@@ -421,7 +421,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.8.1 (Phase 7)")
+            StatusRow(label = "App version", value = "0.8.2 (Phase 7)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
@@ -616,6 +616,19 @@ private fun PairingSections(user: FirebaseUser) {
         if (openSession == null) {
             ScreenShareEngine.stopHelper()
             ScreenShareService.stop(context)
+        }
+    }
+
+    // v0.8.2 — the helper's "Request sent…" line is sticky in-memory state;
+    // once the session turns ACTIVE on the helper's side it is stale (the
+    // active card already says everything), so drop it instead of showing a
+    // stale ask-line under the live card.
+    LaunchedEffect(openSession?.id, openSession?.status) {
+        val s = openSession
+        if (s != null && s.status == "ACTIVE" && s.helperUid == user.uid &&
+            sessionMessage?.startsWith("Request sent") == true
+        ) {
+            sessionMessage = null
         }
     }
 
@@ -1299,8 +1312,17 @@ private fun ScreenSharePanel(
             }
         } else {
             var rendererView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+            // v0.8.2 — THE black-picture fix. The factory used to call
+            // attachRenderer() and then write `rendererView`; that state write
+            // restarted THIS effect, whose onDispose ran detachRenderer() AFTER
+            // the factory's attach — so the attachment was silently wiped a
+            // frame later. The engine kept decoding frames (the watchdog even
+            // showed "Live — receiving the screen ✓") while every surface
+            // stayed black on BOTH phones. Attaching here, in the effect body
+            // after the key settles, makes the last attach always win.
             DisposableEffect(rendererView) {
                 val view = rendererView
+                ScreenShareEngine.attachRenderer(view)
                 onDispose {
                     ScreenShareEngine.detachRenderer()
                     view?.release()
@@ -1318,9 +1340,11 @@ private fun ScreenSharePanel(
                             setMirror(false)
                             setEnableHardwareScaler(true)
                             rendererView = this
-                            ScreenShareEngine.attachRenderer(this)
                         }
-                    }
+                    },
+                    // Belt-and-braces: every recomposition re-asserts the
+                    // attachment (idempotent remove+add inside the engine).
+                    update = { view -> ScreenShareEngine.attachRenderer(view) }
                 )
             }
             OutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
@@ -1360,8 +1384,12 @@ private fun ScreenSharePanel(
             // fastest way to tell "my capture works" from "the connection is
             // broken" when the helper reports a black picture.
             var previewView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+            // v0.8.2 — same lifecycle fix as the helper's renderer: attach in
+            // the effect body so the restart-dispose can never wipe the
+            // factory's attach (this preview was black in the v0.8.1 report).
             DisposableEffect(previewView) {
                 val view = previewView
+                ScreenShareEngine.attachLocalPreview(view)
                 onDispose {
                     ScreenShareEngine.detachLocalPreview()
                     view?.release()
@@ -1383,9 +1411,9 @@ private fun ScreenSharePanel(
                             setMirror(false)
                             setEnableHardwareScaler(true)
                             previewView = this
-                            ScreenShareEngine.attachLocalPreview(this)
                         }
-                    }
+                    },
+                    update = { view -> ScreenShareEngine.attachLocalPreview(view) }
                 )
             }
             OutlinedButton(onClick = { ScreenShareService.stop(context) }) {
