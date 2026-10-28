@@ -18,11 +18,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -53,9 +56,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -1294,10 +1300,16 @@ private fun mmss(seconds: Long): String = "%d:%02d".format(seconds / 60, seconds
  * Recipient side: "Share screen" runs the system MediaProjection consent
  * dialog; on approval the foreground service starts and the engine captures.
  * "Stop sharing" tears it down (a "bye" signal stops the helper's viewer).
+ * v0.9.0 (Phase 8): the card also shows the Remote-assist state and offers
+ * the one-time enablement (system accessibility settings) that lets the
+ * helper tap on this screen.
  *
  * Helper side: "Watch screen" asks the recipient's engine for an offer and
- * renders the incoming track on a SurfaceViewRenderer (view only — no touch
- * control in this phase).
+ * renders the incoming track on a SurfaceViewRenderer. v0.9.0 (Phase 8): a
+ * "Touch control" switch turns the picture into a remote touch surface
+ * (taps are sent as epoch-gated "cmd" signals and performed by the
+ * recipient's assist service), with Back/Home/Recents shortcut buttons and
+ * per-command delivery feedback.
  */
 @Composable
 private fun ScreenSharePanel(
@@ -1328,7 +1340,12 @@ private fun ScreenSharePanel(
             // old fixed 220 dp box is what made the shared screen look tiny.
             val egl = ScreenShareEngine.eglBaseContext
             val frameSize by ScreenShareEngine.frameSize.collectAsState()
+            val assistStatus by ScreenShareEngine.assistStatus.collectAsState()
             var fullscreen by remember { mutableStateOf(false) }
+            // Phase 8 — when on, taps on the picture are delivered to the
+            // recipient's phone instead of opening the local full-screen view.
+            var assistMode by remember { mutableStateOf(false) }
+            var boxPx by remember { mutableStateOf(IntSize.Zero) }
             // Keep the helper's own screen on while a live stream is shown.
             if (state == ShareState.LIVE) {
                 DisposableEffect(Unit) {
@@ -1339,6 +1356,31 @@ private fun ScreenSharePanel(
                     }
                 }
             }
+            // Maps a tap inside the letterboxed video box to normalized (0..1)
+            // coordinates of the REAL remote frame and sends one "cmd" signal.
+            // Used both inline and in the full-screen dialog.
+            fun assistTapModifier(): Modifier = Modifier
+                .onSizeChanged { boxPx = it }
+                .pointerInput(frameSize) {
+                    detectTapGestures { off ->
+                        val fs = frameSize ?: return@detectTapGestures
+                        val (fw, fh) = fs
+                        if (fw <= 0 || fh <= 0 || boxPx.width <= 0 || boxPx.height <= 0) {
+                            return@detectTapGestures
+                        }
+                        val scale = minOf(
+                            boxPx.width.toFloat() / fw.toFloat(),
+                            boxPx.height.toFloat() / fh.toFloat()
+                        )
+                        val cw = fw * scale
+                        val ch = fh * scale
+                        val ox = (boxPx.width - cw) / 2f
+                        val oy = (boxPx.height - ch) / 2f
+                        val nx = ((off.x - ox) / cw).coerceIn(0f, 1f).toDouble()
+                        val ny = ((off.y - oy) / ch).coerceIn(0f, 1f).toDouble()
+                        ScreenShareEngine.sendAssistTap(nx, ny)
+                    }
+                }
             if (egl != null) {
                 if (fullscreen) {
                     Dialog(
@@ -1352,7 +1394,12 @@ private fun ScreenSharePanel(
                         ) {
                             VideoRendererBox(
                                 egl,
-                                Modifier.fillMaxSize()
+                                Modifier
+                                    .fillMaxSize()
+                                    .then(
+                                        if (assistMode && state == ShareState.LIVE) assistTapModifier()
+                                        else Modifier
+                                    )
                             )
                             Text(
                                 text = "✕  Close",
@@ -1375,14 +1422,61 @@ private fun ScreenSharePanel(
                             Modifier
                                 .fillMaxWidth()
                                 .height(targetHeight.coerceAtMost(480.dp))
-                                .clickable { fullscreen = true }
+                                .then(
+                                    if (assistMode && state == ShareState.LIVE) assistTapModifier()
+                                    else Modifier.clickable { fullscreen = true }
+                                )
                         )
                     }
                     Text(
-                        text = "Tap the picture for full screen.",
+                        text = if (assistMode && state == ShareState.LIVE)
+                            "Touch control is ON — tap the picture to tap THEIR phone."
+                        else
+                            "Tap the picture for full screen.",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+            }
+            // Phase 8 — the touch-control switch, global navigation buttons
+            // and per-command delivery feedback.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Touch control", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.weight(1f))
+                Switch(checked = assistMode, onCheckedChange = { assistMode = it })
+            }
+            Text(
+                text = if (assistMode)
+                    "ON — taps go to the recipient's phone (their Remote assist must be enabled)."
+                else
+                    "OFF — view only. Switch on to tap on the recipient's phone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (assistMode) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { ScreenShareEngine.sendAssistNav("back") }) {
+                        Text("◀ Back")
+                    }
+                    OutlinedButton(onClick = { ScreenShareEngine.sendAssistNav("home") }) {
+                        Text("⌂ Home")
+                    }
+                    OutlinedButton(onClick = { ScreenShareEngine.sendAssistNav("recents") }) {
+                        Text("▦ Recents")
+                    }
+                }
+                OutlinedButton(onClick = { fullscreen = true }) {
+                    Text("⛶ Full screen")
+                }
+            }
+            assistStatus?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
             }
             OutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
                 Text("Stop watching")
@@ -1455,6 +1549,47 @@ private fun ScreenSharePanel(
             }
             OutlinedButton(onClick = { ScreenShareService.stop(context) }) {
                 Text("Stop sharing")
+            }
+            // Phase 8 (v0.9.0) — Remote assist: state + one-time enablement.
+            // Without the service the helper stays view-only forever; with it
+            // they may tap (nothing more). The poll keeps the card honest if
+            // the user flips the service in system settings mid-session.
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            var assistOn by remember { mutableStateOf(AssistService.isReady) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    assistOn = AssistService.isReady
+                    delay(1500)
+                }
+            }
+            if (assistOn) {
+                Text(
+                    text = "Remote assist is ON — the helper can also tap on this screen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            } else {
+                Text(
+                    text = "Remote assist is OFF — the helper can watch but cannot tap.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                OutlinedButton(onClick = {
+                    try {
+                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    } catch (_: Exception) {
+                    }
+                }) {
+                    Text("Turn on Remote assist")
+                }
+                Text(
+                    text = "One-time setup: in Accessibility choose \"Family Remote " +
+                        "Support assist\" and switch it on. The service reads " +
+                        "nothing — it can only perform taps, and you can switch " +
+                        "it off any time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
