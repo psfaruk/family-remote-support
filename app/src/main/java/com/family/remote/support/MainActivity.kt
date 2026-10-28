@@ -439,11 +439,11 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.8.3 (Phase 7)")
+            StatusRow(label = "App version", value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(label = "Next milestone", value = "Phase 8 - assisted remote control")
+            StatusRow(label = "Next milestone", value = "Phase 9 - UI polish & family-scale rollout")
         }
     }
 }
