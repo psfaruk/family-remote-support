@@ -10,13 +10,39 @@ A trusted family member helps fix another family phone — always with the recei
   **support session consent flow** — Start session → 2-min Allow/Deny ask → 15-min auto-ending
   session. Verified end-to-end on two Google accounts by the Owner (v0.7.1) AND at the data
   layer (ENDED + EXPIRED transitions confirmed in Firestore via the service account).
-- **Phase 7 🚧 (v0.8.2, versionCode 16)** — **live screen share (view only)**:
+- **Phase 7 🚧 (v0.8.3, versionCode 17)** — **live screen share (view only)**:
   - Recipient taps **Share screen** on an ACTIVE session → system MediaProjection consent →
     a `mediaProjection` foreground service (notification shown) captures ~720p @ 15 fps.
     A small **self-preview** ("this is what the helper sees") proves the capture works.
   - Helper taps **Watch screen** → the recipient's engine posts a WebRTC offer → helper
     answers → live video renders in the app. Either side can stop; the session ending (or
     timing out) stops everything automatically.
+  - **v0.8.3 (bigger picture + self-healing connection):**
+    - **Runtime-configurable TURN**: the free public relay the app shipped with
+      (openrelay.metered.ca) was verified DEAD in Oct 2025 (UDP silent, TCP refused) —
+      without a relay, two phones on different carrier networks (CGNAT) usually cannot
+      connect at all. The engine now reads optional TURN credentials from a
+      `config/turn` Firestore document (written by the Owner's service account,
+      read-only for apps) at every session start; credentials can be rotated later
+      WITHOUT a new APK. Empty config ⇒ STUN-only (same Wi-Fi / hotspot still works).
+      Candidate gathering is now `GATHER_CONTINUALLY`.
+    - **Self-healing watch rounds**: a "watch" is now accepted in ANY state while the
+      recipient's capture is alive — previously a watch arriving while the recipient
+      showed "Connection failed" was IGNORED, so the helper waited forever on
+      "Asked the recipient's phone…". A failed round on the recipient no longer kills
+      the share: only the PeerConnection is rebuilt and the engine returns to
+      WAITING_PEER (no "Stop sharing" + re-consent needed).
+    - **Helper auto-retry**: stuck stages (no offer within 12 s, no answer within 12 s,
+      no video within 14 s, or a hard FAILED) trigger an automatic fresh round — new
+      epoch + new PeerConnection + new "watch" — up to 3 retries (budget refills on
+      every success). Only after the budget is spent does the manual advice appear.
+    - **Network self-diagnosis**: while gathering, the app counts its candidates by
+      type and shows "Network check — direct: N · via STUN: M · via relay: K"; K>0 on
+      a screenshot proves a relay was reachable.
+    - **Bigger picture**: the helper's video is sized to the real screen aspect ratio
+      (decoded frame size published by the engine), capped to fit, and a tap opens a
+      **full-screen viewer** (black, edge-to-edge); the helper's screen stays on while
+      LIVE. The recipient's self-preview grew from 120 dp to 160 dp.
   - **v0.8.2 fix (black surface even while the watchdog said "Live ✓"):** the render
     surface was attached inside the Compose `AndroidView` factory and silently detached
     again a frame later, when the very same `DisposableEffect` restarted (its
@@ -40,9 +66,7 @@ A trusted family member helps fix another family phone — always with the recei
       "Live — receiving the screen ✓" on first decoded frame, or an explicit
       "Connected, but no video is arriving" warning; "Stop watching" no longer sends "bye",
       so the recipient keeps sharing and the helper can simply watch again.
-    - **VP8 preferred** (software codec — identical behaviour on every phone) and a free
-      community TURN relay (openrelay.metered.ca) added after Google STUN for hard-NAT
-      cases; if the relay is unavailable ICE falls back to STUN.
+    - **VP8 preferred** (software codec — identical behaviour on every phone).
   - **No signaling server**: offers/answers/ICE travel as short-lived Firestore docs under
     `supportSessions/{id}/signal`, addressed to one reader (`aud`) — the security rules
     re-check participant, direction, ACTIVE status and payload size server-side.
