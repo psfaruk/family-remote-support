@@ -74,6 +74,15 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  *     avoids broken H.264 hardware for screen content), and a free community
  *     TURN relay is added after the Google STUN servers for hard-NAT cases.
  *     If the relay is unavailable ICE simply falls back to STUN.
+ *  7. v0.8.2 — RENDER-ATTACH LIFECYCLE (the true remaining black screen):
+ *     the UI used to attach the video surface inside the Compose factory and
+ *     then silently detach it again when the view-state write restarted its
+ *     own effect (dispose-after-attach ordering). Frames kept flowing — the
+ *     helper watchdog even showed "Live ✓" — while every surface stayed black
+ *     on BOTH phones. Attaching now happens in the effect body and is
+ *     re-asserted on recomposition; a fresh "watch" round also resets
+ *     remoteDescriptionSet/pendingIce so a re-watch's answer-time candidates
+ *     can never be applied against the previous round's remote description.
  *
  * Threading: every WebRTC object is created and driven from the main thread
  * (fine for one ~720p screen stream); observer callbacks hop back onto the
@@ -462,6 +471,12 @@ object ScreenShareEngine {
                     // then offer the screen with an ICE restart so every round
                     // carries brand-new credentials and re-gathered candidates.
                     peerEpoch = payload
+                    // v0.8.2: fresh round ⇒ fresh remote-description state.
+                    // Without this, helper candidates arriving between the
+                    // offer and the answer were applied against the PREVIOUS
+                    // round's remote description and silently dropped.
+                    remoteDescriptionSet = false
+                    pendingIce.clear()
                     _info.value = "The helper asked to watch — sending the screen…"
                     val restart = MediaConstraints()
                     restart.mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
