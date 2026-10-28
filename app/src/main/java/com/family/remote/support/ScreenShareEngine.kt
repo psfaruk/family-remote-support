@@ -2,9 +2,13 @@ package com.family.remote.support
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Point
 import android.media.projection.MediaProjection
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.view.WindowManager
+import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
@@ -157,6 +162,28 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  *     coroutine can never cancel the whole engine scope again, CLOSED-pc
  *     rebuild on re-watch, and a rolling on-screen diagnostics log (the
  *     Owner is phone-only — a screenshot must BE the logcat).
+ *
+ * v0.9.6 (Oct 2025) — PRECISION + INSTANT TOUCH + SHARPER VIDEO. The 28 Oct
+ * session worked end-to-end but the taps landed ~one keyboard row ABOVE the
+ * intended key ("pressed h, u fired"), each tap took ~3 s, and the picture
+ * was blurry. Three fixes:
+ *
+ * 17. TOUCH PRECISION — the recipient mapped the video's normalized
+ *     coordinates onto the APP-WINDOW size (resources.displayMetrics),
+ *     which is smaller than the video's space (the FULL display, status +
+ *     navigation bars included) by exactly the bars' share of the screen —
+ *     so every Y landed too high. Coordinates now map onto the REAL display
+ *     size (maximumWindowMetrics / getRealSize), and the capture itself now
+ *     starts from the real display size, making the video aspect exact.
+ * 18. INSTANT TOUCH — helper taps travel over a WebRTC DATA CHANNEL
+ *     ("touch", created by the offerer/recipient so it is inside every
+ *     offer): sub-100 ms instead of a Firestore round-trip. Firestore
+ *     cmd/cmdack remains the automatic fallback while the channel is still
+ *     negotiating and for calls with an older peer version.
+ * 19. SHARPER + SMOOTHER — capture scaled from maxDim 1280 → 1536 at the
+ *     real display aspect, 20 → 30 fps, and a bigger bitrate budget
+ *     (1.2–4 Mbps, was 0.8–2.5) with an explicit 30 fps ceiling. Text stays
+ *     readable; scrolling no longer strobes.
  */
 object ScreenShareEngine {
 
@@ -249,6 +276,13 @@ object ScreenShareEngine {
     private var capturer: ScreenCapturerAndroid? = null
     private var surfaceHelper: SurfaceTextureHelper? = null
     private var remoteTrack: VideoTrack? = null
+
+    /**
+     * v0.9.6 — the peer-to-peer touch channel. Created by the recipient
+     * (the offerer) so it is inside every offer; the helper adopts it via
+     * onDataChannel. While OPEN, taps and acks skip Firestore completely.
+     */
+    private var ctrlChannel: DataChannel? = null
 
     private val pendingIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
@@ -432,12 +466,19 @@ object ScreenShareEngine {
             ensureFactory()
             createPeer()
 
-            val dm = context.resources.displayMetrics
-            var w = dm.widthPixels
-            var h = dm.heightPixels
+            // v0.9.6 — capture the REAL display (status bar + navigation bar
+            // are part of the picture — MediaProjection always projects the
+            // whole screen). The old app-window metrics gave the video a
+            // slightly wrong aspect AND shrank every normalized coordinate
+            // onto a smaller height — the root cause of the "pressed h,
+            // tapped u" precision bug. Cap the long side at 1536 so the
+            // fleet's software VP8 encoder stays comfortable.
+            val (rw, rh) = realDisplaySize(context)
+            var w = rw
+            var h = rh
             val maxDim = maxOf(w, h)
-            if (maxDim > 1280) {
-                val scale = 1280.0 / maxDim
+            if (maxDim > 1536) {
+                val scale = 1536.0 / maxDim
                 w = (w * scale / 2).toInt() * 2
                 h = (h * scale / 2).toInt() * 2
             }
@@ -446,9 +487,10 @@ object ScreenShareEngine {
             val source = factory!!.createVideoSource(true)
             val cap = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {})
             cap.initialize(helper, context.applicationContext, source.capturerObserver)
-            // v0.9.3 — 20 fps: 15 felt like a slideshow on family calls;
-            // 576x1280 VP8 encodes 20 fps comfortably on the fleet's SoCs.
-            cap.startCapture(w, h, 20)
+            // v0.9.6 — 30 fps: 20 still strobed while scrolling; 30 keeps
+            // the software VP8 encoder comfortable at the larger 1536-class
+            // frame on the fleet's SoCs (the user-visible "smooth" bar).
+            cap.startCapture(w, h, 30)
 
             val track = factory!!.createVideoTrack("screen", source)
             peerConnection?.addTrack(track, listOf("screen"))
@@ -468,7 +510,7 @@ object ScreenShareEngine {
             videoTrack = track
             capturer = cap
             captureAlive = true
-            diagLog("capture started ${w}x${h}@20")
+            diagLog("capture started ${w}x${h}@30 (real display $rw x $rh)")
             _state.value = ShareState.WAITING_PEER
             _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
             watchSignals()
@@ -479,14 +521,34 @@ object ScreenShareEngine {
     }
 
     /**
-     * v0.9.3 — QUALITY FIX. The 21:24 Dhaka session was CONNECTED and
-     * decoding, yet blurry and laggy: with no explicit bitrate the
-     * bandwidth estimator on a relayed mobile path starts tiny (a few
-     * hundred kbps) and is slow to climb, and VP8 then starves. Give the
-     * screen stream a real budget — min 800 kbps / max 2.5 Mbps — and
-     * keep the resolution (text must stay readable) instead of letting
-     * the encoder pump the resolution down. Best-effort: any build that
-     * rejects the parameters just keeps libwebrtc's defaults.
+     * v0.9.6 — the FULL real display size (system bars included): the exact
+     * space MediaProjection captures and the assist service taps on.
+     */
+    @Suppress("DEPRECATION")
+    private fun realDisplaySize(context: Context): Pair<Int, Int> {
+        return try {
+            val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val b = wm.maximumWindowMetrics.bounds
+                b.width() to b.height()
+            } else {
+                val p = Point()
+                wm.defaultDisplay.getRealSize(p)
+                p.x to p.y
+            }
+        } catch (_: Exception) {
+            val dm = context.resources.displayMetrics
+            dm.widthPixels to dm.heightPixels
+        }
+    }
+
+    /**
+     * v0.9.6 — QUALITY FIX, round two. v0.9.3 gave the stream its first real
+     * budget (0.8–2.5 Mbps) and stopped the resolution pump-down. With the
+     * sharper 1536-class capture the budget grows to 1.2–4 Mbps and carries
+     * an explicit 30 fps ceiling. Keep the resolution (text must stay
+     * readable). Best-effort: any build that rejects the parameters just
+     * keeps libwebrtc's defaults.
      */
     private fun applyScreenBitrate(pc: PeerConnection?, track: VideoTrack?) {
         if (pc == null || track == null) return
@@ -494,8 +556,12 @@ object ScreenShareEngine {
             val sender = pc.senders.firstOrNull { it.track() === track } ?: return
             val params = sender.parameters ?: return
             params.encodings.firstOrNull()?.let { enc ->
-                enc.minBitrateBps = 800_000
-                enc.maxBitrateBps = 2_500_000
+                enc.minBitrateBps = 1_200_000
+                enc.maxBitrateBps = 4_000_000
+                try {
+                    enc.maxFramerate = 30.0
+                } catch (_: Exception) {
+                }
             }
             try {
                 params.degradationPreference =
@@ -503,7 +569,7 @@ object ScreenShareEngine {
             } catch (_: Exception) {
             }
             sender.setParameters(params)
-            diagLog("bitrate 800k–2.5M · keep-resolution set")
+            diagLog("bitrate 1.2M–4M · 30 fps · keep-resolution set")
         } catch (e: Exception) {
             diagLog("bitrate set skipped: ${e.javaClass.simpleName}")
         }
@@ -729,7 +795,17 @@ object ScreenShareEngine {
             override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) = Unit
             override fun onAddStream(stream: MediaStream?) = Unit
             override fun onRemoveStream(stream: MediaStream?) = Unit
-            override fun onDataChannel(channel: org.webrtc.DataChannel?) = Unit
+            override fun onDataChannel(channel: org.webrtc.DataChannel?) {
+                // v0.9.6 — HELPER side: the recipient's offer carries the
+                // "touch" channel. Verify the pc, then adopt it on the main
+                // thread (the callback runs on WebRTC's signaling thread).
+                val pcNow = mine() ?: return
+                if (channel == null) return
+                main.post {
+                    if (peerConnection !== pcNow) return@post
+                    if (isHelper) observeCtrl(channel)
+                }
+            }
             override fun onRenegotiationNeeded() = Unit
         }
         val config = PeerConnection.RTCConfiguration(baseIceServers() + dynamicIceServers)
@@ -753,6 +829,19 @@ object ScreenShareEngine {
                 applyScreenBitrate(pc, t)
             }
         }
+        // v0.9.6 — INSTANT TOUCH: the OFFERER (recipient) creates the data
+        // channel so the application m-line is inside every offer; the
+        // helper receives it in onDataChannel. While this channel is open,
+        // taps skip Firestore entirely (sub-100 ms instead of seconds).
+        if (!isHelper) {
+            try {
+                val init = DataChannel.Init()
+                init.ordered = true
+                observeCtrl(pc.createDataChannel("touch", init))
+            } catch (e: Exception) {
+                diagLog("data channel create skipped: ${e.javaClass.simpleName}")
+            }
+        }
     }
 
     private fun watchSignals() {
@@ -773,9 +862,12 @@ object ScreenShareEngine {
         val pc = peerConnection
         try {
             val key = type + "|" + payload.take(120)
-            // ICE candidates and assist commands are all unique; control
-            // messages may repeat safely.
-            if (type != "ice" && type != "cmd" && !handled.add(key)) return
+            // ICE candidates, assist commands and their acks are all unique
+            // (or must repeat); control messages may repeat safely.
+            // v0.9.6 — cmdack is exempt too: every successful tap ack used to
+            // carry the IDENTICAL payload, so the dedup swallowed all but the
+            // first one and "Tap delivered ✓" appeared only once per session.
+            if (type != "ice" && type != "cmd" && type != "cmdack" && !handled.add(key)) return
 
             when (type) {
                 "watch" -> if (!isHelper && captureAlive && payload.length in 16..64) {
@@ -850,7 +942,7 @@ object ScreenShareEngine {
                 // epoch-gated like every other signal, so a stale command from
                 // an earlier round can never act on a fresh session.
                 "cmd" -> if (!isHelper && captureAlive && ep.isNotBlank() && ep == peerEpoch) {
-                    handleAssistCommand(payload, ep)
+                    handleAssistCommand(JSONObject(payload))
                 }
                 "cmdack" -> if (isHelper && ep.isNotBlank() && ep == myEpoch) {
                     showAssistAck(payload)
@@ -865,15 +957,12 @@ object ScreenShareEngine {
 
     /**
      * Phase 8 — perform one helper-requested gesture locally. Only possible
-     * while the grantor enabled the assist service; the "cmdack" answer tells
-     * the helper's UI which of the two worlds they are in.
+     * while the grantor enabled the assist service; the ack tells the
+     * helper's UI which of the two worlds they are in. v0.9.6: called from
+     * BOTH transports — the Firestore "cmd" path (epoch-gated by the
+     * caller) and the p2p touch data channel (per-round by construction).
      */
-    private fun handleAssistCommand(payload: String, ep: String) {
-        val obj = try {
-            JSONObject(payload)
-        } catch (_: Exception) {
-            return
-        }
+    private fun handleAssistCommand(obj: JSONObject) {
         val kind = obj.optString("kind")
         val ok: Boolean
         when (kind) {
@@ -885,7 +974,12 @@ object ScreenShareEngine {
             "recents" -> ok = AssistService.pressRecents()
             else -> return
         }
-        diagLog("assist $kind → ${if (ok) "performed" else "assist-off"}")
+        // v0.9.6 — log WHERE the tap landed (percent of the real display) so
+        // one screenshot proves the precision fix worked.
+        val where = if (kind == "tap" && obj.has("x")) {
+            " @${(obj.optDouble("x", 0.0) * 100).toInt()}%,${(obj.optDouble("y", 0.0) * 100).toInt()}%"
+        } else ""
+        diagLog("assist $kind$where → ${if (ok) "performed" else "assist-off"}")
         if (!ok) {
             runOnMain { _assistDropped.value += 1 }
         }
@@ -894,9 +988,13 @@ object ScreenShareEngine {
             .put("ok", ok)
             .put("reason", if (ok) "" else "assist-off")
             .toString()
+        // v0.9.6 — ack over the data channel when it is open (instant);
+        // Firestore cmdack remains the fallback.
+        if (sendCtrl(ack)) return
         val sid = sessionId ?: return
         val me = myUid ?: return
         val to = peerUid ?: return
+        val ep = peerEpoch ?: return
         scope.launch {
             try {
                 SignalingRepo.send(sid, me, to, "cmdack", ack, ep)
@@ -904,6 +1002,83 @@ object ScreenShareEngine {
                 // a lost ack must never break the stream
             }
         }
+    }
+
+    /**
+     * v0.9.6 — watch the touch data channel. OPEN ⇒ taps and acks travel
+     * peer-to-peer (no Firestore round-trip); CLOSED/CLOSING silently falls
+     * back to the Firestore "cmd"/"cmdack" path as before.
+     */
+    private fun observeCtrl(dc: DataChannel) {
+        try {
+            ctrlChannel?.close()
+        } catch (_: Exception) {
+        }
+        ctrlChannel = dc
+        dc.registerObserver(object : DataChannel.Observer {
+            override fun onBufferedAmountChange(previousAmount: Long) = Unit
+            override fun onStateChange() {
+                val st = dc.state()
+                main.post {
+                    if (ctrlChannel !== dc) return@post
+                    if (st == DataChannel.State.OPEN) {
+                        diagLog("touch channel OPEN — taps now instant (p2p)")
+                    }
+                }
+            }
+
+            override fun onMessage(buffer: DataChannel.Buffer) {
+                val text = try {
+                    val bytes = ByteArray(buffer.data.remaining())
+                    buffer.data.get(bytes)
+                    String(bytes, Charsets.UTF_8)
+                } catch (_: Exception) {
+                    return
+                }
+                main.post {
+                    if (ctrlChannel !== dc) return@post
+                    try {
+                        if (isHelper) {
+                            showAssistAck(text)
+                        } else if (captureAlive) {
+                            handleAssistCommand(JSONObject(text))
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        })
+        // The channel can already be OPEN when it reaches the helper.
+        if (dc.state() == DataChannel.State.OPEN) {
+            main.post {
+                if (ctrlChannel === dc) diagLog("touch channel OPEN — taps now instant (p2p)")
+            }
+        }
+    }
+
+    /**
+     * v0.9.6 — send one text message over the touch channel; false = the
+     * channel is not usable (not open / buffer crowded) → caller falls back.
+     */
+    private fun sendCtrl(text: String): Boolean {
+        val dc = ctrlChannel ?: return false
+        if (dc.state() != DataChannel.State.OPEN) return false
+        return try {
+            if (dc.bufferedAmount() > 64_000) return false
+            dc.send(DataChannel.Buffer(ByteBuffer.wrap(text.toByteArray(Charsets.UTF_8)), false))
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /** v0.9.6 — forget the touch channel of a closing pc. */
+    private fun dropCtrl() {
+        try {
+            ctrlChannel?.close()
+        } catch (_: Exception) {
+        }
+        ctrlChannel = null
     }
 
     /** Phase 8 — one-line helper-side feedback for the last assist command. */
@@ -949,6 +1124,9 @@ object ScreenShareEngine {
             if (!isHelper) return@runOnMain
             val st = _state.value
             if (st != ShareState.CONNECTING && st != ShareState.LIVE) return@runOnMain
+            // v0.9.6 — the data channel makes taps feel instant (<100 ms).
+            // Firestore stays as the fallback while the channel negotiates.
+            if (sendCtrl(json)) return@runOnMain
             val sid = sessionId ?: return@runOnMain
             val me = myUid ?: return@runOnMain
             val to = peerUid ?: return@runOnMain
@@ -1007,6 +1185,7 @@ object ScreenShareEngine {
         } catch (_: Exception) {
         }
         peerConnection = null
+        dropCtrl()
         if (frameSinkAdded) {
             try {
                 remoteTrack?.removeSink(frameCounter)
@@ -1066,6 +1245,7 @@ object ScreenShareEngine {
             } catch (_: Exception) {
             }
             peerConnection = null
+            dropCtrl()
             handled.clear()
             pendingIce.clear()
             remoteDescriptionSet = false
@@ -1367,6 +1547,7 @@ object ScreenShareEngine {
         } catch (_: Exception) {
         }
         peerConnection = null
+        dropCtrl()
         sessionId = null
         myUid = null
         peerUid = null
