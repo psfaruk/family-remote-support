@@ -71,9 +71,28 @@ A trusted family member helps fix another family phone — always with the recei
     `supportSessions/{id}/signal`, addressed to one reader (`aud`) — the security rules
     re-check participant, direction, ACTIVE status and payload size server-side.
   - WebRTC via `io.getstream:stream-webrtc-android:1.3.8` (org.webrtc API), ARM ABIs only
-    to keep the APK lean. No touch control in this phase.
+    to keep the APK lean. (Touch control arrived in Phase 8.)
   - Rules are now published by the automation via the project service account
     (`scripts/publish-firestore-rules.mjs`) — no console paste needed anymore.
+- **Phase 8 🚧 (v0.9.0, versionCode 18) — REMOTE ASSIST (assisted control):**
+  - The helper can now not only SEE the screen but also TAP on it. A **"Touch control"
+    switch** on the helper's viewer turns the picture into a remote touch surface: tapping
+    the picture (inline or full-screen) sends a normalized tap to the recipient's phone.
+    **◀ Back / ⌂ Home / ▦ Recents** buttons dispatch the global navigation actions.
+  - On the recipient the taps are performed by **`AssistService`** — an accessibility
+    service with `canPerformGestures=true` and **`canRetrieveWindowContent=false`**: it is
+    a finger, not an eye — it READS NOTHING from the screen. The grantor enables it once
+    via a clear "Turn on Remote assist" button (opens system Settings → Accessibility) and
+    can switch it off any time; the share card always shows the current state.
+  - Trust chain (same as the video): commands travel the Firestore signal queue as
+    `cmd`/`cmdack` docs — only the other participant of an ACTIVE session can write them
+    (server-enforced), each carries the CURRENT negotiation epoch (stale commands from an
+    earlier round are inert), and the engine drops them the moment the session/capture
+    ends. Every command is answered with a delivery ack, so the helper's UI says
+    "Tap delivered ✓" or "Remote assist is switched off there" — never a silent failure.
+  - Coordinate mapping is resolution-independent: the helper's letterboxed video tap is
+    converted to (0..1) normalized coordinates and re-scaled to the recipient's real
+    display (`displayMetrics`) before `dispatchGesture` injects the ~60 ms tap.
 
 ## Firestore
 
