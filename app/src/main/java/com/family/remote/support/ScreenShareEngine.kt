@@ -116,6 +116,19 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  *     the UI can size the picture to the real screen aspect ratio (big
  *     watch view + full-screen mode instead of a small fixed box).
  *
+ * Phase 8 (v0.9.0) — REMOTE ASSIST:
+ * 13. "cmd" SIGNALS — the helper may send tap/nav commands while live; the
+ *     recipient executes them ONLY if its grantor enabled the assist
+ *     accessibility service (AssistService — reads nothing, taps only), and
+ *     every command must carry the CURRENT epoch like any other signal. An
+ *     explicit "cmdack" answers each command so the helper's UI can tell a
+ *     delivered tap from a dead end (assist switched off, session gone).
+ *
+ *     Touch-space mapping: the helper's video is letterboxed to the real
+ *     frame aspect; the UI converts its touch position into normalized
+ *     (0..1) coordinates, and the recipient maps those onto its real
+ *     display before dispatching the gesture — resolution-independent.
+ *
  * Threading: every WebRTC object is created and driven from the main thread
  * (fine for one ~720p screen stream); observer callbacks hop back onto the
  * main handler before touching engine state.
@@ -146,6 +159,12 @@ object ScreenShareEngine {
     /** Decoded remote frame size (width to height) for the viewer's layout. */
     private val _frameSize = MutableStateFlow<Pair<Int, Int>?>(null)
     val frameSize: StateFlow<Pair<Int, Int>?> = _frameSize
+
+    /** Phase 8 — helper-side assist feedback ("Tap delivered ✓", errors). */
+    private val _assistStatus = MutableStateFlow<String?>(null)
+    val assistStatus: StateFlow<String?> = _assistStatus
+
+    private val assistClear = Runnable { _assistStatus.value = null }
 
     private var appContext: Context? = null
     private var eglBase: EglBase? = null
@@ -419,6 +438,7 @@ object ScreenShareEngine {
         candRelay = 0
         _netInfo.value = null
         _frameSize.value = null
+        _assistStatus.value = null
     }
 
     private fun ensureFactory() {
@@ -584,8 +604,9 @@ object ScreenShareEngine {
         val pc = peerConnection
         try {
             val key = type + "|" + payload.take(120)
-            // ICE candidates are all unique; control messages may repeat safely.
-            if (type != "ice" && !handled.add(key)) return
+            // ICE candidates and assist commands are all unique; control
+            // messages may repeat safely.
+            if (type != "ice" && type != "cmd" && !handled.add(key)) return
 
             when (type) {
                 "watch" -> if (!isHelper && captureAlive && payload.length in 16..64) {
@@ -650,11 +671,111 @@ object ScreenShareEngine {
                     _info.value = if (wasHelper) "The recipient stopped sharing."
                     else "The helper closed the view."
                 }
+                // Phase 8 — remote-assist commands (helper → recipient) and
+                // their acknowledgements (recipient → helper). Both are
+                // epoch-gated like every other signal, so a stale command from
+                // an earlier round can never act on a fresh session.
+                "cmd" -> if (!isHelper && captureAlive && ep.isNotBlank() && ep == peerEpoch) {
+                    handleAssistCommand(payload, ep)
+                }
+                "cmdack" -> if (isHelper && ep.isNotBlank() && ep == myEpoch) {
+                    showAssistAck(payload)
+                }
             }
         } catch (_: Exception) {
             // one malformed signal must never kill the engine
         }
     }
+
+    /**
+     * Phase 8 — perform one helper-requested gesture locally. Only possible
+     * while the grantor enabled the assist service; the "cmdack" answer tells
+     * the helper's UI which of the two worlds they are in.
+     */
+    private fun handleAssistCommand(payload: String, ep: String) {
+        val obj = try {
+            JSONObject(payload)
+        } catch (_: Exception) {
+            return
+        }
+        val kind = obj.optString("kind")
+        val ok: Boolean
+        when (kind) {
+            "tap" -> ok = AssistService.tapNormalized(
+                obj.optDouble("x", -1.0), obj.optDouble("y", -1.0)
+            )
+            "back" -> ok = AssistService.pressBack()
+            "home" -> ok = AssistService.pressHome()
+            "recents" -> ok = AssistService.pressRecents()
+            else -> return
+        }
+        val ack = JSONObject()
+            .put("kind", kind)
+            .put("ok", ok)
+            .put("reason", if (ok) "" else "assist-off")
+            .toString()
+        val sid = sessionId ?: return
+        val me = myUid ?: return
+        val to = peerUid ?: return
+        scope.launch {
+            try {
+                SignalingRepo.send(sid, me, to, "cmdack", ack, ep)
+            } catch (_: Exception) {
+                // a lost ack must never break the stream
+            }
+        }
+    }
+
+    /** Phase 8 — one-line helper-side feedback for the last assist command. */
+    private fun showAssistAck(payload: String) {
+        val obj = try {
+            JSONObject(payload)
+        } catch (_: Exception) {
+            return
+        }
+        _assistStatus.value = if (obj.optBoolean("ok")) {
+            when (obj.optString("kind")) {
+                "back" -> "Back delivered ✓"
+                "home" -> "Home delivered ✓"
+                "recents" -> "Recents delivered ✓"
+                else -> "Tap delivered ✓"
+            }
+        } else {
+            "The recipient's phone cannot tap — Remote assist is switched off there."
+        }
+        main.removeCallbacks(assistClear)
+        main.postDelayed(assistClear, 4000)
+    }
+
+    /**
+     * Phase 8 — helper sends one assist command. Valid while the viewer is
+     * connecting or live; the recipient applies its own epoch/session gates.
+     */
+    private fun sendAssistCmd(json: String) {
+        runOnMain {
+            if (!isHelper) return@runOnMain
+            val st = _state.value
+            if (st != ShareState.CONNECTING && st != ShareState.LIVE) return@runOnMain
+            val sid = sessionId ?: return@runOnMain
+            val me = myUid ?: return@runOnMain
+            val to = peerUid ?: return@runOnMain
+            val ep = myEpoch ?: return@runOnMain
+            scope.launch {
+                try {
+                    SignalingRepo.send(sid, me, to, "cmd", json, ep)
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
+    /** Tap the recipient's screen at normalized (0..1) coordinates. */
+    fun sendAssistTap(nx: Double, ny: Double) =
+        sendAssistCmd("{" + "\"kind\":\"tap\",\"x\":$nx,\"y\":$ny" + "}")
+
+    /** One of the three global navigation actions: back / home / recents. */
+    fun sendAssistNav(kind: String) =
+        sendAssistCmd("{" + "\"kind\":\"$kind\"" + "}")
 
     /**
      * v0.8.3 — helper-side stuck-round recovery. [reason] is the honest
@@ -1055,6 +1176,8 @@ object ScreenShareEngine {
         candRelay = 0
         _netInfo.value = null
         _frameSize.value = null
+        main.removeCallbacks(assistClear)
+        _assistStatus.value = null
         _state.value = ShareState.IDLE
     }
 
