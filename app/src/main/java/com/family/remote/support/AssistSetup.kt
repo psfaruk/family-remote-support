@@ -34,7 +34,7 @@ object AssistSetup {
 
     /** "pkg/.Cls" short form some OEMs store instead. */
     private fun shortString(context: Context): String =
-        componentName(context).flattenShortString()
+        componentName(context).flattenToShortString()
 
     /** True when the grantor enabled our assist service in system settings. */
     fun isAssistEnabled(context: Context): Boolean {
@@ -58,14 +58,15 @@ object AssistSetup {
         AssistService.isReady || isAssistEnabled(context)
 
     /**
-     * Open system Accessibility settings with OUR row highlighted (public
-     * EXTRA_FRAGMENT_ARG_KEY mechanism). Falls back to the plain list when
-     * an OEM settings app ignores the extra.
+     * Open system Accessibility settings with OUR row highlighted. The
+     * extra key is the (hidden but stable) Settings fragment argument —
+     * inlined as a literal because EXTRA_FRAGMENT_ARG_KEY is @hide in the
+     * public SDK. Falls back to the plain list when an OEM ignores it.
      */
     fun openAssistSettings(context: Context) {
         try {
             val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            i.putExtra(Settings.EXTRA_FRAGMENT_ARG_KEY, flatString(context))
+            i.putExtra(":settings:show_fragment_args", flatString(context))
             context.startActivity(i)
         } catch (_: Exception) {
             try {
