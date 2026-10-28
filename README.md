@@ -10,13 +10,23 @@ A trusted family member helps fix another family phone — always with the recei
   **support session consent flow** — Start session → 2-min Allow/Deny ask → 15-min auto-ending
   session. Verified end-to-end on two Google accounts by the Owner (v0.7.1) AND at the data
   layer (ENDED + EXPIRED transitions confirmed in Firestore via the service account).
-- **Phase 7 🚧 (v0.8.1, versionCode 15)** — **live screen share (view only)**:
+- **Phase 7 🚧 (v0.8.2, versionCode 16)** — **live screen share (view only)**:
   - Recipient taps **Share screen** on an ACTIVE session → system MediaProjection consent →
     a `mediaProjection` foreground service (notification shown) captures ~720p @ 15 fps.
     A small **self-preview** ("this is what the helper sees") proves the capture works.
   - Helper taps **Watch screen** → the recipient's engine posts a WebRTC offer → helper
     answers → live video renders in the app. Either side can stop; the session ending (or
     timing out) stops everything automatically.
+  - **v0.8.2 fix (black surface even while the watchdog said "Live ✓"):** the render
+    surface was attached inside the Compose `AndroidView` factory and silently detached
+    again a frame later, when the very same `DisposableEffect` restarted (its
+    dispose-after-attach ordering) — frames kept flowing and were even counted, while
+    BOTH surfaces (helper video + recipient self-preview) stayed black. Attachment now
+    happens in the effect body (after the view key settles) and is re-asserted on every
+    recomposition. A fresh "watch" round also resets the remote-description state so a
+    re-watch's answer-time ICE candidates can no longer be applied against the previous
+    round. Plus: the helper's stale "Request sent…" line is cleared once the session is
+    ACTIVE.
   - **v0.8.1 fixes (black-screen report):**
     - **Epoch rounds**: every signal carries a per-round `ep` token; stale documents from an
       earlier round in Firestore are now ignored instead of poisoning a fresh negotiation
