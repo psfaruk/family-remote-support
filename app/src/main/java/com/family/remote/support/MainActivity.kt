@@ -1,6 +1,7 @@
 package com.family.remote.support
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -8,13 +9,18 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,12 +51,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import org.webrtc.EglBase
 import kotlinx.coroutines.delay
 import org.webrtc.SurfaceViewRenderer
 import androidx.credentials.ClearCredentialStateRequest
@@ -421,7 +431,7 @@ fun HomeScreen() {
                 }
             }
 
-            StatusRow(label = "App version", value = "0.8.2 (Phase 7)")
+            StatusRow(label = "App version", value = "0.8.3 (Phase 7)")
             StatusRow(label = "Package", value = "com.family.remote.support")
             StatusRow(label = "Firebase project", value = firebaseProjectId)
             StatusRow(label = "Firebase app ID", value = firebaseAppId)
@@ -1298,6 +1308,7 @@ private fun ScreenSharePanel(
 ) {
     val state by ScreenShareEngine.state.collectAsState()
     val info by ScreenShareEngine.info.collectAsState()
+    val net by ScreenShareEngine.netInfo.collectAsState()
     val context = LocalContext.current
     val active = state != ShareState.IDLE
 
@@ -1311,41 +1322,67 @@ private fun ScreenSharePanel(
                 Text("Watch screen (view only)")
             }
         } else {
-            var rendererView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
-            // v0.8.2 — THE black-picture fix. The factory used to call
-            // attachRenderer() and then write `rendererView`; that state write
-            // restarted THIS effect, whose onDispose ran detachRenderer() AFTER
-            // the factory's attach — so the attachment was silently wiped a
-            // frame later. The engine kept decoding frames (the watchdog even
-            // showed "Live — receiving the screen ✓") while every surface
-            // stayed black on BOTH phones. Attaching here, in the effect body
-            // after the key settles, makes the last attach always win.
-            DisposableEffect(rendererView) {
-                val view = rendererView
-                ScreenShareEngine.attachRenderer(view)
-                onDispose {
-                    ScreenShareEngine.detachRenderer()
-                    view?.release()
+            // v0.8.3 — the picture is now sized to the REAL screen aspect
+            // ratio (the engine publishes the decoded frame size), capped so
+            // it always fits, and tapping it opens a full-screen viewer. The
+            // old fixed 220 dp box is what made the shared screen look tiny.
+            val egl = ScreenShareEngine.eglBaseContext
+            val frameSize by ScreenShareEngine.frameSize.collectAsState()
+            var fullscreen by remember { mutableStateOf(false) }
+            // Keep the helper's own screen on while a live stream is shown.
+            if (state == ShareState.LIVE) {
+                DisposableEffect(Unit) {
+                    val activity = context as? Activity
+                    activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    onDispose {
+                        activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
                 }
             }
-            val egl = ScreenShareEngine.eglBaseContext
             if (egl != null) {
-                AndroidView(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    factory = { ctx ->
-                        SurfaceViewRenderer(ctx).apply {
-                            init(egl, null)
-                            setMirror(false)
-                            setEnableHardwareScaler(true)
-                            rendererView = this
+                if (fullscreen) {
+                    Dialog(
+                        onDismissRequest = { fullscreen = false },
+                        properties = DialogProperties(usePlatformDefaultWidth = false)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black)
+                        ) {
+                            VideoRendererBox(
+                                egl,
+                                Modifier.fillMaxSize()
+                            )
+                            Text(
+                                text = "✕  Close",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .clickable { fullscreen = false }
+                            )
                         }
-                    },
-                    // Belt-and-braces: every recomposition re-asserts the
-                    // attachment (idempotent remove+add inside the engine).
-                    update = { view -> ScreenShareEngine.attachRenderer(view) }
-                )
+                    }
+                } else {
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val targetHeight = frameSize?.let { (w, h) ->
+                            if (h > 0) maxWidth * (h.toFloat() / w.toFloat()) else 420.dp
+                        } ?: 420.dp
+                        VideoRendererBox(
+                            egl,
+                            Modifier
+                                .fillMaxWidth()
+                                .height(targetHeight.coerceAtMost(480.dp))
+                                .clickable { fullscreen = true }
+                        )
+                    }
+                    Text(
+                        text = "Tap the picture for full screen.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             OutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
                 Text("Stop watching")
@@ -1404,7 +1441,7 @@ private fun ScreenSharePanel(
                 AndroidView(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .height(160.dp),
                     factory = { ctx ->
                         SurfaceViewRenderer(ctx).apply {
                             init(previewEgl, null)
@@ -1423,8 +1460,57 @@ private fun ScreenSharePanel(
     }
 
     info?.let {
-        Text(text = it, style = MaterialTheme.typography.bodySmall)
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium
+        )
     }
+    // v0.8.3 — candidate-type census: "direct N · via STUN M · via relay K".
+    // A screenshot of this line alone tells whether both phones can reach a
+    // relay (K>0) or are STUN-only — the key fact when two networks refuse
+    // to connect without one.
+    net?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * v0.8.3 — the helper's video surface, reusable for the inline view and the
+ * full-screen dialog. The v0.8.2 lifecycle rules apply: the attachment
+ * happens in the effect body (after the key settles) and is re-asserted on
+ * every recomposition, so switching between inline and full-screen can never
+ * leave a detached (black) surface behind.
+ */
+@Composable
+private fun VideoRendererBox(egl: EglBase.Context, modifier: Modifier) {
+    var rendererView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+    DisposableEffect(rendererView) {
+        val view = rendererView
+        ScreenShareEngine.attachRenderer(view)
+        onDispose {
+            ScreenShareEngine.detachRenderer()
+            view?.release()
+        }
+    }
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            SurfaceViewRenderer(ctx).apply {
+                init(egl, null)
+                setMirror(false)
+                setEnableHardwareScaler(true)
+                rendererView = this
+            }
+        },
+        // Belt-and-braces: every recomposition re-asserts the
+        // attachment (idempotent remove+add inside the engine).
+        update = { view -> ScreenShareEngine.attachRenderer(view) }
+    )
 }
 
 @Composable
