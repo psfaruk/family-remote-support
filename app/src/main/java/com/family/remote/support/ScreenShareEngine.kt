@@ -9,6 +9,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -132,6 +133,30 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  * Threading: every WebRTC object is created and driven from the main thread
  * (fine for one ~720p screen stream); observer callbacks hop back onto the
  * main handler before touching engine state.
+ *
+ * v0.9.2 (Oct 2025) — FORENSIC ROUND (session 19:25 Dhaka, Firestore dump):
+ * the metered.ca relay WORKED from both phones (relay candidates on both
+ * sides), round 1 even CONNECTED and decoded frames — yet every picture
+ * stayed black, and after the helper's network switch the engine dead-ended.
+ * Three root causes, fixed here:
+ *
+ * 14. RENDERER RACE (black picture on BOTH phones despite live frames) —
+ *     the Compose `DisposableEffect(rendererView)` captured the freshly
+ *     created SurfaceViewRenderer, then its key-change dispose RELEASED the
+ *     live view and re-attached the released renderer. The track now carries
+ *     exactly ONE permanent proxy sink per purpose; the UI only swaps the
+ *     forwarding target, so no addSink/removeSink/release race can exist.
+ *     A "drawn frames" counter makes a stuck surface visible on screen.
+ * 15. SILENT DEAD-ENDS — every setRemote/createDescription failure used to
+ *     vanish into a noop observer: the recipient's offers arrived (Firestore
+ *     proof) while the helper never answered, forever. Every failure is now
+ *     logged on screen and routed to the existing retry/recover machinery.
+ * 16. 30 s CONFIG STALL — the optional relay-config read blocked each round
+ *     for up to 30 s (measured tap→watch gap: 39 s). Now: 5 s ceiling + a
+ *     10-minute cache in ConfigRepo. Plus a SupervisorJob so one failed
+ *     coroutine can never cancel the whole engine scope again, CLOSED-pc
+ *     rebuild on re-watch, and a rolling on-screen diagnostics log (the
+ *     Owner is phone-only — a screenshot must BE the logcat).
  */
 object ScreenShareEngine {
 
@@ -143,7 +168,9 @@ object ScreenShareEngine {
     )
 
     private val main = Handler(Looper.getMainLooper())
-    private val scope = CoroutineScope(Dispatchers.Main)
+    // v0.9.2 — SupervisorJob: one failed coroutine must NEVER cancel the
+    // whole engine scope (which silently stopped every retry/watch/send).
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _state = MutableStateFlow(ShareState.IDLE)
     val state: StateFlow<ShareState> = _state
@@ -163,6 +190,27 @@ object ScreenShareEngine {
     /** Phase 8 — helper-side assist feedback ("Tap delivered ✓", errors). */
     private val _assistStatus = MutableStateFlow<String?>(null)
     val assistStatus: StateFlow<String?> = _assistStatus
+
+    // v0.9.2 — on-screen diagnostics. The Owner is phone-only (no logcat), so
+    // the engine keeps the last engine events here and the UI renders them;
+    // a single screenshot now answers "where exactly did it stop?".
+    private val diagLines = ArrayDeque<String>()
+    private val _diag = MutableStateFlow<List<String>>(emptyList())
+    val diag: StateFlow<List<String>> = _diag
+
+    /** One-line frame health for the UI ("video: decoded N · drawn M"). */
+    private val _frameStats = MutableStateFlow<String?>(null)
+    val frameStats: StateFlow<String?> = _frameStats
+
+    private fun diagLog(message: String) {
+        main.post {
+            val ts = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+                .format(java.util.Date())
+            diagLines.addLast("$ts  $message")
+            while (diagLines.size > 14) diagLines.removeFirst()
+            _diag.value = diagLines.toList()
+        }
+    }
 
     private val assistClear = Runnable { _assistStatus.value = null }
 
@@ -193,8 +241,6 @@ object ScreenShareEngine {
     private var surfaceHelper: SurfaceTextureHelper? = null
     private var remoteTrack: VideoTrack? = null
 
-    private var renderer: SurfaceViewRenderer? = null
-    private var localPreview: SurfaceViewRenderer? = null
     private val pendingIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
     /** De-dupes control messages (offer/answer/watch applied once per round). */
@@ -220,6 +266,68 @@ object ScreenShareEngine {
     private var frameSinkAdded = false
     private var answerSentAtMillis = 0L
     private var tickerRunning = false
+
+    // v0.9.2 — PROXY SINKS. Each track carries exactly ONE permanent sink;
+    // attachRenderer/attachLocalPreview only swap the forwarding target. This
+    // removes the addSink/removeSink/release race class entirely (the 19:25
+    // session: frames decoded ✓, picture black ✗ — a released
+    // SurfaceViewRenderer had been re-attached by the UI's dispose/re-run).
+    private var rendererTarget: SurfaceViewRenderer? = null
+    private var previewTarget: SurfaceViewRenderer? = null
+    private val renderedFrames = AtomicLong(0)
+    private val previewFrames = AtomicLong(0)
+    private var remoteProxyAttachedTo: VideoTrack? = null
+    private var statsPostedAt = 0L
+
+    private fun postFrameStats() {
+        val now = System.currentTimeMillis()
+        if (now - statsPostedAt < 2000) return
+        statsPostedAt = now
+        _frameStats.value = if (isHelper) {
+            "video: decoded ${framesSeen.get()} · drawn ${renderedFrames.get()} frames"
+        } else {
+            "preview: ${previewFrames.get()} frames"
+        }
+    }
+
+    private val remoteProxySink = VideoSink { frame ->
+        renderedFrames.incrementAndGet()
+        val target = rendererTarget
+        if (target != null) {
+            try {
+                target.onFrame(frame)
+            } catch (_: Exception) {
+            }
+        }
+        postFrameStats()
+    }
+
+    private val localProxySink = VideoSink { frame ->
+        previewFrames.incrementAndGet()
+        val target = previewTarget
+        if (target != null) {
+            try {
+                target.onFrame(frame)
+            } catch (_: Exception) {
+            }
+        }
+        postFrameStats()
+    }
+
+    /** Point the permanent proxy at a (new) remote track exactly once. */
+    private fun ensureRemoteProxy(track: VideoTrack) {
+        if (remoteProxyAttachedTo === track) return
+        try {
+            remoteProxyAttachedTo?.removeSink(remoteProxySink)
+        } catch (_: Exception) {
+        }
+        try {
+            track.addSink(remoteProxySink)
+            remoteProxyAttachedTo = track
+            renderedFrames.set(0)
+        } catch (_: Exception) {
+        }
+    }
     private val frameCounter = VideoSink { frame ->
         framesSeen.incrementAndGet()
         val w = frame?.rotatedWidth ?: 0
@@ -232,6 +340,7 @@ object ScreenShareEngine {
     private val ticker = object : Runnable {
         override fun run() {
             if (!isHelper || peerConnection == null) {
+                if (tickerRunning) diagLog("watchdog stopped (state=${_state.value})")
                 tickerRunning = false
                 return
             }
@@ -298,9 +407,11 @@ object ScreenShareEngine {
             startCommon(context, sessionIdArg, uid, peerUidArg, isHelperArg = false)
             _state.value = ShareState.PREPARING
             _info.value = "Preparing the screen share…"
+            diagLog("share start (epoch ${myEpoch?.take(6) ?: "?"})")
             val app = context.applicationContext
             scope.launch {
                 dynamicIceServers = ConfigRepo.fetchTurnServers()
+                diagLog(ConfigRepo.lastNote)
                 main.post { beginRecipientCapture(app, projectionData) }
             }
         }
@@ -330,18 +441,19 @@ object ScreenShareEngine {
 
             val track = factory!!.createVideoTrack("screen", source)
             peerConnection?.addTrack(track, listOf("screen"))
+            // v0.9.2 — the local track carries its one permanent proxy sink;
+            // the UI's preview surface is just a swappable target.
+            try {
+                track.addSink(localProxySink)
+            } catch (_: Exception) {
+            }
 
             surfaceHelper = helper
             videoSource = source
             videoTrack = track
             capturer = cap
             captureAlive = true
-            localPreview?.let { pv ->
-                try {
-                    track.addSink(pv)
-                } catch (_: Exception) {
-                }
-            }
+            diagLog("capture started ${w}x${h}@15")
             _state.value = ShareState.WAITING_PEER
             _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
             watchSignals()
@@ -362,8 +474,10 @@ object ScreenShareEngine {
             startCommon(context, sessionIdArg, uid, peerUidArg, isHelperArg = true)
             _state.value = ShareState.WAITING_PEER
             _info.value = "Preparing the viewer…"
+            diagLog("watch start (epoch ${myEpoch?.take(6) ?: "?"})")
             scope.launch {
                 dynamicIceServers = ConfigRepo.fetchTurnServers()
+                diagLog(ConfigRepo.lastNote)
                 main.post { beginHelperWatch() }
             }
         }
@@ -384,6 +498,7 @@ object ScreenShareEngine {
                     SignalingRepo.send(sid, me, to, "watch", ep)
                     sentWatchAt = System.currentTimeMillis()
                     _info.value = "Asked the recipient's phone for the screen — connecting…"
+                    diagLog("watch sent → waiting for the offer")
                     startTicker()
                 } catch (e: Exception) {
                     fail("Could not ask to watch: ${e.message ?: e.javaClass.simpleName}")
@@ -501,6 +616,7 @@ object ScreenShareEngine {
                 if (state == PeerConnection.IceGatheringState.COMPLETE) {
                     _netInfo.value =
                         "Network check — direct: $candHost · via STUN: $candSrflx · via relay: $candRelay"
+                    diagLog("ICE done: direct=$candHost stun=$candSrflx relay=$candRelay")
                 }
             }
 
@@ -510,13 +626,10 @@ object ScreenShareEngine {
                 main.post {
                     if (peerConnection !== pc) return@post
                     remoteTrack = track
+                    // v0.9.2 — one permanent proxy sink; the UI's surface is
+                    // a swappable target, so no add/remove races can exist.
+                    ensureRemoteProxy(track)
                     addFrameCounterIfMissing(track)
-                    renderer?.let { r ->
-                        try {
-                            track.addSink(r)
-                        } catch (_: Exception) {
-                        }
-                    }
                     if (isHelper) {
                         _info.value = "Video channel ready — waiting for the connection…"
                     }
@@ -529,6 +642,7 @@ object ScreenShareEngine {
                     if (peerConnection !== pcNow) return@post
                     when (newState) {
                         PeerConnection.PeerConnectionState.CONNECTED -> {
+                            diagLog("peer connection CONNECTED")
                             if (isHelper) {
                                 retryBudget = 3 // success refills the auto-retry budget
                                 _info.value = "Connection established — starting the video…"
@@ -537,11 +651,14 @@ object ScreenShareEngine {
                                 _info.value = "Live — the helper can see this screen."
                             }
                         }
-                        PeerConnection.PeerConnectionState.DISCONNECTED ->
+                        PeerConnection.PeerConnectionState.DISCONNECTED -> {
+                            diagLog("peer connection DISCONNECTED")
                             if (_state.value == ShareState.LIVE) {
                                 _info.value = "Connection interrupted — trying to recover…"
                             }
-                        PeerConnection.PeerConnectionState.FAILED ->
+                        }
+                        PeerConnection.PeerConnectionState.FAILED -> {
+                            diagLog("peer connection FAILED")
                             if (isHelper) {
                                 helperRetryOrFail("The connection attempt failed")
                             } else if (captureAlive) {
@@ -553,6 +670,7 @@ object ScreenShareEngine {
                             } else {
                                 fail("Connection failed — tap “Stop sharing”, then share again.")
                             }
+                        }
                         else -> Unit
                     }
                 }
@@ -616,6 +734,7 @@ object ScreenShareEngine {
                     // the helper's epoch, then offers the screen with an
                     // ICE restart so every round carries brand-new
                     // credentials and re-gathered candidates.
+                    diagLog("watch received (helper epoch ${payload.take(6)}) — offering")
                     peerEpoch = payload
                     // Fresh round ⇒ fresh remote-description state: helper
                     // candidates arriving between the offer and the answer
@@ -623,7 +742,9 @@ object ScreenShareEngine {
                     // remote description (they would be silently dropped).
                     remoteDescriptionSet = false
                     pendingIce.clear()
-                    if (pc == null) {
+                    if (pc == null || pc.signalingState() == PeerConnection.SignalingState.CLOSED) {
+                        // v0.9.2 — also rebuild a CLOSED pc; offering on a
+                        // closed connection would throw and dead-end.
                         createPeer() // self-heal path: reconnect after a failure
                     }
                     val pcNow = peerConnection ?: return
@@ -633,6 +754,7 @@ object ScreenShareEngine {
                     pcNow.createOffer(offerObserver(peerEpoch), restart)
                 }
                 "offer" -> if (isHelper && pc != null && !remoteDescriptionSet && ep == myEpoch) {
+                    diagLog("offer received — applying…")
                     val sdp = JSONObject(payload)
                     pc.setRemoteDescription(
                         setObserver("offer", myEpoch),
@@ -640,6 +762,7 @@ object ScreenShareEngine {
                     )
                 }
                 "answer" -> if (!isHelper && pc != null && ep.isNotBlank() && ep == peerEpoch) {
+                    diagLog("answer received — applying…")
                     val sdp = JSONObject(payload)
                     pc.setRemoteDescription(
                         setObserver("answer", peerEpoch),
@@ -682,8 +805,10 @@ object ScreenShareEngine {
                     showAssistAck(payload)
                 }
             }
-        } catch (_: Exception) {
-            // one malformed signal must never kill the engine
+        } catch (e: Exception) {
+            // one malformed signal must never kill the engine — but it must
+            // not stay invisible either (v0.9.2: the silent killer class).
+            diagLog("signal '$type' error: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
@@ -709,6 +834,7 @@ object ScreenShareEngine {
             "recents" -> ok = AssistService.pressRecents()
             else -> return
         }
+        diagLog("assist $kind → ${if (ok) "performed" else "assist-off"}")
         val ack = JSONObject()
             .put("kind", kind)
             .put("ok", ok)
@@ -821,15 +947,22 @@ object ScreenShareEngine {
             }
             frameSinkAdded = false
         }
+        try {
+            remoteProxyAttachedTo?.removeSink(remoteProxySink)
+        } catch (_: Exception) {
+        }
+        remoteProxyAttachedTo = null
         remoteTrack = null
         handled.clear()
         pendingIce.clear()
         remoteDescriptionSet = false
         framesSeen.set(0)
+        renderedFrames.set(0)
         answerSentAtMillis = 0L
         gotOfferAt = 0L
         _frameSize.value = null
         myEpoch = UUID.randomUUID().toString().replace("-", "").take(24)
+        diagLog("retry round ${myEpoch?.take(6)} — $reason")
         _state.value = ShareState.WAITING_PEER
         _info.value = "$reason — trying again automatically…"
         val sid = sessionId ?: return
@@ -869,6 +1002,7 @@ object ScreenShareEngine {
             handled.clear()
             pendingIce.clear()
             remoteDescriptionSet = false
+            diagLog("recipient recovered — pc rebuilt, capture kept")
             _state.value = ShareState.WAITING_PEER
             _info.value = message
         }
@@ -893,11 +1027,26 @@ object ScreenShareEngine {
             scope.launch {
                 try {
                     SignalingRepo.send(sid, me, to, "offer", json, ep)
+                    diagLog("offer sent — waiting for the helper's answer")
                     _state.value = ShareState.CONNECTING
                     _info.value = "Offer sent — waiting for the helper's answer…"
                 } catch (e: Exception) {
+                    diagLog("offer send FAILED: ${e.message ?: e.javaClass.simpleName}")
                     fail("Could not send the offer: ${e.message ?: e.javaClass.simpleName}")
                 }
+            }
+        }
+
+        override fun onCreateFailure(error: String?) {
+            // v0.9.2 — used to vanish into a noop: the helper then waited
+            // 12 s for an offer that never came. Keep the capture alive; the
+            // helper's retry (new watch) re-offers.
+            diagLog("createOffer FAILED: ${error ?: "unknown"}")
+            runOnMain {
+                if (isHelper || !captureAlive) return@runOnMain
+                if (_state.value == ShareState.ENDED || _state.value == ShareState.IDLE) return@runOnMain
+                _state.value = ShareState.WAITING_PEER
+                _info.value = "Could not prepare the screen offer — the helper will retry automatically."
             }
         }
     }
@@ -933,10 +1082,26 @@ object ScreenShareEngine {
                                 SignalingRepo.send(
                                     sid, me, to, "answer", json, myEpoch ?: ""
                                 )
+                                diagLog("answer sent — linking up")
                                 _state.value = ShareState.CONNECTING
                                 _info.value = "Answer sent — connecting video…"
                             } catch (e: Exception) {
+                                diagLog("answer send FAILED: ${e.message ?: e.javaClass.simpleName}")
                                 fail("Could not send the answer: ${e.message ?: e.javaClass.simpleName}")
+                            }
+                        }
+                    }
+
+                    override fun onCreateFailure(error: String?) {
+                        // v0.9.2 — a failed createAnswer used to end the round
+                        // in total silence (the 19:29 rounds: the recipient's
+                        // offers sat in Firestore unanswered). Loud + retrying.
+                        diagLog("createAnswer FAILED: ${error ?: "unknown"}")
+                        runOnMain {
+                            if (isHelper) {
+                                helperRetryOrFail("Could not answer the recipient's offer")
+                            } else if (captureAlive) {
+                                recipientRecover("Could not answer — the helper will retry automatically.")
                             }
                         }
                     }
@@ -948,6 +1113,25 @@ object ScreenShareEngine {
                 _info.value = "Negotiation done — connecting to the helper…"
             }
             // "local" descriptions carry no further action.
+        }
+
+        override fun onSetFailure(error: String?) {
+            // v0.9.2 — the silent killer: a failed setRemoteDescription used
+            // to disappear (noop observer); the offer/answer was then never
+            // processed and the round dead-ended forever. Now it is visible
+            // and routed to the retry/recover machinery.
+            diagLog("set$what FAILED: ${error ?: "unknown"}")
+            runOnMain {
+                val currentEp = if (isHelper) myEpoch else peerEpoch
+                if (expectedEpoch != null && currentEp != expectedEpoch) return@runOnMain
+                if (isHelper) {
+                    helperRetryOrFail("Could not apply the recipient's offer")
+                } else if (captureAlive) {
+                    recipientRecover("Could not apply the helper's answer — the helper will retry.")
+                } else {
+                    fail("Could not apply the helper's answer.")
+                }
+            }
         }
     }
 
@@ -1020,70 +1204,28 @@ object ScreenShareEngine {
         }
     }
 
-    /** UI hands over the render surface (helper side). */
+    /**
+     * UI hands over the render surface (helper side). v0.9.2 — this only
+     * swaps the proxy's forwarding target: no addSink/removeSink races, and
+     * releasing a view can never detach the stream from the NEXT view.
+     */
     fun attachRenderer(view: SurfaceViewRenderer?) {
-        runOnMain {
-            renderer = view
-            val track = remoteTrack
-            if (view != null && track != null) {
-                try {
-                    track.removeSink(view)
-                } catch (_: Exception) {
-                }
-                try {
-                    track.addSink(view)
-                } catch (_: Exception) {
-                }
-            }
-        }
+        runOnMain { rendererTarget = view }
     }
 
     /** Detach the render surface (called from composition dispose). */
     fun detachRenderer() {
-        runOnMain {
-            val view = renderer
-            val track = remoteTrack
-            if (view != null && track != null) {
-                try {
-                    track.removeSink(view)
-                } catch (_: Exception) {
-                }
-            }
-            renderer = null
-        }
+        runOnMain { rendererTarget = null }
     }
 
     /** UI hands over the recipient's small self-preview surface. */
     fun attachLocalPreview(view: SurfaceViewRenderer?) {
-        runOnMain {
-            localPreview = view
-            val track = videoTrack
-            if (view != null && track != null) {
-                try {
-                    track.removeSink(view)
-                } catch (_: Exception) {
-                }
-                try {
-                    track.addSink(view)
-                } catch (_: Exception) {
-                }
-            }
-        }
+        runOnMain { previewTarget = view }
     }
 
     /** Detach the recipient's self-preview surface. */
     fun detachLocalPreview() {
-        runOnMain {
-            val view = localPreview
-            val track = videoTrack
-            if (view != null && track != null) {
-                try {
-                    track.removeSink(view)
-                } catch (_: Exception) {
-                }
-            }
-            localPreview = null
-        }
+        runOnMain { previewTarget = null }
     }
 
     /** Recipient side stops (service destroy or UI stop). Posts "bye". */
@@ -1123,14 +1265,13 @@ object ScreenShareEngine {
         } catch (_: Exception) {
         }
         surfaceHelper = null
-        val previewView = localPreview
-        if (previewView != null) {
-            try {
-                videoTrack?.removeSink(previewView)
-            } catch (_: Exception) {
-            }
+        // v0.9.2 — detach the proxy targets, then dispose the local track.
+        rendererTarget = null
+        previewTarget = null
+        try {
+            videoTrack?.removeSink(localProxySink)
+        } catch (_: Exception) {
         }
-        localPreview = null
         try {
             videoTrack?.dispose()
         } catch (_: Exception) {
@@ -1148,14 +1289,17 @@ object ScreenShareEngine {
             }
             frameSinkAdded = false
         }
-        renderer?.let { view -> remoteTrack?.let { track -> track.removeSink(view) } }
+        try {
+            remoteProxyAttachedTo?.removeSink(remoteProxySink)
+        } catch (_: Exception) {
+        }
+        remoteProxyAttachedTo = null
         remoteTrack = null
         try {
             peerConnection?.close()
         } catch (_: Exception) {
         }
         peerConnection = null
-        renderer = null
         sessionId = null
         myUid = null
         peerUid = null
@@ -1176,12 +1320,16 @@ object ScreenShareEngine {
         candRelay = 0
         _netInfo.value = null
         _frameSize.value = null
+        _frameStats.value = null
+        renderedFrames.set(0)
+        previewFrames.set(0)
         main.removeCallbacks(assistClear)
         _assistStatus.value = null
         _state.value = ShareState.IDLE
     }
 
     private fun fail(message: String) {
+        diagLog("FAIL: $message")
         _info.value = message
         _state.value = ShareState.ENDED
         // Auto-idle shortly so the UI can offer a fresh start.
