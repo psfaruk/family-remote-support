@@ -29,6 +29,7 @@ internal object ConfigRepo {
         return try {
             val snap = Fb.db.collection("config")
                 .document("turn")
+                .get()
                 .awaitWithTimeout("reading the relay config")
             @Suppress("UNCHECKED_CAST")
             val urls = snap.get("turnUrls") as? List<String> ?: emptyList()
