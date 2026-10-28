@@ -559,7 +559,8 @@ object ScreenShareEngine {
                 enc.minBitrateBps = 1_200_000
                 enc.maxBitrateBps = 4_000_000
                 try {
-                    enc.maxFramerate = 30.0
+                    // stream-webrtc-android declares maxFramerate as Int?.
+                    enc.maxFramerate = 30
                 } catch (_: Exception) {
                 }
             }
