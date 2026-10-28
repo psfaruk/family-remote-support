@@ -17,14 +17,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +34,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -44,6 +47,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.Typography
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +69,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -92,12 +98,133 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 9 (v0.9.4) — T0: family-warm theme + senior-friendly type scale.
+//
+// The family that actually uses this app is Bangladeshi and often 50+, so:
+//   • a warm amber/brown palette (calm and caring — no cold corporate blue)
+//   • body text lifted one notch (14→16sp, 12→14sp) and bolder section titles
+//   • ONE fixed light scheme — predictable contrast, no dark-mode surprises
+// Pure presentation: zero logic lives here.
+// ═══════════════════════════════════════════════════════════════════════
+private val FamilyWarmColors = lightColorScheme(
+    primary = Color(0xFF8F4C00),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFFFDCC2),
+    onPrimaryContainer = Color(0xFF311300),
+    secondary = Color(0xFF74584A),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFFFDCC2),
+    onSecondaryContainer = Color(0xFF2B160A),
+    tertiary = Color(0xFF5B6136),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFE3E5B8),
+    onTertiaryContainer = Color(0xFF191D00),
+    background = Color(0xFFFFF8F3),
+    onBackground = Color(0xFF231A13),
+    surface = Color(0xFFFFF8F3),
+    onSurface = Color(0xFF231A13),
+    surfaceVariant = Color(0xFFF4DED0),
+    onSurfaceVariant = Color(0xFF52443A),
+    outline = Color(0xFF847367),
+    outlineVariant = Color(0xFFD7C4B5),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    inverseSurface = Color(0xFF392E26),
+    inverseOnSurface = Color(0xFFFFEEE1),
+    inversePrimary = Color(0xFFFFB77C),
+    surfaceTint = Color(0xFF8F4C00)
+)
+
+private val SeniorTypography: Typography = Typography().let { base ->
+    base.copy(
+        titleMedium = base.titleMedium.copy(
+            fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold
+        ),
+        titleSmall = base.titleSmall.copy(
+            fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold
+        ),
+        bodyLarge = base.bodyLarge.copy(fontSize = 17.sp, lineHeight = 24.sp),
+        bodyMedium = base.bodyMedium.copy(fontSize = 16.sp, lineHeight = 23.sp),
+        bodySmall = base.bodySmall.copy(fontSize = 14.sp, lineHeight = 19.sp),
+        labelLarge = base.labelLarge.copy(
+            fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold
+        )
+    )
+}
+
+/** Phase 9 (T1) — every section card: same padding, same spacing, same title. */
+@Composable
+private fun SectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            content()
+        }
+    }
+}
+
+/** Phase 9 (T1) — primary action: full-width, ≥52dp tall (senior thumbs). */
+@Composable
+private fun BigButton(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    content: @Composable RowScope.() -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp),
+        content = content
+    )
+}
+
+/** Phase 9 (T1) — secondary action: full-width, ≥48dp tall. */
+@Composable
+private fun WideOutlinedButton(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    content: @Composable RowScope.() -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),
+        content = content
+    )
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme {
+            // Phase 9 (v0.9.4) — T0: the whole app now sits on one warm,
+            // senior-friendly Material theme (bigger type, calm family
+            // colors). Deliberately a FIXED light scheme: predictable,
+            // high-contrast, no surprise dark-mode repaint for elderly users.
+            MaterialTheme(
+                colorScheme = FamilyWarmColors,
+                typography = SeniorTypography
+            ) {
                 HomeScreen()
             }
         }
@@ -274,176 +401,161 @@ fun HomeScreen() {
                 text = "Help your family with their phone — always with their clear permission.",
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(
+                text = "পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            StatusRow(
+                label = "App version · সংস্করণ",
+                value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+            )
 
-            Card {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            // Phase 9 (T1) — pairing is the heart of the app, so its card
+            // moved up right under the account; the dev-console rows moved
+            // into a collapsed About card and the dead "Phase 2 build check"
+            // card is retired (the About card carries the same Firebase
+            // facts).
+            SectionCard(title = "Account · অ্যাকাউন্ট") {
+                if (!webClientConfigured) {
                     Text(
-                        text = "Phase 3 — Sign in & register this device",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        text = "Sign-in is disabled in this build: the Web Client ID is not set yet. " +
+                            "Finish the Firebase console steps in the web guide, send the Web Client ID " +
+                            "to your assistant, and install the next build.",
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    if (!webClientConfigured) {
-                        Text(
-                            text = "Sign-in is disabled in this build: the Web Client ID is not set yet. " +
-                                "Finish the Firebase console steps in the web guide, send the Web Client ID " +
-                                "to your assistant, and install the next build.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    if (signedInUser == null) {
-                        Button(
-                            enabled = webClientConfigured && !busy,
-                            onClick = {
-                                if (activity != null) {
-                                    busy = true
-                                    statusMessage = null
-                                    scope.launch {
-                                        try {
-                                            signedInUser = signInWithGoogle(activity)
-                                        } catch (e: GetCredentialException) {
-                                            statusMessage = "Sign-in cancelled or failed: ${e.type}"
-                                        } catch (e: Exception) {
-                                            statusMessage = "Sign-in failed: ${e.message}"
-                                        } finally {
-                                            busy = false
-                                        }
-                                    }
-                                }
-                            }
-                        ) {
-                            if (busy) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text("Sign in with Google")
-                            }
-                        }
-                    } else {
-                        val user = signedInUser
-                        StatusRow(label = "Signed in as", value = user?.email ?: "(no email)")
-                        StatusRow(label = "Name", value = user?.displayName ?: "(no name)")
-                        Text(
-                            text = "Your account and device are stored only in your own Firebase project.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        OutlinedButton(
-                            enabled = !busy,
-                            onClick = {
+                }
+                if (signedInUser == null) {
+                    BigButton(
+                        enabled = webClientConfigured && !busy,
+                        onClick = {
+                            if (activity != null) {
                                 busy = true
+                                statusMessage = null
                                 scope.launch {
                                     try {
-                                        FirebaseAuth.getInstance().signOut()
-                                        try {
-                                            CredentialManager.create(context)
-                                                .clearCredentialState(ClearCredentialStateRequest())
-                                        } catch (_: Exception) {
-                                            // clearing credential state is best-effort
-                                        }
-                                        signedInUser = null
-                                        deviceStatus = "Not checked yet"
-                                        deviceList = emptyList()
-                                        statusMessage = null
+                                        signedInUser = signInWithGoogle(activity)
+                                    } catch (e: GetCredentialException) {
+                                        statusMessage = "Sign-in cancelled or failed: ${e.type}"
                                     } catch (e: Exception) {
-                                        statusMessage = "Sign-out failed: ${e.message}"
+                                        statusMessage = "Sign-in failed: ${e.message}"
                                     } finally {
                                         busy = false
                                     }
                                 }
                             }
-                        ) {
-                            Text("Sign out")
+                        }
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Sign in with Google · গুগল দিয়ে সাইন ইন")
                         }
                     }
-                    statusMessage?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                } else {
+                    val user = signedInUser
+                    StatusRow(label = "Signed in as", value = user?.email ?: "(no email)")
+                    StatusRow(label = "Name", value = user?.displayName ?: "(no name)")
+                    Text(
+                        text = "Your account and device are stored only in your own Firebase project.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    WideOutlinedButton(
+                        enabled = !busy,
+                        onClick = {
+                            busy = true
+                            scope.launch {
+                                try {
+                                    FirebaseAuth.getInstance().signOut()
+                                    try {
+                                        CredentialManager.create(context)
+                                            .clearCredentialState(ClearCredentialStateRequest())
+                                    } catch (_: Exception) {
+                                        // clearing credential state is best-effort
+                                    }
+                                    signedInUser = null
+                                    deviceStatus = "Not checked yet"
+                                    deviceList = emptyList()
+                                    statusMessage = null
+                                } catch (e: Exception) {
+                                    statusMessage = "Sign-out failed: ${e.message}"
+                                } finally {
+                                    busy = false
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Sign out · সাইন আউট")
                     }
                 }
-            }
-
-            Card {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                statusMessage?.let {
                     Text(
-                        text = "Device registry (Firestore)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
-                    Text(
-                        text = deviceStatus,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (deviceStatus.startsWith("Registration failed")) {
-                        OutlinedButton(onClick = { registerRetryKey++ }) {
-                            Text("Retry registration")
-                        }
-                    }
-                    if (signedInUser != null) {
-                        StatusRow(label = "Presence (Phase 5)", value = presenceStatus)
-                        StatusRow(label = "Push notifications", value = pushStatus)
-                    }
-                    if (deviceList.isEmpty()) {
-                        Text(
-                            text = "No devices on this account yet.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    } else {
-                        Text(
-                            text = "Devices on this account:",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                        deviceList.forEachIndexed { index, entry ->
-                            if (index > 0) HorizontalDivider()
-                            Text(
-                                text = entry,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
                 }
             }
 
             PairingCard(signedInUser = signedInUser)
 
-            Card {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            SectionCard(title = "This device · এই ফোন") {
+                Text(
+                    text = deviceStatus,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (deviceStatus.startsWith("Registration failed")) {
+                    WideOutlinedButton(onClick = { registerRetryKey++ }) {
+                        Text("Retry registration · আবার চেষ্টা করুন")
+                    }
+                }
+                if (signedInUser != null) {
+                    StatusRow(label = "Presence · অনলাইন", value = presenceStatus)
+                    StatusRow(label = "Push · নোটিফিকেশন", value = pushStatus)
+                }
+                if (deviceList.isEmpty()) {
                     Text(
-                        text = "Phase 2 build check",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        text = "No devices on this account yet.",
+                        style = MaterialTheme.typography.bodySmall
                     )
+                } else {
                     Text(
-                        text = "Firebase project remote-family-support below means Firebase is wired up correctly.",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Devices on this account:",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium
                     )
+                    deviceList.forEachIndexed { index, entry ->
+                        if (index > 0) HorizontalDivider()
+                        Text(
+                            text = entry,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
 
-            StatusRow(label = "App version", value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})")
-            StatusRow(label = "Package", value = "com.family.remote.support")
-            StatusRow(label = "Firebase project", value = firebaseProjectId)
-            StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(label = "Next milestone", value = "Phase 9 - UI polish & family-scale rollout")
+            SectionCard(title = "About · অ্যাপ সম্পর্কে") {
+                var showAbout by remember { mutableStateOf(false) }
+                Text(
+                    text = if (showAbout) "Hide details ▴ · লুকান" else "Show details ▾ · বিস্তারিত",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable { showAbout = !showAbout }
+                )
+                if (showAbout) {
+                    StatusRow(label = "Package", value = "com.family.remote.support")
+                    StatusRow(label = "Firebase project", value = firebaseProjectId)
+                    StatusRow(label = "Firebase app ID", value = firebaseAppId)
+                    StatusRow(
+                        label = "Next milestone",
+                        value = "Phase 8.2 (FCM kill-push) + family-scale rollout"
+                    )
+                }
+            }
         }
     }
 }
@@ -456,33 +568,26 @@ fun HomeScreen() {
  */
 @Composable
 fun PairingCard(signedInUser: FirebaseUser?) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Phase 4 — Pair a trusted family device",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "The phone that needs help shows a 5-minute code. The helper's phone " +
-                    "types the same code. Pairing registers a trusted relationship — every " +
-                    "future support session will still ask for separate permission.",
-                style = MaterialTheme.typography.bodyMedium
-            )
+    SectionCard(title = "Pair a trusted phone · বিশ্বস্ত ফোন যুক্ত করুন") {
+        Text(
+            text = "The phone that needs help shows a 5-minute code. The helper's phone " +
+                "types the same code. Pairing registers a trusted relationship — every " +
+                "future support session will still ask for separate permission.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "যে ফোনে সাহায্য দরকার সে ৫ মিনিটের কোড দেখাবে; সাহায্যকারীর ফোনে সেই কোড দিতে হবে। " +
+                "যুক্ত হওয়া মানেই অনুমতি নয় — প্রতিটি সেশনে আলাদা অনুমতি চাওয়া হবে।",
+            style = MaterialTheme.typography.bodyMedium
+        )
 
-            if (signedInUser == null) {
-                Text(
-                    text = "Sign in first — pairing needs a Google account.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            } else {
-                PairingSections(signedInUser)
-            }
+        if (signedInUser == null) {
+            Text(
+                text = "Sign in first — pairing needs a Google account. · প্রথমে সাইন ইন করুন।",
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            PairingSections(signedInUser)
         }
     }
 }
@@ -657,7 +762,7 @@ private fun PairingSections(user: FirebaseUser) {
             try {
                 requestSession(user, rel)
                 sessionMessage =
-                    "Request sent — waiting for ${rel.recipientEmail} to allow."
+                    "Request sent — ${rel.recipientEmail}-এর অনুমতির অপেক্ষায়…"
             } catch (e: SessionException) {
                 sessionMessage = e.message
             } catch (e: CancellationException) {
@@ -678,10 +783,10 @@ private fun PairingSections(user: FirebaseUser) {
                 if (allow) {
                     grantSession(s.id, user.uid)
                     sessionMessage =
-                        "Session allowed ✓ — it ends automatically in 15 minutes."
+                        "Session allowed ✓ — ১৫ মিনিট পরে নিজে থেকেই শেষ হবে।"
                 } else {
                     denySession(s.id, user.uid)
-                    sessionMessage = "Request denied."
+                    sessionMessage = "Request denied · অনুরোধ না-করা হয়েছে।"
                 }
             } catch (e: SessionException) {
                 sessionMessage = e.message
@@ -700,7 +805,7 @@ private fun PairingSections(user: FirebaseUser) {
             sessionBusy = true
             try {
                 endSession(s.id, user.uid)
-                sessionMessage = "Session ended."
+                sessionMessage = "Session ended · সেশন শেষ হয়েছে।"
             } catch (e: SessionException) {
                 sessionMessage = e.message
             } catch (e: CancellationException) {
@@ -742,7 +847,7 @@ private fun PairingSections(user: FirebaseUser) {
     // ---------- Section A: this phone needs help ----------
     HorizontalDivider()
     Text(
-        text = "Does this phone need help?",
+        text = "এই ফোনে কি সাহায্য দরকার? · This phone needs help",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold
     )
@@ -750,18 +855,20 @@ private fun PairingSections(user: FirebaseUser) {
     if (showCode && currentInvite != null) {
         Text(
             text = currentInvite.code,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.headlineSmall,
             fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Share this code only with the family member who will help you.",
+            text = "Share this code only with the family member who will help you. · " +
+                "কোডটি শুধু যে পরিবারের সদস্য সাহায্য করবেন তাকেই দেবেন।",
             style = MaterialTheme.typography.bodySmall
         )
         val totalSeconds = (currentInvite.expiresAtMillis - nowMillis) / 1000
         Text(
             text = "Expires in ${totalSeconds / 60}:${(totalSeconds % 60)
-                .toString().padStart(2, '0')}",
+                .toString().padStart(2, '0')} · বাকি সময়",
             style = MaterialTheme.typography.bodySmall
         )
         val qr = remember(currentInvite.code) { qrBitmap(currentInvite.qrPayload) }
@@ -812,6 +919,7 @@ private fun PairingSections(user: FirebaseUser) {
             }
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -820,9 +928,12 @@ private fun PairingSections(user: FirebaseUser) {
                     onClick = {
                         copiedJustNow =
                             copyToClipboard(context, "Pairing code", currentInvite.code)
-                    }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
                 ) {
-                    Text(if (copiedJustNow) "Copied ✓" else "Copy code")
+                    Text(if (copiedJustNow) "Copied ✓ · হয়েছে" else "Copy · কপি")
                 }
                 OutlinedButton(
                     enabled = !saveBusy,
@@ -839,7 +950,10 @@ private fun PairingSections(user: FirebaseUser) {
                                 Manifest.permission.WRITE_EXTERNAL_STORAGE
                             )
                         }
-                    }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
                 ) {
                     if (saveBusy) {
                         CircularProgressIndicator(
@@ -847,7 +961,7 @@ private fun PairingSections(user: FirebaseUser) {
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Save QR")
+                        Text("Save QR · সেভ")
                     }
                 }
                 OutlinedButton(
@@ -863,9 +977,12 @@ private fun PairingSections(user: FirebaseUser) {
                         } else {
                             saveFeedback = "Could not prepare the QR image for sharing."
                         }
-                    }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
                 ) {
-                    Text("Share")
+                    Text("Share · শেয়ার")
                 }
             }
             saveFeedback?.let {
@@ -874,17 +991,17 @@ private fun PairingSections(user: FirebaseUser) {
         }
         when (inviteStatus) {
             "PENDING" -> Text(
-                text = "Waiting for the other device…",
+                text = "অন্য ফোনের অপেক্ষায়… · Waiting for the other device",
                 style = MaterialTheme.typography.bodySmall
             )
             "PAIRED" -> Text(
-                text = "Paired ✓ with ${claimerEmail ?: "the helper"}",
+                text = "যুক্ত হয়েছে ✓ ${claimerEmail ?: "helper"}-এর সাথে",
                 style = MaterialTheme.typography.bodySmall
             )
             else -> {}
         }
         if (inviteStatus == "PENDING") {
-            OutlinedButton(
+            WideOutlinedButton(
                 enabled = !creating,
                 onClick = {
                     scope.launch {
@@ -898,7 +1015,7 @@ private fun PairingSections(user: FirebaseUser) {
                     }
                 }
             ) {
-                Text("Cancel this code")
+                Text("Cancel code · কোড বাতিল")
             }
         }
         inviteSyncError?.let {
@@ -911,16 +1028,16 @@ private fun PairingSections(user: FirebaseUser) {
     } else {
         if (currentInvite != null) {
             val statusText = when (inviteStatus) {
-                "PAIRED" -> "Paired ✓ with ${claimerEmail ?: "the helper"} — you can create a new code anytime."
-                "CANCELLED" -> "Code cancelled. Create a new one below."
-                else -> "Code expired. Create a new one below."
+                "PAIRED" -> "Paired ✓ · ${claimerEmail ?: "helper"}-এর সাথে যুক্ত — যখন চান নতুন কোড বানান।"
+                "CANCELLED" -> "কোড বাতিল হয়েছে। নিচে নতুন কোড বানান।"
+                else -> "কোডের সময় শেষ। নিচে নতুন কোড বানান।"
             }
             Text(
                 text = statusText,
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        Button(enabled = !creating, onClick = createCode) {
+        BigButton(enabled = !creating, onClick = createCode) {
             if (creating) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
@@ -928,8 +1045,10 @@ private fun PairingSections(user: FirebaseUser) {
                 )
             } else {
                 Text(
-                    if (currentInvite == null) "Create pairing code (5 min)"
-                    else "Create a new code"
+                    if (currentInvite == null)
+                        "Create pairing code · কোড তৈরি করুন (৫ মিনিট)"
+                    else
+                        "Create a new code · নতুন কোড তৈরি করুন"
                 )
             }
         }
@@ -938,7 +1057,7 @@ private fun PairingSections(user: FirebaseUser) {
     // ---------- Section B: this phone is the helper ----------
     HorizontalDivider()
     Text(
-        text = "Are you the helper? Redeem a code",
+        text = "আপনি কি সাহায্য করবেন? কোড দিন · You are the helper",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold
     )
@@ -949,15 +1068,16 @@ private fun PairingSections(user: FirebaseUser) {
         OutlinedTextField(
             value = codeInput,
             onValueChange = { codeInput = it },
-            label = { Text("Pairing code") },
+            label = { Text("Pairing code · কোড") },
             singleLine = true,
             modifier = Modifier.weight(1f)
         )
         Button(
             enabled = !redeeming,
-            onClick = { showScanner = true }
+            onClick = { showScanner = true },
+            modifier = Modifier.heightIn(min = 48.dp)
         ) {
-            Text("Scan QR")
+            Text("Scan QR · স্ক্যান")
         }
     }
     if (showScanner) {
@@ -970,7 +1090,7 @@ private fun PairingSections(user: FirebaseUser) {
             onDismiss = { showScanner = false }
         )
     }
-    Button(
+    BigButton(
         enabled = !redeeming && codeInput.isNotBlank(),
         onClick = {
             scope.launch {
@@ -979,7 +1099,7 @@ private fun PairingSections(user: FirebaseUser) {
                 try {
                     val rel = redeemCode(user, codeInput)
                     redeemMessage =
-                        "Paired ✓ You can now help ${rel.recipientEmail} (${rel.recipientDeviceModel})."
+                        "Paired ✓ — এখন আপনি ${rel.recipientEmail} (${rel.recipientDeviceModel})-কে সাহায্য করতে পারবেন।"
                     codeInput = ""
                 } catch (e: RedemptionException) {
                     redeemMessage = e.message
@@ -999,7 +1119,7 @@ private fun PairingSections(user: FirebaseUser) {
                 strokeWidth = 2.dp
             )
         } else {
-            Text("Pair with code")
+            Text("Pair with code · কোড দিয়ে যুক্ত করুন")
         }
     }
     redeemMessage?.let { message ->
@@ -1017,7 +1137,7 @@ private fun PairingSections(user: FirebaseUser) {
     // ---------- Section C: trusted relationships ----------
     HorizontalDivider()
     Text(
-        text = "Paired devices",
+        text = "Paired phones · যুক্ত ফোন",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold
     )
@@ -1030,7 +1150,7 @@ private fun PairingSections(user: FirebaseUser) {
             )
         } else {
             Text(
-                text = "No trusted relationships yet. Pair with a code above.",
+                text = "এখনো কোনো ফোন যুক্ত হয়নি। উপরের কোড দিয়ে যুক্ত করুন।",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -1038,11 +1158,11 @@ private fun PairingSections(user: FirebaseUser) {
         relationships.forEach { rel ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    val role = if (rel.helperUid == user.uid) "You help" else "Helped by"
+                    val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
                     val otherEmail =
                         if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
                     Text(
-                        text = "$role ${otherEmail.ifBlank { "(no email)" }}",
+                        text = "$role: ${otherEmail.ifBlank { "(no email)" }}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -1062,17 +1182,18 @@ private fun PairingSections(user: FirebaseUser) {
                     }
                     // Phase 6 — helper can ask to start a support session.
                     if (rel.status == "ACTIVE" && rel.helperUid == user.uid) {
-                        Button(
+                        BigButton(
                             enabled = !sessionBusy && openSession == null,
                             onClick = { startSessionFor(rel) }
                         ) {
-                            Text("Start session (asks permission)")
+                            Text("Start session · সেশন শুরু করুন (অনুমতি চাইবে)")
                         }
                     }
                 }
                 if (rel.status == "ACTIVE") {
                     OutlinedButton(
                         enabled = revokingId != rel.id,
+                        modifier = Modifier.heightIn(min = 48.dp),
                         onClick = {
                             revokingId = rel.id
                             scope.launch {
@@ -1088,7 +1209,7 @@ private fun PairingSections(user: FirebaseUser) {
                             }
                         }
                     ) {
-                        Text("Revoke")
+                        Text("Revoke · বাতিল")
                     }
                 }
             }
@@ -1098,13 +1219,14 @@ private fun PairingSections(user: FirebaseUser) {
     // ---------- Section D: Phase 6 — support session ----------
     HorizontalDivider()
     Text(
-        text = "Phase 6 — Support session",
+        text = "Support session · সাপোর্ট সেশন",
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold
     )
     Text(
         text = "Pairing alone never grants access. Every session starts with a live " +
-            "permission ask on the phone that needs help, and ends automatically.",
+            "permission ask on the phone that needs help, and ends automatically. " +
+            "শুধু যুক্ত থাকা মানেই অনুমতি নয় — প্রতিটি সেশনে আলাদা অনুমতি, আর নির্দিষ্ট সময়ে নিজেই শেষ।",
         style = MaterialTheme.typography.bodySmall
     )
 
@@ -1121,12 +1243,14 @@ private fun PairingSections(user: FirebaseUser) {
         OutlinedButton(
             onClick = {
                 notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
+            },
+            modifier = Modifier.heightIn(min = 48.dp)
         ) {
-            Text("Enable notifications")
+            Text("Enable notifications · নোটিফিকেশন চালু করুন")
         }
         Text(
-            text = "Needed to see help requests while this app is closed or in the background.",
+            text = "Needed to see help requests while this app is closed or in the background. · " +
+                "অ্যাপ বন্ধ থাকলেও সাহায্যের অনুরোধ দেখতে এটা দরকার।",
             style = MaterialTheme.typography.bodySmall
         )
     }
@@ -1150,27 +1274,34 @@ private fun PairingSections(user: FirebaseUser) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "${currentSession.helperEmail.ifBlank { "Someone" }} wants to help with this phone.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "${currentSession.helperEmail.ifBlank { "Someone" }} " +
+                            "এই ফোনে সাহায্য করতে চাইছেন।",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Allow only if you know them and want help right now. " +
-                            "The ask expires in ${mmss(secondsLeft)}.",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে। " +
+                            "(Allow only if you know them.)",
+                        style = MaterialTheme.typography.bodyMedium
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             enabled = !sessionBusy,
-                            onClick = { answerSession(currentSession, true) }
+                            onClick = { answerSession(currentSession, true) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 52.dp)
                         ) {
-                            Text("Allow")
+                            Text("Allow · অনুমতি দিন", fontWeight = FontWeight.Bold)
                         }
                         OutlinedButton(
                             enabled = !sessionBusy,
-                            onClick = { answerSession(currentSession, false) }
+                            onClick = { answerSession(currentSession, false) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 52.dp)
                         ) {
-                            Text("Deny")
+                            Text("Deny · না", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1181,18 +1312,18 @@ private fun PairingSections(user: FirebaseUser) {
             val secondsLeft =
                 ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
             Text(
-                text = "Asking ${currentSession.recipientEmail} to allow a support session… " +
-                    "The ask expires in ${mmss(secondsLeft)}.",
+                text = "${currentSession.recipientEmail}-কে অনুমতির অনুরোধ পাঠানো হয়েছে… " +
+                    "${mmss(secondsLeft)}-এ শেষ হবে।",
                 style = MaterialTheme.typography.bodyMedium
             )
-            OutlinedButton(
+            WideOutlinedButton(
                 enabled = !sessionBusy,
                 onClick = {
                     scope.launch {
                         sessionBusy = true
                         try {
                             cancelSession(currentSession.id, user.uid)
-                            sessionMessage = "Request cancelled."
+                            sessionMessage = "Request cancelled · অনুরোধ বাতিল।"
                         } catch (e: SessionException) {
                             sessionMessage = e.message
                         } catch (e: CancellationException) {
@@ -1205,7 +1336,7 @@ private fun PairingSections(user: FirebaseUser) {
                     }
                 }
             ) {
-                Text("Cancel request")
+                Text("Cancel request · অনুরোধ বাতিল")
             }
         }
         currentSession != null && currentSession.status == "ACTIVE" -> {
@@ -1225,15 +1356,16 @@ private fun PairingSections(user: FirebaseUser) {
                 ) {
                     Text(
                         text = if (currentSession.helperUid == user.uid) {
-                            "Support session active — you are helping ${currentSession.recipientEmail}."
+                            "সেশন চালু — আপনি ${currentSession.recipientEmail}-কে সাহায্য করছেন।"
                         } else {
-                            "Support session active — ${currentSession.helperEmail} is helping you."
+                            "সেশন চালু — ${currentSession.helperEmail} আপনাকে সাহায্য করছেন।"
                         },
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Ends automatically in ${mmss(secondsLeft)}. You can end it earlier below.",
+                        text = "স্বয়ংক্রিয়ভাবে ${mmss(secondsLeft)}-এ শেষ হবে। আগে শেষ করতে পারেন। " +
+                            "(Ends automatically in ${mmss(secondsLeft)}.)",
                         style = MaterialTheme.typography.bodySmall
                     )
                     ScreenSharePanel(
@@ -1246,11 +1378,11 @@ private fun PairingSections(user: FirebaseUser) {
                             currentSession.helperUid
                         }
                     )
-                    OutlinedButton(
+                    WideOutlinedButton(
                         enabled = !sessionBusy,
                         onClick = { finishSession(currentSession) }
                     ) {
-                        Text("End session")
+                        Text("End session · সেশন শেষ করুন")
                     }
                 }
             }
@@ -1328,12 +1460,12 @@ private fun ScreenSharePanel(
 
     if (isHelper) {
         if (!active) {
-            OutlinedButton(
+            WideOutlinedButton(
                 onClick = {
                     ScreenShareEngine.startHelper(context, sessionId, myUid, otherUid)
                 }
             ) {
-                Text("Watch screen (view only)")
+                Text("Watch screen · স্ক্রিন দেখুন (শুধু দেখা)")
             }
         } else {
             // v0.8.3 — the picture is now sized to the REAL screen aspect
@@ -1348,6 +1480,11 @@ private fun ScreenSharePanel(
             // recipient's phone instead of opening the local full-screen view.
             var assistMode by remember { mutableStateOf(false) }
             var boxPx by remember { mutableStateOf(IntSize.Zero) }
+            // Phase 9 (T3) — one place decides "remote touch is actually
+            // live"; it drives the rim, the badge and the tap routing
+            // together, so the helper can never confuse view-only with
+            // touch-active.
+            val assistLive = assistMode && state == ShareState.LIVE
             // Keep the helper's own screen on while a live stream is shown.
             if (state == ShareState.LIVE) {
                 DisposableEffect(Unit) {
@@ -1399,19 +1536,38 @@ private fun ScreenSharePanel(
                                 Modifier
                                     .fillMaxSize()
                                     .then(
-                                        if (assistMode && state == ShareState.LIVE) assistTapModifier()
+                                        if (assistLive) assistTapModifier()
                                         else Modifier
                                     )
                             )
-                            Text(
-                                text = "✕  Close",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold,
+                            if (assistLive) {
+                                // Phase 9 (T3) — an unmistakable badge so the
+                                // helper never forgets taps are going remote.
+                                Text(
+                                    text = "REMOTE TOUCH ON · টাচ চালু",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(12.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                            // Phase 9 (T3) — the old 16dp "✕ Close" text was
+                            // far below a 44dp touch target; a real button now.
+                            Button(
+                                onClick = { fullscreen = false },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(16.dp)
-                                    .clickable { fullscreen = false }
-                            )
+                                    .padding(12.dp)
+                                    .heightIn(min = 48.dp)
+                            ) {
+                                Text("✕ Close · বন্ধ", fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 } else {
@@ -1419,58 +1575,112 @@ private fun ScreenSharePanel(
                         val targetHeight = frameSize?.let { (w, h) ->
                             if (h > 0) maxWidth * (h.toFloat() / w.toFloat()) else 420.dp
                         } ?: 420.dp
-                        VideoRendererBox(
-                            egl,
-                            Modifier
-                                .fillMaxWidth()
-                                .height(targetHeight.coerceAtMost(480.dp))
-                                .then(
-                                    if (assistMode && state == ShareState.LIVE) assistTapModifier()
-                                    else Modifier.clickable { fullscreen = true }
+                        Box {
+                            VideoRendererBox(
+                                egl,
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(targetHeight.coerceAtMost(480.dp))
+                                    .then(
+                                        if (assistLive) {
+                                            // Phase 9 (T3) — a warm rim marks
+                                            // "taps go to THEIR phone".
+                                            Modifier.border(
+                                                3.dp,
+                                                MaterialTheme.colorScheme.primary,
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .then(
+                                        if (assistLive) assistTapModifier()
+                                        else Modifier.clickable { fullscreen = true }
+                                    )
+                            )
+                            if (assistLive) {
+                                Text(
+                                    text = "REMOTE TOUCH ON · টাচ চালু",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(8.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
                                 )
-                        )
+                            }
+                        }
                     }
                     Text(
-                        text = if (assistMode && state == ShareState.LIVE)
-                            "Touch control is ON — tap the picture to tap THEIR phone."
+                        text = if (assistLive)
+                            "টাচ চালু — ছবিতে ট্যাপ মানে তাদের ফোনে ট্যাপ।"
                         else
-                            "Tap the picture for full screen.",
+                            "Tap the picture for full screen · ছবিতে ট্যাপ করলে ফুলস্ক্রিন হবে।",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
             // Phase 8 — the touch-control switch, global navigation buttons
-            // and per-command delivery feedback.
+            // and per-command delivery feedback. Phase 9 (T3): a clear section
+            // header, equal-width ≥48dp nav buttons, bilingual state copy.
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Touch control", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "Touch control · রিমোট টাচ",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
                 Switch(checked = assistMode, onCheckedChange = { assistMode = it })
             }
             Text(
                 text = if (assistMode)
-                    "ON — taps go to the recipient's phone (their Remote assist must be enabled)."
+                    "চালু — ট্যাপ এখন তাদের ফোনে যাবে (তাদের Remote assist চালু থাকতে হবে)।"
                 else
-                    "OFF — view only. Switch on to tap on the recipient's phone.",
+                    "বন্ধ — শুধু দেখা যাচ্ছে। ট্যাপ পাঠাতে সুইচ চালু করুন।",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (assistMode) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { ScreenShareEngine.sendAssistNav("back") }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { ScreenShareEngine.sendAssistNav("back") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
                         Text("◀ Back")
                     }
-                    OutlinedButton(onClick = { ScreenShareEngine.sendAssistNav("home") }) {
+                    OutlinedButton(
+                        onClick = { ScreenShareEngine.sendAssistNav("home") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
                         Text("⌂ Home")
                     }
-                    OutlinedButton(onClick = { ScreenShareEngine.sendAssistNav("recents") }) {
+                    OutlinedButton(
+                        onClick = { ScreenShareEngine.sendAssistNav("recents") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
                         Text("▦ Recents")
                     }
                 }
-                OutlinedButton(onClick = { fullscreen = true }) {
-                    Text("⛶ Full screen")
+                WideOutlinedButton(onClick = { fullscreen = true }) {
+                    Text("⛶ Full screen · ফুলস্ক্রিন")
                 }
             }
             assistStatus?.let {
@@ -1480,8 +1690,8 @@ private fun ScreenSharePanel(
                     fontWeight = FontWeight.Medium
                 )
             }
-            OutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
-                Text("Stop watching")
+            WideOutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
+                Text("Stop watching · দেখা বন্ধ")
             }
         }
     } else {
@@ -1500,14 +1710,14 @@ private fun ScreenSharePanel(
                     )
                 }
             }
-            OutlinedButton(
+            WideOutlinedButton(
                 onClick = { consentLauncher.launch(projectionManager.createScreenCaptureIntent()) }
             ) {
-                Text("Share screen with helper")
+                Text("Share screen · স্ক্রিন শেয়ার করুন")
             }
             Text(
-                text = "Everything visible on this phone can be seen by the helper " +
-                    "until you stop or the session ends. Nothing is controlled remotely.",
+                text = "চালুর পর এই ফোনে যা দেখা যায় সবই সাহায্যকারী দেখতে পাবেন — আপনি বন্ধ করা " +
+                    "বা সেশন শেষ হওয়া পর্যন্ত। দূর থেকে কিছু নিয়ন্ত্রণ করা হয় না।",
                 style = MaterialTheme.typography.bodySmall
             )
         } else {
@@ -1526,7 +1736,7 @@ private fun ScreenSharePanel(
             val previewEgl = ScreenShareEngine.eglBaseContext
             if (previewEgl != null) {
                 Text(
-                    text = "Preview — this is what the helper sees:",
+                    text = "প্রিভিউ — সাহায্যকারী এটাই দেখছেন:",
                     style = MaterialTheme.typography.bodySmall
                 )
                 AndroidView(
@@ -1551,8 +1761,8 @@ private fun ScreenSharePanel(
                     }
                 }
             }
-            OutlinedButton(onClick = { ScreenShareService.stop(context) }) {
-                Text("Stop sharing")
+            WideOutlinedButton(onClick = { ScreenShareService.stop(context) }) {
+                Text("Stop sharing · শেয়ার বন্ধ")
             }
             // Phase 8 (v0.9.0) — Remote assist: state + one-time enablement.
             // Without the service the helper stays view-only forever; with it
@@ -1568,29 +1778,29 @@ private fun ScreenSharePanel(
             }
             if (assistOn) {
                 Text(
-                    text = "Remote assist is ON — the helper can also tap on this screen.",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "Remote assist চালু — সাহায্যকারী এই স্ক্রিনে ট্যাপও করতে পারবেন।",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold
                 )
             } else {
                 Text(
-                    text = "Remote assist is OFF — the helper can watch but cannot tap.",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "Remote assist বন্ধ — সাহায্যকারী শুধু দেখতে পারবেন, ট্যাপ করতে পারবেন না।",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
-                OutlinedButton(onClick = {
+                WideOutlinedButton(onClick = {
                     try {
                         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     } catch (_: Exception) {
                     }
                 }) {
-                    Text("Turn on Remote assist")
+                    Text("Turn on Remote assist · রিমোট টাচ চালু করুন")
                 }
                 Text(
-                    text = "One-time setup: in Accessibility choose \"Family Remote " +
-                        "Support assist\" and switch it on. The service reads " +
-                        "nothing — it can only perform taps, and you can switch " +
-                        "it off any time.",
+                    text = "একবারই সেটআপ লাগবে: Accessibility-তে \"Family Remote " +
+                        "Support assist\" খুঁজে চালু করুন। এটি স্ক্রিনের কিছুই পড়ে না — " +
+                        "শুধু ট্যাপ করতে পারে; যখন চান বন্ধ করতে পারবেন।",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
