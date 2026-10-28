@@ -3,7 +3,6 @@ package com.family.remote.support
 import android.Manifest
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
@@ -409,6 +408,55 @@ fun HomeScreen() {
             StatusRow(
                 label = "App version · সংস্করণ",
                 value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+            )
+
+            // v0.9.5 — PERMISSION WIZARD. The Owner asked for "সব পারমিশন
+            // ইনস্টল/ওপেনের সময়" — Android cannot grant runtime permissions
+            // at install time, so this is the honest equivalent: the FIRST
+            // open auto-launches the checklist (notifications, camera,
+            // Remote-assist accessibility, battery exemption) with live
+            // state; the card below re-opens it any time.
+            var showWizard by remember { mutableStateOf(false) }
+            var permSummary by remember { mutableStateOf(readPermChecklist(context)) }
+            LaunchedEffect(Unit) {
+                if (!isPermissionWizardDone(context)) showWizard = true
+            }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    permSummary = readPermChecklist(context)
+                    delay(2500)
+                }
+            }
+            SectionCard(title = "Permissions · পারমিশন") {
+                if (permSummary.allDone) {
+                    Text(
+                        text = "সব পারমিশন চালু ✓ — অ্যাপ পুরোপুরি প্রস্তুত।",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                } else {
+                    Text(
+                        text = "চালু ${permSummary.doneCount}/4 — বাকি: ${permSummary.missingNamesBn()}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "সব ফিচার মসৃণ চালাতে বাকিগুলো একবার চালু করুন।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                WideOutlinedButton(onClick = { showWizard = true }) {
+                    Text("Permission check · পারমিশন চেক খুলুন")
+                }
+            }
+            PermissionWizard(
+                visible = showWizard,
+                onDismiss = {
+                    showWizard = false
+                    markPermissionWizardDone(context)
+                }
             )
 
             // Phase 9 (T1) — pairing is the heart of the app, so its card
@@ -1768,17 +1816,28 @@ private fun ScreenSharePanel(
             // Without the service the helper stays view-only forever; with it
             // they may tap (nothing more). The poll keeps the card honest if
             // the user flips the service in system settings mid-session.
+            // v0.9.5 — the enablement is now GUIDED: the button opens the
+            // Bengali step-by-step dialog (it names the exact service line
+            // and warns against the "Accessibility menu shortcut" trap the
+            // 28 Oct session fell into), then Settings opens with our row
+            // highlighted (EXTRA_FRAGMENT_ARG_KEY). isAssistReady also reads
+            // the settings list, so the ✓ appears the moment the switch
+            // flips — before Android rebinds the service. droppedTaps turns
+            // "the helper is tapping RIGHT NOW and it is not landing" into a
+            // loud error banner mid-session.
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            var assistOn by remember { mutableStateOf(AssistService.isReady) }
+            var assistOn by remember { mutableStateOf(AssistSetup.isAssistReady(context)) }
+            var showAssistGuide by remember { mutableStateOf(false) }
+            val droppedTaps by ScreenShareEngine.assistDropped.collectAsState()
             LaunchedEffect(Unit) {
                 while (true) {
-                    assistOn = AssistService.isReady
+                    assistOn = AssistSetup.isAssistReady(context)
                     delay(1500)
                 }
             }
             if (assistOn) {
                 Text(
-                    text = "Remote assist চালু — সাহায্যকারী এই স্ক্রিনে ট্যাপও করতে পারবেন।",
+                    text = "Remote assist চালু ✓ — সাহায্যকারী এই স্ক্রিনে ট্যাপও করতে পারবেন।",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -1789,21 +1848,35 @@ private fun ScreenSharePanel(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                WideOutlinedButton(onClick = {
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    } catch (_: Exception) {
+                if (droppedTaps > 0) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = "⚠️ সাহায্যকারী এখনই ট্যাপ করছেন — কিন্তু Remote assist বন্ধ " +
+                                "থাকায় সেগুলো কাজ করছে না! নিচের বাটনে ট্যাপ করে এখনই চালু করুন।",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp)
+                        )
                     }
-                }) {
+                }
+                WideOutlinedButton(onClick = { showAssistGuide = true }) {
                     Text("Turn on Remote assist · রিমোট টাচ চালু করুন")
                 }
                 Text(
-                    text = "একবারই সেটআপ লাগবে: Accessibility-তে \"Family Remote " +
-                        "Support assist\" খুঁজে চালু করুন। এটি স্ক্রিনের কিছুই পড়ে না — " +
-                        "শুধু ট্যাপ করতে পারে; যখন চান বন্ধ করতে পারবেন।",
+                    text = "একবারই সেটআপ লাগবে: তালিকায় \"Family Remote Support assist\" খুঁজে চালু করুন। " +
+                        "⚠️ \"Accessibility menu shortcut\" নয় — সেটা কাজ করবে না। এই সার্ভিস স্ক্রিনের " +
+                        "কিছুই পড়ে না — শুধু ট্যাপ করতে পারে।",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (showAssistGuide) {
+                AssistSetupGuide(onDismiss = { showAssistGuide = false })
             }
         }
     }
