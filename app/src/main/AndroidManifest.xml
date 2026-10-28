@@ -44,6 +44,26 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
+        <!-- Phase 8 (v0.9.0): REMOTE ASSIST. The grantor enables this ONCE in
+             system Settings → Accessibility; without it the helper stays
+             view-only (Phase 7 behaviour). canRetrieveWindowContent=false in
+             res/xml/assist_service_config.xml — the service performs taps
+             ONLY, it reads nothing from the screen. Commands reach it only
+             through the ACTIVE-session signal queue (same epoch chain as the
+             video). -->
+        <service
+            android:name=".AssistService"
+            android:exported="false"
+            android:label="@string/assist_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/assist_service_config" />
+        </service>
+
         <!-- v0.6.1: lets the share sheet receive the QR PNG staged in the
              app cache without exposing any other file. -->
         <provider
