@@ -69,20 +69,52 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  *  5. NO-BYE STOP — the helper's "Stop watching" only closes ITS OWN viewer;
  *     the recipient keeps sharing, so "Watch screen" can simply be tapped
  *     again. (The recipient's "Stop sharing"/session end still sends "bye".)
- *  6. VP8 PREFERRED + free TURN — both sides reorder the video m-line to
- *     negotiate VP8 (software codec: identical behaviour on every phone,
- *     avoids broken H.264 hardware for screen content), and a free community
- *     TURN relay is added after the Google STUN servers for hard-NAT cases.
- *     If the relay is unavailable ICE simply falls back to STUN.
- *  7. v0.8.2 — RENDER-ATTACH LIFECYCLE (the true remaining black screen):
- *     the UI used to attach the video surface inside the Compose factory and
- *     then silently detach it again when the view-state write restarted its
- *     own effect (dispose-after-attach ordering). Frames kept flowing — the
- *     helper watchdog even showed "Live ✓" — while every surface stayed black
- *     on BOTH phones. Attaching now happens in the effect body and is
- *     re-asserted on recomposition; a fresh "watch" round also resets
- *     remoteDescriptionSet/pendingIce so a re-watch's answer-time candidates
- *     can never be applied against the previous round's remote description.
+ *  6. VP8 PREFERRED — both sides reorder the video m-line to negotiate VP8
+ *     (software codec: identical behaviour on every phone, avoids broken
+ *     H.264 hardware for screen content).
+ *  7. v0.8.2 — RENDER-ATTACH LIFECYCLE: the UI used to attach the video
+ *     surface inside the Compose factory and then silently detach it again
+ *     when the view-state write restarted its own effect (dispose-after-
+ *     attach ordering). Frames kept flowing — the helper watchdog even showed
+ *     "Live ✓" — while every surface stayed black on BOTH phones. Attaching
+ *     now happens in the effect body and is re-asserted on recomposition; a
+ *     fresh "watch" round also resets remoteDescriptionSet/pendingIce.
+ *
+ * v0.8.3 fixes (Oct 2025 report: "Connection failed" on both phones, helper
+ * stuck on "Answer sent — connecting video…" with a black box):
+ *  8. TURN IS NOW RUNTIME-CONFIGURABLE — the hard truth behind the new
+ *     failures: the free public relay the app used (openrelay.metered.ca) is
+ *     DEAD (verified from the build box: UDP silence, TCP refused), and its
+ *     replacement host rejects the old public credentials. Without a relay,
+ *     phones on two different mobile-carrier networks (CGNAT) often CANNOT
+ *     connect, whatever the app does. The engine therefore now reads a
+ *     `config/turn` Firestore document at every session start (owner-written
+ *     via the service account; read-only for apps) and merges those TURN
+ *     servers into ICE. Owner pastes free metered.ca credentials once →
+ *     cross-network relay works WITHOUT a new APK. Empty doc ⇒ STUN-only
+ *     (same Wi-Fi / one phone's hotspot always works that way).
+ *  9. SELF-HEALING WATCH ROUNDS — previously the recipient IGNORED a "watch"
+ *     that arrived while its UI showed "Connection failed" (state ENDED):
+ *     the helper then waited forever on "Asked the recipient's phone…" and
+ *     the only way out was tapping "Stop sharing" → re-share → re-consent on
+ *     the recipient phone. Now: a connection failure on the RECIPIENT no
+ *     longer kills the share — the engine rebuilds just the PeerConnection,
+ *     keeps the capture, and stays ready; the next "watch" reconnects. A
+ *     watch is accepted in ANY state while the capture is alive.
+ * 10. HELPER AUTO-RETRY — the helper no longer dead-ends either. Every stuck
+ *     stage (no offer within 12 s of asking, no answer within 12 s of the
+ *     offer, no video within 14 s of the answer, or a hard FAILED) now
+ *     triggers an automatic fresh round (new epoch + new PeerConnection +
+ *     new "watch"), up to a 3-retry budget that refills on every success.
+ *     Only after the budget is exhausted does the manual-advice message
+ *     appear.
+ * 11. NETWORK SELF-DIAGNOSIS — while gathering, the engine counts its own
+ *     candidates by type and exposes a one-line "Network check — direct:
+ *     N · via STUN: M · via relay: K" so a screenshot alone tells us whether
+ *     both phones can reach a relay (K>0) or are STUN-only.
+ * 12. FRAME-SIZE FEEDBACK — the decoded frame dimensions are published, so
+ *     the UI can size the picture to the real screen aspect ratio (big
+ *     watch view + full-screen mode instead of a small fixed box).
  *
  * Threading: every WebRTC object is created and driven from the main thread
  * (fine for one ~720p screen stream); observer callbacks hop back onto the
@@ -90,18 +122,11 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  */
 object ScreenShareEngine {
 
-    /** STUN for public address discovery; TURN as the hard-NAT fallback. */
-    private val ICE_SERVERS = listOf(
+    /** STUN for public address discovery (always on). */
+    private fun baseIceServers(): List<PeerConnection.IceServer> = listOf(
         PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
         PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
-        PeerConnection.IceServer.builder("turn:openrelay.metered.ca:80")
-            .setUsername("openrelayproject")
-            .setPassword("openrelayproject")
-            .createIceServer(),
-        PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443?transport=tcp")
-            .setUsername("openrelayproject")
-            .setPassword("openrelayproject")
-            .createIceServer()
+        PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
     )
 
     private val main = Handler(Looper.getMainLooper())
@@ -113,6 +138,14 @@ object ScreenShareEngine {
     /** One-line human status for the UI ("Connecting…", errors, …). */
     private val _info = MutableStateFlow<String?>(null)
     val info: StateFlow<String?> = _info
+
+    /** Candidate-type summary, refreshed every time gathering completes. */
+    private val _netInfo = MutableStateFlow<String?>(null)
+    val netInfo: StateFlow<String?> = _netInfo
+
+    /** Decoded remote frame size (width to height) for the viewer's layout. */
+    private val _frameSize = MutableStateFlow<Pair<Int, Int>?>(null)
+    val frameSize: StateFlow<Pair<Int, Int>?> = _frameSize
 
     private var appContext: Context? = null
     private var eglBase: EglBase? = null
@@ -148,13 +181,35 @@ object ScreenShareEngine {
     /** De-dupes control messages (offer/answer/watch applied once per round). */
     private val handled = mutableSetOf<String>()
 
+    // v0.8.3 — self-healing + diagnostics state.
+    /** Relay servers loaded from config/turn at session start (may be empty). */
+    private var dynamicIceServers: List<PeerConnection.IceServer> = emptyList()
+    /** True while the recipient's capture/track are alive and reusable. */
+    private var captureAlive = false
+    /** Remaining automatic fresh rounds for the helper (refills on success). */
+    private var retryBudget = 0
+    /** Epoch whose retry decision was already made (guards double-trigger). */
+    private var retryRoundTag = ""
+    private var sentWatchAt = 0L
+    private var gotOfferAt = 0L
+    private var candHost = 0
+    private var candSrflx = 0
+    private var candRelay = 0
+
     // Frame watchdog (helper side): counts decoded frames of the remote track.
     private val framesSeen = AtomicLong(0)
     private var frameSinkAdded = false
     private var answerSentAtMillis = 0L
-    private var noVideoWarned = false
     private var tickerRunning = false
-    private val frameCounter = VideoSink { _ -> framesSeen.incrementAndGet() }
+    private val frameCounter = VideoSink { frame ->
+        framesSeen.incrementAndGet()
+        val w = frame?.rotatedWidth ?: 0
+        val h = frame?.rotatedHeight ?: 0
+        if (w > 0 && h > 0) {
+            val cur = _frameSize.value
+            if (cur == null || cur.first != w || cur.second != h) _frameSize.value = w to h
+        }
+    }
     private val ticker = object : Runnable {
         override fun run() {
             if (!isHelper || peerConnection == null) {
@@ -163,19 +218,32 @@ object ScreenShareEngine {
             }
             val seen = framesSeen.get()
             val st = _state.value
-            if (seen > 0 && (st == ShareState.CONNECTING || st == ShareState.WAITING_PEER)) {
-                _state.value = ShareState.LIVE
-                _info.value = "Live — receiving the screen ✓"
-            } else if (seen == 0L && st == ShareState.CONNECTING &&
-                answerSentAtMillis > 0 &&
-                System.currentTimeMillis() - answerSentAtMillis > 12_000 &&
-                !noVideoWarned
-            ) {
-                noVideoWarned = true
-                _info.value =
-                    "Connected, but no video is arriving — tap “Stop watching”, then “Watch screen” again."
+            val now = System.currentTimeMillis()
+            var repost = true
+            when {
+                seen > 0 && (st == ShareState.CONNECTING || st == ShareState.WAITING_PEER) -> {
+                    _state.value = ShareState.LIVE
+                    _info.value = "Live — receiving the screen ✓"
+                }
+                st == ShareState.WAITING_PEER &&
+                    sentWatchAt > 0 && now - sentWatchAt > 12_000 -> {
+                    repost = false
+                    helperRetryOrFail(
+                        "No response from the recipient's phone — make sure “Share screen” is ON there."
+                    )
+                }
+                st == ShareState.CONNECTING &&
+                    gotOfferAt > 0 && answerSentAtMillis == 0L && now - gotOfferAt > 12_000 -> {
+                    repost = false
+                    helperRetryOrFail("The recipient's answer never arrived.")
+                }
+                st == ShareState.CONNECTING &&
+                    answerSentAtMillis > 0 && seen == 0L && now - answerSentAtMillis > 14_000 -> {
+                    repost = false
+                    helperRetryOrFail("The two phones could not finish linking up.")
+                }
             }
-            main.postDelayed(this, 1000)
+            if (repost) main.postDelayed(this, 1000)
         }
     }
 
@@ -196,6 +264,8 @@ object ScreenShareEngine {
      * returned by the MediaProjection consent dialog. MUST be called while the
      * mediaProjection foreground service is already running (Android 14 rule:
      * getMediaProjection() only succeeds inside a running FGS of that type).
+     * v0.8.3: the optional relay config is fetched first so the very first
+     * PeerConnection already gathers relay candidates.
      */
     fun startRecipient(
         context: Context,
@@ -208,45 +278,57 @@ object ScreenShareEngine {
             _info.value = null
             startCommon(context, sessionIdArg, uid, peerUidArg, isHelperArg = false)
             _state.value = ShareState.PREPARING
-            try {
-                ensureFactory()
-                createPeer()
-
-                val dm = context.resources.displayMetrics
-                var w = dm.widthPixels
-                var h = dm.heightPixels
-                val maxDim = maxOf(w, h)
-                if (maxDim > 1280) {
-                    val scale = 1280.0 / maxDim
-                    w = (w * scale / 2).toInt() * 2
-                    h = (h * scale / 2).toInt() * 2
-                }
-
-                val helper = SurfaceTextureHelper.create("ScreenCap", eglBase!!.eglBaseContext)
-                val source = factory!!.createVideoSource(true)
-                val cap = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {})
-                cap.initialize(helper, context.applicationContext, source.capturerObserver)
-                cap.startCapture(w, h, 15)
-
-                val track = factory!!.createVideoTrack("screen", source)
-                peerConnection!!.addTrack(track, listOf("screen"))
-
-                surfaceHelper = helper
-                videoSource = source
-                videoTrack = track
-                capturer = cap
-                localPreview?.let { pv ->
-                    try {
-                        track.addSink(pv)
-                    } catch (_: Exception) {
-                    }
-                }
-                _state.value = ShareState.WAITING_PEER
-                _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
-                watchSignals()
-            } catch (e: Exception) {
-                fail("Screen capture failed: ${e.message ?: e.javaClass.simpleName}")
+            _info.value = "Preparing the screen share…"
+            val app = context.applicationContext
+            scope.launch {
+                dynamicIceServers = ConfigRepo.fetchTurnServers()
+                main.post { beginRecipientCapture(app, projectionData) }
             }
+        }
+    }
+
+    private fun beginRecipientCapture(context: Context, projectionData: Intent) {
+        _state.value = ShareState.PREPARING
+        try {
+            ensureFactory()
+            createPeer()
+
+            val dm = context.resources.displayMetrics
+            var w = dm.widthPixels
+            var h = dm.heightPixels
+            val maxDim = maxOf(w, h)
+            if (maxDim > 1280) {
+                val scale = 1280.0 / maxDim
+                w = (w * scale / 2).toInt() * 2
+                h = (h * scale / 2).toInt() * 2
+            }
+
+            val helper = SurfaceTextureHelper.create("ScreenCap", eglBase!!.eglBaseContext)
+            val source = factory!!.createVideoSource(true)
+            val cap = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {})
+            cap.initialize(helper, context.applicationContext, source.capturerObserver)
+            cap.startCapture(w, h, 15)
+
+            val track = factory!!.createVideoTrack("screen", source)
+            peerConnection?.addTrack(track, listOf("screen"))
+
+            surfaceHelper = helper
+            videoSource = source
+            videoTrack = track
+            capturer = cap
+            captureAlive = true
+            localPreview?.let { pv ->
+                try {
+                    track.addSink(pv)
+                } catch (_: Exception) {
+                }
+            }
+            _state.value = ShareState.WAITING_PEER
+            _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
+            watchSignals()
+        } catch (e: Exception) {
+            captureAlive = false
+            fail("Screen capture failed: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
@@ -260,26 +342,36 @@ object ScreenShareEngine {
             _info.value = null
             startCommon(context, sessionIdArg, uid, peerUidArg, isHelperArg = true)
             _state.value = ShareState.WAITING_PEER
-            try {
-                ensureFactory()
-                createPeer()
-                watchSignals()
-                val sid = sessionIdArg
-                val me = uid
-                val to = peerUidArg
-                val ep = myEpoch ?: ""
-                scope.launch {
-                    try {
-                        SignalingRepo.send(sid, me, to, "watch", ep)
-                        _info.value = "Asked the recipient's phone for the screen — connecting…"
-                        startTicker()
-                    } catch (e: Exception) {
-                        fail("Could not ask to watch: ${e.message ?: e.javaClass.simpleName}")
-                    }
-                }
-            } catch (e: Exception) {
-                fail("Could not start the viewer: ${e.message ?: e.javaClass.simpleName}")
+            _info.value = "Preparing the viewer…"
+            scope.launch {
+                dynamicIceServers = ConfigRepo.fetchTurnServers()
+                main.post { beginHelperWatch() }
             }
+        }
+    }
+
+    private fun beginHelperWatch() {
+        try {
+            ensureFactory()
+            createPeer()
+            watchSignals()
+            val sid = sessionId ?: return
+            val me = myUid ?: return
+            val to = peerUid ?: return
+            val ep = myEpoch ?: ""
+            retryBudget = 3
+            scope.launch {
+                try {
+                    SignalingRepo.send(sid, me, to, "watch", ep)
+                    sentWatchAt = System.currentTimeMillis()
+                    _info.value = "Asked the recipient's phone for the screen — connecting…"
+                    startTicker()
+                } catch (e: Exception) {
+                    fail("Could not ask to watch: ${e.message ?: e.javaClass.simpleName}")
+                }
+            }
+        } catch (e: Exception) {
+            fail("Could not start the viewer: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
@@ -317,7 +409,16 @@ object ScreenShareEngine {
         framesSeen.set(0)
         frameSinkAdded = false
         answerSentAtMillis = 0L
-        noVideoWarned = false
+        captureAlive = false
+        retryBudget = 0
+        retryRoundTag = ""
+        sentWatchAt = 0L
+        gotOfferAt = 0L
+        candHost = 0
+        candSrflx = 0
+        candRelay = 0
+        _netInfo.value = null
+        _frameSize.value = null
     }
 
     private fun ensureFactory() {
@@ -346,6 +447,13 @@ object ScreenShareEngine {
 
             override fun onIceCandidate(candidate: IceCandidate) {
                 if (mine() == null) return
+                // v0.8.3 — candidate-type census (diagnostics shown in the UI).
+                when {
+                    candidate.sdp.contains("typ relay") -> candRelay++
+                    candidate.sdp.contains("typ srflx") -> candSrflx++
+                    candidate.sdp.contains("typ prflx") -> candSrflx++
+                    else -> candHost++
+                }
                 val sid = sessionId ?: return
                 val from = myUid ?: return
                 val to = peerUid ?: return
@@ -365,6 +473,14 @@ object ScreenShareEngine {
                     } catch (_: Exception) {
                         // one lost candidate is non-fatal
                     }
+                }
+            }
+
+            override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
+                if (mine() == null) return
+                if (state == PeerConnection.IceGatheringState.COMPLETE) {
+                    _netInfo.value =
+                        "Network check — direct: $candHost · via STUN: $candSrflx · via relay: $candRelay"
                 }
             }
 
@@ -392,27 +508,31 @@ object ScreenShareEngine {
                 main.post {
                     if (peerConnection !== pcNow) return@post
                     when (newState) {
-                        PeerConnection.PeerConnectionState.CONNECTED ->
+                        PeerConnection.PeerConnectionState.CONNECTED -> {
                             if (isHelper) {
+                                retryBudget = 3 // success refills the auto-retry budget
                                 _info.value = "Connection established — starting the video…"
                             } else {
                                 _state.value = ShareState.LIVE
                                 _info.value = "Live — the helper can see this screen."
                             }
+                        }
                         PeerConnection.PeerConnectionState.DISCONNECTED ->
                             if (_state.value == ShareState.LIVE) {
                                 _info.value = "Connection interrupted — trying to recover…"
                             }
-                        PeerConnection.PeerConnectionState.FAILED -> fail(
+                        PeerConnection.PeerConnectionState.FAILED ->
                             if (isHelper) {
-                                "Connection failed — the two phones could not link up. " +
-                                    "Tap “Watch screen” again; if it keeps failing, put both " +
-                                    "phones on the same Wi-Fi network (or one phone's hotspot)."
+                                helperRetryOrFail("The connection attempt failed")
+                            } else if (captureAlive) {
+                                // v0.8.3 — the share survives; only the link died.
+                                recipientRecover(
+                                    "Connection to the helper failed — the share stays ready. " +
+                                        "Ask the helper to tap “Watch screen” again."
+                                )
                             } else {
-                                "Connection failed — the two phones could not link up. " +
-                                    "Tap “Stop sharing”, then share again."
+                                fail("Connection failed — tap “Stop sharing”, then share again.")
                             }
-                        )
                         else -> Unit
                     }
                 }
@@ -421,15 +541,16 @@ object ScreenShareEngine {
             override fun onSignalingChange(state: PeerConnection.SignalingState?) = Unit
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) = Unit
             override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
-            override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) = Unit
             override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) = Unit
             override fun onAddStream(stream: MediaStream?) = Unit
             override fun onRemoveStream(stream: MediaStream?) = Unit
             override fun onDataChannel(channel: org.webrtc.DataChannel?) = Unit
             override fun onRenegotiationNeeded() = Unit
         }
-        val config = PeerConnection.RTCConfiguration(ICE_SERVERS)
+        val config = PeerConnection.RTCConfiguration(baseIceServers() + dynamicIceServers)
         config.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+        config.continualGatheringPolicy =
+            PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
         val pc = factory!!.createPeerConnection(config, observer)
         if (pc == null) {
             fail("Could not create the WebRTC engine on this phone.")
@@ -437,6 +558,12 @@ object ScreenShareEngine {
         }
         thisPc = pc
         peerConnection = pc
+        // v0.8.3 — when a recipient rebuilds its PeerConnection (self-heal),
+        // the screen track must be re-attached to the NEW pc. On the very
+        // first round this is a no-op (the track is created afterwards).
+        if (!isHelper && captureAlive) {
+            videoTrack?.let { pc.addTrack(it, listOf("screen")) }
+        }
     }
 
     private fun watchSignals() {
@@ -454,42 +581,44 @@ object ScreenShareEngine {
     }
 
     private fun handleSignal(type: String, ep: String, payload: String) {
-        val pc = peerConnection ?: return
+        val pc = peerConnection
         try {
             val key = type + "|" + payload.take(120)
             // ICE candidates are all unique; control messages may repeat safely.
             if (type != "ice" && !handled.add(key)) return
 
             when (type) {
-                "watch" -> if (!isHelper &&
-                    (_state.value == ShareState.WAITING_PEER ||
-                        _state.value == ShareState.CONNECTING ||
-                        _state.value == ShareState.LIVE) &&
-                    payload.length in 16..64
-                ) {
-                    // A fresh (possibly repeat) watch: adopt the helper's epoch,
-                    // then offer the screen with an ICE restart so every round
-                    // carries brand-new credentials and re-gathered candidates.
+                "watch" -> if (!isHelper && captureAlive && payload.length in 16..64) {
+                    // v0.8.3 — accepted in ANY state while the capture is
+                    // alive (WAITING_PEER, CONNECTING, LIVE or after a
+                    // failed round). A fresh (possibly repeat) watch adopts
+                    // the helper's epoch, then offers the screen with an
+                    // ICE restart so every round carries brand-new
+                    // credentials and re-gathered candidates.
                     peerEpoch = payload
-                    // v0.8.2: fresh round ⇒ fresh remote-description state.
-                    // Without this, helper candidates arriving between the
-                    // offer and the answer were applied against the PREVIOUS
-                    // round's remote description and silently dropped.
+                    // Fresh round ⇒ fresh remote-description state: helper
+                    // candidates arriving between the offer and the answer
+                    // must never be applied against the PREVIOUS round's
+                    // remote description (they would be silently dropped).
                     remoteDescriptionSet = false
                     pendingIce.clear()
+                    if (pc == null) {
+                        createPeer() // self-heal path: reconnect after a failure
+                    }
+                    val pcNow = peerConnection ?: return
                     _info.value = "The helper asked to watch — sending the screen…"
                     val restart = MediaConstraints()
                     restart.mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
-                    pc.createOffer(offerObserver(peerEpoch), restart)
+                    pcNow.createOffer(offerObserver(peerEpoch), restart)
                 }
-                "offer" -> if (isHelper && !remoteDescriptionSet && ep == myEpoch) {
+                "offer" -> if (isHelper && pc != null && !remoteDescriptionSet && ep == myEpoch) {
                     val sdp = JSONObject(payload)
                     pc.setRemoteDescription(
                         setObserver("offer", myEpoch),
                         SessionDescription(SessionDescription.Type.OFFER, sdp.getString("sdp"))
                     )
                 }
-                "answer" -> if (!isHelper && ep.isNotBlank() && ep == peerEpoch) {
+                "answer" -> if (!isHelper && pc != null && ep.isNotBlank() && ep == peerEpoch) {
                     val sdp = JSONObject(payload)
                     pc.setRemoteDescription(
                         setObserver("answer", peerEpoch),
@@ -498,6 +627,7 @@ object ScreenShareEngine {
                 }
                 "ice" -> {
                     val expected = if (isHelper) myEpoch else peerEpoch
+                    if (pc == null) return
                     if (ep.isBlank() || ep != expected) return
                     val c = JSONObject(payload)
                     val candidate = IceCandidate(
@@ -523,6 +653,103 @@ object ScreenShareEngine {
             }
         } catch (_: Exception) {
             // one malformed signal must never kill the engine
+        }
+    }
+
+    /**
+     * v0.8.3 — helper-side stuck-round recovery. [reason] is the honest
+     * statement of what stalled; a fresh round (new epoch, new
+     * PeerConnection, new "watch") is attempted automatically while the
+     * retry budget lasts.
+     */
+    private fun helperRetryOrFail(reason: String) {
+        runOnMain {
+            if (!isHelper || _state.value == ShareState.ENDED) return@runOnMain
+            val ep = myEpoch ?: return@runOnMain
+            // One retry decision per round, ever — the ticker timeout and a
+            // hard FAILED callback can fire for the SAME round seconds
+            // apart; only the first may restart it.
+            if (retryRoundTag == ep) return@runOnMain
+            retryRoundTag = ep
+            if (retryBudget > 0) {
+                retryBudget--
+                helperRestartRound(reason)
+            } else {
+                fail(
+                    "Connection failed — the two phones could not link up. " +
+                        "Tap “Watch screen” again; if it keeps failing, put both " +
+                        "phones on the same Wi-Fi network (or one phone's hotspot)."
+                )
+            }
+        }
+    }
+
+    /** Rebuild only the connection (capture has nothing to do with it). */
+    private fun helperRestartRound(reason: String) {
+        main.removeCallbacks(ticker)
+        tickerRunning = false
+        try {
+            peerConnection?.close()
+        } catch (_: Exception) {
+        }
+        peerConnection = null
+        if (frameSinkAdded) {
+            try {
+                remoteTrack?.removeSink(frameCounter)
+            } catch (_: Exception) {
+            }
+            frameSinkAdded = false
+        }
+        remoteTrack = null
+        handled.clear()
+        pendingIce.clear()
+        remoteDescriptionSet = false
+        framesSeen.set(0)
+        answerSentAtMillis = 0L
+        gotOfferAt = 0L
+        _frameSize.value = null
+        myEpoch = UUID.randomUUID().toString().replace("-", "").take(24)
+        _state.value = ShareState.WAITING_PEER
+        _info.value = "$reason — trying again automatically…"
+        val sid = sessionId ?: return
+        val me = myUid ?: return
+        val to = peerUid ?: return
+        val ep = myEpoch ?: return
+        createPeer()
+        SignalingRepo.clearAsync(sid, me)
+        scope.launch {
+            try {
+                SignalingRepo.send(sid, me, to, "watch", ep)
+                sentWatchAt = System.currentTimeMillis()
+                _info.value = "$reason — asked the recipient's phone again…"
+                startTicker()
+            } catch (e: Exception) {
+                fail("Could not ask to watch: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
+    }
+
+    /**
+     * v0.8.3 — recipient-side failure recovery: close ONLY the
+     * PeerConnection, keep the capture/track/listener, and wait in
+     * WAITING_PEER for the next "watch". The old behaviour (full teardown →
+     * "Stop sharing" + re-consent on the recipient phone) is what made a
+     * single failed round so painful.
+     */
+    private fun recipientRecover(message: String) {
+        runOnMain {
+            if (isHelper || !captureAlive) return@runOnMain
+            val pc = peerConnection
+            try {
+                pc?.close()
+            } catch (_: Exception) {
+            }
+            peerConnection = null
+            handled.clear()
+            pendingIce.clear()
+            remoteDescriptionSet = false
+            _state.value = ShareState.WAITING_PEER
+            _info.value = message
         }
     }
 
@@ -564,6 +791,7 @@ object ScreenShareEngine {
             if (expectedEpoch != null && currentEp != expectedEpoch) return
             if (isHelper && what == "offer") {
                 remoteDescriptionSet = true
+                gotOfferAt = System.currentTimeMillis()
                 flushIce()
                 val epExpected = expectedEpoch
                 pc.createAnswer(object : SdpObserver by noop {
@@ -817,7 +1045,16 @@ object ScreenShareEngine {
         remoteDescriptionSet = false
         framesSeen.set(0)
         answerSentAtMillis = 0L
-        noVideoWarned = false
+        captureAlive = false
+        retryBudget = 0
+        retryRoundTag = ""
+        sentWatchAt = 0L
+        gotOfferAt = 0L
+        candHost = 0
+        candSrflx = 0
+        candRelay = 0
+        _netInfo.value = null
+        _frameSize.value = null
         _state.value = ShareState.IDLE
     }
 
