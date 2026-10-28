@@ -18,6 +18,11 @@
          from killing the capture mid-session. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- v0.9.5: the permission wizard offers the battery-optimization
+         exemption so presence heartbeats and session notifications arrive
+         on time on aggressive OEM battery managers. User-initiated only
+         (the wizard shows the system dialog); never silently granted. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".App"
