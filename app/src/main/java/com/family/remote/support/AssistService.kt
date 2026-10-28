@@ -2,7 +2,11 @@ package com.family.remote.support
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.Context
 import android.graphics.Path
+import android.graphics.Point
+import android.os.Build
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -33,6 +37,14 @@ import android.view.accessibility.AccessibilityEvent
  * The system may start this service only after the user enables it; it stays
  * registered in [Companion.instance] while connected, so the engine can ask
  * "is assist available?" and perform gestures without any binding calls.
+ *
+ * v0.9.6 — PRECISION FIX: taps are mapped onto the REAL display size (system
+ * bars included). The remote video shows the whole screen — status bar and
+ * navigation bar — but resources.displayMetrics only measures the app-window
+ * area, which is smaller by exactly those two bars. Scaling the video's
+ * normalized coordinates by the app-window height therefore pulled every
+ * tap UP the screen by roughly one keyboard row (the 28 Oct report:
+ * "pressed h, u fired"). maximumWindowMetrics/getRealSize fixes the map.
  */
 class AssistService : AccessibilityService() {
 
@@ -51,11 +63,15 @@ class AssistService : AccessibilityService() {
         super.onDestroy()
     }
 
-    /** Inject one tap at normalized (0..1) screen coordinates. */
+    /**
+     * Inject one tap at normalized (0..1) coordinates of the REAL display
+     * (v0.9.6 — the same space the shared video covers, system bars included).
+     */
     private fun tapNormalized(nx: Double, ny: Double): Boolean {
-        val m = resources.displayMetrics
-        val x = (nx.coerceIn(0.0, 1.0) * m.widthPixels).toFloat()
-        val y = (ny.coerceIn(0.0, 1.0) * m.heightPixels).toFloat()
+        val size = realDisplaySize()
+            ?: resources.displayMetrics.let { it.widthPixels to it.heightPixels }
+        val x = (nx.coerceIn(0.0, 1.0) * size.first).toFloat()
+        val y = (ny.coerceIn(0.0, 1.0) * size.second).toFloat()
         val path = Path().apply { moveTo(x, y) }
         val stroke = GestureDescription.StrokeDescription(path, 0L, 60L)
         return dispatchGesture(
@@ -63,6 +79,29 @@ class AssistService : AccessibilityService() {
             null,
             null
         )
+    }
+
+    /**
+     * v0.9.6 — the FULL display size in pixels, exactly what MediaProjection
+     * captures. Falls back to the app-window metrics only if the system call
+     * fails (then precision degrades to the old behaviour, never crashes).
+     */
+    @Suppress("DEPRECATION")
+    private fun realDisplaySize(): Pair<Int, Int>? {
+        return try {
+            val wm = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                ?: return null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val b = wm.maximumWindowMetrics.bounds
+                b.width() to b.height()
+            } else {
+                val p = Point()
+                wm.defaultDisplay.getRealSize(p)
+                p.x to p.y
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     companion object {
