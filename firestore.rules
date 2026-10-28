@@ -286,13 +286,19 @@ service cloud.firestore {
 
       // ---------- Phase 7: WebRTC signaling (screen share) ----------
       // Short-lived docs: {aud, from, type: offer|answer|ice|watch|bye,
-      // payload, ep, createdAt}. aud = the INTENDED READER, so every side only
+      // cmd, cmdack — Phase 8 remote assist, payload, ep, createdAt}.
+      // aud = the INTENDED READER, so every side only
       // ever lists documents addressed to it; the writer can only address
       // the other participant, and only while the session is ACTIVE.
       // v0.8.1: "ep" is a per-round epoch token both apps use to ignore stale
       // documents from an earlier negotiation round. It carries no authority
       // (the reader's own epoch filter does the work), so the rules only
       // require it to be a short string.
+      // v0.9.0 (Phase 8): "cmd"/"cmdack" carry remote-assist taps/nav — same
+      // queue, same epoch gate; commands only ever execute on the recipient
+      // while its owner enabled the assist accessibility service, and only
+      // while the session is ACTIVE (enforced again client-side by the
+      // engine).
       match /signal/{sigId} {
         function sessionNow() {
           return get(/databases/$(database)/documents/supportSessions/$(sessionId)).data;
@@ -310,7 +316,8 @@ service cloud.firestore {
               ? sessionNow().recipientUid : sessionNow().helperUid)
           && request.resource.data.keys().hasOnly(
             ['aud', 'from', 'type', 'payload', 'ep', 'createdAt'])
-          && request.resource.data.type in ['offer', 'answer', 'ice', 'watch', 'bye']
+          && request.resource.data.type in
+            ['offer', 'answer', 'ice', 'watch', 'bye', 'cmd', 'cmdack']
           && request.resource.data.payload is string
           && request.resource.data.payload.size() < 100000
           && request.resource.data.ep is string
