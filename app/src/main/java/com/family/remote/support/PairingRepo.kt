@@ -45,8 +45,8 @@ class RedemptionException(message: String) : Exception(message)
  * gRPC) the Task stays pending forever and the UI would spin endlessly.
  * Every Firestore call therefore goes through [awaitWithTimeout].
  */
-class FirestoreUnreachableException(what: String) : Exception(
-    "Could not reach Firestore while $what (waited ${RPC_TIMEOUT_MILLIS / 1000} s). " +
+class FirestoreUnreachableException(what: String, waitedMillis: Long = RPC_TIMEOUT_MILLIS) : Exception(
+    "Could not reach Firestore while $what (waited ${waitedMillis / 1000} s). " +
         "Check the internet connection, and in the Firebase console verify that the " +
         "Firestore Database was actually created (Build → Firestore Database must show " +
         "data, not a \"Create database\" button)."
@@ -55,12 +55,19 @@ class FirestoreUnreachableException(what: String) : Exception(
 /** Hard ceiling for every single Firestore round-trip. */
 private const val RPC_TIMEOUT_MILLIS = 30_000L
 
-/** Await a Firestore Task with a hard timeout so the UI can never hang forever. */
-suspend fun <T> Task<T>.awaitWithTimeout(what: String): T =
+/**
+ * Await a Firestore Task with a hard timeout so the UI can never hang forever.
+ * v0.9.2 — [timeoutMillis] lets optional, non-blocking reads (relay config)
+ * use a much shorter ceiling than the mandatory session calls.
+ */
+suspend fun <T> Task<T>.awaitWithTimeout(
+    what: String,
+    timeoutMillis: Long = RPC_TIMEOUT_MILLIS
+): T =
     try {
-        withTimeout(RPC_TIMEOUT_MILLIS) { this@awaitWithTimeout.await() }
+        withTimeout(timeoutMillis) { this@awaitWithTimeout.await() }
     } catch (e: TimeoutCancellationException) {
-        throw FirestoreUnreachableException(what)
+        throw FirestoreUnreachableException(what, timeoutMillis)
     }
 
 /**
