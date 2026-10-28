@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -84,6 +85,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -1514,18 +1516,13 @@ private fun ScreenSharePanel(
             // is showing right now — usually this very app, nested). It is the
             // fastest way to tell "my capture works" from "the connection is
             // broken" when the helper reports a black picture.
-            var previewView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
-            // v0.8.2 — same lifecycle fix as the helper's renderer: attach in
-            // the effect body so the restart-dispose can never wipe the
-            // factory's attach (this preview was black in the v0.8.1 report).
-            DisposableEffect(previewView) {
-                val view = previewView
-                ScreenShareEngine.attachLocalPreview(view)
-                onDispose {
-                    ScreenShareEngine.detachLocalPreview()
-                    view?.release()
-                }
-            }
+            //
+            // v0.9.2 — the view is created ONCE and only RELEASED when this
+            // composable leaves composition for good; the engine's local
+            // proxy sink forwards frames to whatever surface is current. The
+            // old DisposableEffect(viewKey) released the live surface during
+            // its own key-change dispose (a guaranteed black-preview recipe).
+            val previewRef = remember { AtomicReference<SurfaceViewRenderer?>(null) }
             val previewEgl = ScreenShareEngine.eglBaseContext
             if (previewEgl != null) {
                 Text(
@@ -1541,11 +1538,18 @@ private fun ScreenSharePanel(
                             init(previewEgl, null)
                             setMirror(false)
                             setEnableHardwareScaler(true)
-                            previewView = this
+                            previewRef.set(this)
+                            ScreenShareEngine.attachLocalPreview(this)
                         }
                     },
                     update = { view -> ScreenShareEngine.attachLocalPreview(view) }
                 )
+                DisposableEffect(Unit) {
+                    onDispose {
+                        ScreenShareEngine.detachLocalPreview()
+                        previewRef.getAndSet(null)?.release()
+                    }
+                }
             }
             OutlinedButton(onClick = { ScreenShareService.stop(context) }) {
                 Text("Stop sharing")
@@ -1612,26 +1616,20 @@ private fun ScreenSharePanel(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+    // v0.9.2 — frame health + the expandable engine log (on both roles).
+    DiagnosticsPanel()
 }
 
 /**
- * v0.8.3 — the helper's video surface, reusable for the inline view and the
- * full-screen dialog. The v0.8.2 lifecycle rules apply: the attachment
- * happens in the effect body (after the key settles) and is re-asserted on
- * every recomposition, so switching between inline and full-screen can never
- * leave a detached (black) surface behind.
+ * v0.9.2 — the helper's video surface, reusable for the inline view and the
+ * full-screen dialog. The renderer view is created ONCE per composition slot
+ * and released ONLY when the composable leaves composition for good; frames
+ * arrive through the engine's permanent proxy sink, so there is no
+ * addSink/removeSink/release race left (the black-picture bug class).
  */
 @Composable
 private fun VideoRendererBox(egl: EglBase.Context, modifier: Modifier) {
-    var rendererView by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
-    DisposableEffect(rendererView) {
-        val view = rendererView
-        ScreenShareEngine.attachRenderer(view)
-        onDispose {
-            ScreenShareEngine.detachRenderer()
-            view?.release()
-        }
-    }
+    val viewRef = remember { AtomicReference<SurfaceViewRenderer?>(null) }
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -1639,13 +1637,61 @@ private fun VideoRendererBox(egl: EglBase.Context, modifier: Modifier) {
                 init(egl, null)
                 setMirror(false)
                 setEnableHardwareScaler(true)
-                rendererView = this
+                viewRef.set(this)
+                ScreenShareEngine.attachRenderer(this)
             }
         },
-        // Belt-and-braces: every recomposition re-asserts the
-        // attachment (idempotent remove+add inside the engine).
+        // Every recomposition re-asserts the target (idempotent swap inside
+        // the engine).
         update = { view -> ScreenShareEngine.attachRenderer(view) }
     )
+    DisposableEffect(Unit) {
+        onDispose {
+            ScreenShareEngine.detachRenderer()
+            viewRef.getAndSet(null)?.release()
+        }
+    }
+}
+
+/**
+ * v0.9.2 — the on-screen diagnostics block: frame health on one line, and a
+ * tap-to-expand rolling engine log (last 14 events). The Owner is phone-only
+ * — THIS panel is the logcat. One screenshot of it answers "where exactly
+ * did the round stop?".
+ */
+@Composable
+private fun DiagnosticsPanel() {
+    val stats by ScreenShareEngine.frameStats.collectAsState()
+    val diag by ScreenShareEngine.diag.collectAsState()
+    if (diag.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    Column {
+        Text(
+            text = buildString {
+                stats?.let {
+                    append(it)
+                    append("  ·  ")
+                }
+                append(if (open) "Diagnostics ▴" else "Diagnostics ▾")
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.clickable { open = !open }
+        )
+        if (open) {
+            Text(
+                text = diag.joinToString("\n"),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 4.dp)
+            )
+        }
+    }
 }
 
 @Composable
