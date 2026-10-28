@@ -12,7 +12,8 @@ A trusted family member helps fix another family phone — always with the recei
   layer (ENDED + EXPIRED transitions confirmed in Firestore via the service account).
 - **Phase 7 🚧 (v0.8.3, versionCode 17)** — **live screen share (view only)**:
   - Recipient taps **Share screen** on an ACTIVE session → system MediaProjection consent →
-    a `mediaProjection` foreground service (notification shown) captures ~720p @ 15 fps.
+    a `mediaProjection` foreground service (notification shown) captures ~720p @ 15 fps
+    (20 fps since v0.9.3).
     A small **self-preview** ("this is what the helper sees") proves the capture works.
   - Helper taps **Watch screen** → the recipient's engine posts a WebRTC offer → helper
     answers → live video renders in the app. Either side can stop; the session ending (or
@@ -93,6 +94,37 @@ A trusted family member helps fix another family phone — always with the recei
   - Coordinate mapping is resolution-independent: the helper's letterboxed video tap is
     converted to (0..1) normalized coordinates and re-scaled to the recipient's real
     display (`displayMetrics`) before `dispatchGesture` injects the ~60 ms tap.
+- **Since v0.9.0 (fixes, no new phases):** v0.9.1 — runtime metered.ca TURN via the
+  `config/turn` Firestore doc (free tier 500MB/month, burns only on cross-network relay);
+  v0.9.2 — the three forensics-proven root causes of the black/dead picture fixed
+  (permanent proxy sink for the renderer race, every SDP failure routed to diagnostics
+  instead of a silent dead-end, TURN-config read capped at 5s) + on-screen Diagnostics
+  panel; v0.9.3 — bitrate floor (min 800kbps / max 2.5Mbps, MAINTAIN_RESOLUTION so text
+  stays readable) + 20 fps capture + PERSISTENT assist-off warning with an actionable
+  hint (the tap pipeline itself was proven working — the recipient's Accessibility
+  service was simply switched off) + the About panel shows the REAL version.
+- **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
+  - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
+    primary, warm surfaces — no cold corporate blue) + a senior type scale
+    (body 14→16sp, small 12→14sp, bolder section titles), applied from the single
+    `MaterialTheme` wrapper. Zero logic touched.
+  - **T1 — consistent layout**: every section card uses one `SectionCard` (uniform
+    padding/spacing/title); primary actions are full-width ≥52dp `BigButton`s and
+    secondary actions ≥48dp; pairing — the heart of the app — moved up right under
+    Account; the dev-console rows (package / Firebase ids / next milestone) now live
+    in a collapsed "About · অ্যাপ সম্পর্কে" card; the dead "Phase 2 build check" card
+    is retired.
+  - **T2 — bilingual senior flow**: family-facing copy is বাংলা-first with English
+    kept for technical strings; phase-number prefixes ("Phase 4 — …") removed from
+    user-visible titles; the pairing code renders headline-size in the theme's
+    primary color; the consent card asks in Bangla with Allow/Deny as two
+    weight-equal big buttons; session state lines are Bangla-first.
+  - **T3 — touch-control overlay polish**: the helper's live picture shows a warm
+    rim + a "REMOTE TOUCH ON · টাচ চালু" badge (inline AND full-screen) whenever
+    taps go remote; ◀ Back / ⌂ Home / ▦ Recents became equal-width ≥48dp buttons;
+    the tiny full-screen "✕ Close" text became a real ≥48dp button; the
+    recipient's Remote-assist state line is now bold bilingual with a prominent
+    one-tap setup button — the exact step the v0.9.3 forensics showed being missed.
 
 ## Firestore
 
@@ -120,4 +152,4 @@ so every version over-installs cleanly on the Owner's phone.
 - minSdk 26 / targetSdk 34
 - Every Firestore round-trip has a hard 30 s timeout (`awaitWithTimeout`) + actionable
   Bengali/English error mapping (`describeFirestoreError`)
-- UI language: English (default)
+- UI language: বাংলা-first bilingual (Phase 9); technical/status strings remain English
