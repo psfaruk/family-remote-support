@@ -191,6 +191,15 @@ object ScreenShareEngine {
     private val _assistStatus = MutableStateFlow<String?>(null)
     val assistStatus: StateFlow<String?> = _assistStatus
 
+    /**
+     * v0.9.5 — count of helper commands dropped because the recipient's
+     * assist service was off. The recipient's share card turns this into a
+     * prominent "the helper is tapping RIGHT NOW and it is not landing"
+     * banner, so the one-time setup can't stay unnoticed mid-session.
+     */
+    private val _assistDropped = MutableStateFlow(0)
+    val assistDropped: StateFlow<Int> = _assistDropped
+
     // v0.9.2 — on-screen diagnostics. The Owner is phone-only (no logcat), so
     // the engine keeps the last engine events here and the UI renders them;
     // a single screenshot now answers "where exactly did it stop?".
@@ -591,6 +600,7 @@ object ScreenShareEngine {
         _netInfo.value = null
         _frameSize.value = null
         _assistStatus.value = null
+        _assistDropped.value = 0
     }
 
     private fun ensureFactory() {
@@ -876,6 +886,9 @@ object ScreenShareEngine {
             else -> return
         }
         diagLog("assist $kind → ${if (ok) "performed" else "assist-off"}")
+        if (!ok) {
+            runOnMain { _assistDropped.value += 1 }
+        }
         val ack = JSONObject()
             .put("kind", kind)
             .put("ok", ok)
@@ -916,10 +929,13 @@ object ScreenShareEngine {
             // taps while the recipient's assist stayed OFF the whole time.
             // The banner now stays until a tap is actually delivered (each
             // new ack replaces it) or the viewer closes.
+            // v0.9.5 — bilingual: the 28 Oct session proved the English-only
+            // banner never reached the family (they kept tapping for 21 min).
             _assistStatus.value =
-                "Remote assist is OFF on their phone — taps cannot land. " +
-                    "On THEIR screen's share card tap “Turn on Remote assist” " +
-                    "(one-time Android Accessibility setup)."
+                "Remote assist is OFF on their phone — taps cannot land.\n" +
+                    "ওদের ফোনে Remote assist বন্ধ — ট্যাপ কাজ করছে না। " +
+                    "ওদের স্ক্রিনে “Turn on Remote assist · রিমোট টাচ চালু করুন” বাটনে " +
+                    "ট্যাপ করতে বলুন (একবারই সেটআপ লাগবে)।"
             main.removeCallbacks(assistClear)
         }
     }
@@ -1376,6 +1392,7 @@ object ScreenShareEngine {
         previewFrames.set(0)
         main.removeCallbacks(assistClear)
         _assistStatus.value = null
+        _assistDropped.value = 0
         _state.value = ShareState.IDLE
     }
 
