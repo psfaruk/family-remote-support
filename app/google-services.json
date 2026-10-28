@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "1001946927282",
+    "firebase_url": "https://remote-family-support-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "remote-family-support",
     "storage_bucket": "remote-family-support.firebasestorage.app"
   },
@@ -14,7 +15,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "1001946927282-hm0drsfbfb6acuu742i4qcqfqge1696h.apps.googleusercontent.com",
+          "client_id": "1001946927282-3cqqsv9itnj952pna5vpng2afqs5tdn4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.family.remote.support",
+            "certificate_hash": "825654f8f2216b5aa364826eb76458ca5ee2bd66"
+          }
+        },
+        {
+          "client_id": "1001946927282-k0orohct2gg0jojtclpd00jafikqsim3.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
