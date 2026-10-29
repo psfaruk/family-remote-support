@@ -42,6 +42,13 @@ const CHANNEL_ID = "support_session_requests";
 /** Only asks requested within this window are pushed (stale ones are noise). */
 const FRESH_WINDOW_MILLIS = 10 * 60 * 1000;
 
+// v0.21.0 (audit) — cross-tier claim constants (mirrors the Cloudflare worker):
+// exactly one of the three sweep tiers may win the preconditioned claim on a
+// doc, so duplicate high-priority pushes are gone; stale REQUESTED docs are
+// lazily EXPIRED here too instead of being re-fetched forever.
+const CLAIM_TTL_MILLIS = 5 * 60 * 1000;
+const EXPIRE_GRACE_MILLIS = 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Service account resolution + OAuth (cached access token)
 // ---------------------------------------------------------------------------
@@ -131,7 +138,9 @@ function fieldGet(fields, name) {
   return undefined;
 }
 
-/** All docs of a single-equality query (automatic single-field index). */
+/** All docs of a single-equality query (automatic single-field index).
+ * v0.21.0 (audit): NDJSON-tolerant parsing + updateTime capture for the
+ * cross-tier claim precondition (see patchDocIfUnchanged). */
 async function queryWhere(collectionId, fieldPath, value) {
   const res = await fetch(`${fsBase()}:runQuery`, {
     method: "POST",
@@ -146,12 +155,28 @@ async function queryWhere(collectionId, fieldPath, value) {
     }),
   });
   if (!res.ok) throw new Error(`runQuery ${collectionId}: ${res.status} ${(await res.text()).slice(0, 300)}`);
-  const rows = await res.json();
+  const text = await res.text();
+  let rows;
+  try {
+    rows = JSON.parse(text);
+  } catch {
+    rows = [];
+    for (const line of text.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      try {
+        rows.push(JSON.parse(t));
+      } catch {
+        /* skip malformed fragment */
+      }
+    }
+  }
   return rows
     .filter((r) => r.document)
     .map((r) => ({
       id: r.document.name.split("/").pop(),
       name: r.document.name,
+      updateTime: r.document.updateTime || null,
       fields: r.document.fields || {},
     }));
 }
@@ -165,6 +190,27 @@ async function patchDoc(docPath, fields, maskPaths) {
   });
   if (!res.ok) throw new Error(`patch ${docPath}: ${res.status} ${(await res.text()).slice(0, 300)}`);
   return res.json();
+}
+
+/** v0.21.0 (audit) — cross-tier claim: PATCH with an optimistic-concurrency
+ * precondition; true = this tier owns the doc, false = another tier won. */
+async function patchDocIfUnchanged(docPath, fields, maskPaths, expectedUpdateTime) {
+  const mask = maskPaths.map((p) => `updateMask.fieldPaths=${encodeURIComponent(p)}`).join("&");
+  const res = await fetch(`${fsBase()}/${docPath}?${mask}`, {
+    method: "PATCH",
+    headers: await authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ fields, currentDocument: { updateTime: expectedUpdateTime } }),
+  });
+  if (res.ok) return true;
+  if (res.status === 409 || res.status === 400) {
+    try {
+      await res.text();
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+  throw new Error(`claim patch ${docPath}: ${res.status} ${(await res.text()).slice(0, 300)}`);
 }
 
 async function deleteDoc(docPath) {
@@ -230,6 +276,8 @@ export async function sweepOnce(log = console.log) {
     tokenErrors: 0,
     deadTokensDeleted: 0,
     alreadyPushed: 0,
+    claimLost: 0,
+    expiredStale: 0,
     errors: [],
   };
 
@@ -239,31 +287,71 @@ export async function sweepOnce(log = console.log) {
   const docs = await queryWhere("supportSessions", "status", "REQUESTED");
   summary.requestedDocs = docs.length;
 
+  // v0.21.0 (audit): most-urgent first.
+  docs.sort(
+    (a, b) =>
+      (fieldGet(a.fields, "respondDeadline") ?? 0) - (fieldGet(b.fields, "respondDeadline") ?? 0)
+  );
+
   for (const doc of docs) {
-    const f = doc.fields;
-    const requestedAt = fieldGet(f, "requestedAt") ?? fieldGet(f, "createdAt") ?? 0;
-    const deadline = fieldGet(f, "respondDeadline") ?? 0;
-    const pushedAt = fieldGet(f, "killPushSentAt");
+    // v0.21.0 (audit): one broken doc must never abort the remaining sweep.
+    try {
+      const f = doc.fields;
+      const requestedAt = fieldGet(f, "requestedAt") ?? fieldGet(f, "createdAt") ?? 0;
+      const deadline = fieldGet(f, "respondDeadline") ?? 0;
+      const pushedAt = fieldGet(f, "killPushSentAt");
+      const claimedAt = fieldGet(f, "killPushClaimAt");
 
-    if (pushedAt) {
-      summary.alreadyPushed += 1;
-      continue;
-    }
-    if (!deadline || deadline <= now) {
-      continue; // window already over — a push now would be confusing
-    }
-    if (!requestedAt || now - requestedAt > FRESH_WINDOW_MILLIS) {
-      continue; // stale REQUESTED doc nobody ever answered (app was dead for it)
-    }
-    summary.fresh += 1;
+      if (pushedAt) {
+        summary.alreadyPushed += 1;
+        continue;
+      }
+      if (claimedAt && now - claimedAt < CLAIM_TTL_MILLIS) {
+        continue; // another tier owns this doc
+      }
+      if (!deadline || deadline <= now) {
+        // v0.21.0 (audit): stale REQUESTED docs are expired here (same
+        // transition as the lazy client cleanup) instead of being re-fetched
+        // by every future sweep forever.
+        if (deadline && now - deadline > EXPIRE_GRACE_MILLIS) {
+          try {
+            await patchDoc(
+              `supportSessions/${doc.id}`,
+              { status: { stringValue: "EXPIRED" }, updatedAt: { timestampValue: new Date().toISOString() } },
+              ["status", "updatedAt"]
+            );
+            summary.expiredStale += 1;
+          } catch {
+            /* best effort */
+          }
+        }
+        continue; // window already over — a push now would be confusing
+      }
+      if (!requestedAt || now - requestedAt > FRESH_WINDOW_MILLIS) {
+        continue; // stale REQUESTED doc nobody ever answered (app was dead for it)
+      }
+      summary.fresh += 1;
 
-    const recipientUid = fieldGet(f, "recipientUid") || "";
-    const helperEmail = fieldGet(f, "helperEmail") || "A family member";
-    const sessionId = doc.id;
-    if (!recipientUid) {
-      summary.errors.push(`${sessionId}: missing recipientUid`);
-      continue;
-    }
+      const recipientUid = fieldGet(f, "recipientUid") || "";
+      const helperEmail = fieldGet(f, "helperEmail") || "A family member";
+      const sessionId = doc.id;
+      if (!recipientUid) {
+        summary.errors.push(`${sessionId}: missing recipientUid`);
+        continue;
+      }
+
+      // v0.21.0 (audit): CLAIM-BEFORE-SEND — the preconditioned write is the
+      // cross-tier mutex; only the winner sends.
+      const claimed = await patchDocIfUnchanged(
+        `supportSessions/${sessionId}`,
+        { killPushClaimAt: { timestampValue: new Date().toISOString() } },
+        ["killPushClaimAt"],
+        doc.updateTime
+      );
+      if (!claimed) {
+        summary.claimLost += 1;
+        continue;
+      }
 
     // Recipient's registered tokens (Phase 5 registry).
     let tokens;
@@ -305,7 +393,14 @@ export async function sweepOnce(log = console.log) {
     let lastKind = "";
     for (const t of tokens.slice(0, 3)) {
       message.token = t.token;
-      const r = await sendFcm(message);
+      let r;
+      try {
+        r = await sendFcm(message);
+      } catch (e) {
+        // v0.21.0 (audit): one transient network rejection must not kill the doc.
+        lastKind = `network:${String(e && e.message ? e.message : e).slice(0, 120)}`;
+        continue;
+      }
       if (r.ok) {
         sent += 1;
         log(`kill-push: ${sessionId} → token ${t.docId.slice(0, 8)}… OK (${r.messageId})`);
@@ -341,6 +436,11 @@ export async function sweepOnce(log = console.log) {
       summary.tokenErrors += 1;
       if (lastKind) summary.errors.push(`${sessionId}: all sends failed — ${lastKind}`);
     }
+    } catch (e) {
+      summary.errors.push(
+        `${doc.id}: sweep error — ${String(e && e.message ? e.message : e).slice(0, 160)}`
+      );
+    }
   }
 
   return summary;
@@ -354,6 +454,7 @@ export function formatSummary(s) {
   return (
     `sweep: ${s.requestedDocs} REQUESTED doc(s), ${s.fresh} fresh, ` +
     `${s.pushed} pushed, ${s.noTokens} no-tokens, ${s.alreadyPushed} already-pushed, ` +
+    `${s.claimLost ?? 0} claim-lost, ${s.expiredStale ?? 0} expired-stale, ` +
     `${s.tokenErrors} send-failed, ${s.deadTokensDeleted} dead-token(s) cleaned` +
     (s.errors.length ? ` | errors: ${s.errors.join(" ; ")}` : "")
   );
