@@ -623,9 +623,9 @@ private fun drawQrCenterBadge(bitmap: Bitmap, badge: QrBadge) {
     canvas.drawRoundRect(rect, radius, radius, outlinePaint)
 
     val glyph = badge.glyph
-    val textSize = plateSide * 0.52f
+    val glyphSize = plateSide * 0.52f
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = textSize
+        textSize = glyphSize
         textAlign = Paint.Align.CENTER
         color = Color.rgb(23, 32, 51) // #172033 — onSurface
     }
