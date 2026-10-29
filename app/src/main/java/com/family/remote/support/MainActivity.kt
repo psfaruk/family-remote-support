@@ -3,6 +3,7 @@ package com.family.remote.support
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
@@ -38,21 +39,43 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
@@ -60,10 +83,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +103,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import kotlin.math.hypot
@@ -85,6 +111,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,13 +145,18 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 // ═══════════════════════════════════════════════════════════════════════
-// Phase 9 (v0.9.4) — T0: family-warm theme + senior-friendly type scale.
+// Phase 9 (v0.9.4) — family-warm theme + senior-friendly type scale.
 //
 // The family that actually uses this app is Bangladeshi and often 50+, so:
 //   • a warm amber/brown palette (calm and caring — no cold corporate blue)
 //   • body text lifted one notch (14→16sp, 12→14sp) and bolder section titles
 //   • ONE fixed light scheme — predictable contrast, no dark-mode surprises
 // Pure presentation: zero logic lives here.
+//
+// v0.14.0 (Phase 11.5) — LESS TEXT, MORE STRUCTURE (Owner direction):
+//   long explanation paragraphs moved behind ⓘ info popups, every feature
+//   is an icon-marked tile/list-row, pairing got a FAB + bottom sheet,
+//   settings got real toggles, the invite code card got a dropdown menu.
 // ═══════════════════════════════════════════════════════════════════════
 private val FamilyWarmColors = lightColorScheme(
     primary = Color(0xFF8F4C00),
@@ -173,12 +206,24 @@ private val SeniorTypography: Typography = Typography().let { base ->
     )
 }
 
-/** Phase 9 (T1) — every section card: same padding, same spacing, same title. */
+// ═══════════════════════════════════════════════════════════════════════
+// v0.14.0 — reusable building blocks. Every tab is assembled from THESE:
+// SectionCard (icon + ⓘ popup), AppListTile (chat-style row), SettingsTile
+// (icon + title + description + switch/chevron), EmptyState, chips.
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Section card: icon-marked title row + optional ⓘ button that opens the
+ * LONG explanation in a popup dialog — the card body itself stays short.
+ */
 @Composable
 private fun SectionCard(
     title: String,
+    icon: ImageVector? = null,
+    infoText: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    var showInfo by remember { mutableStateOf(false) }
     Card {
         Column(
             modifier = Modifier
@@ -186,12 +231,344 @@ private fun SectionCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                if (infoText != null) {
+                    IconButton(
+                        onClick = { showInfo = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "বিস্তারিত · details",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            content()
+        }
+    }
+    if (showInfo && infoText != null) {
+        AlertDialog(
+            onDismissRequest = { showInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showInfo = false }) { Text("ঠিক আছে") }
+            },
+            title = {
+                Text(text = title, fontWeight = FontWeight.Bold)
+            },
+            text = { Text(text = infoText) }
+        )
+    }
+}
+
+/**
+ * v0.14.0 — chat-style list tile: avatar circle (initials or icon) + title
+ * + one-line description + trailing chip/chevron. The single row shape used
+ * by paired phones, devices, activity feed and account.
+ */
+@Composable
+private fun AppListTile(
+    title: String,
+    subtitle: String,
+    initials: String? = null,
+    icon: ImageVector? = null,
+    avatarContainer: Color = MaterialTheme.colorScheme.primaryContainer,
+    avatarContent: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    chip: String? = null,
+    chipContainer: Color = MaterialTheme.colorScheme.secondaryContainer,
+    chipContent: Color = MaterialTheme.colorScheme.onSecondaryContainer,
+    onClick: (() -> Unit)? = null,
+    trailingIcon: ImageVector? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(avatarContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                initials != null -> Text(
+                    text = initials.take(2).uppercase(),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = avatarContent
+                )
+                icon != null -> Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = avatarContent,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            content()
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (chip != null) {
+            Text(
+                text = chip,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = chipContent,
+                maxLines = 1,
+                modifier = Modifier
+                    .background(chipContainer, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+        if (trailingIcon != null) {
+            Icon(
+                imageVector = trailingIcon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/**
+ * v0.14.0 — settings row: leading icon + title + DESCRIPTION sub-text +
+ * trailing control (Switch / button / chevron). Clicking the row itself
+ * fires onClick (when provided).
+ */
+@Composable
+private fun SettingsTile(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        trailing?.invoke()
+    }
+}
+
+/** v0.14.0 — friendly empty state: big icon + one line + optional action. */
+@Composable
+private fun EmptyState(
+    icon: ImageVector,
+    title: String,
+    hint: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(44.dp)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = hint,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        if (actionLabel != null && onAction != null) {
+            WideOutlinedButton(onClick = onAction) { Text(actionLabel) }
+        }
+    }
+}
+
+/** v0.14.0 — compact status tile for the home 2×2 grid. */
+@Composable
+private fun IconStatusTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    ok: Boolean,
+    onClick: () -> Unit
+) {
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(
+                        color = if (ok) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (ok) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+/** v0.14.0 — quick-action tile (home): warm filled card with chevron. */
+@Composable
+private fun QuickActionTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(24.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -349,6 +726,10 @@ fun HomeScreen() {
     // Phase 11 — bottom navigation: 0 হোম · 1 ফোন · 2 একটিভিটি · 3 সেটিংস.
     var tab by rememberSaveable { mutableStateOf(0) }
 
+    // v0.14.0 — the ফোন tab's FAB opens the pairing bottom sheet; the sheet
+    // itself lives inside PairingSections (it needs the create/redeem state).
+    var showPairSheet by remember { mutableStateOf(false) }
+
     // Phase 11 — the permission wizard is an app-level overlay now, so a tab
     // switch can never close it mid-step.
     var showWizard by remember { mutableStateOf(false) }
@@ -459,7 +840,21 @@ fun HomeScreen() {
                 onBellClick = { tab = 2 }
             )
         },
-        bottomBar = { AppBottomNav(tab = tab, onSelect = { tab = it }) }
+        bottomBar = { AppBottomNav(tab = tab, onSelect = { tab = it }) },
+        floatingActionButton = {
+            // v0.14.0 — FAB only on the ফোন tab: opens the pair sheet.
+            if (tab == 1 && signedInUser != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { showPairSheet = true },
+                    icon = {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                    },
+                    text = { Text("যুক্ত করুন") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -483,7 +878,11 @@ fun HomeScreen() {
                     onGoPairing = { tab = 1 },
                     onGoActivity = { tab = 2 }
                 )
-                1 -> PairingCard(signedInUser = signedInUser)
+                1 -> PairingCard(
+                    signedInUser = signedInUser,
+                    showPairSheet = showPairSheet,
+                    onDismissPairSheet = { showPairSheet = false }
+                )
                 2 -> ActivityTab(user = signedInUser)
                 else -> SettingsTab(
                     signedInUser = signedInUser,
@@ -492,6 +891,7 @@ fun HomeScreen() {
                     webClientConfigured = webClientConfigured,
                     firebaseProjectId = firebaseProjectId,
                     firebaseAppId = firebaseAppId,
+                    permSummary = permSummary,
                     onSignIn = {
                         if (activity != null) {
                             busy = true
@@ -530,7 +930,8 @@ fun HomeScreen() {
                                 busy = false
                             }
                         }
-                    }
+                    },
+                    onOpenWizard = { showWizard = true }
                 )
             }
         }
@@ -680,10 +1081,15 @@ private fun PresenceChip(uid: String?, deviceId: String) {
     }
 }
 
-/**
- * Phase 11 — হোম ট্যাব: গ্রহীতা-সম্মতি কার্ড সবার উপরে (অনুরোধ এলেই), তারপর
- * ভার্সন, পারমিশন-সারসংক্ষেপ, এই-ফোন স্ট্যাটাস ও দ্রুত-অ্যাকশন।
- */
+// ═══════════════════════════════════════════════════════════════════════
+// হোম ট্যাব (v0.14.0) — কম লেখা, বেশি কাঠামো:
+//   ১. অনুমতির অনুরোধ এলে Allow/Deny কার্ড (একদম উপরে)
+//   ২. ২×২ স্ট্যাটাস টাইল গ্রিড (পারমিশন · এই ফোন · অনলাইন · নোটিফিকেশন)
+//   ৩. ব্যর্থ কিছু থাকলে একটাই কম্প্যাক্ট এরর-কার্ড
+//   ৪. এই অ্যাকাউন্টের ফোন — লিস্ট-টাইল
+//   ৫. দ্রুত অ্যাকশন — ২টি উষ্ণ টাইল
+// বড় ব্যাখ্যা-প্যারাগ্রাফ নেই — বিস্তারিত ⓘ-পপআপে।
+// ═══════════════════════════════════════════════════════════════════════
 @Composable
 private fun HomeTab(
     signedInUser: FirebaseUser?,
@@ -705,92 +1111,142 @@ private fun HomeTab(
             // The consent card leads the default tab — no hunting for it.
             HomeConsentCard(session = openSession, user = signedInUser)
         } else {
-            Text(
-                text = when {
-                    openSession.status == "REQUESTED" ->
-                        "📨 ${openSession.recipientEmail}-কে অনুমতির অনুরোধ পাঠানো হয়েছে — 'ফোন' ট্যাবে বিস্তারিত।"
-                    openSession.helperUid == signedInUser.uid ->
-                        "🟢 ${openSession.recipientEmail}-এর ফোনে সেশন চলছে — 'ফোন' ট্যাবে ভিডিও ও নিয়ন্ত্রণ।"
-                    else ->
-                        "🟢 ${openSession.helperEmail.ifBlank { "Someone" }} আপনার ফোনে সাহায্য করছেন — 'ফোন' ট্যাবে বিস্তারিত।"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            HomeLiveHintCard(session = openSession, myUid = signedInUser.uid)
         }
     }
 
     Text(
-        text = "Help your family with their phone — always with their clear permission.",
-        style = MaterialTheme.typography.bodyMedium
-    )
-    Text(
         text = "পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।",
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    StatusRow(
-        label = "App version · সংস্করণ",
-        value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
-    )
 
-    SectionCard(title = "Permissions · পারমিশন") {
-        if (permSummary.allDone) {
-            Text(
-                text = "সব পারমিশন চালু ✓ — অ্যাপ পুরোপুরি প্রস্তুত।",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
+    // ২×২ স্ট্যাটাস গ্রিড — প্রতিটি টাইলে আইকন + সংক্ষিপ্ত অবস্থা; ট্যাপ করলে
+    // সংশ্লিষ্ট অ্যাকশন (উইজার্ড / রিট্রাই)।
+    val registered = deviceStatus.startsWith("Registered")
+    val regFailed = deviceStatus.startsWith("Registration failed")
+    val regBusy = deviceStatus.startsWith("Registering")
+    val presenceOk = presenceStatus.startsWith("Online")
+    val pushOk = pushStatus.startsWith("Push notifications ready")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            IconStatusTile(
+                icon = Icons.Filled.Lock,
+                label = "পারমিশন",
+                value = if (permSummary.allDone) "সব চালু ✓" else "চালু ${permSummary.doneCount}/4",
+                ok = permSummary.allDone,
+                onClick = onOpenWizard
             )
-        } else {
-            Text(
-                text = "চালু ${permSummary.doneCount}/4 — বাকি: ${permSummary.missingNamesBn()}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            IconStatusTile(
+                icon = Icons.Filled.Phone,
+                label = "এই ফোন",
+                value = when {
+                    registered -> "রেজিস্টার্ড ✓"
+                    regBusy -> "চলছে…"
+                    regFailed -> "ব্যর্থ — চাপুন"
+                    else -> "চেক হয়নি"
+                },
+                ok = registered,
+                onClick = { if (regFailed) onRetryRegistration() else onOpenWizard() }
             )
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            IconStatusTile(
+                icon = Icons.Filled.Person,
+                label = "অনলাইন",
+                value = when {
+                    signedInUser == null -> "সাইন-ইন নেই"
+                    presenceOk -> "অনলাইন ✓"
+                    presenceStatus.startsWith("Presence failed") -> "ব্যর্থ"
+                    else -> "অপেক্ষায়…"
+                },
+                ok = signedInUser != null && presenceOk,
+                onClick = onOpenWizard
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            IconStatusTile(
+                icon = Icons.Filled.Notifications,
+                label = "নোটিফিকেশন",
+                value = when {
+                    signedInUser == null -> "সাইন-ইন নেই"
+                    pushOk -> "প্রস্তুত ✓"
+                    pushStatus.startsWith("Push setup failed") -> "ব্যর্থ"
+                    else -> "সেটআপ হয়নি"
+                },
+                ok = signedInUser != null && pushOk,
+                onClick = onOpenWizard
+            )
+        }
+    }
+
+    // যেকোনো সেটআপ-ব্যর্থতা থাকলে একটাই কম্প্যাক্ট এরর-কার্ড (প্রতিটি ব্যর্থতার
+    // পূর্ণ কারণ এখানেই — টাইলগুলো ছোট-পরিষ্কার থাকে)।
+    val failures = buildList {
+        if (regFailed) add(deviceStatus)
+        if (presenceStatus.startsWith("Presence failed")) add(presenceStatus)
+        if (pushStatus.startsWith("Push setup failed")) add(pushStatus)
+    }
+    if (failures.isNotEmpty()) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "সেটআপে সমস্যা",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                failures.forEach {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+                WideOutlinedButton(onClick = onRetryRegistration) {
+                    Text("আবার চেষ্টা করুন · Retry")
+                }
+            }
+        }
+    }
+
+    SectionCard(title = "এই অ্যাকাউন্টের ফোন", icon = Icons.Filled.Phone) {
+        if (deviceList.isEmpty()) {
             Text(
-                text = "সব ফিচার মসৃণ চালাতে বাকিগুলো একবার চালু করুন।",
+                text = "এখনো কোনো ফোন নিবন্ধিত হয়নি।",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        WideOutlinedButton(onClick = onOpenWizard) {
-            Text("Permission check · পারমিশন চেক খুলুন")
-        }
-    }
-
-    SectionCard(title = "This device · এই ফোন") {
-        Text(
-            text = deviceStatus,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        if (deviceStatus.startsWith("Registration failed")) {
-            WideOutlinedButton(onClick = onRetryRegistration) {
-                Text("Retry registration · আবার চেষ্টা করুন")
-            }
-        }
-        if (signedInUser != null) {
-            StatusRow(label = "Presence · অনলাইন", value = presenceStatus)
-            StatusRow(label = "Push · নোটিফিকেশন", value = pushStatus)
-        }
-        if (deviceList.isEmpty()) {
-            Text(
-                text = "No devices on this account yet.",
-                style = MaterialTheme.typography.bodySmall
-            )
         } else {
-            Text(
-                text = "Devices on this account:",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium
-            )
-            deviceList.forEachIndexed { index, entry ->
-                if (index > 0) HorizontalDivider()
-                Text(
-                    text = entry,
-                    style = MaterialTheme.typography.bodySmall
-                )
+            Column {
+                deviceList.forEachIndexed { index, entry ->
+                    if (index > 0) HorizontalDivider()
+                    val parts = entry.split(" · ")
+                    AppListTile(
+                        title = parts.getOrNull(0) ?: entry,
+                        subtitle = parts.drop(1).joinToString(" · ").ifBlank { " " },
+                        icon = Icons.Filled.Phone
+                    )
+                }
             }
         }
     }
@@ -800,11 +1256,69 @@ private fun HomeTab(
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold
     )
-    WideOutlinedButton(onClick = onGoPairing) {
-        Text("Pair a phone · ফোন যুক্ত করুন")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            QuickActionTile(
+                icon = Icons.Filled.Add,
+                title = "ফোন যুক্ত করুন",
+                subtitle = "কোড বা QR স্ক্যান",
+                onClick = onGoPairing
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            QuickActionTile(
+                icon = Icons.Filled.List,
+                title = "একটিভিটি",
+                subtitle = "সেশন ও ফোন",
+                onClick = onGoActivity
+            )
+        }
     }
-    WideOutlinedButton(onClick = onGoActivity) {
-        Text("See activity · একটিভিটি দেখুন")
+
+    Text(
+        text = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+        textAlign = TextAlign.Center
+    )
+}
+
+/** v0.14.0 — one-line live-session hint card (non-consent cases). */
+@Composable
+private fun HomeLiveHintCard(session: SessionView, myUid: String) {
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = when {
+                    session.status == "REQUESTED" ->
+                        "${session.recipientEmail}-কে অনুমতির অনুরোধ গেছে — 'ফোন' ট্যাবে বিস্তারিত।"
+                    session.helperUid == myUid ->
+                        "${session.recipientEmail}-এর ফোনে সেশন চলছে — 'ফোন' ট্যাবে ভিডিও।"
+                    else ->
+                        "${session.helperEmail.ifBlank { "Someone" }} আপনার ফোনে সাহায্য করছেন — 'ফোন' ট্যাবে বিস্তারিত।"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
@@ -855,8 +1369,7 @@ private fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
             val secondsLeft =
                 ((session.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
             Text(
-                text = "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে। " +
-                    "(Allow only if you know them.)",
+                text = "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে।",
                 style = MaterialTheme.typography.bodyMedium
             )
             message?.let {
@@ -926,18 +1439,18 @@ private fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
     }
 }
 
-/**
- * Phase 11 — একটিভিটি ট্যাব: শুধু প্রমাণিত ডেটা — লাইভ সেশন, শেষ-সেশন
- * (open→closed ট্রানজিশনে এক-শট ফেচ) এবং যুক্ত ফোনের প্রেজেন্স। বানানো
- * history নেই — সততা আগে।
- */
+// ═══════════════════════════════════════════════════════════════════════
+// একটিভিটি ট্যাব (v0.14.0) — শুধু প্রমাণিত ডেটা, প্রতিটি সারি আইকন-টাইল:
+// লাইভ সেশন → শেষ-সেশন → যুক্ত ফোনের প্রেজেন্স। বানানো history নেই।
+// ═══════════════════════════════════════════════════════════════════════
 @Composable
 private fun ActivityTab(user: FirebaseUser?) {
     if (user == null) {
-        SectionCard(title = "Activity · একটিভিটি") {
-            Text(
-                text = "একটিভিটি দেখতে আগে সেটিংস ট্যাব থেকে সাইন-ইন করুন। · Sign in from Settings to see activity.",
-                style = MaterialTheme.typography.bodyMedium
+        SectionCard(title = "একটিভিটি", icon = Icons.Filled.List) {
+            EmptyState(
+                icon = Icons.Filled.Person,
+                title = "সাইন-ইন নেই",
+                hint = "একটিভিটি দেখতে সেটিংস ট্যাব থেকে সাইন-ইন করুন।"
             )
         }
         return
@@ -997,12 +1510,18 @@ private fun ActivityFeed(user: FirebaseUser) {
         lastOpenId = currentOpenId
     }
 
-    SectionCard(title = "Activity · একটিভিটি") {
+    SectionCard(
+        title = "সেশন একটিভিটি",
+        icon = Icons.Filled.Notifications,
+        infoText = "এখানে শুধু প্রমাণিত তথ্য দেখানো হয়: চলমান বা অপেক্ষমাণ সেশন, সবে-শেষ-হওয়া " +
+            "সেশন এবং যুক্ত ফোনের অনলাইন অবস্থা। পুরোনো সেশনের তালিকা ইচ্ছাকৃতভাবে নেই — " +
+            "যা ঘটেনি বা যাচাই করা যায় না, তা দেখানো হয় না।"
+    ) {
         if (openSession == null && lastFinished == null) {
-            Text(
-                text = "এখনো কোনো সেশন-একটিভিটি নেই। সেশন শুরু হলে বা অনুমতির অনুরোধ " +
-                    "এলে এখানে দেখা যাবে। · No support-session activity yet.",
-                style = MaterialTheme.typography.bodyMedium
+            EmptyState(
+                icon = Icons.Filled.Notifications,
+                title = "এখনো কোনো সেশন-একটিভিটি নেই",
+                hint = "সেশন শুরু হলে বা অনুমতির অনুরোধ এলে এখানে দেখা যাবে।"
             )
         }
         openSession?.let { s ->
@@ -1010,58 +1529,48 @@ private fun ActivityFeed(user: FirebaseUser) {
                 "REQUESTED" -> ((s.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
                 else -> ((s.sessionEndsAtMillis - nowMillis) / 1000).coerceAtLeast(0)
             }
-            Text(
-                text = when {
+            AppListTile(
+                title = when {
                     s.status == "REQUESTED" && s.recipientUid == user.uid ->
-                        "🔔 ${s.helperEmail.ifBlank { "Someone" }} সাহায্যের অনুরোধ করেছেন — " +
-                            "হোম ট্যাবে Allow/Deny দিন। বাকি ${mmss(secondsLeft)}।"
+                        "${s.helperEmail.ifBlank { "Someone" }} সাহায্যের অনুরোধ করেছেন"
                     s.status == "REQUESTED" ->
-                        "📨 ${s.recipientEmail}-কে অনুরোধ পাঠানো হয়েছে — বাকি ${mmss(secondsLeft)}। " +
-                            "('ফোন' ট্যাবে বাতিল করা যায়)"
+                        "${s.recipientEmail}-কে অনুরোধ পাঠানো হয়েছে"
                     s.status == "ACTIVE" && s.helperUid == user.uid ->
-                        "🟢 ${s.recipientEmail}-এর ফোনে সেশন চলছে — 'ফোন' ট্যাবে ভিডিও ও নিয়ন্ত্রণ। " +
-                            "শেষ হবে ${mmss(secondsLeft)}-এ।"
+                        "${s.recipientEmail}-এর ফোনে সেশন চলছে"
                     else ->
-                        "🟢 ${s.helperEmail.ifBlank { "Someone" }} আপনার ফোনে সাহায্য করছেন — " +
-                            "শেষ হবে ${mmss(secondsLeft)}-এ।"
+                        "${s.helperEmail.ifBlank { "Someone" }} আপনার ফোনে সাহায্য করছেন"
                 },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (s.status == "ACTIVE") {
-                    MaterialTheme.colorScheme.primary
+                subtitle = when {
+                    s.status == "REQUESTED" && s.recipientUid == user.uid ->
+                        "হোম ট্যাবে Allow/Deny দিন · বাকি ${mmss(secondsLeft)}"
+                    s.status == "REQUESTED" ->
+                        "অনুমতির অপেক্ষায় · বাকি ${mmss(secondsLeft)}"
+                    else ->
+                        "'ফোন' ট্যাবে ভিডিও ও নিয়ন্ত্রণ · শেষ হবে ${mmss(secondsLeft)}-এ"
+                },
+                icon = if (s.status == "ACTIVE") Icons.Filled.CheckCircle else Icons.Filled.Send,
+                avatarContainer = if (s.status == "ACTIVE") {
+                    MaterialTheme.colorScheme.primaryContainer
                 } else {
-                    MaterialTheme.colorScheme.tertiary
-                }
+                    MaterialTheme.colorScheme.tertiaryContainer
+                },
+                avatarContent = if (s.status == "ACTIVE") {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onTertiaryContainer
+                },
+                chip = if (s.kind == "guest") "Guest" else sessionStatusBn(s.status)
             )
-            if (s.kind == "guest") {
-                Text(
-                    text = "Guest (সাময়িক) সেশন — লিংকের মেয়াদের মধ্যেই শেষ হবে।",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-            }
         }
         lastFinished?.let { s ->
             HorizontalDivider()
-            Text(
-                text = "শেষ সেশন · Last session: ${sessionStatusBn(s.status)}" +
-                    " — ${s.helperEmail.ifBlank { "?" }} → ${s.recipientEmail}" +
+            AppListTile(
+                title = "শেষ সেশন — ${sessionStatusBn(s.status)}",
+                subtitle = "${s.helperEmail.ifBlank { "?" }} → ${s.recipientEmail}" +
                     (s.endedBy?.let { " · শেষ করেছে: $it" } ?: ""),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        HorizontalDivider()
-        Text(
-            text = "যুক্ত ফোন · Paired phones",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-        if (relSyncError != null) {
-            Text(
-                text = relSyncError!!,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+                icon = Icons.Filled.CheckCircle,
+                avatarContainer = MaterialTheme.colorScheme.surfaceVariant,
+                avatarContent = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (sessionSyncError != null) {
@@ -1071,29 +1580,61 @@ private fun ActivityFeed(user: FirebaseUser) {
                 color = MaterialTheme.colorScheme.error
             )
         }
-        if (relationships.isEmpty() && relSyncError == null) {
+    }
+
+    SectionCard(
+        title = "যুক্ত ফোন",
+        icon = Icons.Filled.Phone,
+        infoText = "আপনার অ্যাকাউন্টে যুক্ত বিশ্বস্ত ফোন আর তাদের লাইভ অনলাইন-অবস্থা। " +
+            "ফোন যুক্ত করতে বা সরাতে 'ফোন' ট্যাব দেখুন।"
+    ) {
+        if (relSyncError != null) {
             Text(
-                text = "এখনো কোনো ফোন যুক্ত হয়নি।",
-                style = MaterialTheme.typography.bodySmall
+                text = relSyncError!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
             )
         }
-        relationships.forEach { rel ->
-            val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
-            val otherEmail =
-                if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "$role: ${otherEmail.ifBlank { "(no email)" }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium
-                )
-                if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
-                    PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
-                } else {
-                    Text(
-                        text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
-                        style = MaterialTheme.typography.bodySmall
+        if (relationships.isEmpty() && relSyncError == null) {
+            EmptyState(
+                icon = Icons.Filled.Phone,
+                title = "এখনো কোনো ফোন যুক্ত হয়নি",
+                hint = "'ফোন' ট্যাব থেকে কোড বানিয়ে বিশ্বস্ত ফোন যুক্ত করুন।"
+            )
+        }
+        Column {
+            relationships.forEachIndexed { index, rel ->
+                if (index > 0) HorizontalDivider()
+                val iHelp = rel.helperUid == user.uid
+                val otherEmail =
+                    (if (iHelp) rel.recipientEmail else rel.helperEmail).ifBlank { "(no email)" }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    AppListTile(
+                        title = otherEmail,
+                        initials = otherEmail.take(1).ifBlank { "?" },
+                        subtitle = buildString {
+                            append(if (iHelp) "আপনি সাহায্য করছেন" else "সাহায্য করছে")
+                            if (rel.recipientDeviceModel.isNotBlank()) {
+                                append(" · ${rel.recipientDeviceModel}")
+                            }
+                        },
+                        chip = if (rel.kind == REL_KIND_GUEST) "Guest" else "Family",
+                        chipContainer = if (rel.status == "ACTIVE") {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        chipContent = if (rel.status == "ACTIVE") {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        }
                     )
+                    if (iHelp && rel.recipientDeviceId.isNotBlank()) {
+                        Box(modifier = Modifier.padding(start = 56.dp)) {
+                            PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
+                        }
+                    }
                 }
             }
         }
@@ -1102,16 +1643,19 @@ private fun ActivityFeed(user: FirebaseUser) {
 
 /** Phase 11 — honest Bengali name for a session status. */
 private fun sessionStatusBn(status: String): String = when (status) {
-    "REQUESTED" -> "অনুরোধ করা হয়েছে"
+    "REQUESTED" -> "অনুরোধ"
     "ACTIVE" -> "চলছে"
-    "ENDED" -> "শেষ হয়েছে"
+    "ENDED" -> "শেষ"
     "DENIED" -> "প্রত্যাখ্যাত"
     "CANCELLED" -> "বাতিল"
     "EXPIRED" -> "সময় শেষ"
     else -> status
 }
 
-/** Phase 11 — সেটিংস ট্যাব: অ্যাকাউন্ট + About। */
+// ═══════════════════════════════════════════════════════════════════════
+// সেটিংস ট্যাব (v0.14.0) — প্রতিটি সারি SettingsTile: আইকন + টাইটেল +
+// ছোট বিবরণ + ট্রেইলিং কন্ট্রোল (টগল সুইচ / বোতাম / শেভরন)।
+// ═══════════════════════════════════════════════════════════════════════
 @Composable
 private fun SettingsTab(
     signedInUser: FirebaseUser?,
@@ -1120,19 +1664,28 @@ private fun SettingsTab(
     webClientConfigured: Boolean,
     firebaseProjectId: String,
     firebaseAppId: String,
+    permSummary: PermChecklist,
     onSignIn: () -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onOpenWizard: () -> Unit
 ) {
-    SectionCard(title = "Account · অ্যাকাউন্ট") {
+    val context = LocalContext.current
+
+    SectionCard(title = "অ্যাকাউন্ট", icon = Icons.Filled.Person) {
         if (!webClientConfigured) {
             Text(
-                text = "Sign-in is disabled in this build: the Web Client ID is not set yet. " +
-                    "Finish the Firebase console steps in the web guide, send the Web Client ID " +
-                    "to your assistant, and install the next build.",
-                style = MaterialTheme.typography.bodyMedium
+                text = "এই বিল্ডে সাইন-ইন বন্ধ: Web Client ID সেট হয়নি। " +
+                    "পরের বিল্ডে যুক্ত হবে।",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
             )
         }
         if (signedInUser == null) {
+            EmptyState(
+                icon = Icons.Filled.Person,
+                title = "সাইন-ইন করা নেই",
+                hint = "Google অ্যাকাউন্ট দিয়ে সাইন-ইন করলে ডিভাইস ও যুক্তি সংরক্ষিত হবে।"
+            )
             BigButton(
                 enabled = webClientConfigured && !busy,
                 onClick = onSignIn
@@ -1143,18 +1696,28 @@ private fun SettingsTab(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Sign in with Google · গুগল দিয়ে সাইন ইন")
+                    Text("গুগল দিয়ে সাইন ইন")
                 }
             }
         } else {
-            StatusRow(label = "Signed in as", value = signedInUser.email ?: "(no email)")
-            StatusRow(label = "Name", value = signedInUser.displayName ?: "(no name)")
+            AppListTile(
+                title = signedInUser.displayName ?: "(no name)",
+                subtitle = signedInUser.email ?: "(no email)",
+                initials = (signedInUser.displayName ?: signedInUser.email ?: "?")
+                    .take(1).ifBlank { "?" }
+            )
             Text(
-                text = "Your account and device are stored only in your own Firebase project.",
-                style = MaterialTheme.typography.bodySmall
+                text = "আপনার অ্যাকাউন্ট ও ডিভাইস শুধু আপনার নিজের Firebase প্রজেক্টে থাকে।",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             WideOutlinedButton(enabled = !busy, onClick = onSignOut) {
-                Text("Sign out · সাইন আউট")
+                Icon(
+                    imageVector = Icons.Filled.ExitToApp,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text("  সাইন আউট")
             }
         }
         statusMessage?.let {
@@ -1166,66 +1729,238 @@ private fun SettingsTab(
         }
     }
 
-    SectionCard(title = "About · অ্যাপ সম্পর্কে") {
+    SectionCard(
+        title = "সেটআপ ও পারমিশন",
+        icon = Icons.Filled.Lock,
+        infoText = "এই ৪টি অনুমতি চালু থাকলে অ্যাপের সব ফিচার মসৃণ চলে: " +
+            "নোটিফিকেশন (অ্যাপ বন্ধ থাকলেও অনুরোধ দেখা), ক্যামেরা (QR স্ক্যান), " +
+            "Remote assist (সাহায্যকারীর রিমোট টাচ) এবং ব্যাটারি-অপটিমাইজেশন ছাড় " +
+            "(ব্যাকগ্রাউন্ড হার্টবিট)। 'চেক করুন' চাপলে ধাপে-ধাপে উইজার্ড খুলবে।"
+    ) {
+        SettingsTile(
+            icon = Icons.Filled.Lock,
+            title = "পারমিশন চেক",
+            description = if (permSummary.allDone) {
+                "সব ৪টি পারমিশন চালু ✓ — অ্যাপ পুরোপুরি প্রস্তুত।"
+            } else {
+                "চালু ${permSummary.doneCount}/4 — বাকি: ${permSummary.missingNamesBn()}"
+            },
+            onClick = onOpenWizard,
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+        HorizontalDivider()
+        SettingsNotifTile()
+        HorizontalDivider()
+        SettingsAssistTile()
+    }
+
+    SectionCard(title = "অ্যাপ সম্পর্কে", icon = Icons.Filled.Info) {
         var showAbout by remember { mutableStateOf(false) }
-        Text(
-            text = if (showAbout) "Hide details ▴ · লুকান" else "Show details ▾ · বিস্তারিত",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.clickable { showAbout = !showAbout }
+        SettingsTile(
+            icon = Icons.Filled.Info,
+            title = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+            description = "প্যাকেজ, Firebase প্রজেক্ট ও অ্যাপ-ID বিস্তারিত",
+            onClick = { showAbout = true },
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         )
         if (showAbout) {
-            StatusRow(label = "Package", value = "com.family.remote.support")
-            StatusRow(label = "Firebase project", value = firebaseProjectId)
-            StatusRow(label = "Firebase app ID", value = firebaseAppId)
-            StatusRow(
-                label = "Next milestone",
-                value = "Phase 12 (kill-push স্থায়ী স্তর + রিলে সিদ্ধান্ত) + family-scale rollout"
+            AlertDialog(
+                onDismissRequest = { showAbout = false },
+                confirmButton = {
+                    TextButton(onClick = { showAbout = false }) { Text("ঠিক আছে") }
+                },
+                title = { Text("অ্যাপ সম্পর্কে", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatusRow(label = "সংস্করণ", value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})")
+                        StatusRow(label = "Package", value = "com.family.remote.support")
+                        StatusRow(label = "Firebase project", value = firebaseProjectId)
+                        StatusRow(label = "Firebase app ID", value = firebaseAppId)
+                    }
+                }
             )
         }
     }
 }
 
 /**
- * Phase 4/10 — pairing card. The phone that needs help creates a 5-minute
- * code in one of two modes: FAMILY (permanent trusted link) or GUEST
- * (a 2-hour temporary link for outside help — never auto-promoted to
- * family). The helper's phone types the same code. Redemption is one
- * atomic Firestore transaction, verified again by the security rules.
- * Works across two Google accounts (during testing, two accounts on this
- * same phone work as well).
+ * v0.14.0 — নোটিফিকেশন টগল (আসল Switch): চালু/বন্ধ অবস্থা সিস্টেম থেকে পড়া
+ * হয় (১.৫ সেকেন্ডে রিফ্রেশ, সৎ)। চালু করতে চাইলে Android 13+ রানটাইম
+ * পারমিশন চাওয়া হয়; বন্ধ করতে সিস্টেমের নোটিফিকেশন-সেটিংসে পাঠানো হয় —
+ * অ্যাপ নিজে থেকে কখনো মিথ্যা অবস্থা দেখায় না।
  */
 @Composable
-fun PairingCard(signedInUser: FirebaseUser?) {
-    SectionCard(title = "Pair a trusted phone · বিশ্বস্ত ফোন যুক্ত করুন") {
-        Text(
-            text = "Two kinds of link · দুই ধরনের যুক্তি — a FAMILY code pairs a " +
-                "permanent trusted phone; a GUEST code gives outside help a 2-hour " +
-                "temporary window. Either way, every support session still asks " +
-                "for separate permission.",
-            style = MaterialTheme.typography.bodyMedium
+private fun SettingsNotifTile() {
+    val context = LocalContext.current
+    var notifGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
         )
-        Text(
-            text = "FAMILY কোড = স্থায়ী বিশ্বস্ত ফোন (একবার যুক্ত হলে আর কোড লাগে না); " +
-                "GUEST কোড = ২ ঘণ্টার সাময়িক যুক্তি (বাইরের সাহায্যকারীর জন্য)। Guest " +
-                "কখনো স্বয়ংক্রিয়ভাবে Family হয় না। প্রতিটি সেশনে আলাদা অনুমতি লাগবেই।",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        if (signedInUser == null) {
-            Text(
-                text = "Sign in first — pairing needs a Google account. · প্রথমে সাইন ইন করুন।",
-                style = MaterialTheme.typography.bodySmall
-            )
-        } else {
-            PairingSections(signedInUser)
+    }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notifGranted = granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            notifGranted =
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+            delay(1500)
         }
+    }
+    SettingsTile(
+        icon = Icons.Filled.Notifications,
+        title = "নোটিফিকেশন",
+        description = if (notifGranted) {
+            "চালু — অ্যাপ বন্ধ থাকলেও সাহায্যের অনুরোধ দেখা যাবে।"
+        } else {
+            "বন্ধ — সাহায্যের অনুরোধ মিস হতে পারে।"
+        },
+        trailing = {
+            Switch(
+                checked = notifGranted,
+                onCheckedChange = { want ->
+                    if (want) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    } else {
+                        // Honest OFF: notifications can only truly be turned
+                        // off in system settings — send the user there.
+                        try {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            )
+                        } catch (_: Exception) {
+                            try {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_SETTINGS)
+                                )
+                            } catch (_: Exception) {
+                                // no settings activity — nothing else to do
+                            }
+                        }
+                    }
+                }
+            )
+        }
+    )
+}
+
+/**
+ * v0.14.0 — Remote assist স্ট্যাটাস টাইল (সৎ পোল ১.৫ সে): চালু থাকলে ✓,
+ * বন্ধ থাকলে 'সেটআপ' বোতাম — বাংলা ধাপে-ধাপে গাইড ডায়ালগ (AssistSetupGuide)।
+ */
+@Composable
+private fun SettingsAssistTile() {
+    val context = LocalContext.current
+    var assistOn by remember { mutableStateOf(AssistSetup.isAssistReady(context)) }
+    var showGuide by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            assistOn = AssistSetup.isAssistReady(context)
+            delay(1500)
+        }
+    }
+    SettingsTile(
+        icon = Icons.Filled.Person,
+        title = "Remote assist · রিমোট টাচ",
+        description = if (assistOn) {
+            "চালু ✓ — সাহায্যকারী এই স্ক্রিনে ট্যাপ, সোয়াইপ ও টাইপ করতে পারবেন।"
+        } else {
+            "বন্ধ — সাহায্যকারী শুধু দেখতে পারবেন, ট্যাপ করতে পারবেন না।"
+        },
+        onClick = if (!assistOn) {
+            { showGuide = true }
+        } else {
+            null
+        },
+        trailing = {
+            if (!assistOn) {
+                OutlinedButton(
+                    onClick = { showGuide = true },
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text("সেটআপ")
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    )
+    if (showGuide) {
+        AssistSetupGuide(onDismiss = { showGuide = false })
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// ফোন ট্যাব (v0.14.0):
+//   • লাইভ সেশন-কার্ড একদম উপরে (অনুমতি চাওয়া / চলমান)
+//   • চলমান পেয়ারিং-কোড কার্ড: বড় কোড + QR + ⋮ dropdown (কপি/সেভ/শেয়ার)
+//   • যুক্ত ফোন — Chat-স্টাইল List Tile (avatar + নাম + অবস্থা + ব্যাজ),
+//     ট্যাপ করলে নিচ-শিটে সব অ্যাকশন (সেশন শুরু / Revoke / Remove)
+//   • ডানদিকের FAB "+" → নিচ-শিট: Family / Guest কোড বা কোড-লিখে যুক্ত
+//   • বড় ব্যাখ্যা সব ⓘ-পপআপে — স্ক্রিনে শুধু কাজের জিনিস
+//   • নোটিফিকেশন-পারমিশন জিজ্ঞাসা সেটিংস ট্যাবে সরানো হয়েছে (টগল-সহ)
+// Firestore-লজিক অপরিবর্তিত — rules সব পুনঃযাচাই করে।
+// ═══════════════════════════════════════════════════════════════════════
 @Composable
-private fun PairingSections(user: FirebaseUser) {
+fun PairingCard(
+    signedInUser: FirebaseUser?,
+    showPairSheet: Boolean,
+    onDismissPairSheet: () -> Unit
+) {
+    if (signedInUser == null) {
+        SectionCard(title = "ফোন যুক্ত করুন", icon = Icons.Filled.Phone) {
+            EmptyState(
+                icon = Icons.Filled.Person,
+                title = "প্রথমে সাইন-ইন করুন",
+                hint = "যুক্তি তৈরি করতে Google অ্যাকাউন্ট দরকার — সেটিংস ট্যাব থেকে সাইন-ইন করুন।"
+            )
+        }
+    } else {
+        PairingSections(
+            user = signedInUser,
+            showPairSheet = showPairSheet,
+            onDismissPairSheet = onDismissPairSheet
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PairingSections(
+    user: FirebaseUser,
+    showPairSheet: Boolean,
+    onDismissPairSheet: () -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -1244,6 +1979,8 @@ private fun PairingSections(user: FirebaseUser) {
     var relationshipsSyncError by remember { mutableStateOf<String?>(null) }
     var revokingId by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
+    // v0.14.0 — which paired phone's action sheet is open (by rel id).
+    var selectedRelId by remember { mutableStateOf<String?>(null) }
 
     // Phase 6 — support session state.
     var sessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
@@ -1428,6 +2165,7 @@ private fun PairingSections(user: FirebaseUser) {
                 requestSession(user, rel)
                 sessionMessage =
                     "Request sent — ${rel.recipientEmail}-এর অনুমতির অপেক্ষায়…"
+                selectedRelId = null
             } catch (e: SessionException) {
                 sessionMessage = e.message
             } catch (e: CancellationException) {
@@ -1510,614 +2248,83 @@ private fun PairingSections(user: FirebaseUser) {
         }
     }
 
-    // ---------- Section A: this phone needs help ----------
-    HorizontalDivider()
-    Text(
-        text = "এই ফোনে কি সাহায্য দরকার? · This phone needs help",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
-
-    if (showCode && currentInvite != null) {
-        Text(
-            text = if (inviteKind == REL_KIND_GUEST) {
-                "Guest কোড — এটি যুক্ত করলে ২ ঘণ্টার সাময়িক যুক্তি হবে (বাইরের সাহায্যের জন্য)।"
-            } else {
-                "Family কোড — এটি যুক্ত করলে স্থায়ী বিশ্বস্ত যুক্তি হবে।"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = currentInvite.code,
-            style = MaterialTheme.typography.headlineSmall,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = "Share this code only with the family member who will help you. · " +
-                "কোডটি শুধু যে পরিবারের সদস্য সাহায্য করবেন তাকেই দেবেন।",
-            style = MaterialTheme.typography.bodySmall
-        )
-        val totalSeconds = (currentInvite.expiresAtMillis - nowMillis) / 1000
-        Text(
-            text = "Expires in ${totalSeconds / 60}:${(totalSeconds % 60)
-                .toString().padStart(2, '0')} · বাকি সময়",
-            style = MaterialTheme.typography.bodySmall
-        )
-        val qr = remember(currentInvite.code) { qrBitmap(currentInvite.qrPayload) }
-        if (qr != null) {
-            Image(
-                bitmap = qr.asImageBitmap(),
-                contentDescription = "Pairing QR code",
-                modifier = Modifier.size(160.dp)
-            )
-
-            // v0.6.1 — copy the readable code, save the QR as a PNG into the
-            // Download folder, or hand both to the Android share sheet.
-            var copiedJustNow by remember(currentInvite.invitationId) { mutableStateOf(false) }
-            var saveBusy by remember(currentInvite.invitationId) { mutableStateOf(false) }
-            var saveRequest by remember(currentInvite.invitationId) { mutableStateOf(false) }
-            var saveFeedback by remember(currentInvite.invitationId) { mutableStateOf<String?>(null) }
-
-            val storagePermissionLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.RequestPermission()
-            ) { granted ->
-                if (granted) {
-                    saveRequest = true
-                } else {
-                    saveFeedback = "Storage permission is needed to save the QR image."
-                }
-            }
-
-            LaunchedEffect(saveRequest) {
-                if (!saveRequest) return@LaunchedEffect
-                saveRequest = false
-                val bitmap = qr
-                if (bitmap == null) return@LaunchedEffect
-                saveBusy = true
-                saveFeedback = withContext(Dispatchers.IO) {
-                    val fileName = "pairing-code-${currentInvite.invitationId}.png"
-                    saveQrToDownloads(context, bitmap, fileName)
-                        ?.let { "Saved ✓ $it" }
-                        ?: "Could not save the QR image."
-                }
-                saveBusy = false
-            }
-
-            LaunchedEffect(copiedJustNow) {
-                if (copiedJustNow) {
-                    delay(2000)
-                    copiedJustNow = false
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(
-                    enabled = !saveBusy,
-                    onClick = {
-                        copiedJustNow =
-                            copyToClipboard(context, "Pairing code", currentInvite.code)
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                ) {
-                    Text(if (copiedJustNow) "Copied ✓ · হয়েছে" else "Copy · কপি")
-                }
-                OutlinedButton(
-                    enabled = !saveBusy,
-                    onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ||
-                            ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            saveRequest = true
-                        } else {
-                            storagePermissionLauncher.launch(
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                ) {
-                    if (saveBusy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text("Save QR · সেভ")
-                    }
-                }
-                OutlinedButton(
-                    enabled = !saveBusy,
-                    onClick = {
-                        val intent = buildQrShareIntent(context, qr, currentInvite.code)
-                        if (intent != null) {
-                            try {
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                saveFeedback = "No app available for sharing."
-                            }
-                        } else {
-                            saveFeedback = "Could not prepare the QR image for sharing."
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                ) {
-                    Text("Share · শেয়ার")
-                }
-            }
-            saveFeedback?.let {
-                Text(text = it, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        when (inviteStatus) {
-            "PENDING" -> Text(
-                text = "অন্য ফোনের অপেক্ষায়… · Waiting for the other device",
-                style = MaterialTheme.typography.bodySmall
-            )
-            "PAIRED" -> Text(
-                text = "যুক্ত হয়েছে ✓ ${claimerEmail ?: "helper"}-এর সাথে",
-                style = MaterialTheme.typography.bodySmall
-            )
-            else -> {}
-        }
-        if (inviteStatus == "PENDING") {
-            WideOutlinedButton(
-                enabled = creatingKind == null,
-                onClick = {
-                    scope.launch {
-                        try {
-                            cancelInvitation(currentInvite.invitationId)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            pairingError = "Could not cancel: ${describeFirestoreError(e)}"
-                        }
-                    }
-                }
-            ) {
-                Text("Cancel code · কোড বাতিল")
-            }
-        }
-        inviteSyncError?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-    } else {
-        if (currentInvite != null) {
-            val statusText = when (inviteStatus) {
-                "PAIRED" -> "Paired ✓ · ${claimerEmail ?: "helper"}-এর সাথে যুক্ত — যখন চান নতুন কোড বানান।"
-                "CANCELLED" -> "কোড বাতিল হয়েছে। নিচে নতুন কোড বানান।"
-                else -> "কোডের সময় শেষ। নিচে নতুন কোড বানান।"
-            }
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        // Phase 10 — the pairing-mode choice: family (permanent) vs guest
-        // (2-hour temporary window). The code display above tells the user
-        // which kind is currently live.
-        Text(
-            text = "কোন ধরনের যুক্তি বানাবেন? · Which kind of link?",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                enabled = creatingKind == null,
-                onClick = { createCode(REL_KIND_FAMILY) },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 52.dp)
-            ) {
-                Text(
-                    if (creatingKind == REL_KIND_FAMILY) "…" else "Family কোড · স্থায়ী",
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            OutlinedButton(
-                enabled = creatingKind == null,
-                onClick = { createCode(REL_KIND_GUEST) },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 52.dp)
-            ) {
-                Text(
-                    if (creatingKind == REL_KIND_GUEST) "…" else "Guest কোড · ২ ঘণ্টা",
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-        Text(
-            text = "Family = একবার যুক্ত, পরে আর কোড লাগবে না। Guest = ২ ঘণ্টার সাময়িক " +
-                "লিংক — মেয়াদ শেষে নিজেই শেষ হয়ে যায়।",
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-
-    // ---------- Section B: this phone is the helper ----------
-    HorizontalDivider()
-    Text(
-        text = "আপনি কি সাহায্য করবেন? কোড দিন · You are the helper",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = codeInput,
-            onValueChange = { codeInput = it },
-            label = { Text("Pairing code · কোড") },
-            singleLine = true,
-            modifier = Modifier.weight(1f)
-        )
-        Button(
-            enabled = !redeeming,
-            onClick = { showScanner = true },
-            modifier = Modifier.heightIn(min = 48.dp)
-        ) {
-            Text("Scan QR · স্ক্যান")
-        }
-    }
-    if (showScanner) {
-        QrScanDialog(
-            onCode = { code ->
-                codeInput = code
-                redeemMessage = null
-                showScanner = false
-            },
-            onDismiss = { showScanner = false }
-        )
-    }
-    BigButton(
-        enabled = !redeeming && codeInput.isNotBlank(),
-        onClick = {
-            scope.launch {
-                redeeming = true
-                redeemMessage = null
-                try {
-                    val rel = redeemCode(user, codeInput)
-                    redeemMessage = if (rel.kind == REL_KIND_GUEST) {
-                        "Guest যুক্ত ✓ — ${rel.recipientEmail} (${rel.recipientDeviceModel})-কে " +
-                            "২ ঘণ্টার মধ্যে সাহায্য করতে পারবেন। প্রতিটি সেশনে আলাদা অনুমোদন লাগবে।"
-                    } else {
-                        "Paired ✓ — এখন আপনি ${rel.recipientEmail} (${rel.recipientDeviceModel})-কে সাহায্য করতে পারবেন।"
-                    }
-                    codeInput = ""
-                } catch (e: RedemptionException) {
-                    redeemMessage = e.message
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    redeemMessage = "Pairing failed: ${describeFirestoreError(e)}"
-                } finally {
-                    redeeming = false
-                }
-            }
-        }
-    ) {
-        if (redeeming) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp
-            )
-        } else {
-            Text("Pair with code · কোড দিয়ে যুক্ত করুন")
-        }
-    }
-    redeemMessage?.let { message ->
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (message.startsWith("Paired") || message.startsWith("Guest যুক্ত")) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.error
-            }
-        )
-    }
-
-    // ---------- Section C: trusted relationships ----------
-    HorizontalDivider()
-    Text(
-        text = "Paired phones · যুক্ত ফোন",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
-    if (relationships.isEmpty()) {
-        if (relationshipsSyncError != null) {
-            Text(
-                text = relationshipsSyncError!!,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-        } else {
-            Text(
-                text = "এখনো কোনো ফোন যুক্ত হয়নি। উপরের কোড দিয়ে যুক্ত করুন।",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    } else {
-        relationships.forEachIndexed { index, rel ->
-            val isGuest = rel.kind == REL_KIND_GUEST
-            if (index > 0) HorizontalDivider()
-            // Phase 11 — vertical sub-card: nothing sits beside the info
-            // column any more, so long presence text can never be crushed
-            // into one-char-per-line verticals, and the action buttons are
-            // full-width below, never squeezed ovals.
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
-                val otherEmail =
-                    if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
-                Text(
-                    text = "$role: ${otherEmail.ifBlank { "(no email)" }}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                // Phase 10 — the Family vs Guest badge. A guest row also
-                // shows the honest remaining window (refreshed every 30 s).
-                if (isGuest) {
-                    val remainingMin =
-                        ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
-                    val badge = when {
-                        rel.status != "ACTIVE" -> "Guest (সাময়িক) · ${rel.status}"
-                        rel.guestExpiresAtMillis <= 0L -> "Guest (সাময়িক)"
-                        remainingMin >= 60L ->
-                            "Guest (সাময়িক) · বাকি ${remainingMin / 60L}ঘ ${remainingMin % 60L}মি"
-                        else -> "Guest (সাময়িক) · বাকি ${remainingMin}মি"
-                    }
-                    Text(
-                        text = badge,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (rel.status == "ACTIVE" && remainingMin > 0L) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
-                    )
-                } else {
-                    Text(
-                        text = "Family · স্থায়ী",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                // Phase 11 — model/status and presence each get their own
-                // line (they used to share one unweighted Row).
-                Text(
-                    text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
-                    PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
-                }
-                // Phase 6/10 — helper can ask to start a support session,
-                // but a guest link only while its window is still live.
-                if (rel.status == "ACTIVE" && rel.helperUid == user.uid && !rel.guestLive) {
-                    Text(
-                        text = "Guest মেয়াদ শেষ — আর সেশন শুরু করা যাবে না। নতুন " +
-                            "Guest কোড দিন। (Guest window over — share a new code.)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                if (rel.status == "ACTIVE" && rel.helperUid == user.uid && rel.guestLive) {
-                    BigButton(
-                        enabled = !sessionBusy && openSession == null,
-                        onClick = { startSessionFor(rel) }
-                    ) {
-                        Text("Start session · সেশন শুরু করুন (অনুমতি চাইবে)")
-                    }
-                }
-                if (!isGuest && rel.status == "ACTIVE") {
-                    OutlinedButton(
-                        enabled = revokingId != rel.id,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        onClick = {
-                            revokingId = rel.id
-                            scope.launch {
-                                try {
-                                    revokeRelationship(rel.id)
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    pairingError = "Could not revoke: ${describeFirestoreError(e)}"
-                                } finally {
-                                    revokingId = null
-                                }
-                            }
-                        }
-                    ) {
-                        Text("Revoke · বাতিল")
-                    }
-                }
-                // Phase 10 — a guest link can be REMOVED entirely (the doc
-                // is deleted; afterwards a fresh family pairing may reuse
-                // the pair). Family links have no such button on purpose.
-                if (isGuest) {
-                    OutlinedButton(
-                        enabled = revokingId != rel.id,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        onClick = {
-                            revokingId = rel.id
-                            scope.launch {
-                                try {
-                                    removeGuestRelationship(rel.id)
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    pairingError = "Could not remove: ${describeFirestoreError(e)}"
-                                } finally {
-                                    revokingId = null
-                                }
-                            }
-                        }
-                    ) {
-                        Text("Remove · সরান")
-                    }
-                }
-            }
-        }
-    }
-
-    // ---------- Section D: Phase 6 — support session ----------
-    HorizontalDivider()
-    Text(
-        text = "Support session · সাপোর্ট সেশন",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
-    Text(
-        text = "Pairing alone never grants access. Every session starts with a live " +
-            "permission ask on the phone that needs help, and ends automatically. " +
-            "শুধু যুক্ত থাকা মানেই অনুমতি নয় — প্রতিটি সেশনে আলাদা অনুমতি, আর নির্দিষ্ট সময়ে নিজেই শেষ।",
-        style = MaterialTheme.typography.bodySmall
-    )
-
-    // Android 13+ gates notifications behind a runtime permission.
-    val notifPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        OutlinedButton(
-            onClick = {
-                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            },
-            modifier = Modifier.heightIn(min = 48.dp)
-        ) {
-            Text("Enable notifications · নোটিফিকেশন চালু করুন")
-        }
-        Text(
-            text = "Needed to see help requests while this app is closed or in the background. · " +
-                "অ্যাপ বন্ধ থাকলেও সাহায্যের অনুরোধ দেখতে এটা দরকার।",
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-
+    // ---------- ১. লাইভ সেশন: অনুমতি-কার্ড / অপেক্ষা / চলমান ----------
     val currentSession = openSession
     when {
         currentSession != null && currentSession.status == "REQUESTED" &&
             currentSession.recipientUid == user.uid -> {
             // This phone was asked — the prominent consent card.
+            HomeConsentCard(session = currentSession, user = user)
+        }
+        currentSession != null && currentSession.status == "REQUESTED" -> {
+            // Helper waiting for the answer.
             val secondsLeft =
                 ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                )
-            ) {
+            Card {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "${currentSession.helperEmail.ifBlank { "Someone" }} " +
-                            "এই ফোনে সাহায্য করতে চাইছেন।",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (currentSession.kind == "guest") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Send,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Text(
-                            text = "Guest (সাময়িক) সাহায্যকারী — এই লিংক দেওয়ার ২ ঘণ্টা পরে " +
-                                "নিজেই মুছে যাবে; সেশনটিও তার মেয়াদের মধ্যেই শেষ হবে।",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.tertiary
+                            text = "${currentSession.recipientEmail}-কে অনুরোধ গেছে",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = mmss(secondsLeft),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer,
+                                    RoundedCornerShape(999.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                     Text(
-                        text = "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে। " +
-                            "(Allow only if you know them.)",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "গ্রহীতা Allow করলেই সেশন চালু হবে।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            enabled = !sessionBusy,
-                            onClick = { answerSession(currentSession, true) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 52.dp)
-                        ) {
-                            Text("Allow · অনুমতি দিন", fontWeight = FontWeight.Bold)
+                    WideOutlinedButton(
+                        enabled = !sessionBusy,
+                        onClick = {
+                            scope.launch {
+                                sessionBusy = true
+                                try {
+                                    cancelSession(currentSession.id, user.uid)
+                                    sessionMessage = "Request cancelled · অনুরোধ বাতিল।"
+                                } catch (e: SessionException) {
+                                    sessionMessage = e.message
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    sessionMessage =
+                                        "Could not cancel: ${describeFirestoreError(e)}"
+                                } finally {
+                                    sessionBusy = false
+                                }
+                            }
                         }
-                        OutlinedButton(
-                            enabled = !sessionBusy,
-                            onClick = { answerSession(currentSession, false) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 52.dp)
-                        ) {
-                            Text("Deny · না", fontWeight = FontWeight.Bold)
-                        }
+                    ) {
+                        Text("অনুরোধ বাতিল · Cancel")
                     }
                 }
-            }
-        }
-        currentSession != null && currentSession.status == "REQUESTED" -> {
-            // Helper waiting for the answer.
-            val secondsLeft =
-                ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
-            Text(
-                text = "${currentSession.recipientEmail}-কে অনুমতির অনুরোধ পাঠানো হয়েছে… " +
-                    "${mmss(secondsLeft)}-এ শেষ হবে।" +
-                    if (currentSession.kind == "guest") " · Guest (সাময়িক)" else "",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            WideOutlinedButton(
-                enabled = !sessionBusy,
-                onClick = {
-                    scope.launch {
-                        sessionBusy = true
-                        try {
-                            cancelSession(currentSession.id, user.uid)
-                            sessionMessage = "Request cancelled · অনুরোধ বাতিল।"
-                        } catch (e: SessionException) {
-                            sessionMessage = e.message
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            sessionMessage = "Could not cancel: ${describeFirestoreError(e)}"
-                        } finally {
-                            sessionBusy = false
-                        }
-                    }
-                }
-            ) {
-                Text("Cancel request · অনুরোধ বাতিল")
             }
         }
         currentSession != null && currentSession.status == "ACTIVE" -> {
@@ -2135,27 +2342,44 @@ private fun PairingSections(user: FirebaseUser) {
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = if (currentSession.helperUid == user.uid) {
-                            "সেশন চালু — আপনি ${currentSession.recipientEmail}-কে সাহায্য করছেন।"
-                        } else {
-                            "সেশন চালু — ${currentSession.helperEmail} আপনাকে সাহায্য করছেন।"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (currentSession.kind == "guest") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
                         Text(
-                            text = "Guest (সাময়িক) — সেশনটি guest লিংকের মেয়াদের মধ্যেই শেষ হবে।",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.tertiary
+                            text = if (currentSession.helperUid == user.uid) {
+                                "সেশন চালু — আপনি ${currentSession.recipientEmail}-কে সাহায্য করছেন"
+                            } else {
+                                "সেশন চালু — ${currentSession.helperEmail} আপনাকে সাহায্য করছেন"
+                            },
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = mmss(secondsLeft),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                                    RoundedCornerShape(999.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                     Text(
-                        text = "স্বয়ংক্রিয়ভাবে ${mmss(secondsLeft)}-এ শেষ হবে। আগে শেষ করতে পারেন। " +
-                            "(Ends automatically in ${mmss(secondsLeft)}.)",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "স্বয়ংক্রিয়ভাবে শেষ হবে। আগে শেষ করতে পারেন।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                     )
                     ScreenSharePanel(
                         isHelper = currentSession.helperUid == user.uid,
@@ -2171,14 +2395,13 @@ private fun PairingSections(user: FirebaseUser) {
                         enabled = !sessionBusy,
                         onClick = { finishSession(currentSession) }
                     ) {
-                        Text("End session · সেশন শেষ করুন")
+                        Text("সেশন শেষ করুন · End session")
                     }
                 }
             }
         }
         else -> {
-            if (lastFinishedSession != null) {
-                val lastFinished = lastFinishedSession!!
+            lastFinishedSession?.let { lastFinished ->
                 val byWhom = when (lastFinished.endedBy) {
                     null, "" -> ""
                     "timeout" -> " (auto-timeout)"
@@ -2187,8 +2410,9 @@ private fun PairingSections(user: FirebaseUser) {
                     else -> ""
                 }
                 Text(
-                    text = "Last session: ${lastFinished.status.lowercase()}$byWhom",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "শেষ সেশন: ${lastFinished.status.lowercase()}$byWhom",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -2204,13 +2428,738 @@ private fun PairingSections(user: FirebaseUser) {
     sessionMessage?.let {
         Text(text = it, style = MaterialTheme.typography.bodySmall)
     }
-
     pairingError?.let {
         Text(
             text = it,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error
         )
+    }
+
+    // ---------- ২. চলমান পেয়ারিং-কোড কার্ড (dropdown-সহ) ----------
+    if (showCode && currentInvite != null) {
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // QR + save pipeline states MUST precede the dropdown that
+                // uses them (Kotlin order-of-declaration inside a block).
+                val qr = remember(currentInvite.code) { qrBitmap(currentInvite.qrPayload) }
+                var copiedJustNow by remember(currentInvite.invitationId) {
+                    mutableStateOf(false)
+                }
+                var saveBusy by remember(currentInvite.invitationId) { mutableStateOf(false) }
+                var saveRequest by remember(currentInvite.invitationId) { mutableStateOf(false) }
+                var saveFeedback by remember(currentInvite.invitationId) {
+                    mutableStateOf<String?>(null)
+                }
+
+                val storagePermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { granted ->
+                    if (granted) {
+                        saveRequest = true
+                    } else {
+                        saveFeedback =
+                            "Storage permission is needed to save the QR image."
+                    }
+                }
+
+                LaunchedEffect(saveRequest) {
+                    if (!saveRequest) return@LaunchedEffect
+                    saveRequest = false
+                    val bitmap = qr
+                    if (bitmap == null) return@LaunchedEffect
+                    saveBusy = true
+                    saveFeedback = withContext(Dispatchers.IO) {
+                        val fileName = "pairing-code-${currentInvite.invitationId}.png"
+                        saveQrToDownloads(context, bitmap, fileName)
+                            ?.let { "Saved ✓ $it" }
+                            ?: "Could not save the QR image."
+                    }
+                    saveBusy = false
+                }
+
+                LaunchedEffect(copiedJustNow) {
+                    if (copiedJustNow) {
+                        delay(2000)
+                        copiedJustNow = false
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (inviteKind == REL_KIND_GUEST) {
+                            Icons.Filled.DateRange
+                        } else {
+                            Icons.Filled.AccountCircle
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = if (inviteKind == REL_KIND_GUEST) {
+                            "Guest কোড চলছে — ২ ঘণ্টার সাময়িক"
+                        } else {
+                            "Family কোড চলছে — স্থায়ী"
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    // v0.14.0 — the invite actions moved into a dropdown:
+                    // কপি / QR সেভ / শেয়ার।
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "আরও অ্যাকশন · more"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("কোড কপি · Copy") },
+                                onClick = {
+                                    menuOpen = false
+                                    copyToClipboard(
+                                        context, "Pairing code", currentInvite.code
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("QR সেভ · Save") },
+                                onClick = {
+                                    menuOpen = false
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ||
+                                        ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        saveRequest = true
+                                    } else {
+                                        storagePermissionLauncher.launch(
+                                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                        )
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("শেয়ার · Share") },
+                                onClick = {
+                                    menuOpen = false
+                                    val q = qr
+                                    if (q == null) {
+                                        saveFeedback =
+                                            "Could not prepare the QR image for sharing."
+                                    } else {
+                                        val intent = buildQrShareIntent(
+                                            context, q, currentInvite.code
+                                        )
+                                        if (intent != null) {
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (_: Exception) {
+                                                saveFeedback = "No app available for sharing."
+                                            }
+                                        } else {
+                                            saveFeedback =
+                                                "Could not prepare the QR image for sharing."
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = currentInvite.code,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "শুধু যে পরিবারের সদস্য সাহায্য করবেন তাকেই দেবেন।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                val totalSeconds = (currentInvite.expiresAtMillis - nowMillis) / 1000
+                Text(
+                    text = "বাকি সময় ${totalSeconds / 60}:${(totalSeconds % 60)
+                        .toString().padStart(2, '0')}",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                if (qr != null) {
+                    Image(
+                        bitmap = qr.asImageBitmap(),
+                        contentDescription = "Pairing QR code",
+                        modifier = Modifier
+                            .size(160.dp)
+                            .align(Alignment.CenterHorizontally)
+                    )
+                }
+
+                saveFeedback?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                when (inviteStatus) {
+                    "PENDING" -> Text(
+                        text = "অন্য ফোনের অপেক্ষায়… · Waiting for the other device",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                    "PAIRED" -> Text(
+                        text = "যুক্ত হয়েছে ✓ ${claimerEmail ?: "helper"}-এর সাথে",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                    else -> {}
+                }
+                if (inviteStatus == "PENDING") {
+                    WideOutlinedButton(
+                        enabled = creatingKind == null,
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    cancelInvitation(currentInvite.invitationId)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    pairingError =
+                                        "Could not cancel: ${describeFirestoreError(e)}"
+                                }
+                            }
+                        }
+                    ) {
+                        Text("কোড বাতিল · Cancel code")
+                    }
+                }
+                inviteSyncError?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    } else if (currentInvite != null) {
+        val statusText = when (inviteStatus) {
+            "PAIRED" -> "যুক্ত ✓ ${claimerEmail ?: "helper"}-এর সাথে — দরকার হলে FAB থেকে নতুন কোড বানান।"
+            "CANCELLED" -> "কোড বাতিল হয়েছে। FAB (+) থেকে নতুন কোড বানান।"
+            else -> "কোডের সময় শেষ। FAB (+) থেকে নতুন কোড বানান।"
+        }
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    // ---------- ৩. যুক্ত ফোন — List Tiles + অ্যাকশন নিচ-শিট ----------
+    SectionCard(
+        title = "যুক্ত ফোন",
+        icon = Icons.Filled.Phone,
+        infoText = "দুই ধরনের যুক্তি আছে। FAMILY কোড = স্থায়ী বিশ্বস্ত ফোন — একবার যুক্ত " +
+            "হলে আর কোড লাগে না। GUEST কোড = ২ ঘণ্টার সাময়িক যুক্তি (বাইরের " +
+            "সাহায্যকারীর জন্য) — মেয়াদ শেষে নিজেই মুছে যায়, আর Guest কখনো " +
+            "স্বয়ংক্রিয়ভাবে Family হয় না। যুক্ত থাকা মানেই অনুমতি নয় — প্রতিটি সেশনে " +
+            "গ্রহীতার ফোনে আলাদা লাইভ অনুমতি লাগে, আর সেশন নির্দিষ্ট সময়ে নিজেই শেষ হয়।"
+    ) {
+        if (relationships.isEmpty()) {
+            if (relationshipsSyncError != null) {
+                Text(
+                    text = relationshipsSyncError!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            } else {
+                EmptyState(
+                    icon = Icons.Filled.Phone,
+                    title = "এখনো কোনো ফোন যুক্ত হয়নি",
+                    hint = "ডানদিকের “+ যুক্ত করুন” বোতামে ট্যাপ করে Family বা Guest কোড " +
+                        "বানান, অথবা সাহায্যকারীর কোড/QR দিন।"
+                )
+            }
+        } else {
+            Column {
+                relationships.forEachIndexed { index, rel ->
+                    if (index > 0) HorizontalDivider()
+                    PairTile(
+                        rel = rel,
+                        myUid = user.uid,
+                        relNow = relNow,
+                        onOpen = { selectedRelId = rel.id }
+                    )
+                }
+            }
+        }
+    }
+
+    // ---------- ৪. যুক্ত-ফোন অ্যাকশন নিচ-শিট ----------
+    val selectedRel = relationships.firstOrNull { it.id == selectedRelId }
+    if (selectedRel != null) {
+        val isGuest = selectedRel.kind == REL_KIND_GUEST
+        val iHelp = selectedRel.helperUid == user.uid
+        val otherEmail =
+            (if (iHelp) selectedRel.recipientEmail else selectedRel.helperEmail)
+                .ifBlank { "(no email)" }
+        val sheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { selectedRelId = null },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = otherEmail,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = buildString {
+                        append(if (iHelp) "আপনি সাহায্য করছেন" else "আপনাকে সাহায্য করছে")
+                        if (selectedRel.recipientDeviceModel.isNotBlank()) {
+                            append(" · ${selectedRel.recipientDeviceModel}")
+                        }
+                        append(" · ${sessionStatusBn(selectedRel.status)}")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (isGuest) {
+                    val remainingMin =
+                        ((selectedRel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
+                    Text(
+                        text = when {
+                            selectedRel.status != "ACTIVE" -> "Guest যুক্তি — মেয়াদ শেষ।"
+                            selectedRel.guestExpiresAtMillis <= 0L -> "Guest (সাময়িক)"
+                            remainingMin >= 60L ->
+                                "Guest — বাকি ${remainingMin / 60L}ঘ ${remainingMin % 60L}মি"
+                            else -> "Guest — বাকি ${remainingMin}মি"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (selectedRel.status == "ACTIVE" && remainingMin > 0L) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+                if (iHelp && selectedRel.recipientDeviceId.isNotBlank()) {
+                    PresenceBadge(
+                        uid = selectedRel.recipientUid,
+                        deviceId = selectedRel.recipientDeviceId
+                    )
+                }
+                HorizontalDivider()
+                if (selectedRel.status == "ACTIVE" && iHelp && !selectedRel.guestLive) {
+                    Text(
+                        text = "Guest মেয়াদ শেষ — আর সেশন শুরু করা যাবে না। নতুন " +
+                            "Guest কোড দিন।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (selectedRel.status == "ACTIVE" && iHelp && selectedRel.guestLive) {
+                    BigButton(
+                        enabled = !sessionBusy && openSession == null,
+                        onClick = { startSessionFor(selectedRel) }
+                    ) {
+                        Text("সেশন শুরু করুন · অনুমতি চাইবে")
+                    }
+                    if (openSession != null) {
+                        Text(
+                            text = "একটি সেশন ইতিমধ্যে চলছে — আগে সেটি শেষ করুন।",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (!isGuest && selectedRel.status == "ACTIVE") {
+                    OutlinedButton(
+                        enabled = revokingId != selectedRel.id,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
+                        onClick = {
+                            revokingId = selectedRel.id
+                            scope.launch {
+                                try {
+                                    revokeRelationship(selectedRel.id)
+                                    selectedRelId = null
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    pairingError =
+                                        "Could not revoke: ${describeFirestoreError(e)}"
+                                } finally {
+                                    revokingId = null
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Revoke · বাতিল")
+                    }
+                }
+                // Phase 10 — a guest link can be REMOVED entirely (the doc
+                // is deleted; afterwards a fresh family pairing may reuse
+                // the pair). Family links have no such button on purpose.
+                if (isGuest) {
+                    OutlinedButton(
+                        enabled = revokingId != selectedRel.id,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
+                        onClick = {
+                            revokingId = selectedRel.id
+                            scope.launch {
+                                try {
+                                    removeGuestRelationship(selectedRel.id)
+                                    selectedRelId = null
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    pairingError =
+                                        "Could not remove: ${describeFirestoreError(e)}"
+                                } finally {
+                                    revokingId = null
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Remove · সরান")
+                    }
+                }
+            }
+        }
+    }
+
+    // ---------- ৫. FAB-এর পেয়ারিং নিচ-শিট ----------
+    if (showPairSheet) {
+        val pairSheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = onDismissPairSheet,
+            sheetState = pairSheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "নতুন ফোন যুক্ত করুন",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "এই ফোনে সাহায্য দরকার? কোড বানিয়ে অন্য ফোনকে দিন।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                PairOptionRow(
+                    icon = Icons.Filled.AccountCircle,
+                    title = "Family কোড · স্থায়ী",
+                    description = "একবার যুক্ত হলে আর কোড লাগে না — পরিবারের জন্য",
+                    busy = creatingKind == REL_KIND_FAMILY,
+                    enabled = creatingKind == null,
+                    onClick = {
+                        createCode(REL_KIND_FAMILY)
+                        onDismissPairSheet()
+                    }
+                )
+                PairOptionRow(
+                    icon = Icons.Filled.DateRange,
+                    title = "Guest কোড · ২ ঘণ্টা",
+                    description = "বাইরের সাহায্যকারীর জন্য সাময়িক লিংক",
+                    busy = creatingKind == REL_KIND_GUEST,
+                    enabled = creatingKind == null,
+                    onClick = {
+                        createCode(REL_KIND_GUEST)
+                        onDismissPairSheet()
+                    }
+                )
+                HorizontalDivider()
+                Text(
+                    text = "অন্য কারও ফোনে সাহায্য করবেন? তাদের কোড দিন",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = codeInput,
+                        onValueChange = { codeInput = it },
+                        label = { Text("Pairing code · কোড") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        enabled = !redeeming,
+                        onClick = { showScanner = true },
+                        modifier = Modifier.heightIn(min = 52.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text("  স্ক্যান")
+                    }
+                }
+                if (showScanner) {
+                    QrScanDialog(
+                        onCode = { code ->
+                            codeInput = code
+                            redeemMessage = null
+                            showScanner = false
+                        },
+                        onDismiss = { showScanner = false }
+                    )
+                }
+                BigButton(
+                    enabled = !redeeming && codeInput.isNotBlank(),
+                    onClick = {
+                        scope.launch {
+                            redeeming = true
+                            redeemMessage = null
+                            try {
+                                val rel = redeemCode(user, codeInput)
+                                redeemMessage = if (rel.kind == REL_KIND_GUEST) {
+                                    "Guest যুক্ত ✓ — ${rel.recipientEmail} " +
+                                        "(${rel.recipientDeviceModel})-কে ২ ঘণ্টার মধ্যে " +
+                                        "সাহায্য করতে পারবেন।"
+                                } else {
+                                    "Paired ✓ — এখন আপনি ${rel.recipientEmail} " +
+                                        "(${rel.recipientDeviceModel})-কে সাহায্য করতে পারবেন।"
+                                }
+                                codeInput = ""
+                            } catch (e: RedemptionException) {
+                                redeemMessage = e.message
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                redeemMessage = "Pairing failed: ${describeFirestoreError(e)}"
+                            } finally {
+                                redeeming = false
+                            }
+                        }
+                    }
+                ) {
+                    if (redeeming) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text("  কোড দিয়ে যুক্ত করুন")
+                    }
+                }
+                redeemMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (message.startsWith("Paired") ||
+                            message.startsWith("Guest যুক্ত")
+                        ) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+                Text(
+                    text = "যুক্ত থাকা মানেই অনুমতি নয় — প্রতিটি সেশনে আলাদা অনুমতি লাগবেই।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/** v0.14.0 — one tappable option row inside the pairing bottom sheet. */
+@Composable
+private fun PairOptionRow(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    busy: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * v0.14.0 — a paired phone as a chat-style tile: avatar + email + role +
+ * Family/Guest badge (+ guest countdown), optional live presence underneath.
+ * Tapping opens the action bottom-sheet.
+ */
+@Composable
+private fun PairTile(
+    rel: RelationshipView,
+    myUid: String,
+    relNow: Long,
+    onOpen: () -> Unit
+) {
+    val isGuest = rel.kind == REL_KIND_GUEST
+    val iHelp = rel.helperUid == myUid
+    val otherEmail =
+        (if (iHelp) rel.recipientEmail else rel.helperEmail).ifBlank { "(no email)" }
+    val guestOk = isGuest && rel.status == "ACTIVE" && rel.guestLive
+    val chipText = when {
+        !isGuest && rel.status == "ACTIVE" -> "Family"
+        !isGuest -> "Family · ${sessionStatusBn(rel.status)}"
+        guestOk -> {
+            val remainingMin =
+                ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
+            when {
+                rel.guestExpiresAtMillis <= 0L -> "Guest"
+                remainingMin >= 60L -> "Guest · ${remainingMin / 60L}ঘ${remainingMin % 60L}মি"
+                else -> "Guest · ${remainingMin}মি"
+            }
+        }
+        else -> "Guest · ${sessionStatusBn(rel.status)}"
+    }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        AppListTile(
+            title = otherEmail,
+            initials = otherEmail.take(1).ifBlank { "?" },
+            subtitle = buildString {
+                append(if (iHelp) "আপনি সাহায্য করছেন" else "আপনাকে সাহায্য করছে")
+                if (rel.recipientDeviceModel.isNotBlank()) {
+                    append(" · ${rel.recipientDeviceModel}")
+                }
+            },
+            chip = chipText,
+            chipContainer = when {
+                rel.status != "ACTIVE" -> MaterialTheme.colorScheme.errorContainer
+                guestOk -> MaterialTheme.colorScheme.tertiaryContainer
+                else -> MaterialTheme.colorScheme.primaryContainer
+            },
+            chipContent = when {
+                rel.status != "ACTIVE" -> MaterialTheme.colorScheme.onErrorContainer
+                guestOk -> MaterialTheme.colorScheme.onTertiaryContainer
+                else -> MaterialTheme.colorScheme.onPrimaryContainer
+            },
+            onClick = onOpen,
+            trailingIcon = Icons.Filled.KeyboardArrowRight
+        )
+        if (iHelp && rel.recipientDeviceId.isNotBlank()) {
+            Box(modifier = Modifier.padding(start = 56.dp)) {
+                PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
+            }
+        }
+        if (isGuest && rel.status == "ACTIVE" && !rel.guestLive) {
+            Text(
+                text = "Guest মেয়াদ শেষ — নতুন Guest কোড দিন।",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 56.dp)
+            )
+        }
     }
 }
 
@@ -2254,7 +3203,7 @@ private fun ScreenSharePanel(
                     ScreenShareEngine.startHelper(context, sessionId, myUid, otherUid)
                 }
             ) {
-                Text("Watch screen · স্ক্রিন দেখুন (শুধু দেখা)")
+                Text("স্ক্রিন দেখুন · Watch screen")
             }
         } else {
             // v0.8.3 — the picture is now sized to the REAL screen aspect
@@ -2410,7 +3359,7 @@ private fun ScreenSharePanel(
                                     .padding(12.dp)
                                     .heightIn(min = 48.dp)
                             ) {
-                                Text("✕ Close · বন্ধ", fontWeight = FontWeight.SemiBold)
+                                Text("✕ বন্ধ", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -2464,7 +3413,7 @@ private fun ScreenSharePanel(
                         text = if (assistLive)
                             "টাচ চালু — ছবিতে ট্যাপ মানে তাদের ফোনে ট্যাপ।"
                         else
-                            "Tap the picture for full screen · ছবিতে ট্যাপ করলে ফুলস্ক্রিন হবে।",
+                            "ছবিতে ট্যাপ করলে ফুলস্ক্রিন হবে।",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -2480,7 +3429,7 @@ private fun ScreenSharePanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Data saver · ছবি হালকা",
+                    text = "ছবি হালকা · Data saver",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -2495,10 +3444,9 @@ private fun ScreenSharePanel(
             }
             Text(
                 text = if (dataSaver)
-                    "চালু — ছবি ৬০০ kbps-এ ক্যাপ: ডেটা বাঁচবে, ছবি একটু ঝাপসা হবে। " +
-                        "রিলে বা মিটার্ড নেটওয়ার্কে কাজের।"
+                    "চালু — ছবি ৬০০ kbps-এ ক্যাপ: ডেটা বাঁচবে, ছবি একটু ঝাপসা হবে।"
                 else
-                    "বন্ধ — স্বাভাবিক মান। রিলে-পথে ইঞ্জিন নিজেই ১৫০০ kbps-এ ক্যাপ করে।",
+                    "বন্ধ — স্বাভাবিক মান।",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -2511,7 +3459,7 @@ private fun ScreenSharePanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Touch control · রিমোট টাচ",
+                    text = "রিমোট টাচ · Touch control",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -2520,9 +3468,9 @@ private fun ScreenSharePanel(
             }
             Text(
                 text = if (assistMode)
-                    "চালু — ট্যাপ, সোয়াইপ, লং-প্রেস ও লেখা টাইপ এখন তাদের ফোনে যাবে (তাদের Remote assist চালু থাকতে হবে)। ছবির ওপর: ট্যাপ = ট্যাপ · ধরে রাখা = লং-প্রেস · টেনে ছাড়া = সোয়াইপ।"
+                    "চালু — ট্যাপ = ট্যাপ · ধরে রাখা = লং-প্রেস · টেনে ছাড়া = সোয়াইপ।"
                 else
-                    "বন্ধ — শুধু দেখা যাচ্ছে। ট্যাপ পাঠাতে সুইচ চালু করুন।",
+                    "বন্ধ — শুধু দেখা যাচ্ছে।",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -2565,10 +3513,10 @@ private fun ScreenSharePanel(
                 }
                 // v0.12.0 (Phase 8.3 completion) — the typing entry point.
                 WideOutlinedButton(onClick = { showTypeDialog = true }) {
-                    Text("⌨ Type text · লেখা টাইপ করুন")
+                    Text("⌨ লেখা টাইপ করুন · Type text")
                 }
                 WideOutlinedButton(onClick = { fullscreen = true }) {
-                    Text("⛶ Full screen · ফুলস্ক্রিন")
+                    Text("⛶ ফুলস্ক্রিন · Full screen")
                 }
             }
             assistStatus?.let {
@@ -2579,7 +3527,7 @@ private fun ScreenSharePanel(
                 )
             }
             WideOutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
-                Text("Stop watching · দেখা বন্ধ")
+                Text("দেখা বন্ধ · Stop watching")
             }
         }
     } else {
@@ -2601,11 +3549,11 @@ private fun ScreenSharePanel(
             WideOutlinedButton(
                 onClick = { consentLauncher.launch(projectionManager.createScreenCaptureIntent()) }
             ) {
-                Text("Share screen · স্ক্রিন শেয়ার করুন")
+                Text("স্ক্রিন শেয়ার করুন · Share screen")
             }
             Text(
-                text = "চালুর পর এই ফোনে যা দেখা যায় সবই সাহায্যকারী দেখতে পাবেন — আপনি বন্ধ করা " +
-                    "বা সেশন শেষ হওয়া পর্যন্ত। দূর থেকে কিছু নিয়ন্ত্রণ করা হয় না।",
+                text = "চালুর পর এই ফোনে যা দেখা যায় সবই সাহায্যকারী দেখতে পাবেন — আপনি বন্ধ " +
+                    "করা বা সেশন শেষ হওয়া পর্যন্ত।",
                 style = MaterialTheme.typography.bodySmall
             )
         } else {
@@ -2650,7 +3598,7 @@ private fun ScreenSharePanel(
                 }
             }
             WideOutlinedButton(onClick = { ScreenShareService.stop(context) }) {
-                Text("Stop sharing · শেয়ার বন্ধ")
+                Text("শেয়ার বন্ধ · Stop sharing")
             }
             // Phase 8 (v0.9.0) — Remote assist: state + one-time enablement.
             // Without the service the helper stays view-only forever; with it
@@ -2677,14 +3625,14 @@ private fun ScreenSharePanel(
             }
             if (assistOn) {
                 Text(
-                    text = "Remote assist চালু ✓ — সাহায্যকারী এই স্ক্রিনে ট্যাপ, সোয়াইপ, লং-প্রেস ও লেখা টাইপও করতে পারবেন।",
+                    text = "Remote assist চালু ✓ — সাহায্যকারী ট্যাপ, সোয়াইপ ও টাইপ করতে পারবেন।",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
             } else {
                 Text(
-                    text = "Remote assist বন্ধ — সাহায্যকারী শুধু দেখতে পারবেন, ট্যাপ বা টাইপ করতে পারবেন না।",
+                    text = "Remote assist বন্ধ — সাহায্যকারী শুধু দেখতে পারবেন।",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -2705,12 +3653,11 @@ private fun ScreenSharePanel(
                     }
                 }
                 WideOutlinedButton(onClick = { showAssistGuide = true }) {
-                    Text("Turn on Remote assist · রিমোট টাচ চালু করুন")
+                    Text("রিমোট টাচ চালু করুন · Turn on Remote assist")
                 }
                 Text(
                     text = "একবারই সেটআপ লাগবে: তালিকায় \"Family Remote Support assist\" খুঁজে চালু করুন। " +
-                        "⚠️ \"Accessibility menu shortcut\" নয় — সেটা কাজ করবে না। এই সার্ভিস স্ক্রিনের " +
-                        "কিছুই পড়ে না, জমা রাখে না, পাঠায় না — লেখা বসানোই একমাত্র কাজ।",
+                        "⚠️ \"Accessibility menu shortcut\" নয় — সেটা কাজ করবে না।",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2762,13 +3709,13 @@ private fun AssistTypeDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Type on their phone · ওদের ফোনে লিখুন",
+                    text = "ওদের ফোনে লিখুন · Type on their phone",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "আগে রিমোট টাচ দিয়ে ওদের ফোনে লেখার ঘরে ট্যাপ করে নিন। " +
-                        "লেখাটি ঘরের আগের লেখা বদলে বসবে। (নতুন লাইন-সহ লেখাও যায়।)",
+                        "লেখাটি ঘরের আগের লেখা বদলে বসবে।",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2795,7 +3742,7 @@ private fun AssistTypeDialog(onDismiss: () -> Unit) {
                             .weight(1f)
                             .heightIn(min = 48.dp)
                     ) {
-                        Text("Cancel · বাতিল")
+                        Text("বাতিল")
                     }
                     Button(
                         onClick = {
@@ -2807,7 +3754,7 @@ private fun AssistTypeDialog(onDismiss: () -> Unit) {
                             .weight(1f)
                             .heightIn(min = 48.dp)
                     ) {
-                        Text("Send · পাঠান")
+                        Text("পাঠান · Send")
                     }
                 }
             }
