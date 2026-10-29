@@ -113,7 +113,15 @@ A trusted family member helps fix another family phone — always with the recei
   (codec vp8/h264, 10–60 fps, bitrate floor/ceiling — flipped remotely, no new APK),
   the hardware-H264 path with an on-screen capability probe ("codec probe — H264
   enc=Y dec=Y …"), negotiated-codec proof in diagnostics, and automatic VP8/30fps
-  fallback whenever hardware H264 is unavailable.
+  fallback whenever hardware H264 is unavailable; v0.9.8 — FCM kill-push (Phase 8.2):
+  a session request now reaches the recipient even when Android has killed the app —
+  a sweep service (sandbox mini-service polling every 5 s, plus a GitHub Actions cron
+  backstop, both running the same `scripts/fcm-kill-push.mjs`) finds fresh REQUESTED
+  sessions and sends a high-priority FCM notification to the recipient's registered
+  tokens; the OS displays it in the `support_session_requests` channel from the killed
+  state, and tapping it cold-starts the app into the in-app ask card. Idempotent
+  (killPushSentAt mark), only pushes asks whose 2-minute answer window is still open,
+  auto-deletes UNREGISTERED tokens, and ships no new app dependencies.
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
