@@ -13,6 +13,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -261,6 +262,21 @@ object ScreenShareEngine {
 
     /** Replay guard: a Firestore "cmd" older than this is refused. */
     private val cmdFreshMillis = 15_000L
+
+    /**
+     * v0.21.0 (audit): accepted FUTURE skew for the cmd freshness check —
+     * server timestamps vs the recipient's wall clock used to be compared
+     * with ZERO tolerance, so a phone set a minute behind refused EVERY
+     * Firestore-path command (remote touch silently dead on the fallback
+     * path only). A cmd timestamped further into the future than this is
+     * still refused as tampered/garbage.
+     */
+    private val cmdSkewMillis = 120_000L
+
+    /** v0.21.0 (audit): "bye" older than this is a stale leftover, not a real stop. */
+    private val byeFreshMillis = 30_000L
+    /** v0.21.0 (audit): "watch" older than this is a stale leftover round token. */
+    private val watchFreshMillis = 20_000L
     /** Firestore-cmd / p2p-message size cap — a real command is a few hundred bytes. */
     private val maxCmdChars = 4_096
 
@@ -370,6 +386,18 @@ object ScreenShareEngine {
     private var retryBudget = 0
     /** Epoch whose retry decision was already made (guards double-trigger). */
     private var retryRoundTag = ""
+
+    /**
+     * v0.21.0 (audit) — deferred-start guard. The config fetch window (up to
+     * ~10 s) used to post beginRecipientCapture/beginHelperWatch
+     * UNCONDITIONALLY: a stop/teardown or a SECOND start inside that window
+     * produced a zombie share (capture + pc with no session identity) or
+     * leaked a whole PeerConnection + Firestore listener. Each start now
+     * bumps a round token the deferred callback must still match, and the
+     * fetch job itself is cancellable.
+     */
+    private var startRound = 0
+    private var configJob: Job? = null
     private var sentWatchAt = 0L
     private var gotOfferAt = 0L
     private var candHost = 0
@@ -524,12 +552,23 @@ object ScreenShareEngine {
             _info.value = "Preparing the screen share…"
             diagLog("share start (epoch ${myEpoch?.take(6) ?: "?"})")
             val app = context.applicationContext
-            scope.launch {
+            // v0.21.0 (audit): round token + cancellable fetch — see startRound.
+            val round = ++startRound
+            configJob?.cancel()
+            configJob = scope.launch {
                 dynamicIceServers = ConfigRepo.fetchTurnServers()
                 diagLog(ConfigRepo.lastNote)
                 quality = ConfigRepo.fetchQuality() // v0.9.7 — codec/fps/bitrate knobs
                 diagLog(ConfigRepo.lastQualityNote)
-                main.post { beginRecipientCapture(app, projectionData) }
+                main.post {
+                    if (round == startRound && sessionId != null &&
+                        _state.value != ShareState.IDLE && _state.value != ShareState.ENDED
+                    ) {
+                        beginRecipientCapture(app, projectionData)
+                    } else {
+                        diagLog("deferred capture skipped (superseded round)")
+                    }
+                }
             }
         }
     }
@@ -559,7 +598,25 @@ object ScreenShareEngine {
 
             val helper = SurfaceTextureHelper.create("ScreenCap", eglBase!!.eglBaseContext)
             val source = factory!!.createVideoSource(true)
-            val cap = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {})
+            // v0.21.0 (audit): route system-side projection death (the user
+            // taps "Stop casting" in the system UI, or the system revokes it)
+            // into the engine — the empty callback used to leave a frozen
+            // stream and a lying "sharing active" notification forever.
+            val cap = ScreenCapturerAndroid(
+                projectionData,
+                object : MediaProjection.Callback() {
+                    override fun onStop() {
+                        runOnMain {
+                            if (captureAlive) {
+                                fail(
+                                    "Screen projection was stopped from the system — " +
+                                        "tap “Share screen” again."
+                                )
+                            }
+                        }
+                    }
+                }
+            )
             cap.initialize(helper, context.applicationContext, source.capturerObserver)
             // v0.9.7 — the owner's fps wish runs ONLY on the hardware H264
             // path: software VP8 at 1536-class 60 fps would churn the CPU and
@@ -740,12 +797,23 @@ object ScreenShareEngine {
             _state.value = ShareState.WAITING_PEER
             _info.value = "Preparing the viewer…"
             diagLog("watch start (epoch ${myEpoch?.take(6) ?: "?"})")
-            scope.launch {
+            // v0.21.0 (audit): same round-token guard as the recipient side.
+            val round = ++startRound
+            configJob?.cancel()
+            configJob = scope.launch {
                 dynamicIceServers = ConfigRepo.fetchTurnServers()
                 diagLog(ConfigRepo.lastNote)
                 quality = ConfigRepo.fetchQuality() // v0.9.7 — codec preference for the answer
                 diagLog(ConfigRepo.lastQualityNote)
-                main.post { beginHelperWatch() }
+                main.post {
+                    if (round == startRound && sessionId != null &&
+                        _state.value != ShareState.IDLE && _state.value != ShareState.ENDED
+                    ) {
+                        beginHelperWatch()
+                    } else {
+                        diagLog("deferred watch skipped (superseded round)")
+                    }
+                }
             }
         }
     }
@@ -796,7 +864,11 @@ object ScreenShareEngine {
         peerUidArg: String,
         isHelperArg: Boolean
     ) {
-        if (_state.value != ShareState.IDLE) teardown(sendBye = false)
+        // v0.21.0 (audit): a role switch away from a LIVE recipient round now
+        // sends "bye" — the old silent teardown left the far helper
+        // dead-ending into 12 s retries ×3 and a wrong "Connection failed"
+        // message.
+        if (_state.value != ShareState.IDLE) teardown(sendBye = !isHelper)
         if (context != null) appContext = context.applicationContext
         sessionId = sessionIdArg
         myUid = uid
@@ -1083,30 +1155,36 @@ object ScreenShareEngine {
 
             when (type) {
                 "watch" -> if (!isHelper && captureAlive && payload.length in 16..64) {
-                    // v0.8.3 — accepted in ANY state while the capture is
-                    // alive (WAITING_PEER, CONNECTING, LIVE or after a
-                    // failed round). A fresh (possibly repeat) watch adopts
-                    // the helper's epoch, then offers the screen with an
-                    // ICE restart so every round carries brand-new
-                    // credentials and re-gathered candidates.
-                    diagLog("watch received (helper epoch ${payload.take(6)}) — offering")
-                    peerEpoch = payload
-                    // Fresh round ⇒ fresh remote-description state: helper
-                    // candidates arriving between the offer and the answer
-                    // must never be applied against the PREVIOUS round's
-                    // remote description (they would be silently dropped).
-                    remoteDescriptionSet = false
-                    pendingIce.clear()
-                    if (pc == null || pc.signalingState() == PeerConnection.SignalingState.CLOSED) {
-                        // v0.9.2 — also rebuild a CLOSED pc; offering on a
-                        // closed connection would throw and dead-end.
-                        createPeer() // self-heal path: reconnect after a failure
+                    // v0.21.0 (audit): a stale watch re-delivered by a fresh
+                    // listener's initial snapshot (Firestore hands the whole
+                    // existing queue as ADDED changes) used to adopt the OLD
+                    // helper epoch — the round then dead-ended until the 12 s
+                    // retry. A real watch is seconds old.
+                    val wAge = if (createdAtMillis > 0) {
+                        System.currentTimeMillis() - createdAtMillis
+                    } else Long.MAX_VALUE
+                    if (wAge > watchFreshMillis) {
+                        diagLog("stale watch ignored (${wAge}ms old)")
+                    } else {
+                        diagLog("watch received (helper epoch ${payload.take(6)}) — offering")
+                        peerEpoch = payload
+                        // Fresh round ⇒ fresh remote-description state: helper
+                        // candidates arriving between the offer and the answer
+                        // must never be applied against the PREVIOUS round's
+                        // remote description (they would be silently dropped).
+                        remoteDescriptionSet = false
+                        pendingIce.clear()
+                        if (pc == null || pc.signalingState() == PeerConnection.SignalingState.CLOSED) {
+                            // v0.9.2 — also rebuild a CLOSED pc; offering on a
+                            // closed connection would throw and dead-end.
+                            createPeer() // self-heal path: reconnect after a failure
+                        }
+                        val pcNow = peerConnection ?: return
+                        _info.value = "The helper asked to watch — sending the screen…"
+                        val restart = MediaConstraints()
+                        restart.mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
+                        pcNow.createOffer(offerObserver(peerEpoch), restart)
                     }
-                    val pcNow = peerConnection ?: return
-                    _info.value = "The helper asked to watch — sending the screen…"
-                    val restart = MediaConstraints()
-                    restart.mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
-                    pcNow.createOffer(offerObserver(peerEpoch), restart)
                 }
                 "offer" -> if (isHelper && pc != null && !remoteDescriptionSet && ep == myEpoch) {
                     diagLog("offer received — applying…")
@@ -1159,10 +1237,23 @@ object ScreenShareEngine {
                     }
                 }
                 "bye" -> {
-                    val wasHelper = isHelper
-                    teardown(sendBye = false)
-                    _info.value = if (wasHelper) "The recipient stopped sharing."
-                    else "The helper closed the view."
+                    // v0.21.0 (audit): "bye" was the ONLY signal with no
+                    // epoch or freshness gate — a leftover bye re-delivered by
+                    // a fresh listener's initial snapshot (stop → re-share in
+                    // the SAME session) instantly tore down the new round with
+                    // "The recipient stopped sharing" while they were sharing.
+                    // A real bye arrives within seconds; anything older is stale.
+                    val bAge = if (createdAtMillis > 0) {
+                        System.currentTimeMillis() - createdAtMillis
+                    } else Long.MAX_VALUE
+                    if (bAge > byeFreshMillis) {
+                        diagLog("stale bye ignored (${bAge}ms old)")
+                    } else {
+                        val wasHelper = isHelper
+                        teardown(sendBye = false)
+                        _info.value = if (wasHelper) "The recipient stopped sharing."
+                        else "The helper closed the view."
+                    }
                 }
                 // Phase 8 — remote-assist commands (helper → recipient) and
                 // their acknowledgements (recipient → helper). Both are
@@ -1179,6 +1270,11 @@ object ScreenShareEngine {
                     when {
                         age > cmdFreshMillis ->
                             diagLog("assist cmd refused (stale ${if (age == Long.MAX_VALUE) "no-timestamp" else "${age}ms"})")
+                        age < -cmdSkewMillis ->
+                            // v0.21.0 (audit): server timestamp implausibly far
+                            // in the future — tampered or garbage; refuse. A
+                            // normal clock-skew future timestamp is accepted.
+                            diagLog("assist cmd refused (future ${-age}ms beyond skew)")
                         payload.length > maxCmdChars ->
                             diagLog("assist cmd refused (oversized payload)")
                         else -> handleAssistCommand(JSONObject(payload))
@@ -1678,29 +1774,36 @@ object ScreenShareEngine {
 
     private fun offerObserver(expectedEpoch: String?): SdpObserver = object : SdpObserver by noop {
         override fun onCreateSuccess(desc: SessionDescription?) {
-            val pc = peerConnection ?: return
-            val sid = sessionId ?: return
-            val me = myUid ?: return
-            val to = peerUid ?: return
-            val ep = peerEpoch ?: return
-            if (desc == null) return
-            if (expectedEpoch == null || ep != expectedEpoch) return
-            val sdp = preferCodec(desc.description)
-            val out = SessionDescription(desc.type, sdp)
-            pc.setLocalDescription(noop, out)
-            val json = JSONObject()
-                .put("type", desc.type.canonicalForm())
-                .put("sdp", sdp)
-                .toString()
-            scope.launch {
-                try {
-                    SignalingRepo.send(sid, me, to, "offer", json, ep)
-                    diagLog("offer sent — waiting for the helper's answer")
-                    _state.value = ShareState.CONNECTING
-                    _info.value = "Offer sent — waiting for the helper's answer…"
-                } catch (e: Exception) {
-                    diagLog("offer send FAILED: ${e.message ?: e.javaClass.simpleName}")
-                    fail("Could not send the offer: ${e.message ?: e.javaClass.simpleName}")
+            // v0.21.0 (audit): SdpObserver callbacks run on WebRTC's SIGNALING
+            // thread — hop to main before touching engine state (the class
+            // contract says all engine state is main-confined; this observer
+            // family was the one violation, racing handleSignal() on the same
+            // fields).
+            main.post {
+                if (desc == null) return@post
+                val pc = peerConnection ?: return@post
+                val sid = sessionId ?: return@post
+                val me = myUid ?: return@post
+                val to = peerUid ?: return@post
+                val ep = peerEpoch ?: return@post
+                if (expectedEpoch == null || ep != expectedEpoch) return@post
+                val sdp = preferCodec(desc.description)
+                val out = SessionDescription(desc.type, sdp)
+                pc.setLocalDescription(noop, out)
+                val json = JSONObject()
+                    .put("type", desc.type.canonicalForm())
+                    .put("sdp", sdp)
+                    .toString()
+                scope.launch {
+                    try {
+                        SignalingRepo.send(sid, me, to, "offer", json, ep)
+                        diagLog("offer sent — waiting for the helper's answer")
+                        _state.value = ShareState.CONNECTING
+                        _info.value = "Offer sent — waiting for the helper's answer…"
+                    } catch (e: Exception) {
+                        diagLog("offer send FAILED: ${e.message ?: e.javaClass.simpleName}")
+                        fail("Could not send the offer: ${e.message ?: e.javaClass.simpleName}")
+                    }
                 }
             }
         }
@@ -1721,59 +1824,69 @@ object ScreenShareEngine {
 
     private fun setObserver(what: String, expectedEpoch: String?): SdpObserver = object : SdpObserver by noop {
         override fun onSetSuccess() {
-            val pc = peerConnection ?: return
-            val sid = sessionId ?: return
-            val me = myUid ?: return
-            val to = peerUid ?: return
-            val currentEp = if (isHelper) myEpoch else peerEpoch
-            if (expectedEpoch != null && currentEp != expectedEpoch) return
-            if (isHelper && what == "offer") {
-                remoteDescriptionSet = true
-                gotOfferAt = System.currentTimeMillis()
-                flushIce()
-                val epExpected = expectedEpoch
-                pc.createAnswer(object : SdpObserver by noop {
-                    override fun onCreateSuccess(desc: SessionDescription?) {
-                        val pc2 = peerConnection ?: return
-                        if (desc == null) return
-                        if (expectedEpoch == null || myEpoch != epExpected) return
-                        val sdp = preferCodec(desc.description)
-                        val out = SessionDescription(desc.type, sdp)
-                        pc2.setLocalDescription(noop, out)
-                        val json = JSONObject()
-                            .put("type", desc.type.canonicalForm())
-                            .put("sdp", sdp)
-                            .toString()
-                        scope.launch {
-                            try {
-                                answerSentAtMillis = System.currentTimeMillis()
-                                SignalingRepo.send(
-                                    sid, me, to, "answer", json, myEpoch ?: ""
-                                )
-                                diagLog("answer sent — linking up")
-                                _state.value = ShareState.CONNECTING
-                                _info.value = "Answer sent — connecting video…"
-                            } catch (e: Exception) {
-                                diagLog("answer send FAILED: ${e.message ?: e.javaClass.simpleName}")
-                                fail("Could not send the answer: ${e.message ?: e.javaClass.simpleName}")
+            // v0.21.0 (audit): hop to main — this callback runs on WebRTC's
+            // signaling thread and the body below mutates
+            // remoteDescriptionSet / gotOfferAt / pendingIce (flushIce), the
+            // exact fields handleSignal() touches on main. The old race lost
+            // ICE candidates: main queued one into pendingIce AFTER the
+            // signaling thread had already drained it — the candidate then
+            // sat pending forever (relay-only paths never connected).
+            main.post {
+                val pc = peerConnection ?: return@post
+                val sid = sessionId ?: return@post
+                val me = myUid ?: return@post
+                val to = peerUid ?: return@post
+                val currentEp = if (isHelper) myEpoch else peerEpoch
+                if (expectedEpoch != null && currentEp != expectedEpoch) return@post
+                if (isHelper && what == "offer") {
+                    remoteDescriptionSet = true
+                    gotOfferAt = System.currentTimeMillis()
+                    flushIce()
+                    val epExpected = expectedEpoch
+                    pc.createAnswer(object : SdpObserver by noop {
+                        override fun onCreateSuccess(desc: SessionDescription?) {
+                            main.post {
+                                if (desc == null) return@post
+                                val pc2 = peerConnection ?: return@post
+                                if (epExpected == null || myEpoch != epExpected) return@post
+                                val sdp = preferCodec(desc.description)
+                                val out = SessionDescription(desc.type, sdp)
+                                pc2.setLocalDescription(noop, out)
+                                val json = JSONObject()
+                                    .put("type", desc.type.canonicalForm())
+                                    .put("sdp", sdp)
+                                    .toString()
+                                scope.launch {
+                                    try {
+                                        answerSentAtMillis = System.currentTimeMillis()
+                                        SignalingRepo.send(
+                                            sid, me, to, "answer", json, myEpoch ?: ""
+                                        )
+                                        diagLog("answer sent — linking up")
+                                        _state.value = ShareState.CONNECTING
+                                        _info.value = "Answer sent — connecting video…"
+                                    } catch (e: Exception) {
+                                        diagLog("answer send FAILED: ${e.message ?: e.javaClass.simpleName}")
+                                        fail("Could not send the answer: ${e.message ?: e.javaClass.simpleName}")
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    override fun onCreateFailure(error: String?) {
-                        // v0.9.2 — a failed createAnswer used to end the round
-                        // in total silence (the 19:29 rounds: the recipient's
-                        // offers sat in Firestore unanswered). Loud + retrying.
-                        diagLog("createAnswer FAILED: ${error ?: "unknown"}")
-                        runOnMain {
-                            if (isHelper) {
-                                helperRetryOrFail("Could not answer the recipient's offer")
-                            } else if (captureAlive) {
-                                recipientRecover("Could not answer — the helper will retry automatically.")
+                        override fun onCreateFailure(error: String?) {
+                            // v0.9.2 — a failed createAnswer used to end the round
+                            // in total silence (the 19:29 rounds: the recipient's
+                            // offers sat in Firestore unanswered). Loud + retrying.
+                            diagLog("createAnswer FAILED: ${error ?: "unknown"}")
+                            runOnMain {
+                                if (isHelper) {
+                                    helperRetryOrFail("Could not answer the recipient's offer")
+                                } else if (captureAlive) {
+                                    recipientRecover("Could not answer — the helper will retry automatically.")
+                                }
                             }
                         }
-                    }
-                }, MediaConstraints())
+                    }, MediaConstraints())
             } else if (!isHelper && what == "answer") {
                 remoteDescriptionSet = true
                 flushIce()
@@ -1781,6 +1894,7 @@ object ScreenShareEngine {
                 _info.value = "Negotiation done — connecting to the helper…"
             }
             // "local" descriptions carry no further action.
+            }
         }
 
         override fun onSetFailure(error: String?) {
@@ -1923,6 +2037,19 @@ object ScreenShareEngine {
         runOnMain { teardown(sendBye = true) }
     }
 
+    /**
+     * v0.21.0 (audit): the foreground service's onDestroy used to call
+     * stopRecipient() UNCONDITIONALLY — if the engine had since switched to
+     * the helper role (watching a third phone), destroying the leftover
+     * service tore down the HELPER session and sent "bye" to the wrong peer.
+     * The service now only stops the round it actually owns.
+     */
+    fun stopRecipientFromService() {
+        runOnMain {
+            if (!isHelper && sessionId != null) teardown(sendBye = true)
+        }
+    }
+
     private fun teardown(sendBye: Boolean) {
         if (sendBye) {
             val sid = sessionId
@@ -1939,8 +2066,21 @@ object ScreenShareEngine {
         }
         main.removeCallbacks(ticker)
         tickerRunning = false
+        // v0.21.0 (audit): cancel any in-flight config fetch so its deferred
+        // begin* callback can never land on a torn-down engine.
+        configJob?.cancel()
+        configJob = null
         signalStop?.invoke()
         signalStop = null
+        // v0.21.0 (audit): wipe OUR OWN signal queue on teardown — a leftover
+        // "bye"/"watch" used to be re-delivered by the NEXT listener's initial
+        // snapshot (same session, stop → re-share), instantly tearing down the
+        // fresh round. Best-effort, same as the startup wipe.
+        val wipedSid = sessionId
+        val wipedMe = myUid
+        if (wipedSid != null && wipedMe != null) {
+            SignalingRepo.clearAsync(wipedSid, wipedMe)
+        }
         try {
             capturer?.stopCapture()
         } catch (_: Exception) {
