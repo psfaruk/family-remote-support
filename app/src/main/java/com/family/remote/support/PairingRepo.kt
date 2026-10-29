@@ -1,7 +1,11 @@
 package com.family.remote.support
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.os.Build
 import com.google.android.gms.tasks.Task
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseUser
@@ -13,6 +17,7 @@ import com.google.firebase.firestore.SetOptions
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -101,18 +106,24 @@ data class InviteCode(
     val invitationId: String,
     val token: String,
     /** When this invitation expires (client clock); 0 until created in Firestore. */
-    val expiresAtMillis: Long = 0L
+    val expiresAtMillis: Long = 0L,
+    /** Phase 12 — the role this code creates, frozen at creation time. */
+    val kind: String = REL_KIND_FAMILY
 ) {
     /** The string the user sees, types or reads aloud: ABC123-1a2b3c… */
     val code: String get() = "$invitationId-$token"
 
     /**
-     * What will be encoded into the QR image. Same shape as the plan's
-     * https://<app-domain>/pair#inv=…&tok=… — scanning is handled in Phase 5,
-     * for now the QR is a visual aid next to the human-readable code.
+     * What will be encoded into the QR image. Phase 12 — the payload now
+     * carries the role marker (&k=fam / &k=gst) so the SCANNING phone can
+     * show a role-preview sheet BEFORE anything is redeemed. The marker is
+     * cosmetic only: the final kind is always re-read from the Firestore
+     * invitation document inside the redemption transaction, so a doctored
+     * QR can never flip a guest code into family (or vice versa).
      */
     val qrPayload: String get() =
-        "https://family-remote-support.app/pair#inv=$invitationId&tok=$token"
+        "https://family-remote-support.app/pair#inv=$invitationId&tok=$token" +
+            if (kind == REL_KIND_GUEST) "&k=gst" else "&k=fam"
 }
 
 data class InvitationView(
@@ -161,6 +172,26 @@ const val GUEST_RELATIONSHIP_TTL_MILLIS = 2 * 60 * 60 * 1000L
 /** Relationship doc kinds (Phase 10) — "guest" can never become "family". */
 const val REL_KIND_FAMILY = "family"
 const val REL_KIND_GUEST = "guest"
+
+/**
+ * Phase 12 — the small identity badge drawn in the MIDDLE of a generated
+ * QR code, so anyone can tell a Family code from a Guest code at a glance:
+ *  - FAMILY → 👪 (or "F") — permanent, trusted, for family only.
+ *  - GUEST  → ⏳ (or "G") — temporary 2-hour window, for outside help.
+ * The badge sits on a white rounded plate and the QR is encoded with
+ * error-correction level H (~30% damage recovery) so the covered modules
+ * stay decodable on every camera.
+ */
+enum class QrBadge(val glyph: String, val fallback: String, val labelBn: String) {
+    FAMILY("\uD83D\uDC6A", "F", "Family · স্থায়ী"),
+    GUEST("⏳", "G", "Guest · ২ ঘণ্টা");
+
+    companion object {
+        /** Maps a relationship/invitation kind string to its badge. */
+        fun ofKind(kind: String): QrBadge =
+            if (kind == REL_KIND_GUEST) GUEST else FAMILY
+    }
+}
 
 // No I, L, O, 0 or 1 — characters that are easy to misread over a phone call.
 private const val INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -242,7 +273,7 @@ suspend fun createInvitation(
             "expiresAt" to Timestamp(Date(expiryMillis))
         )
         ref.set(doc).awaitWithTimeout("creating the pairing code")
-        return invite.copy(expiresAtMillis = expiryMillis)
+        return invite.copy(expiresAtMillis = expiryMillis, kind = kind)
     }
     throw IllegalStateException("Could not generate a unique code — please try again.")
 }
@@ -540,9 +571,18 @@ private fun DocumentSnapshot.toRelationshipView(): RelationshipView? {
 /**
  * Render [content] as a QR bitmap (black on white). Returns null if the
  * payload cannot be encoded — the text code is always shown next to it.
+ *
+ * Phase 12 — when [badge] is given, a small white rounded plate with the
+ * role glyph is drawn in the CENTER of the code (👪 Family / ⏳ Guest).
+ * The QR is always encoded with error-correction level H so the covered
+ * modules stay decodable; the plate covers well under the recoverable
+ * area of the code.
  */
-fun qrBitmap(content: String, size: Int = 480): Bitmap? = try {
-    val hints = mapOf(EncodeHintType.MARGIN to 1)
+fun qrBitmap(content: String, size: Int = 560, badge: QrBadge? = null): Bitmap? = try {
+    val hints = mapOf(
+        EncodeHintType.MARGIN to 1,
+        EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H
+    )
     val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints)
     val bitmap = Bitmap.createBitmap(matrix.width, matrix.height, Bitmap.Config.RGB_565)
     val pixels = IntArray(matrix.width * matrix.height)
@@ -552,7 +592,49 @@ fun qrBitmap(content: String, size: Int = 480): Bitmap? = try {
         }
     }
     bitmap.setPixels(pixels, 0, matrix.width, 0, 0, matrix.width, matrix.height)
+    if (badge != null) drawQrCenterBadge(bitmap, badge)
     bitmap
 } catch (_: Exception) {
     null
+}
+
+/**
+ * Phase 12 — paint the role badge in the middle of an already-rendered QR
+ * bitmap: a white rounded plate with a thin outline, and the emoji glyph
+ * (falling back to a plain letter when the emoji font is missing).
+ */
+private fun drawQrCenterBadge(bitmap: Bitmap, badge: QrBadge) {
+    val canvas = Canvas(bitmap)
+    val w = bitmap.width.toFloat()
+    val h = bitmap.height.toFloat()
+    val plateSide = w * 0.24f
+    val left = (w - plateSide) / 2f
+    val top = (h - plateSide) / 2f
+    val rect = RectF(left, top, left + plateSide, top + plateSide)
+    val radius = plateSide * 0.22f
+
+    val platePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(226, 232, 240) // #E2E8F0 — the design-system outlineVariant
+        style = Paint.Style.STROKE
+        strokeWidth = plateSide * 0.04f
+    }
+    canvas.drawRoundRect(rect, radius, radius, platePaint)
+    canvas.drawRoundRect(rect, radius, radius, outlinePaint)
+
+    val glyph = badge.glyph
+    val textSize = plateSide * 0.52f
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = textSize
+        textAlign = Paint.Align.CENTER
+        color = Color.rgb(23, 32, 51) // #172033 — onSurface
+    }
+    val hasEmoji = Build.VERSION.SDK_INT < 23 || paint.hasGlyph(glyph)
+    val drawn = if (hasEmoji) glyph else badge.fallback
+    if (!hasEmoji) {
+        paint.isFakeBoldText = true
+    }
+    val fm = paint.fontMetrics
+    val baseline = (rect.top + rect.bottom) / 2f - (fm.ascent + fm.descent) / 2f
+    canvas.drawText(drawn, rect.centerX(), baseline, paint)
 }
