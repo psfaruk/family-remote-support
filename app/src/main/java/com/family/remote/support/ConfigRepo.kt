@@ -30,11 +30,23 @@ import org.webrtc.PeerConnection
  * config is OPTIONAL, so it now gets a 5 s ceiling, a 10-minute cache (one
  * fetch per session, not one per round), and it never blocks a retry round —
  * the previous round's servers are reused while a fresh fetch runs.
+ *
+ * v0.9.7 — `config/quality` joins it: the OWNER-CONTROLLED video-quality
+ * knobs (preferred codec "vp8"|"h264", fps 10..60, bitrate floor/ceiling).
+ * This is how the "60 fps smooth" request becomes a SAFE experiment: the
+ * hardware-H264 path is switched on by one Firestore write (no new APK) and
+ * reverted the same way if a phone's H264 hardware misbehaves. Missing doc ⇒
+ * exactly the proven v0.9.6 behaviour (VP8 · 30 fps · 1.2–4 Mbps). The
+ * quality cache is deliberately SHORT (60 s, vs the relay's 10 min) so a
+ * mid-experiment flip lands on the very next session start.
  */
 internal object ConfigRepo {
 
     private const val FETCH_TIMEOUT_MILLIS = 5_000L
     private const val CACHE_TTL_MILLIS = 10 * 60_000L
+
+    /** v0.9.7 — short TTL so owner-side quality flips land almost instantly. */
+    private const val QUALITY_CACHE_TTL_MILLIS = 60_000L
 
     /** Last successful fetch's server list (STUN-only when never fetched). */
     @Volatile
@@ -89,4 +101,59 @@ internal object ConfigRepo {
             cache
         }
     }
+
+    /** Last quality snapshot note for the on-screen diagnostics. */
+    @Volatile
+    var lastQualityNote: String = "quality config not read yet"
+        private set
+
+    @Volatile
+    private var qCache = QualityCfg()
+
+    @Volatile
+    private var qCachedAt = 0L
+
+    /**
+     * v0.9.7 — read the owner's quality knobs. Everything is clamped and
+     * defaulted app-side: a malformed or missing document can never produce
+     * an impossible pipeline (VP8@30·1200–4000 is the hard fallback). No
+     * cache stamp on failure ⇒ the next session start retries, so a revert
+     * flip is picked up without waiting out the TTL.
+     */
+    suspend fun fetchQuality(): QualityCfg {
+        val now = System.currentTimeMillis()
+        if (now - qCachedAt < QUALITY_CACHE_TTL_MILLIS) return qCache
+        return try {
+            val snap = Fb.db.collection("config")
+                .document("quality")
+                .get()
+                .awaitWithTimeout("reading the quality config", FETCH_TIMEOUT_MILLIS)
+            val codec = if (snap.getString("codec")?.trim()?.lowercase() == "h264") "h264" else "vp8"
+            val fps = (snap.getLong("fps") ?: 30L).toInt().coerceIn(10, 60)
+            val minK = (snap.getLong("minKbps") ?: 1_200L).toInt().coerceIn(100, 50_000)
+            val maxK = (snap.getLong("maxKbps") ?: 4_000L).toInt().coerceIn(minK, 100_000)
+            qCache = QualityCfg(codec, fps, minK, maxK)
+            qCachedAt = now
+            lastQualityNote = "quality: ${codec.uppercase()} · ${fps}fps · $minK–${maxK}kbps"
+            qCache
+        } catch (e: Exception) {
+            // Missing doc / offline / rules hiccup ⇒ the proven defaults.
+            lastQualityNote =
+                "quality config: unavailable (${e.javaClass.simpleName}) — defaults (VP8 · 30fps)"
+            qCache
+        }
+    }
 }
+
+/**
+ * v0.9.7 — owner-controlled video-quality knobs (`config/quality`). The
+ * engine treats these as PREFERENCES: H264 is only used when the phone
+ * actually has a hardware encoder (runtime probe), and a 60 fps wish is
+ * clamped back to 30 whenever software VP8 ends up negotiated.
+ */
+internal data class QualityCfg(
+    val codec: String = "vp8", // "vp8" (proven everywhere) | "h264" (hardware)
+    val fps: Int = 30,         // capture/encode ceiling, clamped 10..60
+    val minKbps: Int = 1_200,
+    val maxKbps: Int = 4_000
+)
