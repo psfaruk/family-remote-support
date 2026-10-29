@@ -18,16 +18,21 @@ import com.google.firebase.firestore.ListenerRegistration
  * Phase 6 — notify the RECIPIENT about an incoming support-session request
  * while the app is NOT on screen.
  *
- * Transport today: a Firestore snapshot listener owned by the app PROCESS.
- * It therefore works while the app is backgrounded but still alive (very
- * common right after "home" was pressed). When Android kills the process,
- * delivery stops — true push-when-killed arrives with the Phase 7 server,
- * which will send FCM messages to the tokens already registered in
- * Phase 5 (fcmTokens).
+ * Two transports now cover every state (v0.9.8, Phase 8.2):
+ *  1. THIS listener (Firestore snapshot owned by the app PROCESS) — covers
+ *     app visible (quiet; the in-app card shows) and app backgrounded but
+ *     alive (high-importance notification).
+ *  2. FCM kill-push — when Android has killed the process, a sweep service
+ *     (sandbox mini-service + GitHub Actions backstop, both running
+ *     scripts/fcm-kill-push.mjs) sends a high-priority FCM notification
+ *     message to the recipient's registered fcmTokens; the OS itself
+ *     displays it (manifest meta-data picks this same channel), and tapping
+ *     it cold-starts the app, whose listener then shows the in-app card.
  *
  * Behaviour:
  *  - app visible          -> no notification (the in-app permission card shows)
  *  - app background/alive -> one high-importance notification per fresh ask
+ *  - app killed           -> FCM kill-push notification (outside this process)
  *  - no POST_NOTIFICATIONS permission (Android 13+) -> silently nothing;
  *    the UI shows an "Enable notifications" button in the session section
  */
