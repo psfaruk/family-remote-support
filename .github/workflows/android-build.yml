@@ -57,6 +57,19 @@ jobs:
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
         run: gradle assembleDebug assembleRelease --stacktrace
 
+      - name: Verify release APK (AXML versionCode + versionName + v2 signature)
+        run: |
+          set -o pipefail
+          node scripts/verify-apk-axml.mjs \
+            app/build/outputs/apk/release/app-release.apk | tee apk-verify.log
+          {
+            echo "## Release-APK verification (AXML gate)"
+            echo ""
+            echo '```'
+            cat apk-verify.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
