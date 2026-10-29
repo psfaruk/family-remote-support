@@ -205,6 +205,7 @@ A trusted family member helps fix another family phone — always with the recei
     only to find the focused text field; the app never reads, stores or sends your
     screen text."
 - **Phase 11 ✅ (v0.13.0, versionCode 31) — APP SHELL: BOTTOM NAV + TOP BAR:** the one
+- **Phase 11.5 ✅ (v0.14.0, versionCode 32) — LESS TEXT, MORE STRUCTURE:** every long explanation paragraph moved behind an ⓘ info popup (AlertDialog); paired phones / devices / activity are now chat-style List Tiles (avatar + name + sub-text + Family/Guest badge); the ফোন tab got an ExtendedFAB that opens a pairing bottom sheet (Family/Guest options + code entry + QR scan); tapping a paired phone opens an action bottom sheet (start session / revoke / remove); the invite code card got a ⋮ dropdown (copy / save QR / share); settings rows became icon+description tiles with a REAL notification toggle (reads system state; enable = runtime permission, disable = jumps to system notification settings) and a Remote-assist status tile; home got a 2×2 icon status grid (permissions / this phone / online / push) + quick-action tiles + honest compact error card. Zero security changes — same Firestore actions, rules re-verify; texts moved, not deleted.
   long scroll became a real mobile app shape (Owner brief: "bottom 4 buttons — home,
   settings & others; top notification icon + activity"):
   - **Four tabs (Material 3 `NavigationBar`, Bangla labels, icons-core)**: হোম (version,
