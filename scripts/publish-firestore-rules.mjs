@@ -13,22 +13,41 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
-// Same resolution order as scripts/fcm-kill-push.mjs (Phase 8.2 convention):
-// env override → legacy home path → project .secrets path.
+// v0.21.0 (audit) — same resolution order as scripts/fcm-kill-push.mjs:
+// env (JSON blob OR file path) → legacy home path → project .secrets path.
+// The old version treated the FIREBASE_SA_JSON env var as a PATH only, so
+// the (documented) JSON-blob convention silently never worked here.
+const envSa = process.env.FIREBASE_SA_JSON;
+const envSaIsBlob = Boolean(envSa && envSa.trim().startsWith("{"));
 const SA_CANDIDATES = [
-  process.env.FIREBASE_SA_JSON,
+  envSaIsBlob ? null : envSa,
   "/home/z/.secrets/firebase-sa.json",
   "/home/z/my-project/.secrets/firebase-sa.json",
 ].filter(Boolean);
-const SA_RESOLVED = SA_CANDIDATES.find((p) => existsSync(p));
+const SA_RESOLVED = envSaIsBlob
+  ? { blob: envSa, label: "FIREBASE_SA_JSON env (blob)" }
+  : SA_CANDIDATES.find((p) => existsSync(p))
+    ? { path: SA_CANDIDATES.find((p) => existsSync(p)), label: null }
+    : null;
 if (!SA_RESOLVED) {
   console.error("✘ no service-account key found (tried:", SA_CANDIDATES.join(", "), ")");
   process.exit(1);
 }
-const RULES_PATH = "/home/z/my-project/android-app/firestore.rules";
+// v0.21.0 (audit) — repo-relative rules path (the old hardcoded sandbox path
+// failed everywhere else, e.g. CI or another checkout).
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const RULES_PATH = join(SCRIPT_DIR, "..", "android-app", "firestore.rules");
+if (!existsSync(RULES_PATH)) {
+  console.error("✘ firestore.rules not found at", RULES_PATH);
+  process.exit(1);
+}
 
-const sa = JSON.parse(readFileSync(SA_RESOLVED, "utf8"));
+const sa = JSON.parse(
+  SA_RESOLVED.blob ?? readFileSync(SA_RESOLVED.path, "utf8")
+);
 const PROJECT = sa.project_id;
 const rules = readFileSync(RULES_PATH, "utf8");
 
@@ -93,10 +112,14 @@ if (!listRes.ok) {
   process.exit(1);
 }
 const releases = (await listRes.json()).releases || [];
-const existing = releases.find((r) => r.name.includes("/releases/cloud.firestore/"));
-const releaseName = existing
-  ? existing.name
-  : `projects/${PROJECT}/releases/cloud.firestore/default`;
+// v0.21.0 (audit) — target the EXACT database release, not the first
+// "cloud.firestore/*" match (with more than one database the old first-match
+// could PATCH the wrong database's rules). This project's database id is
+// "default" (NOT "(default)" — proven by live probes in Phase 6).
+const DB_ID = "default";
+const exact = `projects/${PROJECT}/releases/cloud.firestore/${DB_ID}`;
+const existing = releases.find((r) => r.name === exact);
+const releaseName = existing ? existing.name : exact;
 console.log("→ target release:", releaseName.split("/releases/")[1]);
 
 const patchRes = await fetch(
