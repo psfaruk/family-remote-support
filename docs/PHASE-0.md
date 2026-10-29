@@ -1318,3 +1318,73 @@ QR-এ 👪 আছে? (৫) পুরনো (v≤0.16) কোড স্ক্�
 - APK verify (artifact 12894822120): versionCode **INT_DEC 35** ✓, versionName **"0.17.0"** ✓
   (স্টেল 0.9.9/0.10.0 স্ট্রিং অনুপস্থিত), APK Signing Block v2 ✓ ("APK Sig Block 42")।
 - download/family-remote-support-v0.17.0-code35.apk (39.5 MB) সংরক্ষিত।
+
+## §40 — Phase 13 (v0.18.0 / versionCode 36): সাইন-আউট হাইজিন + CI রিলিজ-গেট
+
+**উৎপত্তি:** Owner: "এর পরের কাজ কি? করো" — Phase 12 পর্যন্ত সব অনুরোধ পূর্ণ হওয়ায় অডিটের
+চিহ্নিত ফাঁকগুলো (§38.1) থেকে Owner-সিদ্ধান্ত-ছাড়া দুটি actionable আইটেম বেছে নেওয়া হলো:
+(১) সাইন-আউটে `devicePresence`/`fcmTokens` মুছে না — ফোন সাইন-আউটের পরেও পরিবারের চোখে
+"Online" থাকে ও সেশন-অনুরোধের kill-push পেতে থাকে; (২) `verify-apk-axml` CI-তে নেই —
+সংস্করণ-যাচাই ছিল কেবল ম্যানুয়াল লোকাল গেট।
+
+### 40.1 ডিজাইন-সিদ্ধান্ত
+- **rules অপরিবর্তিত:** দুই কালেকশনেই `delete: uid == mine` ও (fcmTokens) `list: uid == mine`
+  আগে থেকেই আছে — ক্লিনআপ কেবল নিজের ডক মুছে; ১২/১২ নেগেটিভ-প্রোব অক্ষত।
+- **fcmTokens ডক-আইডি = raw টোকেনের SHA-256-হ্যাশের প্রথম ২৪ hex** — টোকেন ছাড়া আইডি বের
+  করা যায় না; তাই `whereEqualTo("uid", mine)` → deviceId-মিল ডকগুলো ডিলিট।
+- **best-effort:** নেটওয়ার্ক-ব্যর্থতা কখনো সাইন-আউট আটকায় না — প্রতিটি ধাপ স্বাধীনভাবে ডিগ্রেড,
+  ফল লগইন-স্ক্রিনে সৎ নোটিশে (authNotice)।
+- **WorkManager ওয়ার্ক ইচ্ছাকৃতভাবে বাতিল হয়নি:** HeartbeatWorker সাইন-আউটে no-op
+  (currentUser-null → Result.success()); KEEP-policy-এ পুনঃসাইন-ইনে নিজেই চালু — বাতিল করলে
+  রিগ্রেশন (রি-সাইন-ইনে হার্টবিট বন্ধ) আসত, কারণ শিডিউলার-কলটি LaunchedEffect(Unit)-এ একবারই চলে।
+- **CI-গেট drift-প্রমাণ:** স্ক্রিপ্ট expectations সরাসরি `app/build.gradle.kts` থেকে পড়ে
+  (repo-root ও sandbox — দুই লেআউট ফলব্যাক), তাই workflow-যাচাই ও gradle কখনো ভিন্ন হতে পারে না।
+
+### 40.2 বাস্তবায়ন
+- **PresenceRepo.kt:** `deleteOwnPresenceAndToken(uid, deviceId): Boolean` — presence-ডক ডিলিট +
+  নিজের টোকেন-তালিকা → deviceId-মিল ডক ডিলিট; CancellationException পুনঃনিক্ষেপ, বাকি সব
+  স্বাধীন ডিগ্রেড; সততার জন্য Boolean রিটার্ন।
+- **MainActivity.kt (onSignOut):** signOut()-এর **আগে** ক্লিনআপ (rules-এর signedIn-শর্ত);
+  সাফল্যে authNotice: "সাইন-আউট সম্পন্ন — এই ফোনের উপস্থিতি ও পুশ-টোকেন সার্ভার থেকে মুছে
+  ফেলা হয়েছে।"; ব্যর্থতায় সৎ নোটিশ (নেটওয়ার্ক সমস্যা + পরে সাইন-ইন–সাইন-আউটে পরিষ্কার হবে);
+  presence/push স্ট্যাটাস "Signed out" — পুরনো "Online ✓" লেখা থেকে যাওয়ার অসততা বন্ধ।
+- **scripts/verify-apk-axml.mjs (নতুন, zero-dep):** APK → AndroidManifest.xml (binary AXML)
+  পার্স → versionCode INT_DEC + versionName মিল; `--stale` তালিকার পুরনো-সংস্করণ-স্ট্রিং
+  অনুপস্থিতি; APK Signing Block v2 ("APK Sig Block 42", scheme-id 0x7109871a); EOCD পেছন-স্ক্যান
+  (zip-comment-safe)। যাচাই: বাস্তব v0.17.0 APK → PASS (exit 0); --code 999 → FAIL (exit 1)।
+- **android-build.yml:** build-এর পরে "Verify release APK (AXML versionCode + versionName +
+  v2 signature)" ধাপ — `set -o pipefail`, ফলাফল `$GITHUB_STEP_SUMMARY`-তে; যেকোনো ✗-এ
+  বিল্ড ব্যর্থ।
+- **README:** Status-এ নিয়ে আসা ১১.৬→১৩ ফেজ-এন্ট্রি + Build-এ গেট-রেকর্ড; worklog-এ
+  Task 41–44 ব্যাকফিল (convention-পুনরুদ্ধার, কোড-পরিবর্তন নেই) + Task 45।
+- build.gradle.kts: versionCode **36**, versionName **"0.18.0"**; push-তালিকায়
+  scripts/verify-apk-axml.mjs যোগ।
+
+### 40.3 যাচাই
+- brace-lexer: PresenceRepo 0; MainActivity HEAD-এর হুবহু জানা false-positive প্যাটার্নে
+  (নতুন mismatch শূন্য); verify-স্ক্রিপ্ট `node --check` PASS; ডুপ্লিকেট-import শূন্য।
+- verify-স্ক্রিপ্ট পজিটিভ+নেগেটিভ টেস্ট স্থানীয়ভাবে PASS।
+- নিরাপত্তা: নতুন অথ/পথ শূন্য; সেশন/QR/WebRTC/FCM-প্রবাহে শূন্য পরিবর্তন।
+
+### 40.4 Owner-করণীয় (যাচাই-চিহ্ন)
+দুই ফোনে **v0.18.0 (code 36)** ইনস্টল করে: (১) Settings → সাইন-আউট চাপুন → লগইন-পেজে
+"সাইন-আউট সম্পন্ন — উপস্থিতি ও পুশ-টোকেন মুছে ফেলা হয়েছে" নোটিশ দেখা যায়? (২) সাইন-আউটের
+পরে অন্য ফোনে এই ডিভাইস "Online" না দেখিয়ে সঙ্গে সঙ্গে শেষ-দেখা-অবস্থায় যায়? (৩) সাইন-আউট-
+করা ফোনে (অ্যাপ বন্ধ করে) হেল্পার সেশন-অনুরোধ পাঠালে আর push আসে না? (৪) আবার সাইন-ইনে সব
+কিছু আগের মতো কাজ করে (presence, push, হার্টবিট)? — GitHub-এ "Android Build" রানের summary-তে
+এখন "Release-APK verification (AXML gate)" টেবিল দেখা যাবে।
+
+### 40.5 প্রকাশনা-রেকর্ড (v0.18.0)
+- পুশ (Contents-API per-file, ONLY-ফিল্টার নতুন সুবিধা): verify-apk-axml.mjs **9cb2a00 (201,
+  নতুন)**, workflow e9c5f90, gradle 8e90b1a, PresenceRepo fd448eb, MainActivity 4467b60 —
+  readback-verify **5/5 MATCH** (sha256)।
+- **CI রান 40872756514 (head fd448eb) → SUCCESS, প্রথম চেষ্টাতেই** — নতুন ধাপ
+  "Verify release APK (AXML versionCode + versionName + v2 signature)" ⇒ success; CI-লগ-প্রমাণ:
+  `expectations: code=36 name="0.18.0"` · `✓ versionCode = 36 (INT_DEC)` ·
+  `✓ versionName = "0.18.0"` · `✓ APK Signing Block v2 present ("APK Sig Block 42")` ·
+  `VERIFY: PASS` (ফলাফল run-summary-তেও গেটে যায়)।
+- আর্টিফ্যাক্ট (12896309192) নেমে **স্থানীয়ভাবে** একই স্ক্রিপ্টে পুনঃযাচাই — স্টেল-প্রোব
+  0.17.0/0.16.0/0.15.0 অনুপস্থিতসহ **VERIFY: PASS**; APK সংরক্ষিত
+  download/family-remote-support-v0.18.0-code36.apk (39.5 MB)।
+- ডক-পুশ (README + §40 + worklog Task 41–45) চূড়ান্ত গাছে — পরবর্তী CI রানও গেটসহ SUCCESS
+  (নিচে সংযোজন হলে সেই রান-আইডি)।
