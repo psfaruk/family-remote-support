@@ -1148,8 +1148,8 @@ actionable দুটি বেছে নেওয়া হলো (PHASE-0 §38.
   ✓ APK Signing Block v2 · VERIFY: PASS"; ফলাফল run-summary-তে
 - আর্টিফ্যাক্ট নেমে স্থানীয় পুনঃযাচাই: স্টেল 0.17.0/0.16.0/0.15.0 অনুপস্থিতসহ VERIFY: PASS;
   download/family-remote-support-v0.18.0-code36.apk (39.5 MB) সংরক্ষিত
-- ডক-পুশ: README (১১.৬→১৩ ফেজ-এন্ট্রি + Build-গেট-রেকর্ড) + PHASE-0 §40 + এই ব্যাকফিল/টাস্ক —
-  চূড়ান্ত CI রান নিচে
+- ডক-পুশ: README bd06eeb + PHASE-0 867751e + worklog de9cf80 (worklog.md এই প্রথম repo-তে
+  এল — 201; push-তালিকায় স্থায়ী) → চূড়ান্ত গাছ CI রান 40873415226 SUCCESS (গেটসহ)
 
 Stage Summary:
 - v0.18.0 (code 36) — অ্যাকাউন্ট থেকে বের হলেই এখন ফোন সত্যিই চলে যায়: উপস্থিতি মুছে যায়
