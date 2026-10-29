@@ -263,6 +263,13 @@ object ScreenShareEngine {
     private val cmdFreshMillis = 15_000L
     /** Firestore-cmd / p2p-message size cap — a real command is a few hundred bytes. */
     private val maxCmdChars = 4_096
+
+    /**
+     * v0.12.0 — one typed message: generous for a search box or a WhatsApp
+     * reply, small enough that the cmd payload stays a rounding error
+     * against maxCmdChars — and against the rules' 100 kB signal cap.
+     */
+    private val maxTextChars = 500
     /** Flood cap: at most this many assist commands applied per sliding window. */
     private val cmdRateWindowMillis = 1_000L
     private val cmdRateMax = 25
@@ -331,6 +338,17 @@ object ScreenShareEngine {
      * Direct/hotspot paths are never capped.
      */
     private var relayMaxKbps: Int? = null
+
+    /**
+     * v0.12.0 (Phase 8.3 completion) — HELPER data-saver. When the helper
+     * flips "Data saver", the stream re-applies its bitrate with a hard
+     * 600 kbps ceiling (below the automatic 1500 kbps relay cap) and lifts
+     * it again on OFF. Deliberately path-independent: a direct session gets
+     * the cap too, because the helper asked for it (metered data is metered
+     * on both ends). Restores exactly what the relay check decided when
+     * switched off — the two caps combine by taking the minimum.
+     */
+    private var dataSaverKbps: Int? = null
 
     /** The recipient's local "screen" track — the sender applyScreenBitrate touches. */
     private var senderVideoTrack: VideoTrack? = null
@@ -627,7 +645,9 @@ object ScreenShareEngine {
             params.encodings.firstOrNull()?.let { enc ->
                 // v0.9.7 — budget from config/quality (defaults = v0.9.6's).
                 // v0.9.9 — relayed sessions are capped harder (data-saver).
-                val capK = relayMaxKbps
+                // v0.12.0 — the helper's Data-saver toggle adds a second cap;
+                // whichever of the two is lower wins.
+                val capK = listOfNotNull(relayMaxKbps, dataSaverKbps).minOrNull()
                 val maxK = minOf(quality.maxKbps, capK ?: quality.maxKbps)
                 enc.minBitrateBps = minOf(quality.minKbps, maxK) * 1_000
                 enc.maxBitrateBps = maxK * 1_000
@@ -643,11 +663,13 @@ object ScreenShareEngine {
             } catch (_: Exception) {
             }
             sender.setParameters(params)
-            val capK = relayMaxKbps
+            val capK = listOfNotNull(relayMaxKbps, dataSaverKbps).minOrNull()
             diagLog(
                 "bitrate ${quality.minKbps}k–${minOf(quality.maxKbps, capK ?: quality.maxKbps)}k · $encFpsCap fps · " +
                     "keep-resolution · codec ${if (effectiveH264) "H264-HW" else "VP8"}" +
-                    (if (capK != null && capK < quality.maxKbps) " · relay-capped" else "")
+                    (if (capK != null && capK < quality.maxKbps) {
+                        " · capped " + (if (dataSaverKbps != null) "(data-saver)" else "(relay)")
+                    } else "")
             )
         } catch (e: Exception) {
             diagLog("bitrate set skipped: ${e.javaClass.simpleName}")
@@ -798,6 +820,7 @@ object ScreenShareEngine {
         candRelay = 0
         negotiatedCodec = null
         relayMaxKbps = null
+        dataSaverKbps = null // v0.12.0 — the helper's cap dies with the round
         senderVideoTrack = null
         effectiveH264 = false
         encFpsCap = 30
@@ -1208,6 +1231,9 @@ object ScreenShareEngine {
         fun saneDur(v: Long, lo: Long, hi: Long): Long = v.coerceIn(lo, hi)
 
         var badPayload = false
+        // v0.12.0 — the "text" command reports a finer outcome (no-field /
+        // assist-off / failed) so the helper's UI can say what to do next.
+        var textStatus = ""
         val ok: Boolean
         when (kind) {
             "tap" -> {
@@ -1236,6 +1262,33 @@ object ScreenShareEngine {
                     x!!, y!!, saneDur(obj.optLong("dur", 800L), 400L, 2_000L)
                 )
             }
+            // v0.12.0 (Phase 8.3 completion) — TYPING: place the helper's
+            // text into the focused editable field. The payload carries only
+            // the text to PLACE (never anything read from the screen); the
+            // diag log records its LENGTH, never its content. SET_TEXT
+            // replaces the field's current content — the helper's typing
+            // dialog says so, because honest tools say what they do to data.
+            "text" -> {
+                val t = obj.optString("t", "")
+                badPayload = t.isEmpty() || t.length > maxTextChars
+                if (badPayload) {
+                    ok = false
+                } else {
+                    textStatus = AssistService.typeTextStatus(t)
+                    ok = textStatus == "ok"
+                }
+            }
+            // v0.12.0 — DATA SAVER: the helper caps the stream's bitrate at
+            // 600 kbps, or restores the normal budget. Video-only — no
+            // gesture, no assist-service involvement; works exactly as long
+            // as the capture does (the caller already epoch-gated it).
+            "qcap" -> {
+                val on = obj.optBoolean("on", false)
+                dataSaverKbps = if (on) 600 else null
+                main.post { applyScreenBitrate(peerConnection, senderVideoTrack) }
+                diagLog("data saver ${if (on) "ON — 600 kbps cap applied" else "OFF — normal budget restored"}")
+                ok = true
+            }
             "back" -> ok = AssistService.pressBack()
             "home" -> ok = AssistService.pressHome()
             "recents" -> ok = AssistService.pressRecents()
@@ -1255,6 +1308,10 @@ object ScreenShareEngine {
             kind == "swipe" && obj.has("x1") ->
                 " @${(obj.optDouble("x1", 0.0) * 100).toInt()}%,${(obj.optDouble("y1", 0.0) * 100).toInt()}%" +
                     "→${(obj.optDouble("x2", 0.0) * 100).toInt()}%,${(obj.optDouble("y2", 0.0) * 100).toInt()}% in ${obj.optLong("dur", 400L)}ms"
+            // v0.12.0 — the LENGTH of a typed message is loggable; its
+            // content is not (and never will be).
+            kind == "text" ->
+                " (${obj.optString("t", "").length} chars)"
             else -> ""
         }
         diagLog("assist $kind$where → ${when {
@@ -1262,7 +1319,10 @@ object ScreenShareEngine {
             badPayload -> "bad-payload"
             else -> "assist-off"
         }}")
-        if (!ok) {
+        // v0.12.0 — "text" failures are not dropped TAPS: a no-field result
+        // means the helper should tap the field first, not that the grantor's
+        // assist is broken — so the recipient's loud alarm stays truthful.
+        if (!ok && kind != "text") {
             runOnMain { _assistDropped.value += 1 }
         }
         sendAssistAck(
@@ -1271,6 +1331,10 @@ object ScreenShareEngine {
             reason = when {
                 ok -> ""
                 badPayload -> "bad-payload"
+                // v0.12.0 — "text" carries its precise failure out of the
+                // injector (no-field / assist-off / failed) so the helper's
+                // banner can be actionable instead of accusatory.
+                kind == "text" -> textStatus.ifBlank { "assist-off" }
                 else -> "assist-off"
             }
         )
@@ -1396,6 +1460,9 @@ object ScreenShareEngine {
                 "recents" -> "Recents delivered ✓"
                 "swipe" -> "Swipe delivered ✓"
                 "long" -> "Long-press delivered ✓"
+                // v0.12.0 (Phase 8.3 completion) — the two new commands.
+                "text" -> "Text delivered ✓ · লেখা বসেছে"
+                "qcap" -> "Data saver applied ✓ · ছবির মান আপডেট হয়েছে"
                 else -> "Tap delivered ✓"
             }
             // Success clears itself shortly.
@@ -1405,15 +1472,33 @@ object ScreenShareEngine {
             // v0.9.3 — PERSISTENT + actionable. The 4-second auto-clear made
             // the warning easy to miss: the 21:25 Dhaka session fired 30+
             // taps while the recipient's assist stayed OFF the whole time.
-            // The banner now stays until a tap is actually delivered (each
-            // new ack replaces it) or the viewer closes.
+            // The banner now stays until a command is actually delivered
+            // (each new ack replaces it) or the viewer closes.
             // v0.9.5 — bilingual: the 28 Oct session proved the English-only
             // banner never reached the family (they kept tapping for 21 min).
-            _assistStatus.value =
-                "Remote assist is OFF on their phone — taps cannot land.\n" +
-                    "ওদের ফোনে Remote assist বন্ধ — ট্যাপ কাজ করছে না। " +
-                    "ওদের স্ক্রিনে “Turn on Remote assist · রিমোট টাচ চালু করুন” বাটনে " +
-                    "ট্যাপ করতে বলুন (একবারই সেটআপ লাগবে)।"
+            // v0.12.0 — typing gets its own honest reasons: "no-field" tells
+            // the helper exactly what to do (tap the field first), and a
+            // protected field refusal is distinguished from assist-off.
+            val kind = obj.optString("kind")
+            val reason = obj.optString("reason")
+            _assistStatus.value = when {
+                kind == "text" && reason == "no-field" ->
+                    "No focused text field on their phone — first tap the field with " +
+                        "remote touch, then send the text again.\n" +
+                        "ওদের ফোনে কোনো লেখার ঘর ফোকাসড নেই — আগে রিমোট টাচ দিয়ে ঘরটিতে ট্যাপ " +
+                        "করুন, তারপর আবার লেখা পাঠান।"
+                kind == "text" && reason == "failed" ->
+                    "Their phone refused the text — that field may be protected.\n" +
+                        "ওদের ফোন লেখাটি নিতে রাজি হয়নি — ঘরটি সুরক্ষিত হতে পারে।"
+                kind == "qcap" ->
+                    "Could not change video quality — try again while the stream is live.\n" +
+                        "ছবি চালু অবস্থায় আবার চেষ্টা করুন — এখন মান বদলানো গেল না।"
+                else ->
+                    "Remote assist is OFF on their phone — taps cannot land.\n" +
+                        "ওদের ফোনে Remote assist বন্ধ — ট্যাপ কাজ করছে না। " +
+                        "ওদের স্ক্রিনে “Turn on Remote assist · রিমোট টাচ চালু করুন” বাটনে " +
+                        "ট্যাপ করতে বলুন (একবারই সেটআপ লাগবে)।"
+            }
             main.removeCallbacks(assistClear)
         }
     }
@@ -1464,6 +1549,25 @@ object ScreenShareEngine {
     /** One of the three global navigation actions: back / home / recents. */
     fun sendAssistNav(kind: String) =
         sendAssistCmd("{" + "\"kind\":\"$kind\"" + "}")
+
+    /**
+     * v0.12.0 (Phase 8.3 completion) — type text into the recipient's
+     * focused editable field. JSONObject builds the payload, so ANY text
+     * (quotes, newlines, emoji) travels as valid JSON. Capped at the
+     * engine's 500-char command budget; the dialog already mirrors it.
+     */
+    fun sendAssistText(text: String) =
+        sendAssistCmd(
+            JSONObject().put("kind", "text").put("t", text.take(500)).toString()
+        )
+
+    /**
+     * v0.12.0 (Phase 8.3 completion) — flip the helper's data-saver cap.
+     * on=true ⇒ hard 600 kbps ceiling; on=false ⇒ back to the normal
+     * budget (relay-capped if the path is relayed). No capture restart.
+     */
+    fun sendAssistDataSaver(on: Boolean) =
+        sendAssistCmd("{" + "\"kind\":\"qcap\",\"on\":$on" + "}")
 
     /**
      * v0.8.3 — helper-side stuck-round recovery. [reason] is the honest
@@ -1915,6 +2019,7 @@ object ScreenShareEngine {
         _assistDropped.value = 0
         cmdTimes.clear()
         relayMaxKbps = null
+        dataSaverKbps = null // v0.12.0 — a fresh session starts uncapped
         senderVideoTrack = null
         _state.value = ShareState.IDLE
     }
