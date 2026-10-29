@@ -1280,3 +1280,11 @@ README Phase 14 বুলেটে deploy-পদ্ধতি ও database-id-প
 নাম-মিল যাচাই (build প্রজেক্টের নাম family-remote-support কিনা — ভিন্ন হলে wrangler.toml-এর
 name বদলাবো); (৩) Phase 14b অ্যাপ→Worker instant sweep-কল (v0.19.0); (৪) Uptodown-প্রকাশ;
 (৫) উভয় ফোনে v0.18.1 ইনস্টল।
+
+পাশাপ্রমাণ (একই যাচাইয়ে আবিষ্কৃত): GitHub Actions kill-push ব্যাকস্টপ স্তরের cron নীরব ছিল —
+kill-push.yml repo-তে এসেছে আজ 04:03 UTC (574e57d); scheduled রান মাত্র ১ বার (10:50 UTC,
+success), তারপর ৪.৫+ ঘণ্টা শূন্য — GitHub-এর পরিচিত sporadic-schedule আচরণ (ফাইলের হেডারেই
+"best-effort" সতর্কতা ছিল)। Workaround প্রয়োগ: kill-push.yml ডক-মন্তব্য-টাচ re-push (c90cbda,
+readback MATCH) + Actions API disable→enable চক্র (HTTP 204/204) — schedule re-registered;
+ফল পর্যবেক্ষণে। স্থায়ী সমাধান Cloudflare Worker স্তরই (প্রতি মিনিট, ২৪/৭)। sweep-লজিক/secret
+অপরিবর্তিত — ফায়ার হলেই sweep ঠিকভাবে চলে (দুই পূর্ববর্তী রান success)।
