@@ -5,6 +5,41 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
+- **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
+  audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
+  the findings) surfaced 30+ real defects; all high/critical ones are fixed in this release.
+  App fixes: (1) the tab-scoped "no session → stop everything" effect fired on the EMPTY
+  pre-snapshot loading state — tab switches, rotations and language changes KILLED LIVE SHARES;
+  it now lives at the root, gated on a loaded flag. (2) The QR-save toast cancelled itself
+  mid-IO (self-invalidating LaunchedEffect key — the Owner's "saved but no feedback" complaint);
+  replaced by a monotonic trigger. (3) Sign-out now tears down any live share/viewer (the old
+  code kept the MediaProjection service CAPTURING under a signed-out account). (4) SdpObserver
+  callbacks hopped to the main thread (lost-ICE race → intermittent connection failures).
+  (5) "bye"/"watch" signals are freshness-gated and the signal queue is wiped on teardown (a
+  stale bye used to instantly kill a fresh re-share). (6) Deferred capture/watch starts carry a
+  round token (no more zombie shares or leaked PeerConnections). (7) MediaProjection system-stop
+  is routed into the engine and the FGS stops itself on IDLE. (8) cmd replay window accepts
+  ±clock skew (phones with manual clocks no longer refuse every Firestore-path tap). (9) English
+  now REALLY defaults on non-English devices (the locale wrap skipped EN) and bn→en switching
+  resets Locale.getDefault (no more Bengali digits inside the English UI). (10) The pinned
+  SessionKeyBar pads above the measured bottom nav (no longer covers the tab icons). (11) FCM
+  token registration is independent of device registration and a new PushTokenService re-writes
+  the registry on token ROTATION (root cause of "notifications don't arrive"). (12)
+  SessionNotifier consults its dedupe set (no re-alert spam) and all notifications use a new
+  monochrome status icon (the adaptive launcher tinted into a blob). (13) The accessibility
+  settings highlight extra is a proper Bundle again. (14) Presence online window 5 → 20 min
+  (covers the 15-min heartbeat floor). (15) QrScanner closes its ML Kit handle; allowBackup
+  off; consent modal dedup is process-durable; remote-touch resets per session; data-saver
+  resets per session. Security fixes: the pairing token was DECORATIVE (rules verified nothing —
+  anyone who guessed the 6-char doc id could claim a pairing); redemption now proves knowledge
+  of the 80-bit token SERVER-SIDE (claimToken == stored token) — probe cases N17/N18 prove the
+  attack is closed. Signal writes are gated on sessionEndsAt server-side; presence reads require
+  an ACTIVE relationship (no more ex-partner leak). Infra fixes: the three kill-push tiers now
+  CLAIM a doc (preconditioned write) before sending — no duplicate pushes; per-doc errors no
+  longer abort the sweep; stale REQUESTED docs are lazily EXPIRED (no eternal re-fetches);
+  /health exposes counts only; CORS dropped; CI runs with contents:read and 7-day artifacts.
+  NOTE: v0.20.0↔v0.21.0 pairing is version-locked (both phones must be on this build — the
+  invitation schema gained the token field).
 - **Phase 16 ✅ (v0.20.0, versionCode 39) — TAB RESTRUCTURE + HOME SHOWCASE + 15 LANGUAGES +
   PRIVACY DOCS:** Owner review of build 38 drove five visible changes and zero security-logic
   changes. (1) Bottom nav is now হোম · ফোন · লাইভ লোকেশন · সেটিংস — the একটিভিটি tab is gone
