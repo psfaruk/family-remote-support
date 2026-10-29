@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 11.6 — empty-activity illustration: a soft circle with a check
+     mark, honest (no fabricated "history"), calm green. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#EAF2FF"
+        android:pathData="M48,10 a38,38 0 1 0 0.001,0 z" />
+    <path
+        android:fillColor="#D6F3E4"
+        android:pathData="M48,22 a26,26 0 1 0 0.001,0 z" />
+    <path
+        android:fillColor="#16845B"
+        android:pathData="M36,48 l8,8 l16,-16 l5,5 l-21,21 l-13,-13 z" />
+</vector>
