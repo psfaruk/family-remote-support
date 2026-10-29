@@ -38,6 +38,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
@@ -2312,6 +2313,12 @@ private fun PairingSections(
     var showScanner by remember { mutableStateOf(false) }
     // v0.14.0 — which paired phone's action sheet is open (by rel id).
     var selectedRelId by remember { mutableStateOf<String?>(null) }
+    // Phase 12 — the code waiting in the role-setup sheet (scan → preview →
+    // confirm → redeem → success, one automatic journey).
+    var pendingScan by remember { mutableStateOf<ScannedCode?>(null) }
+    // Phase 12 — the role of the LAST successful redeem (drives the sheet's
+    // success view; null while nothing redeemed yet).
+    var redeemedKind by remember { mutableStateOf<String?>(null) }
 
     // Phase 6 — support session state.
     var sessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
@@ -2552,6 +2559,37 @@ private fun PairingSections(
         }
     }
 
+    // Phase 12 — one shared redeem path used by BOTH the typed-code button
+    // and the scanned role-setup sheet.
+    val doRedeem: (String) -> Unit = { rawCode ->
+        scope.launch {
+            redeeming = true
+            redeemMessage = null
+            redeemedKind = null
+            try {
+                val rel = redeemCode(user, rawCode)
+                redeemedKind = rel.kind
+                redeemMessage = if (rel.kind == REL_KIND_GUEST) {
+                    "Guest যুক্ত ✓ — ${rel.recipientEmail} " +
+                        "(${rel.recipientDeviceModel})-কে ২ ঘণ্টার মধ্যে " +
+                        "সাহায্য করতে পারবেন।"
+                } else {
+                    "Paired ✓ — এখন আপনি ${rel.recipientEmail} " +
+                        "(${rel.recipientDeviceModel})-কে সাহায্য করতে পারবেন।"
+                }
+                codeInput = ""
+            } catch (e: RedemptionException) {
+                redeemMessage = e.message
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                redeemMessage = "Pairing failed: ${describeFirestoreError(e)}"
+            } finally {
+                redeeming = false
+            }
+        }
+    }
+
     val currentInvite = invite
     val expired = currentInvite != null &&
         (nowMillis >= currentInvite.expiresAtMillis ||
@@ -2778,7 +2816,17 @@ private fun PairingSections(
             ) {
                 // QR + save pipeline states MUST precede the dropdown that
                 // uses them (Kotlin order-of-declaration inside a block).
-                val qr = remember(currentInvite.code) { qrBitmap(currentInvite.qrPayload) }
+                // Phase 12 — the QR now carries its role badge in the center
+                // (👪 Family / ⏳ Guest) and the card accents follow the role.
+                val kindIsGuest = inviteKind == REL_KIND_GUEST
+                val kindColor = if (kindIsGuest) {
+                    AppWarningColor()
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                }
+                val qr = remember(currentInvite.code, inviteKind) {
+                    qrBitmap(currentInvite.qrPayload, badge = QrBadge.ofKind(inviteKind))
+                }
                 var copiedJustNow by remember(currentInvite.invitationId) {
                     mutableStateOf(false)
                 }
@@ -2832,7 +2880,7 @@ private fun PairingSections(
                             Icons.Filled.AccountCircle
                         },
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = kindColor,
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
@@ -2992,7 +3040,12 @@ private fun PairingSections(
                 }
                 if (inviteStatus == "PAIRED") {
                     Text(
-                        text = "${claimerEmail ?: "helper"}-এর সাথে যুক্ত হয়েছে ✓",
+                        text = "${claimerEmail ?: "helper"} যুক্ত হয়েছে ✓ — " +
+                            if (kindIsGuest) {
+                                "Guest · ২ ঘণ্টার সাময়িক যুক্তি"
+                            } else {
+                                "Family · স্থায়ী যুক্তি"
+                            },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth(),
@@ -3143,6 +3196,40 @@ private fun PairingSections(
                     )
                 }
                 HorizontalDivider()
+                // Phase 12 — the role is a first-class, visible thing.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isGuest) {
+                            Icons.Filled.DateRange
+                        } else {
+                            Icons.Filled.Home
+                        },
+                        contentDescription = null,
+                        tint = if (isGuest) {
+                            AppWarningColor()
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        },
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = if (isGuest) {
+                            "রোল: GUEST — সাময়িক (মেয়াদ শেষে নিজেই মুছে যায়)"
+                        } else {
+                            "রোল: FAMILY — স্থায়ী বিশ্বস্ত ফোন"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isGuest) {
+                            AppWarningColor()
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        }
+                    )
+                }
                 if (selectedRel.status == "ACTIVE" && iHelp && !selectedRel.guestLive) {
                     Text(
                         text = "Guest মেয়াদ শেষ — আর সেশন শুরু করা যাবে না। নতুন " +
@@ -3255,7 +3342,7 @@ private fun PairingSections(
                 PairOptionRow(
                     icon = Icons.Filled.AccountCircle,
                     title = "Family কোড · স্থায়ী",
-                    description = "একবার যুক্ত হলে আর কোড লাগে না — পরিবারের জন্য",
+                    description = "একবার যুক্ত হলে আর কোড লাগে না — শুধু পরিবারের জন্য",
                     busy = creatingKind == REL_KIND_FAMILY,
                     enabled = creatingKind == null,
                     onClick = {
@@ -3266,7 +3353,7 @@ private fun PairingSections(
                 PairOptionRow(
                     icon = Icons.Filled.DateRange,
                     title = "Guest কোড · ২ ঘণ্টা",
-                    description = "বাইরের সাহায্যকারীর জন্য সাময়িক লিংক",
+                    description = "বাইরের সাহায্যকারীর জন্য — মেয়াদ শেষে নিজেই মুছে যায়",
                     busy = creatingKind == REL_KIND_GUEST,
                     enabled = creatingKind == null,
                     onClick = {
@@ -3279,6 +3366,12 @@ private fun PairingSections(
                     text = "অন্য কারও ফোনে সাহায্য করবেন? তাদের কোড দিন",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "QR-এর মাঝের প্রতীক রোল বলে দেয় — 👪 Family (স্থায়ী) · " +
+                        "⏳ Guest (২ ঘণ্টা)। স্ক্যানের পরেই রোল-নিশ্চিতকরণ দেখাবে।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -3306,42 +3399,22 @@ private fun PairingSections(
                 }
                 if (showScanner) {
                     QrScanDialog(
-                        onCode = { code ->
+                        onCode = { code, kindHint ->
                             codeInput = code
                             redeemMessage = null
+                            redeemedKind = null
                             showScanner = false
+                            // Phase 12 — scan flows straight into the
+                            // role-setup sheet (preview → confirm → auto-setup).
+                            onDismissPairSheet()
+                            pendingScan = ScannedCode(code, kindHint)
                         },
                         onDismiss = { showScanner = false }
                     )
                 }
                 BigButton(
                     enabled = !redeeming && codeInput.isNotBlank(),
-                    onClick = {
-                        scope.launch {
-                            redeeming = true
-                            redeemMessage = null
-                            try {
-                                val rel = redeemCode(user, codeInput)
-                                redeemMessage = if (rel.kind == REL_KIND_GUEST) {
-                                    "Guest যুক্ত ✓ — ${rel.recipientEmail} " +
-                                        "(${rel.recipientDeviceModel})-কে ২ ঘণ্টার মধ্যে " +
-                                        "সাহায্য করতে পারবেন।"
-                                } else {
-                                    "Paired ✓ — এখন আপনি ${rel.recipientEmail} " +
-                                        "(${rel.recipientDeviceModel})-কে সাহায্য করতে পারবেন।"
-                                }
-                                codeInput = ""
-                            } catch (e: RedemptionException) {
-                                redeemMessage = e.message
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                redeemMessage = "Pairing failed: ${describeFirestoreError(e)}"
-                            } finally {
-                                redeeming = false
-                            }
-                        }
-                    }
+                    onClick = { doRedeem(codeInput) }
                 ) {
                     if (redeeming) {
                         CircularProgressIndicator(
@@ -3377,6 +3450,237 @@ private fun PairingSections(
                 )
             }
         }
+    }
+
+    // ---------- ৬. Phase 12 — স্ক্যান-পরবর্তী রোল-সেটআপ নিচ-শিট ----------
+    pendingScan?.let { scan ->
+        ScannedRoleSheet(
+            scan = scan,
+            redeeming = redeeming,
+            message = redeemMessage,
+            redeemedKind = redeemedKind,
+            onConfirm = { doRedeem(scan.code) },
+            onDismiss = { pendingScan = null }
+        )
+    }
+}
+
+/** Phase 12 — a scanned pairing code plus the role marker read from its QR. */
+private data class ScannedCode(val code: String, val kindHint: String?)
+
+/**
+ * Phase 12 — the role-setup sheet that opens the moment a QR is scanned:
+ *  1. PREVIEW — what role this code will give (from the &k= marker when the
+ *     QR carries it), with the plain-language permission list.
+ *  2. CONFIRM — one big "যুক্ত হোন" button; nothing is written until tapped.
+ *  3. AUTO-SETUP — the redemption runs and the sheet flips to a success card
+ *     with the ACTUAL role (re-read from the Firestore invitation inside the
+ *     transaction — the marker on the QR is cosmetic, the server decides).
+ * The whole journey happens in one sheet: scan → preview → confirm → paired.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScannedRoleSheet(
+    scan: ScannedCode,
+    redeeming: Boolean,
+    message: String?,
+    redeemedKind: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "রোল সেটআপ · Role setup",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = scan.code,
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            when {
+                redeeming -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "যুক্ত করা হচ্ছে — সার্ভার রোল যাচাই করছে…",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                redeemedKind != null -> {
+                    // SUCCESS — the automatic setup is done.
+                    val guest = redeemedKind == REL_KIND_GUEST
+                    val accent = if (guest) {
+                        AppWarningColor()
+                    } else {
+                        MaterialTheme.colorScheme.tertiary
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        StatusBadge(
+                            label = if (guest) "GUEST · ২ ঘণ্টার সাময়িক" else "FAMILY · স্থায়ী",
+                            kind = "success"
+                        )
+                    }
+                    Text(
+                        text = "যুক্ত হয়েছে ✓ — এখন “যুক্ত ফোন” তালিকায় এই ফোনটি দেখা যাবে; " +
+                            "সেশন শুরু করতে ট্যাপ করুন।",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    ScannedRoleBullet(
+                        accent = accent,
+                        text = "প্রতিটি সেশনের আগে গ্রহীতার ফোনে লাইভ অনুমতি লাগবেই"
+                    )
+                    if (guest) {
+                        ScannedRoleBullet(
+                            accent = accent,
+                            text = "২ ঘণ্টা পর যুক্তি নিজেই মুছে যাবে — Guest কখনো Family হয় না"
+                        )
+                    } else {
+                        ScannedRoleBullet(
+                            accent = accent,
+                            text = "স্থায়ী যুক্তি — পরের বার কোড ছাড়াই সেশন চাওয়া যাবে"
+                        )
+                    }
+                    BigButton(onClick = onDismiss) {
+                        Text("ঠিক আছে")
+                    }
+                }
+                else -> {
+                    // PREVIEW — nothing written to Firestore until confirmed.
+                    val known = scan.kindHint != null
+                    val guestHint = scan.kindHint == REL_KIND_GUEST
+                    val accent = if (guestHint) {
+                        AppWarningColor()
+                    } else {
+                        MaterialTheme.colorScheme.tertiary
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = accent.copy(alpha = 0.08f)
+                        ),
+                        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (guestHint) {
+                                        Icons.Filled.DateRange
+                                    } else {
+                                        Icons.Filled.Home
+                                    },
+                                    contentDescription = null,
+                                    tint = accent,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                                Text(
+                                    text = when {
+                                        !known -> "কোড যাচাই করা হবে"
+                                        guestHint -> "এই কোড আপনাকে GUEST করবে"
+                                        else -> "এই কোড আপনাকে FAMILY করবে"
+                                    },
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accent
+                                )
+                            }
+                            Text(
+                                text = when {
+                                    !known -> "এটি পুরনো ফরম্যাটের কোড (রোল-প্রতীক নেই) — " +
+                                        "যুক্ত হওয়ার পরে প্রকৃত রোল দেখা যাবে।"
+                                    guestHint -> "২ ঘণ্টার সাময়িক যুক্তি — মেয়াদ শেষে নিজেই " +
+                                        "মুছে যাবে; Guest কখনো Family হয় না।"
+                                    else -> "স্থায়ী বিশ্বস্ত যুক্তি — একবার যুক্ত হলে আর " +
+                                        "কোড লাগবে না (বাতিল না করা পর্যন্ত)।"
+                                },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            HorizontalDivider()
+                            ScannedRoleBullet(
+                                accent = accent,
+                                text = "সেশন শুরুর অনুরোধ পাঠানো যাবে (যুক্ত ফোন তালিকা)"
+                            )
+                            ScannedRoleBullet(
+                                accent = accent,
+                                text = "প্রতিটি সেশনে গ্রহীতার ফোনে লাইভ অনুমতি লাগবেই"
+                            )
+                            ScannedRoleBullet(
+                                accent = accent,
+                                text = "সেশন নির্দিষ্ট সময়ে নিজেই শেষ হয়"
+                            )
+                        }
+                    }
+                    BigButton(
+                        enabled = !redeeming,
+                        onClick = onConfirm
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text("  যুক্ত হোন · Connect")
+                    }
+                    Text(
+                        text = "বাতিল করলে কিছুই লেখা হবে না — অন্য ফোনের কোড অক্ষত থাকবে।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** One check-mark bullet line inside the role sheet. */
+@Composable
+private fun ScannedRoleBullet(accent: Color, text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Check,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
