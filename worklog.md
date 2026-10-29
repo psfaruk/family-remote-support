@@ -1389,3 +1389,86 @@ secrets (Phase 14.1 বাকি — FIREBASE_SA_JSON/KILL_TOKEN + /health প�
 এখন চ্যানেল/পারমিশন যাচাই করার হাতিয়ার; (৩) Phase 16b-প্রার্থী: গভীর স্ক্রিনের ইনলাইন বাংলা
 স্ট্রিং-গুলোও রিসোর্সে তোলা (সেশন/পেয়ারিং/উইজার্ড), ফোন-ট্যাবে নতুন ফিচার (চ্যাট/শিডিউল),
 লাইভ-লোকেশনের প্রকৃত কাজ; (৪) Uptodown-প্রকাশ Owner-এর সংকেতের অপেক্ষায়।
+
+---
+Task ID: 51
+Agent: Z.ai Code (main)
+Task: Phase 17 (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND (Owner: "Phase 0
+থেকে সর্বশেষ পর্যন্ত সব ঠিক হয়েছে কিনা… কোনো বাগ / টেকনিকেল সমস্যা / লজিক ভুল আছে কিনা,
+deeply audit করো, সমস্যা খুঁজে বের করে fix করো"; সংযুক্ত ২টি Chrome স্ক্রিনশট = Cloudflare
+Deployments ট্যাব — সক্রিয় ডিপ্লয় "Add variable: FIRE…", ৭৬ ইভেন্ট / ০ এরর / প্রতি মিনিটে
+info = Worker লাইভ ও Owner FIREBASE_SA_JSON ভেরিয়েবল যোগ করছেন)
+
+পদ্ধতি: রিমোট ট্রুথ-সোর্স সিঙ্ক (HEAD 51375b7, Phase 16 v0.20.0) → ৪টি সমান্তরাল অডিট-এজেন্ট
+(WebRTC/ডেটা কোর · MainActivity ৫৬০৭-লাইন · rules+worker+CI+স্ক্রিপ্ট · i18n/সার্ভিস/নোটিফিকেশন/
+ম্যানিফেস্ট) → ৩৫+ ফাইন্ডিং সংগ্রহ → প্রতিটি গুরুতর ফাইন্ডিং লাইন-লেভেলে নিজে কোডে যাচাই →
+২১টি ফাইল সংশোধন → CI + লাইভ-নিয়ম + প্রোব + APK চেইনে যাচাই।
+
+বাস্তবায়ন — অ্যাপ (১৩ ফাইল): (১) ক্রিটিক্যাল — ফোন-ট্যাবে বসানো "no session → সব বন্ধ" ইফেক্ট
+প্রথম কম্পোজিশনে খালি লিস্টেই ফায়ার করত (প্রথম স্ন্যাপশট অ্যাসিঙ্ক্রোনাস) → ট্যাব-সুইচ/রোটেশন/
+ভাষা-বদলে লাইভ শেয়ার খুন হত; এখন রুট-লেভেল + loaded-flag। (২) QR-সেভ টোস্ট নিজেই নিজের
+LaunchedEffect-কী রিসেট করে মিড-IO ক্যান্সেল হতো (Owner-র "সেভ হলে দেখায় না"-ই রুট-কজ) →
+মনোটোনিক ট্রিগার। (৩) সাইন-আউট লাইভ শেয়ার/ভিউয়ার ভাঙে + SessionUiBus রিসেট। (৪) SdpObserver
+কলব্যাক main-এ hop (remoteDescriptionSet/gotOfferAt/pendingIce-এর ক্রস-থ্রেড রেস = হারানো
+ICE = মাঝেমধ্যে কানেকশন-ফেইল)। (৫) "bye"/"watch" সিগন্যাল freshness-গেট (৩০/২০ সে) +
+teardown-এ নিজের সিগন্যাল-কিউ ওয়াইপ (বাসি bye নতুন re-share-কে সঙ্গে সঙ্গে ভাঙত)। (৬) ডিফার্ড
+capture/watch-এ রাউন্ড-টোকেন + configJob cancel (~১০ সে কনফিগ-উইন্ডোতে স্টপ/পুনরায়-স্টার্ট =
+জম্বি শেয়ার/লিকড PeerConnection)। (৭) MediaProjection.Callback.onStop → fail(); FGS
+state-collector → IDLE-এ stopSelf ("sharing active" নোটিফিকেশন আর মিথ্যা বলে না)। (৮) cmd
+রিপ্লে-উইন্ডো ±১২০ সে স্কিউ মেনে (ম্যানুয়াল ঘড়ির ফোন আর সব Firestore-পাথ ট্যাপ ফেলায় না)।
+(৯) ভাষা: wrap() এখন EN-তেও wrap (অ-ইংরেজি ডিভাইসে fresh-install সিস্টেম-ভাষায় খুলত — Owner-
+র ইংরেজি-ডিফল্ট নির্দেশের বিপরীত) + bn→en-এ Locale.setDefault রিসেট (ইংরেজি UI-র ভেতরে
+বাংলা সংখ্যা)। (১০) পিনড SessionKeyBar মাপা bottom-nav উচ্চতার উপরে (ট্যাব আইকন ঢাকা পড়ত)।
+(১১) নোটিফিকেশন-মূল-কারণ: FCM টোকেন-রেজিস্ট্রেশন এখন ডিভাইস-রেজিস্ট্রেশন থেকে স্বাধীন +
+নতুন PushTokenService (onNewToken → registry রি-রাইট; রোটেশনে বাসি টোকেডক → sweep-এর
+UNREGISTERED-ডিলিট → চির-মৃত পুশ)। (১২) SessionNotifier dedupe-set এখন আগে consult হয় +
+setOnlyAlertOnce; সব নোটিফিকেশনে নতুন মনোক্রোম ic_stat_notify (অ্যাডাপটিভ লঞ্চার টিন্টে
+ব্লব হত)। (১৩) Accessibility হাইলাইট extra এখন সঠিক Bundle (String হওয়ায় স্ক্রল/হাইলাইট
+নীরবে কাজ করত না)। (১৪) Presence অনলাইন-উইন্ডো ৫→২০ মিনিট (হার্টবিট ১৫-মিনিট ফ্লোর ঢাকে)।
+(১৫) QrScanner ML Kit handle close; allowBackup=false; consent-মোডাল ডিডুপ প্রসেস-ডিউরেবল
+(SessionUiBus.shownAsks); touchOn+dataSaver প্রতি-সেশন রিসেট; expireSession ভ্যালিডেটিং
+ট্রানজেকশন; endSession participant-check; PairingUiBus (রিক্রিয়েটে PENDING আমন্ত্রণ আর
+আটকায় না); লগইন-স্ক্রিনে perm-poll বন্ধ; onError লাস্ট-লিস্ট রাখে।
+
+নিরাপত্তা — rules (৩ ফিক্স, লাইভ-পাবলিশড): (ক) পেয়ারিং টোকেন ছিল শুধু সাজসাজি — rules টোকেন
+সম্পর্কে কিছুই যাচাই করত না; ৬-অক্ষর doc id অনুমান করা যে-কোনো signed-in ইউজার PAIRED+
+claimedBy=নিজে লিখে স্থায়ী ফ্যামিলি-হেল্পার হয়ে যেত। এখন redemption সার্ভার-সাইডে ৮০-বিট
+টোকেন জ্ঞান প্রমাণ করে (claimToken == সংরক্ষিত raw token; আমন্ত্রণে নতুন token ফিল্ড)।
+(খ) signal-create এখন sessionEndsAt > request.time (মেয়াদ-পার হওয়া ACTIVE সেশনে patched
+হেল্পার cmd লিখতে পারত)। (গ) myPairing এখন rel-এর status==ACTIVE + guest-উইন্ডো দেখে
+(REVOKED/EXPIRED এক্স-পার্টনার চিরকাল presence পড়ত)।
+
+ইনফ্রা: ৩-টিয়ার kill-push এখন CLAIM-BEFORE-SEND (currentDocument.updateTime প্রিকন্ডিশন —
+দুই টিয়ার একই সেকেন্ডে পড়লে ডাবল পুশ হত); per-doc try/catch (একটি নেটওয়ার্ক-ব্যর্থতা পুরো
+sweep ভাঙত); NDJSON-সহনশীল পার্সিং; বাসি REQUESTED doc লেজি-EXPIRE (১,৪৪০ দৈনিক sweep-এ
+চিরকাল re-fetch হত); /health এখন শুধু কাউন্ট (pubic-এ doc-id/টোকেন-প্রিফিক্স লিক বন্ধ); CORS
+বাদ; publish-firestore-rules repo-relative path + SA-blob + সঠিক release; প্রোবে SKIPPED
+সততার সাথে গণনা + নতুন N17 (ক্লেইম-টোকেন ছাড়া redeem) ও N18 (ভুয়া টোকেন) অ্যাটাক-রিপ্রো;
+CI: permissions contents:read + artifact retention ৭ দিন।
+
+যাচাই: স্ট্যাটিক সুইট — ১১টি Kotlin ফাইলে brace/paren/bracket {0,0,0}, dangling-ref ০
+(saveRequest সম্পূর্ণ অপসৃত), নোটিফিকেশন-বিল্ডারে R.mipmap ০ (সব ic_stat_notify), নতুন
+drawable/সার্ভিস/ম্যানিফেস্ট-সূচি ক্রস-চেক; ৪ JS ফাইল node --check OK। push ২১ কমিট (৮
+স্ক্রিপ্ট+worker+rules+CI সহ), readback-verify ALL MATCH (fresh Contents API sha256);
+CI: run 40949729611 (HEAD 91fd2a8) SUCCESS; rules লাইভ-পাবলিশড (ruleset
+2d39a14d-1966-4a3a-8367-453131f0d106, 515 লাইন, সার্ভার-পার্সড); নেগেটিভ-প্রোব ২৪/২৪ ✔ —
+নতুন N17/N18 403 DENIED (অ্যাটাক বন্ধ-প্রমাণ), G1 লিজিট redeem 200, ০ SKIPPED; APK artifact
+পুনঃযাচাই verify-apk-axml → PASS (code=40 INT_DEC, name=0.21.0, v2-sig, version-স্ট্রিং
+শুধু [0.21.0]) → download/family-remote-support-v0.21.0-code40.apk (39.7 MB); স্যান্ডবক্স
+kill-push mini-service (:3020) নতুন কোডে রিস্টার্ট — টিক স্বাভাবিক, summary-তে নতুন
+claim-lost/expired-stale কাউন্টার; Cloudflare Worker নতুন কোড Workers-Builds দিয়ে
+অটো-ডিপ্লয় হবে (Owner-র স্ক্রিনশটেই প্রমাণিত মেকানিজম — Deployments ট্যাবে নতুন
+"v0.21.0 (Phase 17 -…" রো দেখা যাবে)।
+
+সতর্কতা: v0.20.0↔v0.21.0 পেয়ারিং ভার্সন-লকড (আমন্ত্রণে নতুন token ফিল্ড + claimToken) —
+দুই ফোনেই এই বিল্ড লাগাতে হবে; পুরনো PENDING আমন্ত্রণ (৫ মিনিটেই মেয়াদ-পার) প্রশ্নাতীত।
+
+ফেইল/বাকি: (১) Owner-করণীয় — উভয় ফোনে v0.21.0 ইনস্টল + সত্যিকারের দুই-ফোন পরীক্ষা: শেয়ার
+চালু রেখে ট্যাব-সুইচ/রোটেশন/ভাষা-বদল (শেয়ার বাঁচবে), QR সেভ-টোস্ট, নোটিফিকেশন (কিলড
+অ্যাপে পুশ — Worker স্তরে FIREBASE_SA_JSON এখন Owner-যোগকৃত স্ক্রিনশট অনুযায়ী; /health-এ
+secretsPresent দুটোই true কিনা দেখে জানাবেন), নতুন স্ট্যাটাস-আইকন। (২) Cloudflare
+Deployments ট্যাবে "v0.21.0 (Phase 17" ডিপ্লয় কনফার্ম (Workers Builds অটো)। (৩) অডিটের
+দস্তাবেজকৃত-কিন্তু-স্থগিত: ডেডিকেটেড least-privilege SA + কী-রোটেশন (Owner অপারেশনাল),
+release-keystore SHA-1 Firebase কনসোলে যোগ (Owner), গভীর-স্ক্রিন i18n (Phase 16b ব্যাকলগ),
+সার্ভার-সাইড ওপেন-সেশন-ক্যাপ, worker এন্ডপয়েন্ট রেট-লিমিট। (৪) Uptodown-প্রকাশ Owner-সংকেতের
+অপেক্ষায়।
