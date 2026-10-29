@@ -25,6 +25,7 @@ import org.webrtc.EglBase
 import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
+import org.webrtc.MediaStreamTrack
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
@@ -184,6 +185,27 @@ enum class ShareState { IDLE, PREPARING, WAITING_PEER, CONNECTING, LIVE, ENDED }
  *     real display aspect, 20 → 30 fps, and a bigger bitrate budget
  *     (1.2–4 Mbps, was 0.8–2.5) with an explicit 30 fps ceiling. Text stays
  *     readable; scrolling no longer strobes.
+ *
+ * v0.9.7 (Oct 2025) — THE 60 FPS PATH, OWNER-CONTROLLED. The user asked for
+ * "60fps smooth". Software VP8 cannot push a 1536-class 60 fps on the
+ * fleet's SoCs — but the HARDWARE H.264 encoder can — so the codec choice
+ * becomes a runtime EXPERIMENT instead of a coin-flip baked into the APK:
+ *
+ * 20. config/quality (Firestore, owner-SA-written, 60 s cache) decides the
+ *     codec ("vp8"|"h264"), fps (10..60) and the bitrate floor/ceiling.
+ *     Missing doc ⇒ exactly the proven v0.9.6 behaviour (VP8 · 30 fps ·
+ *     1.2–4 Mbps). A failed experiment is reverted by ONE Firestore write,
+ *     not a new APK.
+ * 21. CAPABILITY PROBE — at factory creation the engine logs which codecs
+ *     this phone can actually encode/decode ("codec probe — H264 enc=Y
+ *     dec=Y · VP8 enc=Y dec=Y"). H264 is only PREFERRED when the recipient
+ *     truly has a hardware encoder; the SDP keeps VP8 present as fallback,
+ *     so a peer that cannot decode H264 negotiates VP8 by itself.
+ * 22. NEGOTIATED-CODEC PROOF — the truth is parsed from the RECEIVED SDP
+ *     ("video codec negotiated: H264") and the capture line names the
+ *     running codec+fps ("capture started 720x1536@60 codec=H264-HW"). If
+ *     H264 was wanted but VP8 got negotiated, the encode ceiling drops back
+ *     to 30 fps automatically — software VP8 cannot do 60.
  */
 object ScreenShareEngine {
 
@@ -283,6 +305,15 @@ object ScreenShareEngine {
      * onDataChannel. While OPEN, taps and acks skip Firestore completely.
      */
     private var ctrlChannel: DataChannel? = null
+
+    // v0.9.7 — owner-controlled quality (config/quality) + codec plumbing.
+    private var quality = QualityCfg()
+    private var effectiveH264 = false
+    private var encFpsCap = 30
+    private var negotiatedCodec: String? = null
+    private var probeLogged = false
+    private var h264Enc = false
+    private var h264Dec = false
 
     private val pendingIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
@@ -455,6 +486,8 @@ object ScreenShareEngine {
             scope.launch {
                 dynamicIceServers = ConfigRepo.fetchTurnServers()
                 diagLog(ConfigRepo.lastNote)
+                quality = ConfigRepo.fetchQuality() // v0.9.7 — codec/fps/bitrate knobs
+                diagLog(ConfigRepo.lastQualityNote)
                 main.post { beginRecipientCapture(app, projectionData) }
             }
         }
@@ -487,10 +520,18 @@ object ScreenShareEngine {
             val source = factory!!.createVideoSource(true)
             val cap = ScreenCapturerAndroid(projectionData, object : MediaProjection.Callback() {})
             cap.initialize(helper, context.applicationContext, source.capturerObserver)
-            // v0.9.6 — 30 fps: 20 still strobed while scrolling; 30 keeps
-            // the software VP8 encoder comfortable at the larger 1536-class
-            // frame on the fleet's SoCs (the user-visible "smooth" bar).
-            cap.startCapture(w, h, 30)
+            // v0.9.7 — the owner's fps wish runs ONLY on the hardware H264
+            // path: software VP8 at 1536-class 60 fps would churn the CPU and
+            // drop frames. 60 fps hardware H264 is exactly the smoothness
+            // the user asked for; anything else stays at the proven ≤30.
+            val wantH264 = quality.codec == "h264"
+            effectiveH264 = wantH264 && h264Enc
+            if (wantH264 && !h264Enc) {
+                diagLog("H264 requested but no HW encoder on this phone — VP8 fallback")
+            }
+            val capFps = if (effectiveH264) quality.fps else minOf(quality.fps, 30)
+            encFpsCap = capFps
+            cap.startCapture(w, h, capFps)
 
             val track = factory!!.createVideoTrack("screen", source)
             peerConnection?.addTrack(track, listOf("screen"))
@@ -510,7 +551,11 @@ object ScreenShareEngine {
             videoTrack = track
             capturer = cap
             captureAlive = true
-            diagLog("capture started ${w}x${h}@30 (real display $rw x $rh)")
+            diagLog(
+                "capture started ${w}x${h}@$capFps codec=" +
+                    (if (effectiveH264) "H264-HW" else "VP8") +
+                    " (real display $rw x $rh)"
+            )
             _state.value = ShareState.WAITING_PEER
             _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
             watchSignals()
@@ -556,11 +601,12 @@ object ScreenShareEngine {
             val sender = pc.senders.firstOrNull { it.track() === track } ?: return
             val params = sender.parameters ?: return
             params.encodings.firstOrNull()?.let { enc ->
-                enc.minBitrateBps = 1_200_000
-                enc.maxBitrateBps = 4_000_000
+                // v0.9.7 — budget from config/quality (defaults = v0.9.6's).
+                enc.minBitrateBps = quality.minKbps * 1_000
+                enc.maxBitrateBps = quality.maxKbps * 1_000
                 try {
                     // stream-webrtc-android declares maxFramerate as Int?.
-                    enc.maxFramerate = 30
+                    enc.maxFramerate = encFpsCap
                 } catch (_: Exception) {
                 }
             }
@@ -570,7 +616,10 @@ object ScreenShareEngine {
             } catch (_: Exception) {
             }
             sender.setParameters(params)
-            diagLog("bitrate 1.2M–4M · 30 fps · keep-resolution set")
+            diagLog(
+                "bitrate ${quality.minKbps}k–${quality.maxKbps}k · $encFpsCap fps · " +
+                    "keep-resolution · codec ${if (effectiveH264) "H264-HW" else "VP8"}"
+            )
         } catch (e: Exception) {
             diagLog("bitrate set skipped: ${e.javaClass.simpleName}")
         }
@@ -591,6 +640,8 @@ object ScreenShareEngine {
             scope.launch {
                 dynamicIceServers = ConfigRepo.fetchTurnServers()
                 diagLog(ConfigRepo.lastNote)
+                quality = ConfigRepo.fetchQuality() // v0.9.7 — codec preference for the answer
+                diagLog(ConfigRepo.lastQualityNote)
                 main.post { beginHelperWatch() }
             }
         }
@@ -664,6 +715,9 @@ object ScreenShareEngine {
         candHost = 0
         candSrflx = 0
         candRelay = 0
+        negotiatedCodec = null
+        effectiveH264 = false
+        encFpsCap = 30
         _netInfo.value = null
         _frameSize.value = null
         _assistStatus.value = null
@@ -679,9 +733,55 @@ object ScreenShareEngine {
                 .createInitializationOptions()
         )
         factory = PeerConnectionFactory.builder()
+            // (enableIntelVp8Encoder, enableH264HwEncoder) — both true since
+            // v0.8.1: H264 hardware has ALWAYS been available to libwebrtc;
+            // v0.9.7 merely decides whether we PREFER it over software VP8.
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(egl.eglBaseContext, true, true))
             .setVideoDecoderFactory(DefaultVideoDecoderFactory(egl.eglBaseContext))
             .createPeerConnectionFactory()
+        logCodecProbe()
+    }
+
+    /**
+     * v0.9.7 — one-time per-process truth about this phone's video codecs.
+     * A screenshot of the diagnostics now answers "does THIS phone even have
+     * a hardware H264 encoder?" without adb or logcat.
+     */
+    private fun logCodecProbe() {
+        if (probeLogged) return
+        probeLogged = true
+        try {
+            val f = factory ?: return
+            // stream-webrtc-android 1.3.8 ground truth (verified against the
+            // artifact): capabilities take MediaStreamTrack.MediaType
+            // (constants MEDIA_TYPE_VIDEO / MEDIA_TYPE_AUDIO) and return
+            // RtpCapabilities whose codecs are List<CodecCapability> —
+            // NOT VideoCodecInfo.
+            val sendCaps =
+                f.getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
+            val recvCaps =
+                f.getRtpReceiverCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
+            fun has(
+                list: List<org.webrtc.RtpCapabilities.CodecCapability>,
+                name: String
+            ): Boolean = list.any { it.name.equals(name, ignoreCase = true) }
+            h264Enc = has(sendCaps, "H264")
+            h264Dec = has(recvCaps, "H264")
+            val vp8Enc = has(sendCaps, "VP8")
+            val vp8Dec = has(recvCaps, "VP8")
+            diagLog(
+                "codec probe — H264 enc=${if (h264Enc) "Y" else "N"} " +
+                    "dec=${if (h264Dec) "Y" else "N"} · VP8 enc=${if (vp8Enc) "Y" else "N"} " +
+                    "dec=${if (vp8Dec) "Y" else "N"}"
+            )
+        } catch (e: Throwable) {
+            // Probe is best-effort diagnostics: ANY failure (including
+            // NoSuchMethodError on a fork without the capabilities API)
+            // must degrade to the proven VP8 default, never crash.
+            h264Enc = false
+            h264Dec = false
+            diagLog("codec probe skipped: ${e.javaClass.simpleName}")
+        }
     }
 
     private fun createPeer() {
@@ -900,6 +1000,10 @@ object ScreenShareEngine {
                 "offer" -> if (isHelper && pc != null && !remoteDescriptionSet && ep == myEpoch) {
                     diagLog("offer received — applying…")
                     val sdp = JSONObject(payload)
+                    // v0.9.7 — the offer's FIRST video payload type is what
+                    // actually got preferred by the recipient; log it.
+                    negotiatedCodec = firstVideoCodecOf(sdp.getString("sdp"))
+                    diagLog("video codec negotiated (offer): ${negotiatedCodec ?: "?"}")
                     pc.setRemoteDescription(
                         setObserver("offer", myEpoch),
                         SessionDescription(SessionDescription.Type.OFFER, sdp.getString("sdp"))
@@ -908,6 +1012,17 @@ object ScreenShareEngine {
                 "answer" -> if (!isHelper && pc != null && ep.isNotBlank() && ep == peerEpoch) {
                     diagLog("answer received — applying…")
                     val sdp = JSONObject(payload)
+                    negotiatedCodec = firstVideoCodecOf(sdp.getString("sdp"))
+                    diagLog("video codec negotiated (answer): ${negotiatedCodec ?: "?"}")
+                    // v0.9.7 — H264 was wanted but the helper answered with
+                    // something else (no HW decode there): a 60 fps software
+                    // VP8 encode would churn and drop. Clamp back to the
+                    // proven 30 fps encode ceiling immediately.
+                    if (negotiatedCodec != "H264" && encFpsCap > 30) {
+                        encFpsCap = 30
+                        diagLog("VP8 negotiated — encode ceiling clamped to 30 fps")
+                        applyScreenBitrate(peerConnection, videoTrack)
+                    }
                     pc.setRemoteDescription(
                         setObserver("answer", peerEpoch),
                         SessionDescription(SessionDescription.Type.ANSWER, sdp.getString("sdp"))
@@ -1265,7 +1380,7 @@ object ScreenShareEngine {
             val ep = peerEpoch ?: return
             if (desc == null) return
             if (expectedEpoch == null || ep != expectedEpoch) return
-            val sdp = preferVp8(desc.description)
+            val sdp = preferCodec(desc.description)
             val out = SessionDescription(desc.type, sdp)
             pc.setLocalDescription(noop, out)
             val json = JSONObject()
@@ -1317,7 +1432,7 @@ object ScreenShareEngine {
                         val pc2 = peerConnection ?: return
                         if (desc == null) return
                         if (expectedEpoch == null || myEpoch != epExpected) return
-                        val sdp = preferVp8(desc.description)
+                        val sdp = preferCodec(desc.description)
                         val out = SessionDescription(desc.type, sdp)
                         pc2.setLocalDescription(noop, out)
                         val json = JSONObject()
@@ -1409,9 +1524,16 @@ object ScreenShareEngine {
         main.postDelayed(ticker, 1000)
     }
 
-    /** Reorder the video m-line payload types so VP8 (+rtx) is negotiated first. */
-    private fun preferVp8(sdp: String): String {
+    /**
+     * v0.9.7 — reorder the video m-line payload types so the OWNER-CHOSEN
+     * codec (config/quality → codec; VP8 default) is negotiated first, with
+     * its rtx companion right behind it. REORDER ONLY: every other payload
+     * type stays, so a peer without usable H264 simply answers with VP8 and
+     * the session proceeds exactly like the proven v0.9.6 path.
+     */
+    private fun preferCodec(sdp: String): String {
         return try {
+            val target = if (quality.codec == "h264") "H264" else "VP8"
             val lines = sdp.split("\r\n").toMutableList()
             var mLineIndex = -1
             for (i in lines.indices) {
@@ -1439,17 +1561,32 @@ object ScreenShareEngine {
             if (parts.size <= 3) return sdp
             val header = parts.take(3)
             val pts = parts.drop(3)
-            val vp8 = pts.filter { codecOf[it] == "VP8" }
-            if (vp8.isEmpty()) return sdp
-            val vp8Set = vp8.toSet()
-            val rtx = pts.filter { aptOf[it] in vp8Set }
-            val front = (vp8 + rtx).distinct()
+            val picked = pts.filter { codecOf[it] == target }
+            if (picked.isEmpty()) return sdp
+            val pickedSet = picked.toSet()
+            val rtx = pts.filter { aptOf[it] in pickedSet }
+            val front = (picked + rtx).distinct()
             val rest = pts.filter { it !in front }
             lines[mLineIndex] = (header + front + rest).joinToString(" ")
             lines.joinToString("\r\n")
         } catch (_: Exception) {
             sdp
         }
+    }
+
+    /**
+     * v0.9.7 — name of the FIRST payload type on the video m-line (the one
+     * that would actually be used). Parsed from RECEIVED SDP so the diag
+     * log proves the real negotiation result, not our wish.
+     */
+    private fun firstVideoCodecOf(sdp: String): String? = try {
+        val mLine = sdp.split("\r\n").firstOrNull { it.startsWith("m=video") } ?: return null
+        val firstPt = mLine.split(" ").getOrNull(3) ?: return null
+        val prefix = "a=rtpmap:$firstPt "
+        val map = sdp.split("\r\n").firstOrNull { it.startsWith(prefix) } ?: return null
+        map.substringAfter(prefix, "").substringBefore('/').uppercase().ifEmpty { null }
+    } catch (_: Exception) {
+        null
     }
 
     /**
