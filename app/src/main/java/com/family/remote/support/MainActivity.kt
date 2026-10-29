@@ -603,7 +603,7 @@ fun HomeScreen() {
                     StatusRow(label = "Firebase app ID", value = firebaseAppId)
                     StatusRow(
                         label = "Next milestone",
-                        value = "Phase 8.2 (FCM kill-push) + family-scale rollout"
+                        value = "Phase 11 (UI/UX পলিশ) + family-scale rollout"
                     )
                 }
             }
@@ -612,23 +612,28 @@ fun HomeScreen() {
 }
 
 /**
- * Phase 4 — pairing card. The phone that needs help creates a 5-minute code;
- * the helper's phone types the same code. Redemption is one atomic Firestore
- * transaction, verified again by the security rules. Works across two Google
- * accounts (during testing, two accounts on this same phone work as well).
+ * Phase 4/10 — pairing card. The phone that needs help creates a 5-minute
+ * code in one of two modes: FAMILY (permanent trusted link) or GUEST
+ * (a 2-hour temporary link for outside help — never auto-promoted to
+ * family). The helper's phone types the same code. Redemption is one
+ * atomic Firestore transaction, verified again by the security rules.
+ * Works across two Google accounts (during testing, two accounts on this
+ * same phone work as well).
  */
 @Composable
 fun PairingCard(signedInUser: FirebaseUser?) {
     SectionCard(title = "Pair a trusted phone · বিশ্বস্ত ফোন যুক্ত করুন") {
         Text(
-            text = "The phone that needs help shows a 5-minute code. The helper's phone " +
-                "types the same code. Pairing registers a trusted relationship — every " +
-                "future support session will still ask for separate permission.",
+            text = "Two kinds of link · দুই ধরনের যুক্তি — a FAMILY code pairs a " +
+                "permanent trusted phone; a GUEST code gives outside help a 2-hour " +
+                "temporary window. Either way, every support session still asks " +
+                "for separate permission.",
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
-            text = "যে ফোনে সাহায্য দরকার সে ৫ মিনিটের কোড দেখাবে; সাহায্যকারীর ফোনে সেই কোড দিতে হবে। " +
-                "যুক্ত হওয়া মানেই অনুমতি নয় — প্রতিটি সেশনে আলাদা অনুমতি চাওয়া হবে।",
+            text = "FAMILY কোড = স্থায়ী বিশ্বস্ত ফোন (একবার যুক্ত হলে আর কোড লাগে না); " +
+                "GUEST কোড = ২ ঘণ্টার সাময়িক যুক্তি (বাইরের সাহায্যকারীর জন্য)। Guest " +
+                "কখনো স্বয়ংক্রিয়ভাবে Family হয় না। প্রতিটি সেশনে আলাদা অনুমতি লাগবেই।",
             style = MaterialTheme.typography.bodyMedium
         )
 
@@ -649,11 +654,12 @@ private fun PairingSections(user: FirebaseUser) {
     val scope = rememberCoroutineScope()
 
     var invite by remember { mutableStateOf<InviteCode?>(null) }
+    var inviteKind by remember { mutableStateOf(REL_KIND_FAMILY) }
     var inviteStatus by remember { mutableStateOf<String?>(null) }
     var claimerEmail by remember { mutableStateOf<String?>(null) }
     var inviteSyncError by remember { mutableStateOf<String?>(null) }
     var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    var creating by remember { mutableStateOf(false) }
+    var creatingKind by remember { mutableStateOf<String?>(null) }
     var pairingError by remember { mutableStateOf<String?>(null) }
     var codeInput by remember { mutableStateOf("") }
     var redeeming by remember { mutableStateOf(false) }
@@ -710,6 +716,38 @@ private fun PairingSections(user: FirebaseUser) {
             onError = { e -> relationshipsSyncError = describeFirestoreError(e) }
         )
         onDispose { stopWatching() }
+    }
+
+    // Phase 10 — relNow ticks every 30 s while any guest link exists, so
+    // the "বাকি সময়" countdowns stay honest without a per-second churn.
+    var relNow by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(relationships) {
+        if (relationships.any { it.kind == REL_KIND_GUEST }) {
+            while (true) {
+                relNow = System.currentTimeMillis()
+                delay(30_000)
+            }
+        } else {
+            relNow = System.currentTimeMillis()
+        }
+    }
+    // Phase 10 — lazy cleanup: the first app that notices an over-time
+    // guest link writes ACTIVE -> EXPIRED (the rules allow exactly this).
+    LaunchedEffect(relationships, relNow) {
+        relationships
+            .filter {
+                it.kind == REL_KIND_GUEST && it.status == "ACTIVE" &&
+                    it.guestExpiresAtMillis > 0L && relNow > it.guestExpiresAtMillis + 4000
+            }
+            .forEach { rel ->
+                try {
+                    expireGuestRelationship(rel.id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // best effort — the window check elsewhere is the real gate
+                }
+            }
     }
 
     // Phase 6 — live list of this account's support sessions (both roles).
@@ -875,13 +913,14 @@ private fun PairingSections(user: FirebaseUser) {
             (inviteStatus != null && inviteStatus != "PENDING"))
     val showCode = currentInvite != null && !expired
 
-    val createCode: () -> Unit = {
+    val createCode: (String) -> Unit = { kind ->
         scope.launch {
-            creating = true
+            creatingKind = kind
             pairingError = null
             try {
                 val deviceId = stableDeviceId(context)
-                invite = createInvitation(user, deviceId, Build.MODEL)
+                invite = createInvitation(user, deviceId, Build.MODEL, kind)
+                inviteKind = kind
                 inviteStatus = "PENDING"
                 claimerEmail = null
                 inviteSyncError = null
@@ -890,7 +929,7 @@ private fun PairingSections(user: FirebaseUser) {
             } catch (e: Exception) {
                 pairingError = "Could not create a code: ${describeFirestoreError(e)}"
             } finally {
-                creating = false
+                creatingKind = null
             }
         }
     }
@@ -904,6 +943,16 @@ private fun PairingSections(user: FirebaseUser) {
     )
 
     if (showCode && currentInvite != null) {
+        Text(
+            text = if (inviteKind == REL_KIND_GUEST) {
+                "Guest কোড — এটি যুক্ত করলে ২ ঘণ্টার সাময়িক যুক্তি হবে (বাইরের সাহায্যের জন্য)।"
+            } else {
+                "Family কোড — এটি যুক্ত করলে স্থায়ী বিশ্বস্ত যুক্তি হবে।"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
         Text(
             text = currentInvite.code,
             style = MaterialTheme.typography.headlineSmall,
@@ -1053,7 +1102,7 @@ private fun PairingSections(user: FirebaseUser) {
         }
         if (inviteStatus == "PENDING") {
             WideOutlinedButton(
-                enabled = !creating,
+                enabled = creatingKind == null,
                 onClick = {
                     scope.launch {
                         try {
@@ -1088,21 +1137,45 @@ private fun PairingSections(user: FirebaseUser) {
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        BigButton(enabled = !creating, onClick = createCode) {
-            if (creating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
+        // Phase 10 — the pairing-mode choice: family (permanent) vs guest
+        // (2-hour temporary window). The code display above tells the user
+        // which kind is currently live.
+        Text(
+            text = "কোন ধরনের যুক্তি বানাবেন? · Which kind of link?",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                enabled = creatingKind == null,
+                onClick = { createCode(REL_KIND_FAMILY) },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 52.dp)
+            ) {
                 Text(
-                    if (currentInvite == null)
-                        "Create pairing code · কোড তৈরি করুন (৫ মিনিট)"
-                    else
-                        "Create a new code · নতুন কোড তৈরি করুন"
+                    if (creatingKind == REL_KIND_FAMILY) "…" else "Family কোড · স্থায়ী",
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            OutlinedButton(
+                enabled = creatingKind == null,
+                onClick = { createCode(REL_KIND_GUEST) },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 52.dp)
+            ) {
+                Text(
+                    if (creatingKind == REL_KIND_GUEST) "…" else "Guest কোড · ২ ঘণ্টা",
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
+        Text(
+            text = "Family = একবার যুক্ত, পরে আর কোড লাগবে না। Guest = ২ ঘণ্টার সাময়িক " +
+                "লিংক — মেয়াদ শেষে নিজেই শেষ হয়ে যায়।",
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 
     // ---------- Section B: this phone is the helper ----------
@@ -1149,8 +1222,12 @@ private fun PairingSections(user: FirebaseUser) {
                 redeemMessage = null
                 try {
                     val rel = redeemCode(user, codeInput)
-                    redeemMessage =
+                    redeemMessage = if (rel.kind == REL_KIND_GUEST) {
+                        "Guest যুক্ত ✓ — ${rel.recipientEmail} (${rel.recipientDeviceModel})-কে " +
+                            "২ ঘণ্টার মধ্যে সাহায্য করতে পারবেন। প্রতিটি সেশনে আলাদা অনুমোদন লাগবে।"
+                    } else {
                         "Paired ✓ — এখন আপনি ${rel.recipientEmail} (${rel.recipientDeviceModel})-কে সাহায্য করতে পারবেন।"
+                    }
                     codeInput = ""
                 } catch (e: RedemptionException) {
                     redeemMessage = e.message
@@ -1177,7 +1254,7 @@ private fun PairingSections(user: FirebaseUser) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodySmall,
-            color = if (message.startsWith("Paired")) {
+            color = if (message.startsWith("Paired") || message.startsWith("Guest যুক্ত")) {
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.error
@@ -1207,6 +1284,7 @@ private fun PairingSections(user: FirebaseUser) {
         }
     } else {
         relationships.forEach { rel ->
+            val isGuest = rel.kind == REL_KIND_GUEST
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
@@ -1217,6 +1295,36 @@ private fun PairingSections(user: FirebaseUser) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
+                    // Phase 10 — the Family vs Guest badge. A guest row also
+                    // shows the honest remaining window (refreshed every 30 s).
+                    if (isGuest) {
+                        val remainingMin =
+                            ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
+                        val badge = when {
+                            rel.status != "ACTIVE" -> "Guest (সাময়িক) · ${rel.status}"
+                            rel.guestExpiresAtMillis <= 0L -> "Guest (সাময়িক)"
+                            remainingMin >= 60L ->
+                                "Guest (সাময়িক) · বাকি ${remainingMin / 60L}ঘ ${remainingMin % 60L}মি"
+                            else -> "Guest (সাময়িক) · বাকি ${remainingMin}মি"
+                        }
+                        Text(
+                            text = badge,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (rel.status == "ACTIVE" && remainingMin > 0L) {
+                                MaterialTheme.colorScheme.tertiary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = "Family · স্থায়ী",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -1231,17 +1339,27 @@ private fun PairingSections(user: FirebaseUser) {
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    // Phase 6 — helper can ask to start a support session.
+                    // Phase 6/10 — helper can ask to start a support session,
+                    // but a guest link only while its window is still live.
                     if (rel.status == "ACTIVE" && rel.helperUid == user.uid) {
-                        BigButton(
-                            enabled = !sessionBusy && openSession == null,
-                            onClick = { startSessionFor(rel) }
-                        ) {
-                            Text("Start session · সেশন শুরু করুন (অনুমতি চাইবে)")
+                        if (rel.guestLive) {
+                            BigButton(
+                                enabled = !sessionBusy && openSession == null,
+                                onClick = { startSessionFor(rel) }
+                            ) {
+                                Text("Start session · সেশন শুরু করুন (অনুমতি চাইবে)")
+                            }
+                        } else {
+                            Text(
+                                text = "Guest মেয়াদ শেষ — আর সেশন শুরু করা যাবে না। নতুন " +
+                                    "Guest কোড দিন। (Guest window over — share a new code.)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
-                if (rel.status == "ACTIVE") {
+                if (!isGuest && rel.status == "ACTIVE") {
                     OutlinedButton(
                         enabled = revokingId != rel.id,
                         modifier = Modifier.heightIn(min = 48.dp),
@@ -1261,6 +1379,31 @@ private fun PairingSections(user: FirebaseUser) {
                         }
                     ) {
                         Text("Revoke · বাতিল")
+                    }
+                }
+                // Phase 10 — a guest link can be REMOVED entirely (the doc
+                // is deleted; afterwards a fresh family pairing may reuse
+                // the pair). Family links have no such button on purpose.
+                if (isGuest) {
+                    OutlinedButton(
+                        enabled = revokingId != rel.id,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        onClick = {
+                            revokingId = rel.id
+                            scope.launch {
+                                try {
+                                    removeGuestRelationship(rel.id)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    pairingError = "Could not remove: ${describeFirestoreError(e)}"
+                                } finally {
+                                    revokingId = null
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Remove · সরান")
                     }
                 }
             }
@@ -1330,6 +1473,15 @@ private fun PairingSections(user: FirebaseUser) {
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    if (currentSession.kind == "guest") {
+                        Text(
+                            text = "Guest (সাময়িক) সাহায্যকারী — এই লিংক দেওয়ার ২ ঘণ্টা পরে " +
+                                "নিজেই মুছে যাবে; সেশনটিও তার মেয়াদের মধ্যেই শেষ হবে।",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                     Text(
                         text = "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে। " +
                             "(Allow only if you know them.)",
@@ -1364,7 +1516,8 @@ private fun PairingSections(user: FirebaseUser) {
                 ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
             Text(
                 text = "${currentSession.recipientEmail}-কে অনুমতির অনুরোধ পাঠানো হয়েছে… " +
-                    "${mmss(secondsLeft)}-এ শেষ হবে।",
+                    "${mmss(secondsLeft)}-এ শেষ হবে।" +
+                    if (currentSession.kind == "guest") " · Guest (সাময়িক)" else "",
                 style = MaterialTheme.typography.bodyMedium
             )
             WideOutlinedButton(
@@ -1414,6 +1567,14 @@ private fun PairingSections(user: FirebaseUser) {
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    if (currentSession.kind == "guest") {
+                        Text(
+                            text = "Guest (সাময়িক) — সেশনটি guest লিংকের মেয়াদের মধ্যেই শেষ হবে।",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                     Text(
                         text = "স্বয়ংক্রিয়ভাবে ${mmss(secondsLeft)}-এ শেষ হবে। আগে শেষ করতে পারেন। " +
                             "(Ends automatically in ${mmss(secondsLeft)}.)",
