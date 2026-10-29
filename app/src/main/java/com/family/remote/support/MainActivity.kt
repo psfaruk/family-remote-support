@@ -980,7 +980,8 @@ fun HomeScreen() {
                 1 -> PairingCard(
                     signedInUser = signedInUser,
                     showPairSheet = showPairSheet,
-                    onDismissPairSheet = { showPairSheet = false }
+                    onDismissPairSheet = { showPairSheet = false },
+                    onOpenPairSheet = { showPairSheet = true }
                 )
                 2 -> ActivityTab(user = signedInUser)
                 else -> SettingsTab(
@@ -2291,7 +2292,8 @@ private fun SettingsAssistTile() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// ফোন ট্যাব (v0.14.0):
+// ফোন ট্যাব (v0.14.0; v0.18.1-এ স্থায়ী "ফোন যুক্ত করুন" কার্ড যোগ হলো —
+//   QR-স্ক্যান/কোড-ইমপোর্ট/কোড-বানানো আর FAB-শিটের পেছনে লুকানো নয়, ট্যাবের উপরেই দৃশ্যমান):
 //   • লাইভ সেশন-কার্ড একদম উপরে (অনুমতি চাওয়া / চলমান)
 //   • চলমান পেয়ারিং-কোড কার্ড: বড় কোড + QR + ⋮ dropdown (কপি/সেভ/শেয়ার)
 //   • যুক্ত ফোন — Chat-স্টাইল List Tile (avatar + নাম + অবস্থা + ব্যাজ),
@@ -2305,7 +2307,8 @@ private fun SettingsAssistTile() {
 fun PairingCard(
     signedInUser: FirebaseUser?,
     showPairSheet: Boolean,
-    onDismissPairSheet: () -> Unit
+    onDismissPairSheet: () -> Unit,
+    onOpenPairSheet: () -> Unit
 ) {
     if (signedInUser == null) {
         SectionCard(title = "ফোন যুক্ত করুন", icon = Icons.Filled.Phone) {
@@ -2319,7 +2322,8 @@ fun PairingCard(
         PairingSections(
             user = signedInUser,
             showPairSheet = showPairSheet,
-            onDismissPairSheet = onDismissPairSheet
+            onDismissPairSheet = onDismissPairSheet,
+            onOpenPairSheet = onOpenPairSheet
         )
     }
 }
@@ -2329,7 +2333,8 @@ fun PairingCard(
 private fun PairingSections(
     user: FirebaseUser,
     showPairSheet: Boolean,
-    onDismissPairSheet: () -> Unit
+    onDismissPairSheet: () -> Unit,
+    onOpenPairSheet: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -2843,6 +2848,61 @@ private fun PairingSections(
         )
     }
 
+    // ---------- ১b. ফোন যুক্ত করুন — অ্যাপের প্রধান অ্যাকশন, সবসময় দৃশ্যমান ----------
+    // v0.18.1 (Phase 11.8) discoverability fix: the helper-side flow (QR scan
+    // + code import) lived at the very bottom of this page in v0.13.0 and only
+    // inside the FAB sheet from v0.14.0 — the app's PRIMARY action was
+    // effectively invisible (Owner: "QR scanner ও কোড ইমপোর্ট দেখা যাচ্ছে না").
+    // Now both directions sit in one permanent, prominent card near the top:
+    // scan (helper) or create/import (receiver) — one tap each.
+    SectionCard(
+        title = "ফোন যুক্ত করুন · দুই ভাবে",
+        icon = Icons.Filled.Phone,
+        infoText = "সাহায্য করতে: যে ফোন সাহায্য চাইবে তার কোড/QR স্ক্যান করুন বা কোডটি লিখে ইমপোর্ট করুন। সাহায্য চাইতে: Family বা Guest কোড বানিয়ে গ্রহীতার ফোনে দিন। যুক্তির পরেও প্রতিটি সেশনে আলাদা লাইভ অনুমতি লাগবে।"
+    ) {
+        BigButton(
+            onClick = { showScanner = true }
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Text("  QR স্ক্যান · সাহায্য করব")
+        }
+        WideOutlinedButton(
+            onClick = onOpenPairSheet
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Text("  কোড ইমপোর্ট · নতুন কোড বানান")
+        }
+        Text(
+            text = "সাহায্য করতে চাইলে গ্রহীতার কোড/QR দিন — সাহায্য চাইতে চাইলে নিজের Family/Guest কোড বানিয়ে দিন।",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    // v0.18.1 — the tab-level scan entry. Same dialog and same Phase-12
+    // role-setup journey as the in-sheet scan button; the dialog renders here
+    // only while the sheet is closed, so the two entries can never double-
+    // render. State (showScanner/codeInput/pendingScan) is shared.
+    if (showScanner && !showPairSheet) {
+        QrScanDialog(
+            onCode = { code, kindHint ->
+                codeInput = code
+                redeemMessage = null
+                redeemedKind = null
+                showScanner = false
+                pendingScan = ScannedCode(code, kindHint)
+            },
+            onDismiss = { showScanner = false }
+        )
+    }
+
     // ---------- ২. চলমান পেয়ারিং-কোড কার্ড (dropdown-সহ) ----------
     if (showCode && currentInvite != null) {
         Card {
@@ -3152,8 +3212,8 @@ private fun PairingSections(
                 EmptyState(
                     icon = Icons.Filled.Phone,
                     title = "এখনো কোনো ফোন যুক্ত হয়নি",
-                    hint = "ডানদিকের “+ যুক্ত করুন” বোতামে ট্যাপ করে Family বা Guest কোড " +
-                        "বানান, অথবা সাহায্যকারীর কোড/QR দিন।"
+                    hint = "উপরের “ফোন যুক্ত করুন” কার্ড থেকে QR স্ক্যান বা কোড ইমপোর্ট " +
+                        "করুন — অথবা “+ যুক্ত করুন” বোতামে Family/Guest কোড বানান।"
                 )
             }
         } else {
