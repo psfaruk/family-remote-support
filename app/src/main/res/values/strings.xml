@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Family Remote Support</string>
-    <!-- Phase 8 (v0.9.0) — Remote assist accessibility service. -->
+    <!-- Phase 8 (v0.9.0) — Remote assist accessibility service.
+         v0.12.0 (Phase 8.3 completion) — honest wording for the typing
+         capability: the service looks at the screen ONLY to find the
+         focused text field; the app never reads, stores or sends screen
+         text (nothing in the code even could). -->
     <string name="assist_service_label">Family Remote Support assist</string>
-    <string name="assist_service_description">During a support session a trusted family helper may tap on this screen to guide you. The service reads nothing from the screen — it can only perform taps while you keep it switched on.</string>
+    <string name="assist_service_description">During a support session a trusted family helper may tap, swipe, long-press and type text on this screen to guide you. The service looks at the screen only to find the focused text field; the app never reads, stores or sends your screen text.</string>
 </resources>
