@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Email
@@ -86,8 +87,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.Typography
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -119,6 +118,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import com.family.remote.support.ui.AppWarningColor
+import com.family.remote.support.ui.FamilyRemoteSupportTheme
+import com.family.remote.support.ui.ThemePrefBus
+import com.family.remote.support.ui.ThemePreview
+import com.google.firebase.firestore.FirebaseFirestoreException
 import org.webrtc.EglBase
 import kotlinx.coroutines.delay
 import org.webrtc.SurfaceViewRenderer
@@ -145,66 +154,14 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 // ═══════════════════════════════════════════════════════════════════════
-// Phase 9 (v0.9.4) — family-warm theme + senior-friendly type scale.
-//
-// The family that actually uses this app is Bangladeshi and often 50+, so:
-//   • a warm amber/brown palette (calm and caring — no cold corporate blue)
-//   • body text lifted one notch (14→16sp, 12→14sp) and bolder section titles
-//   • ONE fixed light scheme — predictable contrast, no dark-mode surprises
-// Pure presentation: zero logic lives here.
-//
-// v0.14.0 (Phase 11.5) — LESS TEXT, MORE STRUCTURE (Owner direction):
-//   long explanation paragraphs moved behind ⓘ info popups, every feature
-//   is an icon-marked tile/list-row, pairing got a FAB + bottom sheet,
-//   settings got real toggles, the invite code card got a dropdown menu.
+// Phase 9→11.6 — theme history: v0.9.4 introduced the warm senior theme;
+// v0.14.0 moved explanations behind ⓘ popups (component-based UI); v0.15.0
+// moved the whole design system into ui/Theme.kt (blue identity + dark
+// theme + Light/Dark/System).
 // ═══════════════════════════════════════════════════════════════════════
-private val FamilyWarmColors = lightColorScheme(
-    primary = Color(0xFF8F4C00),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFDCC2),
-    onPrimaryContainer = Color(0xFF311300),
-    secondary = Color(0xFF74584A),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFFFDCC2),
-    onSecondaryContainer = Color(0xFF2B160A),
-    tertiary = Color(0xFF5B6136),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFE3E5B8),
-    onTertiaryContainer = Color(0xFF191D00),
-    background = Color(0xFFFFF8F3),
-    onBackground = Color(0xFF231A13),
-    surface = Color(0xFFFFF8F3),
-    onSurface = Color(0xFF231A13),
-    surfaceVariant = Color(0xFFF4DED0),
-    onSurfaceVariant = Color(0xFF52443A),
-    outline = Color(0xFF847367),
-    outlineVariant = Color(0xFFD7C4B5),
-    error = Color(0xFFB3261E),
-    onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFF9DEDC),
-    onErrorContainer = Color(0xFF410E0B),
-    inverseSurface = Color(0xFF392E26),
-    inverseOnSurface = Color(0xFFFFEEE1),
-    inversePrimary = Color(0xFFFFB77C),
-    surfaceTint = Color(0xFF8F4C00)
-)
-
-private val SeniorTypography: Typography = Typography().let { base ->
-    base.copy(
-        titleMedium = base.titleMedium.copy(
-            fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold
-        ),
-        titleSmall = base.titleSmall.copy(
-            fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold
-        ),
-        bodyLarge = base.bodyLarge.copy(fontSize = 17.sp, lineHeight = 24.sp),
-        bodyMedium = base.bodyMedium.copy(fontSize = 16.sp, lineHeight = 23.sp),
-        bodySmall = base.bodySmall.copy(fontSize = 14.sp, lineHeight = 19.sp),
-        labelLarge = base.labelLarge.copy(
-            fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold
-        )
-    )
-}
+// Phase 11.6 — the color schemes + typography now live in ui/Theme.kt
+// (single design-system source of truth). New code should use
+// MaterialTheme.colorScheme / com.family.remote.support.ui directly.
 
 // ═══════════════════════════════════════════════════════════════════════
 // v0.14.0 — reusable building blocks. Every tab is assembled from THESE:
@@ -252,13 +209,14 @@ private fun SectionCard(
                 if (infoText != null) {
                     IconButton(
                         onClick = { showInfo = true },
-                        modifier = Modifier.size(36.dp)
+                        // Phase 11.6 — 48dp touch target (was 36dp).
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = "বিস্তারিত · details",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -423,7 +381,8 @@ private fun EmptyState(
     title: String,
     hint: String,
     actionLabel: String? = null,
-    onAction: (() -> Unit)? = null
+    onAction: (() -> Unit)? = null,
+    illustrationRes: Int? = null
 ) {
     Column(
         modifier = Modifier
@@ -432,12 +391,22 @@ private fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(44.dp)
-        )
+        if (illustrationRes != null) {
+            // Phase 11.6 — friendly on-device vector illustration (docs
+            // §13); no remote images anywhere.
+            Image(
+                painter = painterResource(illustrationRes),
+                contentDescription = null,
+                modifier = Modifier.size(96.dp)
+            )
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(44.dp)
+            )
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
@@ -611,15 +580,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Phase 11.6 — Light / Dark / System (persisted, ui/Theme.kt).
+        // Loaded synchronously BEFORE setContent so the very first frame
+        // already wears the right theme — no flash, no wrong-theme repaint.
+        ThemePrefBus.loadSync(this)
         setContent {
-            // Phase 9 (v0.9.4) — T0: the whole app now sits on one warm,
-            // senior-friendly Material theme (bigger type, calm family
-            // colors). Deliberately a FIXED light scheme: predictable,
-            // high-contrast, no surprise dark-mode repaint for elderly users.
-            MaterialTheme(
-                colorScheme = FamilyWarmColors,
-                typography = SeniorTypography
-            ) {
+            FamilyRemoteSupportTheme(themePref = ThemePrefBus.pref) {
                 HomeScreen()
             }
         }
@@ -812,7 +778,7 @@ fun HomeScreen() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                presenceStatus = "Presence failed: ${describeFirestoreError(e)}"
+                presenceStatus = "Presence failed: ${friendlyErrorBn(e)}"
             }
             try {
                 registerFcmToken(user.uid, deviceId)
@@ -820,13 +786,34 @@ fun HomeScreen() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                pushStatus = "Push setup failed: ${describeFirestoreError(e)}"
+                pushStatus = "Push setup failed: ${friendlyErrorBn(e)}"
             }
             deviceList = loadDevices(user)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            deviceStatus = "Registration failed: ${describeFirestoreError(e)}"
+            deviceStatus = "Registration failed: ${friendlyErrorBn(e)}"
+        }
+    }
+
+    // Phase 11.6 — ONE shared sign-in action: the home invite card and the
+    // settings account card both run exactly this (same Firebase Auth path,
+    // same friendly error mapping).
+    val startSignIn: () -> Unit = {
+        if (activity != null) {
+            busy = true
+            statusMessage = null
+            scope.launch {
+                try {
+                    signedInUser = signInWithGoogle(activity)
+                } catch (e: GetCredentialException) {
+                    statusMessage = "সাইন-ইন বাতিল বা ব্যর্থ হয়েছে · Sign-in cancelled or failed"
+                } catch (e: Exception) {
+                    statusMessage = "সাইন-ইন হয়নি: ${friendlyErrorBn(e)}"
+                } finally {
+                    busy = false
+                }
+            }
         }
     }
 
@@ -856,11 +843,14 @@ fun HomeScreen() {
             }
         }
     ) { innerPadding ->
+        // Phase 11.6 — per-tab scroll positions: switching tabs keeps each
+        // tab's place instead of resetting everything back to the top.
+        val tabScrollStates = remember { List(4) { ScrollState(0) } }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(tabScrollStates[tab])
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -876,7 +866,9 @@ fun HomeScreen() {
                     onOpenWizard = { showWizard = true },
                     onRetryRegistration = { registerRetryKey++ },
                     onGoPairing = { tab = 1 },
-                    onGoActivity = { tab = 2 }
+                    onGoActivity = { tab = 2 },
+                    busy = busy,
+                    onSignIn = startSignIn
                 )
                 1 -> PairingCard(
                     signedInUser = signedInUser,
@@ -892,23 +884,7 @@ fun HomeScreen() {
                     firebaseProjectId = firebaseProjectId,
                     firebaseAppId = firebaseAppId,
                     permSummary = permSummary,
-                    onSignIn = {
-                        if (activity != null) {
-                            busy = true
-                            statusMessage = null
-                            scope.launch {
-                                try {
-                                    signedInUser = signInWithGoogle(activity)
-                                } catch (e: GetCredentialException) {
-                                    statusMessage = "Sign-in cancelled or failed: ${e.type}"
-                                } catch (e: Exception) {
-                                    statusMessage = "Sign-in failed: ${e.message}"
-                                } finally {
-                                    busy = false
-                                }
-                            }
-                        }
-                    },
+                    onSignIn = startSignIn,
                     onSignOut = {
                         busy = true
                         scope.launch {
@@ -1102,7 +1078,9 @@ private fun HomeTab(
     onOpenWizard: () -> Unit,
     onRetryRegistration: () -> Unit,
     onGoPairing: () -> Unit,
-    onGoActivity: () -> Unit
+    onGoActivity: () -> Unit,
+    busy: Boolean = false,
+    onSignIn: () -> Unit = {}
 ) {
     if (signedInUser != null && openSession != null) {
         if (openSession.status == "REQUESTED" &&
@@ -1112,6 +1090,37 @@ private fun HomeTab(
             HomeConsentCard(session = openSession, user = signedInUser)
         } else {
             HomeLiveHintCard(session = openSession, myUid = signedInUser.uid)
+        }
+    }
+
+    // Phase 11.6 — sign-in invitation card (docs §10-C): visible exactly
+    // when signed out; the account keeps devices + relationships safe.
+    if (signedInUser == null) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "শুরু করতে সাইন-ইন করুন",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = "Google অ্যাকাউন্টেই ফোন ও যুক্তি সংরক্ষিত থাকে — আপনার নিজের Firebase-প্রজেক্টে।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                BigButton(enabled = !busy, onClick = onSignIn) {
+                    Text("Google দিয়ে সাইন-ইন")
+                }
+            }
         }
     }
 
@@ -1343,15 +1352,26 @@ private fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            // Phase 11.6 — the approval card is THE most prominent surface
+            // on home: primaryContainer reads "action needed" instantly.
+            containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                // Phase 11.6 — screen readers announce this as ONE approval
+                // card (docs §15), while Allow/Deny stay separate buttons.
+                .semantics(mergeDescendants = true) {},
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                StatusBadge(
+                    label = "সম্মতির অনুরোধ · Approval requested",
+                    kind = "info"
+                )
+            }
             Text(
                 text = "${session.helperEmail.ifBlank { "Someone" }} এই ফোনে সাহায্য করতে চাইছেন।",
                 style = MaterialTheme.typography.titleMedium,
@@ -1521,7 +1541,8 @@ private fun ActivityFeed(user: FirebaseUser) {
             EmptyState(
                 icon = Icons.Filled.Notifications,
                 title = "এখনো কোনো সেশন-একটিভিটি নেই",
-                hint = "সেশন শুরু হলে বা অনুমতির অনুরোধ এলে এখানে দেখা যাবে।"
+                hint = "সেশন শুরু হলে বা অনুমতির অনুরোধ এলে এখানে দেখা যাবে।",
+                illustrationRes = R.drawable.ic_empty_activity
             )
         }
         openSession?.let { s ->
@@ -1559,18 +1580,31 @@ private fun ActivityFeed(user: FirebaseUser) {
                 } else {
                     MaterialTheme.colorScheme.onTertiaryContainer
                 },
-                chip = if (s.kind == "guest") "Guest" else sessionStatusBn(s.status)
+                chip = if (s.kind == "guest") "Guest" else sessionStatusBn(s.status),
+                chipContainer = if (s.kind == "guest") {
+                    MaterialTheme.colorScheme.tertiaryContainer
+                } else {
+                    statusChipColors(sessionBadgeKind(s.status)).first
+                },
+                chipContent = if (s.kind == "guest") {
+                    MaterialTheme.colorScheme.onTertiaryContainer
+                } else {
+                    statusChipColors(sessionBadgeKind(s.status)).second
+                }
             )
         }
         lastFinished?.let { s ->
             HorizontalDivider()
             AppListTile(
-                title = "শেষ সেশন — ${sessionStatusBn(s.status)}",
+                title = "শেষ সেশন",
                 subtitle = "${s.helperEmail.ifBlank { "?" }} → ${s.recipientEmail}" +
                     (s.endedBy?.let { " · শেষ করেছে: $it" } ?: ""),
                 icon = Icons.Filled.CheckCircle,
                 avatarContainer = MaterialTheme.colorScheme.surfaceVariant,
-                avatarContent = MaterialTheme.colorScheme.onSurfaceVariant
+                avatarContent = MaterialTheme.colorScheme.onSurfaceVariant,
+                chip = sessionStatusBn(s.status),
+                chipContainer = statusChipColors(sessionBadgeKind(s.status)).first,
+                chipContent = statusChipColors(sessionBadgeKind(s.status)).second
             )
         }
         if (sessionSyncError != null) {
@@ -1599,7 +1633,8 @@ private fun ActivityFeed(user: FirebaseUser) {
             EmptyState(
                 icon = Icons.Filled.Phone,
                 title = "এখনো কোনো ফোন যুক্ত হয়নি",
-                hint = "'ফোন' ট্যাব থেকে কোড বানিয়ে বিশ্বস্ত ফোন যুক্ত করুন।"
+                hint = "'ফোন' ট্যাব থেকে কোড বানিয়ে বিশ্বস্ত ফোন যুক্ত করুন।",
+                illustrationRes = R.drawable.ic_empty_devices
             )
         }
         Column {
@@ -1653,9 +1688,185 @@ private fun sessionStatusBn(status: String): String = when (status) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// Phase 11.6 — status badges (docs §7.2): every state shows color + icon
+// + a word, never color alone. Kind helpers keep the mapping in ONE place.
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Semantic bucket for a session status: success / info / error / neutral. */
+private fun sessionBadgeKind(status: String): String = when (status) {
+    "ACTIVE" -> "success"
+    "REQUESTED" -> "info"
+    "DENIED", "CANCELLED", "EXPIRED" -> "error"
+    else -> "neutral"
+}
+
+/** Theme-aware container/content pair for a badge kind. */
+@Composable
+private fun statusChipColors(kind: String): Pair<Color, Color> = when (kind) {
+    "success" -> Pair(
+        MaterialTheme.colorScheme.tertiaryContainer,
+        MaterialTheme.colorScheme.onTertiaryContainer
+    )
+    "info" -> Pair(
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.onPrimaryContainer
+    )
+    "error" -> Pair(
+        MaterialTheme.colorScheme.errorContainer,
+        MaterialTheme.colorScheme.onErrorContainer
+    )
+    else -> Pair(
+        MaterialTheme.colorScheme.surfaceVariant,
+        MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+/** Small pill: icon + word; reused wherever a state is shown. */
+@Composable
+private fun StatusBadge(label: String, kind: String) {
+    val colors = statusChipColors(kind)
+    Row(
+        modifier = Modifier
+            .background(colors.first, RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        when (kind) {
+            "success" -> Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = colors.second,
+                modifier = Modifier.size(13.dp)
+            )
+            "info" -> Icon(
+                imageVector = Icons.Filled.Send,
+                contentDescription = null,
+                tint = colors.second,
+                modifier = Modifier.size(12.dp)
+            )
+            "error" -> Icon(
+                imageVector = Icons.Filled.Warning,
+                contentDescription = null,
+                tint = colors.second,
+                modifier = Modifier.size(13.dp)
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.second
+        )
+    }
+}
+
+/**
+ * Phase 11.6 — friendly one-liner for families (docs §10-L): the common
+ * failures (network, permission) get human language; anything else falls
+ * through to the full technical describeFirestoreError.
+ */
+private fun friendlyErrorBn(e: Exception): String = when (e) {
+    is FirebaseFirestoreException -> when (e.code) {
+        FirebaseFirestoreException.Code.UNAVAILABLE,
+        FirebaseFirestoreException.Code.DEADLINE_EXCEEDED ->
+            "ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না — একটু পরে আবার চেষ্টা করুন। · No internet connection"
+        FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+            "অনুমতি নেই — সেটিংস থেকে সাইন-আউট করে আবার সাইন-ইন করুন। · Not allowed"
+        else -> describeFirestoreError(e)
+    }
+    else -> describeFirestoreError(e)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // সেটিংস ট্যাব (v0.14.0) — প্রতিটি সারি SettingsTile: আইকন + টাইটেল +
 // ছোট বিবরণ + ট্রেইলিং কন্ট্রোল (টগল সুইচ / বোতাম / শেভরন)।
 // ═══════════════════════════════════════════════════════════════════════
+/** Phase 11.6 — one appearance choice row with a mini theme-preview dot. */
+@Composable
+private fun ThemeOptionRow(
+    label: String,
+    subtitle: String,
+    selected: Boolean,
+    preview: Int,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            when (preview) {
+                0 -> Column(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .background(ThemePreview.lightBg)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .background(ThemePreview.darkBg)
+                    )
+                }
+                1 -> Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(ThemePreview.lightBg)
+                )
+                else -> Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(ThemePreview.darkBg)
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "নির্বাচিত · selected",
+                    tint = if (preview == 2) {
+                        ThemePreview.darkAccent
+                    } else {
+                        ThemePreview.lightAccent
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (selected) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
 @Composable
 private fun SettingsTab(
     signedInUser: FirebaseUser?,
@@ -1759,6 +1970,38 @@ private fun SettingsTab(
         SettingsNotifTile()
         HorizontalDivider()
         SettingsAssistTile()
+    }
+
+    // Phase 11.6 — REAL appearance setting (docs §9): System / Light /
+    // Dark, persisted via ThemePrefBus. The root theme wrapper reads this
+    // exact state, so the whole app repaints instantly — not a fake toggle.
+    SectionCard(
+        title = "চেহারা · Appearance",
+        icon = Icons.Filled.Settings,
+        infoText = "সিস্টেম = ফোনের দিন/রাত সেটিং মেনে চলে। লাইট = সবসময় উজ্জ্বল, " +
+            "ডার্ক = সবসময় অন্ধকার (রাতে চোখে আরাম)। পছন্দ মনে রাখা হয়।"
+    ) {
+        ThemeOptionRow(
+            label = "সিস্টেম · System",
+            subtitle = "ফোনের সেটিং অনুযায়ী",
+            selected = ThemePrefBus.pref == ThemePrefBus.SYSTEM,
+            preview = 0,
+            onClick = { ThemePrefBus.set(context, ThemePrefBus.SYSTEM) }
+        )
+        ThemeOptionRow(
+            label = "লাইট · Light",
+            subtitle = "সবসময় উজ্জ্বল",
+            selected = ThemePrefBus.pref == ThemePrefBus.LIGHT,
+            preview = 1,
+            onClick = { ThemePrefBus.set(context, ThemePrefBus.LIGHT) }
+        )
+        ThemeOptionRow(
+            label = "ডার্ক · Dark",
+            subtitle = "সবসময় অন্ধকার — রাতে আরাম",
+            selected = ThemePrefBus.pref == ThemePrefBus.DARK,
+            preview = 2,
+            onClick = { ThemePrefBus.set(context, ThemePrefBus.DARK) }
+        )
     }
 
     SectionCard(title = "অ্যাপ সম্পর্কে", icon = Icons.Filled.Info) {
@@ -2606,17 +2849,32 @@ private fun PairingSections(
                         .toString().padStart(2, '0')}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
+                    // Phase 11.6 — the last 30 s also turns warning-colored
+                    // (color + the words, never color alone — docs §4.3).
+                    color = if (totalSeconds >= 1 && totalSeconds <= 30) {
+                        AppWarningColor()
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
                 if (qr != null) {
-                    Image(
-                        bitmap = qr.asImageBitmap(),
-                        contentDescription = "Pairing QR code",
+                    // Phase 11.6 — big QR on a white plate: scanning stays
+                    // reliable in BOTH themes (docs §4.4).
+                    Column(
                         modifier = Modifier
-                            .size(160.dp)
                             .align(Alignment.CenterHorizontally)
-                    )
+                            .background(Color.White, RoundedCornerShape(16.dp))
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            bitmap = qr.asImageBitmap(),
+                            contentDescription = "Pairing QR code",
+                            modifier = Modifier.size(200.dp)
+                        )
+                    }
                 }
 
                 saveFeedback?.let {
@@ -2627,21 +2885,31 @@ private fun PairingSections(
                         textAlign = TextAlign.Center
                     )
                 }
-                when (inviteStatus) {
-                    "PENDING" -> Text(
-                        text = "অন্য ফোনের অপেক্ষায়… · Waiting for the other device",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    "PAIRED" -> Text(
-                        text = "যুক্ত হয়েছে ✓ ${claimerEmail ?: "helper"}-এর সাথে",
+                // Phase 11.6 — invite state as a badge (color + icon + word).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    when (inviteStatus) {
+                        "PENDING" -> StatusBadge(
+                            label = "অন্য ফোনের অপেক্ষায় · Waiting",
+                            kind = "info"
+                        )
+                        "PAIRED" -> StatusBadge(
+                            label = "যুক্ত · Paired",
+                            kind = "success"
+                        )
+                        else -> {}
+                    }
+                }
+                if (inviteStatus == "PAIRED") {
+                    Text(
+                        text = "${claimerEmail ?: "helper"}-এর সাথে যুক্ত হয়েছে ✓",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
-                    else -> {}
                 }
                 if (inviteStatus == "PENDING") {
                     WideOutlinedButton(
@@ -2879,6 +3147,9 @@ private fun PairingSections(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Phase 11.6 — the code field never hides behind the
+                    // keyboard (docs §16).
+                    .imePadding()
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -3109,6 +3380,9 @@ private fun PairTile(
     val otherEmail =
         (if (iHelp) rel.recipientEmail else rel.helperEmail).ifBlank { "(no email)" }
     val guestOk = isGuest && rel.status == "ACTIVE" && rel.guestLive
+    // Phase 11.6 — minutes until the guest relationship expires (for the
+    // warning-colored chip when it is nearly over).
+    val guestMinutesLeft = ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
     val chipText = when {
         !isGuest && rel.status == "ACTIVE" -> "Family"
         !isGuest -> "Family · ${sessionStatusBn(rel.status)}"
@@ -3136,11 +3410,17 @@ private fun PairTile(
             chip = chipText,
             chipContainer = when {
                 rel.status != "ACTIVE" -> MaterialTheme.colorScheme.errorContainer
+                // Phase 11.6 — guest countdown turns warning-colored when it
+                // is nearly over (<15 min); the chip text still says the time.
+                guestOk && guestMinutesLeft >= 1 && guestMinutesLeft <= 14 ->
+                    AppWarningColor().copy(alpha = 0.18f)
                 guestOk -> MaterialTheme.colorScheme.tertiaryContainer
                 else -> MaterialTheme.colorScheme.primaryContainer
             },
             chipContent = when {
                 rel.status != "ACTIVE" -> MaterialTheme.colorScheme.onErrorContainer
+                guestOk && guestMinutesLeft >= 1 && guestMinutesLeft <= 14 ->
+                    AppWarningColor()
                 guestOk -> MaterialTheme.colorScheme.onTertiaryContainer
                 else -> MaterialTheme.colorScheme.onPrimaryContainer
             },
