@@ -119,7 +119,8 @@ data class InvitationView(
     val id: String,
     val status: String,           // PENDING | PAIRED | CANCELLED
     val expiresAtMillis: Long,
-    val claimedEmail: String?
+    val claimedEmail: String?,
+    val kind: String = "family"   // family | guest (Phase 10)
 )
 
 data class RelationshipView(
@@ -130,14 +131,36 @@ data class RelationshipView(
     val recipientEmail: String,
     val recipientDeviceId: String,
     val recipientDeviceModel: String,
-    val status: String            // ACTIVE | REVOKED
-)
+    val status: String,           // ACTIVE | REVOKED | EXPIRED
+    val kind: String = "family",  // family | guest (Phase 10)
+    /** 0 for family links; live-until for guest links (Phase 10). */
+    val guestExpiresAtMillis: Long = 0L
+) {
+    /** True while a guest window is live (family links are always live). */
+    val guestLive: Boolean
+        get() = kind != "guest" ||
+            (guestExpiresAtMillis > 0L && System.currentTimeMillis() < guestExpiresAtMillis)
+}
 
 private const val INVITATION_COLLECTION = "pairingInvitations"
-private const val RELATIONSHIP_COLLECTION = "trustedDeviceRelationships"
+// internal: SessionRepo also reads the relationship doc to cap a guest
+// session's lifetime at the guest window (Phase 10).
+internal const val RELATIONSHIP_COLLECTION = "trustedDeviceRelationships"
 
 /** Invitation validity window (must stay consistent with firestore.rules). */
 private const val INVITE_TTL_MILLIS = 5 * 60 * 1000L
+
+/**
+ * Phase 10 — how long a GUEST relationship stays usable after redemption.
+ * Family links are permanent (until revoked); a guest link is a short,
+ * server-bounded window for one-time outside help. The rules re-bound this
+ * to request.time + 3 h so no client can mint a longer-lived guest.
+ */
+const val GUEST_RELATIONSHIP_TTL_MILLIS = 2 * 60 * 60 * 1000L
+
+/** Relationship doc kinds (Phase 10) — "guest" can never become "family". */
+const val REL_KIND_FAMILY = "family"
+const val REL_KIND_GUEST = "guest"
 
 // No I, L, O, 0 or 1 — characters that are easy to misread over a phone call.
 private const val INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -179,11 +202,17 @@ fun parsePairingCode(raw: String): InviteCode {
     )
 }
 
-/** Create a fresh 5-minute invitation owned by [user] for their device. */
+/**
+ * Create a fresh 5-minute invitation owned by [user] for their device.
+ * Phase 10 — [kind] picks the pairing mode: "family" (permanent trusted
+ * link) or "guest" (redeems into a temporary 2-hour link). The kind is
+ * frozen into the invitation and cannot be changed afterwards.
+ */
 suspend fun createInvitation(
     user: FirebaseUser,
     deviceId: String,
-    deviceModel: String
+    deviceModel: String,
+    kind: String = REL_KIND_FAMILY
 ): InviteCode {
     val db = Fb.db
     repeat(3) {
@@ -207,6 +236,7 @@ suspend fun createInvitation(
             "recipientDeviceId" to deviceId,
             "recipientDeviceModel" to deviceModel,
             "status" to "PENDING",
+            "kind" to kind,
             "tokenHash" to sha256Hex(invite.token),
             "createdAt" to FieldValue.serverTimestamp(),
             "expiresAt" to Timestamp(Date(expiryMillis))
@@ -240,7 +270,8 @@ fun watchInvitation(
                     id = snap.id,
                     status = snap.getString("status") ?: "PENDING",
                     expiresAtMillis = snap.getTimestamp("expiresAt")?.toDate()?.time ?: 0L,
-                    claimedEmail = snap.getString("claimedEmail")
+                    claimedEmail = snap.getString("claimedEmail"),
+                    kind = snap.getString("kind") ?: REL_KIND_FAMILY
                 )
             )
         }
@@ -263,6 +294,13 @@ suspend fun cancelInvitation(invId: String) {
  * Redeem a code as the helper. One atomic transaction:
  * verify PENDING + expiry + token hash → invitation PENDING → PAIRED →
  * trusted relationship created (or re-activated if the pair re-invited).
+ *
+ * Phase 10 — the invitation's kind decides the resulting link:
+ *  - family invitation → permanent link (unchanged behavior)
+ *  - guest invitation  → temporary link with a bounded guestExpiresAt
+ *    window; a guest code can NEVER attach to (or convert) an existing
+ *    family link, and a family code can NEVER resurrect a guest link —
+ *    guest != family is enforced here AND again by the security rules.
  *
  * Firestore transactions require ALL reads to happen before ANY write
  * (v0.6.1: the relationship read used to sit after the invitation update,
@@ -301,9 +339,28 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         val recipientEmail = snap.getString("inviterEmail") ?: ""
         val recipientDeviceId = snap.getString("recipientDeviceId") ?: ""
         val recipientDeviceModel = snap.getString("recipientDeviceModel") ?: ""
+        val inviteKind = snap.getString("kind") ?: REL_KIND_FAMILY
         val relRef = db.collection(RELATIONSHIP_COLLECTION)
             .document("${user.uid}_$inviterUid")
         val existing = tx.get(relRef)
+        val existingKind = existing.getString("kind") ?: REL_KIND_FAMILY
+
+        // ---------- Phase 10: guest != family (client-side fence) ----------
+        if (existing.exists() && inviteKind == REL_KIND_GUEST && existingKind != REL_KIND_GUEST) {
+            throw RedemptionException(
+                "এই জোড়াটি ইতিমধ্যে Family (স্থায়ী) হিসেবে যুক্ত — Guest কোড এখানে লাগবে না। " +
+                    "(This pair already has a permanent Family link — no guest code needed.)"
+            )
+        }
+        if (existing.exists() && inviteKind != REL_KIND_GUEST && existingKind == REL_KIND_GUEST) {
+            throw RedemptionException(
+                "এই জোড়াটি Guest হিসেবে যুক্ত। Family করতে হলে সাহায্য-পাওয়ার ফোন থেকে " +
+                    "Guest লিংকটি সরিয়ে (Remove) নতুন Family কোড দিতে হবে। " +
+                    "(A guest link can never become family automatically — remove it first, " +
+                    "then pair again with a fresh Family code.)"
+            )
+        }
+        val guestEndsMillis = System.currentTimeMillis() + GUEST_RELATIONSHIP_TTL_MILLIS
 
         // ---------- writes (only after every read above) ----------
         tx.update(
@@ -318,33 +375,46 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         )
 
         if (existing.exists()) {
-            // Rules (Phase 4) only allow re-activation to change status +
-            // updatedAt — identity fields are frozen after first pairing.
-            tx.update(
-                relRef,
-                mapOf(
-                    "status" to "ACTIVE",
-                    "updatedAt" to FieldValue.serverTimestamp()
+            // Rules (Phase 4/10) only allow re-activation to change status
+            // (+ the guest window refresh for guest links) — identity fields
+            // are frozen after first pairing, and the kind can never flip.
+            if (inviteKind == REL_KIND_GUEST) {
+                tx.update(
+                    relRef,
+                    mapOf(
+                        "status" to "ACTIVE",
+                        "guestExpiresAt" to Timestamp(Date(guestEndsMillis)),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-            )
+            } else {
+                tx.update(
+                    relRef,
+                    mapOf(
+                        "status" to "ACTIVE",
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+            }
         } else {
-            tx.set(
-                relRef,
-                mapOf(
-                    "helperUid" to user.uid,
-                    "helperEmail" to (user.email ?: ""),
-                    "recipientUid" to inviterUid,
-                    "recipientEmail" to recipientEmail,
-                    "recipientDeviceId" to recipientDeviceId,
-                    "recipientDeviceModel" to recipientDeviceModel,
-                    "pairKey" to "${user.uid}_$inviterUid",
-                    "status" to "ACTIVE",
-                    "createdByInvitation" to code.invitationId,
-                    "createdAt" to FieldValue.serverTimestamp(),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                ),
-                SetOptions.merge()
+            val relDoc = hashMapOf(
+                "helperUid" to user.uid,
+                "helperEmail" to (user.email ?: ""),
+                "recipientUid" to inviterUid,
+                "recipientEmail" to recipientEmail,
+                "recipientDeviceId" to recipientDeviceId,
+                "recipientDeviceModel" to recipientDeviceModel,
+                "pairKey" to "${user.uid}_$inviterUid",
+                "status" to "ACTIVE",
+                "kind" to inviteKind,
+                "createdByInvitation" to code.invitationId,
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
             )
+            if (inviteKind == REL_KIND_GUEST) {
+                relDoc["guestExpiresAt"] = Timestamp(Date(guestEndsMillis))
+            }
+            tx.set(relRef, relDoc, SetOptions.merge())
         }
 
         RelationshipView(
@@ -355,7 +425,9 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
             recipientEmail = recipientEmail,
             recipientDeviceId = recipientDeviceId,
             recipientDeviceModel = recipientDeviceModel,
-            status = "ACTIVE"
+            status = "ACTIVE",
+            kind = inviteKind,
+            guestExpiresAtMillis = if (inviteKind == REL_KIND_GUEST) guestEndsMillis else 0L
         )
     }.awaitWithTimeout("pairing the two devices")
 }
@@ -411,9 +483,42 @@ suspend fun revokeRelationship(relId: String) {
         .awaitWithTimeout("revoking the pair")
 }
 
+/**
+ * Phase 10 — lazy cleanup of an over-time guest link (ACTIVE -> EXPIRED).
+ * Best effort from whichever app notices first; the rules only allow this
+ * exact transition on a guest doc whose guestExpiresAt has passed.
+ */
+suspend fun expireGuestRelationship(relId: String) {
+    Fb.db
+        .collection(RELATIONSHIP_COLLECTION)
+        .document(relId)
+        .update(
+            mapOf(
+                "status" to "EXPIRED",
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+        )
+        .awaitWithTimeout("expiring the guest link")
+}
+
+/**
+ * Phase 10 — remove a GUEST link entirely (delete the doc). This is the
+ * documented, non-automatic path out of a guest pair: only afterwards can
+ * the same pair be re-paired as family. The rules allow deletes for guest
+ * docs only — a family link can never be deleted this way.
+ */
+suspend fun removeGuestRelationship(relId: String) {
+    Fb.db
+        .collection(RELATIONSHIP_COLLECTION)
+        .document(relId)
+        .delete()
+        .awaitWithTimeout("removing the guest link")
+}
+
 private fun DocumentSnapshot.toRelationshipView(): RelationshipView? {
     val helperUid = getString("helperUid") ?: return null
     val recipientUid = getString("recipientUid") ?: return null
+    val kind = getString("kind") ?: REL_KIND_FAMILY
     return RelationshipView(
         id = id,
         helperUid = helperUid,
@@ -422,7 +527,13 @@ private fun DocumentSnapshot.toRelationshipView(): RelationshipView? {
         recipientEmail = getString("recipientEmail") ?: "",
         recipientDeviceId = getString("recipientDeviceId") ?: "",
         recipientDeviceModel = getString("recipientDeviceModel") ?: "",
-        status = getString("status") ?: "ACTIVE"
+        status = getString("status") ?: "ACTIVE",
+        kind = kind,
+        guestExpiresAtMillis = if (kind == REL_KIND_GUEST) {
+            getTimestamp("guestExpiresAt")?.toDate()?.time ?: 0L
+        } else {
+            0L
+        }
     )
 }
 
