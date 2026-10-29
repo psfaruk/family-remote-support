@@ -1389,3 +1389,86 @@ QR-এ 👪 আছে? (৫) পুরনো (v≤0.16) কোড স্ক্�
 - ডক-পুশ (README bd06eeb + §40 867751e + worklog de9cf80 — worklog.md এই প্রথম repo-তে এল,
   HTTP 201; push-তালিকায় স্থায়ীভাবে যোগ হলো) — চূড়ান্ত গাছে CI রান **40873415226 (head de9cf80)
   → SUCCESS** (গেটসহ)।
+
+## §41 — Phase 14 (infra — APK অপরিবর্তিত): kill-push স্থায়ী স্তর — Cloudflare Workers ফ্রি-প্ল্যান (২০২৬-১০-২৯)
+
+**উৎপত্তি (Owner-সিদ্ধান্ত, সরাসরি উদ্ধৃত):** "অ্যাপের রিমোট কন্ট্রোল সিস্টেমটি একদম ফ্রি এবং ফাস্ট
+সার্ভারে চলে, তবে Cloudflare Worker ব্যবহার করা সবচেয়ে সহজ ও নিরাপদ। আমি Cloudflare dashboard এ
+আছি। পেইড রিলে সার্ভারে টাকা খরচ করার দরকার নেই। ফ্রি লিমিট পার হলে তখন পেইড ভাবা যাবে। সিদ্ধান্ত:
+এটি সিকিউরিটির জন্য ভালো, তবে প্রজেক্টের শুরুতে খুব বেশি কড়াকড়ি না করে সাধারণ টোকেন অথেন্টিকেশন
+দিয়ে শুরু করতে পারেন। পরে প্রয়োজন অনুযায়ী আপডেট করা যাবে। অ্যাপ টি বিল্ড শেষ হলে প্রথমে uptodown
+এ পাবলিশ করব, এবং কিছু দিন পর অবস্থা বোঝে play store এ পাবলিশ করব।" — সাথে জানালেন Cloudflare
+অ্যাকাউন্ট খুলে dashboard-এ প্রবেশ করেছেন।
+
+এই একটি বার্তাই v0.18.0-র তিনটি ব্যাকলগ-আইটেমের উত্তর দিল (§40-Stage-Summary): (১) kill-push
+স্থায়ী-ইনস্ট্যান্ট স্তর = Cloudflare Workers, ফ্রি/কার্ডহীন — অ্যাকাউন্ট খোলা হয়ে গেছে; (২) রিলে
+পেইড-সিদ্ধান্ত = ফ্রি-লিমিট পর্যন্ত ফ্রি, পার হলে তবেই পেইড; (৩) নিরাপত্তা-ভঙ্গি = সাধারণ টোকেন
+অথেন্টিকেশন দিয়ে শুরু, পরে আপডেট।
+
+### 41.1 আর্কিটেকচার — kill-push-এর এখন তিন স্তর
+
+| স্তর | লেটেন্সি | স্থায়িত্ব |
+|---|---|---|
+| স্যান্ডবক্স mini-service (kill-push-service, :3020) | ~৫ সেকেন্ড | স্যান্ডবক্স চলাকালীন |
+| **Cloudflare Worker `frs-killpush` (নতুন, Phase 14)** | ~৬০ সেকেন্ড (cron `* * * * *`) | **স্থায়ী ২৪/৭, ফ্রি** |
+| GitHub Actions kill-push.yml (cron */5) | ~৫ মিনিট | best-effort ব্যাকস্টপ |
+
+উত্তর-জানালা ২ মিনিট — প্রতি-মিনিট Worker স্তর সবসময় জানালার ভেতরে পুশ পৌঁছে দেয়।
+
+### 41.2 Worker ডিজাইন (cloudflare/killpush-worker.js, commit 1cdfda2)
+
+- **শূন্য-নির্ভরতার হুবহু প্রতিলিপি:** scripts/fcm-kill-push.mjs-এর প্রমাণিত sweep — একই Firestore
+  runQuery (status==REQUESTED), একই freshness-gate (respondDeadline ভবিষ্যতে + requested ≤১০ মিনিট +
+  killPushSentAt নেই), একই fcmTokens lookup (token ≥ ৩২ অক্ষর), একই FCM v1 message
+  (title/body/data/android.priority=HIGH/channel support_session_requests), একই
+  killPushSentAt/killPushStatus idempotent mark, একই UNREGISTERED/BAD_TOKEN → registry-ডিলিট —
+  কেবল node:crypto-র বদলে Web Crypto (PKCS8 importKey + RS256 sign)। তাই দুই স্তর কখনো drift করতে পারে না।
+- **এন্ডপয়েন্ট:** GET /health (খোলা — liveness + secretsPresent + শেষ sweep-সারসংক্ষেপ, কোনো secret
+  মান নয়), POST /sweep (Authorization: Bearer KILL_TOKEN — ম্যানুয়াল/ভবিষ্যৎ-অ্যাপ-কল; timing-safe
+  তুলনা; GET→405, ভুল টোকেন→401), scheduled (cron `* * * * *` — dashboard-এ সেট)।
+- **Secrets কেবল dashboard-এ, repo/চ্যাট-লগে নয়:** FIREBASE_SA_JSON (পূর্ণ SA — client_email,
+  private_key, project_id ব্যবহৃত), KILL_TOKEN (৪০-hex, স্থানীয় সংরক্ষণ .secrets/cf-kill-token.txt;
+  Owner-এর dashboard-পেস্টের জন্য চ্যাটে দেওয়া; rotate-পদ্ধতি CLOUDFLARE_SETUP.md-তে)।
+- **in-flight গার্ড** (per-isolate, best-effort) দ্বৈত sweep আটকায়; per-session ত্রুটি সারসংক্ষেপে
+  সৎভাবে রিপোর্ট হয়, config/auth-ত্রুটি লাউডলি fail করে (৫০০)।
+- **ফ্রি-লিমিট হিসাব:** Workers ফ্রি ১,০০,০০০ req/দিনের বিপরীতে ~১,৪৪০ cron-কল/দিন (<২%); CPU ১০
+  ms/invocation — sweep সম্পূর্ণ I/O-বাউন্ড; cron trigger ফ্রি প্ল্যানে ৫টি পর্যন্ত, আমরা ১টি।
+  Owner-সিদ্ধান্ত: ফ্রি লিমিট পার হলে তবেই Workers Paid ($5/মাস) ভাবা হবে।
+
+### 41.3 যাচাই (ডিপ্লয়ের আগেই প্রমাণিত)
+
+- `node --check` PASS।
+- **Mock-সুইট (tmp/worker-test.mjs):** globalThis.fetch-মক দিয়ে আসল Worker-কোড চালিত —
+  RS256/PKCS8-পথ বাস্তবে চলে (তাস করা RSA key দিয়ে সত্যিকারের সই), ৩ REQUESTED → ১ fresh
+  (stale/expired সঠিকভাবে বাদ), pushed=1, UNREGISTERED→registry-ডিলিট=1 (দুটি টোকেনে ২টি FCM-কল),
+  killPushSentAt idempotent-মার্ক নিশ্চিত, ভুল টোকেন→401, GET /sweep→405, /health-এ
+  secretsPresent সঠিক, scheduled()→ctx.waitUntil দিয়ে sweep পুশ করে, প্রকৃত SA-ফাইল PKCS8-PEM
+  গঠন-যাচাই OK — **সব PASS**।
+
+### 41.4 যা অপরিবর্তিত
+
+- **APK অপরিবর্তিত** — versionCode 36 / v0.18.0 প্রচলিত; কোনো অ্যাপ-কোড পরিবর্তন নয়। অ্যাপ-পাশের
+  instant helper-কল (সেশন-doc তৈরির সাথে সাথে POST /sweep → ~১-২ সেকেন্ডে পুশ) পরবর্তী রিলিজে —
+  Phase 14b, v0.19.0-প্রার্থী।
+- **Firestore rules অপরিবর্তিত** — Worker SA-পথে (admin) যায়, rules স্পর্শ করে না; ১২/১২
+  নেগেটিভ-প্রোব অক্ষত।
+- স্যান্ডবক্স mini-service ও GH Actions স্তর চালুই থাকে — Worker **সংযোজন, প্রতিস্থাপন নয়**।
+
+### 41.5 Owner-করণীয় (dashboard-এ এখনই)
+
+docs/CLOUDFLARE_SETUP.md — ফোন-বান্ধব ৪-ধাপ বাংলা গাইড: (১) `frs-killpush` Worker তৈরি →
+GitHub-এর cloudflare/killpush-worker.js raw-কপি পেস্ট → Deploy; (২) Secrets: FIREBASE_SA_JSON +
+KILL_TOKEN; (৩) Cron Trigger `* * * * *`; (৪) ব্রাউজারে /health পরীক্ষা (secretsPresent দুটোই true)।
+POST /sweep-এর আসল-পরীক্ষা (প্রকৃত Firebase-বিরুদ্ধে) আমি স্যান্ডবক্স থেকে করব।
+
+### 41.6 প্রকাশনা-পরিকল্পনা (Owner-সিদ্ধান্ত, রেকর্ড-স্থায়ী)
+
+1. **প্রথমে Uptodown:** বর্তমান রিলিজ v0.18.0 (code 36) — সাইন-করা APK প্রস্তুত ও CI-গেট-যাচাইত
+   (download/family-remote-support-v0.18.0-code36.apk, 39.5 MB)। Uptodown ডেভেলপার-অ্যাকাউন্ট →
+   APK আপলোড → তাদের রিভিউ। প্রক্রিয়া শুরুর আগে Cloudflare Worker সেটআপ শেষ করা।
+2. **পরে Play Store:** কিছু দিন Uptodown-চলার অভিজ্ঞতা বুঝে। Play-তে যেতে যা লাগবে (প্রস্তুতি-তালিকা,
+   Phase-15-পরিকল্পনায় ধাপে ধাপে): Play Console ($25 একবার), Data Safety ফর্ম, প্রাইভেসি-পলিসি URL,
+   AccessibilityService-ব্যবহারের স্পষ্টীকরণ (remote-input ইনজেকশনের ন্যায্যতা-ঘোষণা),
+   সেনসিটিভ-পারমিশন ঘোষণা।
+3. **নিরাপত্তা-ভঙ্গি (Owner-সিদ্ধান্ত):** সাধারণ টোকেন-অথ এখন → প্রয়োজনে পরে কড়া (App Check /
+   প্রতি-কলার HMAC); সাইডলোড-APK-তে Play-Integrity অনির্ভরযোগ্য — §40-ব্যাকলগ অপরিবর্তিত।
