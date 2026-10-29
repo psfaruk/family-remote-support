@@ -1333,3 +1333,59 @@ dashboard-এ build-সফল নিশ্চিত + FIREBASE_SA_JSON/KILL_TOKE
 দুই-true প্রমাণ, তারপর POST /sweep লাইভ-টেস্ট; (৩) Phase 14b (অ্যাপ→Worker instant sweep-কল)
 বাকি; (৪) Uptodown-প্রকাশ — Owner জানালে শুরু হবে; (৫) GH kill-push cron re-register-ফল
 পর্যবেক্ষণে (one-time পর্যবেক্ষণ-কাজ সেট)।
+
+---
+Task ID: 50
+Agent: Z.ai Code (main)
+Task: Phase 16 (v0.20.0, versionCode 39) — TAB RESTRUCTURE + HOME SHOWCASE + 15 LANGUAGES +
+PRIVACY DOCS (Owner review of build 38: "হোম ট্যাব এ যে সমস্ত অপশন দেখা যাচ্ছে সেগুলো হোম ট্যাবে
+থাকা উচিত নয়… হোম ট্যাব ভিজিট করলেই সে অ্যাপ সম্পর্কে পুরোপুরি ধারণা নেবে, আকর্ষণীয় করেন… একটিভিটি
+ট্যাব সেটিংসে মার্জ করেন… একটিভিটি মুছে live location নামে ট্যাব খুলুন — কাজ ভবিষ্যতে… ফোন ট্যাবে এই
+অপশন দুই জায়গায় দেখাচ্ছে, নিচের এড-অপশনটা বাদ দিন… সেটিংসে ইউজার প্রোফাইল বানান… প্রধান ভাষা
+ইংলিশ হবে, পপুলার ১০-১৫ ভাষা যোগ করুন… About-এ Firebase তথ্য দেখা যাচ্ছে — এটা প্রাইভেসি নয়…
+নীতিমালা ও প্রাইভেসি পলিসি অ্যাপে উন্মুক্ত থাকবে… নোটিফিকেশন আসে না… কপি/ডাউনলোডে 'কপি হয়েছে/
+ডাউনলোড হয়েছে' দেখাতে হবে")
+
+বাস্তবায়ন (MainActivity.kt + ui/AuthGate.kt + নতুন ui/Lang.kt + res/values* ১৫ ভাষা — session-
+security/rules/WebRTC/FCM লজিক শূন্য পরিবর্তন): (১) বটম-ন্যাভ = হোম · ফোন · লাইভ লোকেশন ·
+সেটিংস — একটিভিটি ট্যাব বিলুপ্ত, তার সেশন-একটিভিটি + যুক্ত-ফোন-লাইভ কার্ড সেটিংসে মার্জ; লাইভ
+লোকেশন = সৎ placeholder ("ভবিষ্যতের আপডেটে আসছে", কিছুই সংগ্রহ নয়, কোনো ভুয়া ম্যাপ নয়)। (২) হোম =
+অ্যাপ-শোকেস: হিরো ওয়েলকাম-কার্ড (পরিচয় + এক-লাইন প্রতিশ্রুতি + সাইন-আউট হলে সাইন-ইন বোতাম),
+"এই অ্যাপ যা যা করতে পারে" ফিচার-গ্রিড (লাইভ স্ক্রিন/রিমোট টাচ/ফ্যামিলি পেয়ারিং/গেস্ট — প্রতিটিতে
+সৎ explainer পপআপ), একটি কমপ্যাক্ট সেটআপ-স্ট্রিপ; কারিগরি ২×২ গ্রিড/ডিভাইস-লিস্ট/কুইক-অ্যাকশন
+সেটিংসে সরানো। (৩) সেটিংস: ইউজার প্রোফাইল (নাম সম্পাদনাযোগ্য — Firebase profile + users/{uid}
+মিরর, টোস্ট-কনফার্ম), ১৫-ভাষা সিলেক্টর (ফ্রেশ-ইনস্টলে ডিফল্ট English — attachBaseContext Locale-wrap
++ activity recreate, নেটিভ নাম কখনো অনুবাদ হয় না: English বাংলা हिन्दी العربية Español Français
+Português Русский Bahasa Indonesia اردو Türkçe Deutsch 中文 日本語 नेपाली), ইন-অ্যাপ প্রাইভেসি পলিসি +
+নীতিমালা ডকুমেন্ট (পূর্ণ লেখা, EN+BN; বাকি ভাষায় সচেতনভাবে EN fallback), এক-ট্যাপ টেস্ট নোটিফিকেশন
+প্রোব (আসল support_session_requests চ্যানেলে সত্যিকারের নোটিফিকেশন — চ্যানেল+পারমিশন তাৎক্ষণিক
+যাচাই; পারমিশন বন্ধ থাকলে সেটাই বলে), About থেকে Firebase project/app-ID অপসারণ (প্রাইভেসি-ফিক্স;
+এখন শুধু সংস্করণ+প্যাকেজ+সৎ storage-নোট+পলিসি-লিংক), সাইন-আউট একদম নিচে। (৪) ফোন ট্যাবের ডুপ্লিকেট
+"যুক্ত করুন" FAB অপসারণ — স্থায়ী উপরের কার্ডই একমাত্র এন্ট্রি (Owner: "অপশন দুই জায়গায় দেখাচ্ছে")।
+(৫) কপি → "কপি হয়েছে ✓" টোস্ট, QR সেভ → "ডাউনলোড হয়েছে ✓ Download/…" টোস্ট, শেয়ার-ব্যর্থতায়
+টোস্ট; মৃত copiedJustNow স্টেট অপসারণ। (৬) ১৩টি নতুন res/values-XX (hi, ar, es, fr, pt, ru, id,
+ur, tr, de, zh, ja, ne) + পূর্ণ values-bn; AuthGate-এর প্রথম-স্ক্রিন লেবেলও রিসোর্সে।
+
+টেক-নোট: ভাষা-ইঞ্জিন LangPrefBus (ui/Lang.kt) — SharedPreferences "ui_prefs"/"lang_pref",
+attachBaseContext-এ wrap() (composition-এর আগে), বদলালে recreate() — ThemePrefBus-এর একই সৎ-সেটিং
+প্যাটার্ন। আইকন-কোর-সেট সীমা: Visibility/TouchApp/FamilyRestroom/Group/Language/PrivacyTip/Gavel/
+NotificationsActive এক্সটেন্ডেড-সেটে → কোর-বিকল্প (PlayArrow/Edit/Favorite/Person/List/Lock/
+CheckCircle/Notifications) ব্যবহার; প্রতিটি কোর-আইকনের স্পষ্ট import লাগে (CI দু'রাউন্ড ধরে শিখলো)।
+values-fr-এর ডাবল-এস্কেপড অ্যাপোস্ট্রফি (\\') → U+2019 (’) টাইপোগ্রাফিক — aapt2 "Invalid unicode
+escape" ফিক্স।
+
+যাচাই: স্ট্যাটিক সুইট — brace/paren/bracket ব্যালেন্স {0,0,0} (MainActivity 5601 লাইন + AuthGate),
+dangling-ref ০ (onGoActivity/firebaseProjectId/firebaseAppId/copiedJustNow), duplicate-fun ০,
+R.string refs ৬৫/৬৫ defined, ১৫-লোকেল কী-কভারেজ ALL OK, আইকন used-vs-imported ALL OK; push ২১
+কমিট (res×15+Lang+AuthGate+MainActivity+gradle+fr-fix+import-fix), readback-verify ALL MATCH
+(fresh Contents API sha256); CI: 40935942481 FAIL (fr-escape) → 40937545369 FAIL (icon-imports) →
+**40937912335 SUCCESS** (a1e291c); আর্টিফ্যাক্ট স্থানীয় পুনঃযাচাই verify-apk-axml → PASS (code=39
+INT_DEC, name=0.20.0, v2-sig, version-shaped strings শুধু [0.20.0]); APK →
+download/family-remote-support-v0.20.0-code39.apk (39.7 MB)। README Status-এ Phase 16 বুলেট।
+
+ফেইল/বাকি: (১) Owner-করণীয় — উভয় ফোনে v0.20.0 ইনস্টল করে দেখা (নতুন হোম/সেটিংস/ভাষা/লাইভ-
+লোকেশন ট্যাব, টোস্ট, টেস্ট-নোটিফিকেশন); (২) নোটিফিকেশন-আসে-না-র মূল নিরাময় Cloudflare স্তরের
+secrets (Phase 14.1 বাকি — FIREBASE_SA_JSON/KILL_TOKEN + /health প্রমাণ) — ইন-অ্যাপ টেস্ট-প্রোব
+এখন চ্যানেল/পারমিশন যাচাই করার হাতিয়ার; (৩) Phase 16b-প্রার্থী: গভীর স্ক্রিনের ইনলাইন বাংলা
+স্ট্রিং-গুলোও রিসোর্সে তোলা (সেশন/পেয়ারিং/উইজার্ড), ফোন-ট্যাবে নতুন ফিচার (চ্যাট/শিডিউল),
+লাইভ-লোকেশনের প্রকৃত কাজ; (৪) Uptodown-প্রকাশ Owner-এর সংকেতের অপেক্ষায়।
