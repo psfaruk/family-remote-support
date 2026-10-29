@@ -1,0 +1,44 @@
+# Phase 8.2 — FCM kill-push BACKSTOP (v0.9.8).
+#
+# Primary tier: the sandbox mini-service (kill-push-service) polls Firestore
+# every 5 s and is the tier that actually meets a request's 2-minute answer
+# window. THIS workflow is the backstop that keeps the push flowing while
+# that sandbox is recycled or rebuilt.
+#
+# Reality of GitHub schedules: they are best-effort and can be delayed by
+# several minutes under load — so a run often lands after a specific ask's
+# deadline. That is safe by design: scripts/fcm-kill-push.mjs only pushes
+# FRESH asks (deadline still in the future) and is fully idempotent
+# (killPushSentAt mark + dead-token cleanup), so a late run does nothing
+# rather than confusing anyone with a push for an expired request.
+#
+# Note: GitHub disables scheduled workflows after 60 days of repository
+# inactivity — the repo is actively developed, but keep it in mind.
+name: kill-push
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: kill-push
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Kill-push sweep
+        run: node scripts/fcm-kill-push.mjs
+        env:
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SA_JSON }}
