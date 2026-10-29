@@ -256,7 +256,7 @@ remote-family-support/
 | **8** | Permitted remote interaction যাচাই + capability matrix + Guided Support | পলিসি-সামঞ্জস্য পরীক্ষা |
 | **9** | সিকিউরিটি হার্ডেনিং: negative tests, replay প্রতিরোধ, secure logging | থ্রেট মডেল আপডেট |
 | **10** | Guest মোড সম্পূর্ণ: মেয়াদ, session-scoped auth, guest≠family | — |
-| **11** | UI/UX পলিশ: অ্যাক্সেসিবিলিটি, অনুবাদ, empty/error states | — |
+| **11** | UI/UX পলিশ: অ্যাক্সেসিবিলিটি, অনুবাদ, empty/error states | §35 — প্রথম ধাপ v0.13.0 (৪-ট্যাব শেল) সম্পন্ন |
 | **12** | QA: ইউনিট/ইন্টিগ্রেশন/ব্যাকএন্ড/E2E (দুই ফোনে) | টেস্ট রেকর্ড docs-এ |
 | **13** | বিল্ড/রিলিজ প্রস্তুতি: signing, deploy নির্দেশনা, privacy doc | সাইডলোড APK বিতরণ |
 
