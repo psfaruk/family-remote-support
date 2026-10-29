@@ -1,4 +1,4 @@
-# Cloudflare Workers সেটআপ — kill-push স্থায়ী স্তর (Phase 14)
+# Cloudflare Workers সেটআপ — kill-push স্থায়ী স্তর (Phase 14 / 14.1)
 
 **লক্ষ্য:** Owner-এর Cloudflare ফ্রি অ্যাকাউন্টে একটি Worker চালু করা — যেটি ২৪/৭
 প্রতি মিনিটে Firestore-এর `supportSessions` দেখে **অ্যাপ-প্রসেস মরে গেলেও**
@@ -10,61 +10,104 @@
 
 ---
 
-## ধাপ ১ — Worker তৈরি
+## পদ্ধতি A — Git-connected "Workers Builds" (বর্তমান পদ্ধতি)
 
-1. Cloudflare Dashboard-এর বাম মেনু থেকে **Workers & Pages** খুলুন।
-2. **Create** → **Create Worker** চাপুন।
-3. নাম দিন: `frs-killpush` (ছোট হাতের অক্ষর, ড্যাশ ছাড়া) → **Deploy**।
-   (এখন hello-world কোড ডিপ্লয় হবে — সমস্যা নেই।)
-4. Deploy হয়ে গেলে **Edit code** চাপুন।
-5. এডিটরের বাম পাশে থাকা ডিফল্ট কোড **সব মুছে দিন** (Ctrl+A → Delete)।
-6. নিচের ফাইলের পুরো কোড কপি করে পেস্ট করুন:
-   GitHub repo → **`cloudflare/killpush-worker.js`** → ফাইলটি খুলে উপরের
-   ডান কোণায় **Copy raw file** বোতাম।
-7. ডান-উপরের **Deploy** চাপুন।
+Owner Cloudflare dashboard-এ GitHub repo যুক্ত করেছেন (deploy command:
+`npx wrangler deploy`) — প্রতিটি push-এ Cloudflare নিজেই build করে deploy করে।
 
-## ধাপ ২ — Secrets যোগ করা (২টি)
+### আগের build কেন fail করেছিল (রুট-কজ)
 
-Worker পেজ → **Settings** → **Variables and Secrets** → **Add** — দুবার:
+লগে ছিল:
+`✘ [ERROR] Could not detect a directory containing static files (e.g. html, css and js) for the project`
 
-| Type | Name | Value |
-|------|------|-------|
-| Secret | `FIREBASE_SA_JSON` | Firebase service-account JSON-এর পুরো টেক্সট (Owner-এর সংরক্ষিত কপি — `{` দিয়ে শুরু `}` দিয়ে শেষ) |
-| Secret | `KILL_TOKEN` | Assistant-এর দেওয়া ৪০-অক্ষরের টোকেন (চ্যাটে পাঠানো হয়েছে) |
+কারণ: repo root-এ **`wrangler.toml` ছিল না**। config ছাড়া wrangler বুঝতে পারেনি
+কী deploy করবে, তাই static-ফাইল-Worker ধরে চেষ্টা করেছে আর static file খুঁজে
+পায়নি। কোড বা সিনট্যাক্সের কোনো দোষ ছিল না।
 
-প্রতিটির পরে **Deploy/Save** চাপতে ভুলবেন না।
+### ফিক্স — wrangler.toml (repo root, push করা হয়েছে)
 
-> নোট: SA JSON-এ `client_email`, `private_key`, `project_id` থাকতে হবে —
-> Firebase Console → Project settings → Service accounts → যেখান থেকে আগে
-> key নেওয়া হয়েছিল, সেটিই।
+```toml
+name = "family-remote-support"
+main = "cloudflare/killpush-worker.js"
+compatibility_date = "2025-10-01"
 
-## ধাপ ৩ — Cron Trigger (প্রতি মিনিটে)
+[triggers]
+crons = ["* * * * *"]
 
-Worker পেজ → **Settings** → **Trigger Events** (Cron Triggers) → **Add Cron Trigger**:
-
-```
-* * * * *
+[observability]
+enabled = true
 ```
 
-(৫টি তারকা — মানে প্রতি মিনিটে। ফ্রি প্ল্যানে cron trigger ফ্রি।)
-Save করুন।
+- `name` — Worker-এর নাম। **আপনার Workers Builds প্রজেক্টের নামের সাথে হুবহু
+  মিলতে হবে।** আপনার build-এর নাম ভিন্ন হলে (যেমন `frs-killpush`) আমাকে জানান —
+  এই `name` বদলে দেব; না-মিললে build সফল হলেও কোড ভিন্ন Worker-এ চলে যেতে পারে।
+- `main` — আসল কোড ফাইল: `cloudflare/killpush-worker.js` (repo-তেই আছে)।
+- `[triggers]` — cron এখান থেকেই সেট হয়: **dashboard-এ আলাদা করে Cron Trigger
+  যোগ করতে হবে না।**
+- `[observability]` — sweep-এর লগ dashboard-এর **Logs** ট্যাবে দেখা যাবে।
 
-## ধাপ ৪ — পরীক্ষা
+### এখন যা হবে (ধাপে ধাপে)
 
-1. ফোন/কম্পিউটারের ব্রাউজারে খুলুন:
-   `https://frs-killpush.<আপনার-সাবডোমেইন>.workers.dev/health`
-2. দেখতে হবে: `{"ok":true,"service":"frs-killpush",...,"secretsPresent":{"FIREBASE_SA_JSON":true,"KILL_TOKEN":true},...}`
-   — `secretsPresent` দুটোই `true` হলে সেটআপ সঠিক।
-3. আসল sweep পরীক্ষা (অ্যাসিস্ট্যান্ট স্যান্ডবক্স থেকে করবে): `POST /sweep` +
-   `Authorization: Bearer <KILL_TOKEN>` → `{"ok":true,"summary":{...}}`।
+1. এই push-এর পরেই Workers Builds নিজে থেকে নতুন build চালাবে — সফল হলে
+   কোড Worker-এ চলে যাবে, cron-ও যুক্ত হবে।
+2. **Secrets (একবারই):** Worker → **Settings → Variables and Secrets → Add** — দুবার:
+
+   | Type | Name | Value |
+   |------|------|-------|
+   | Secret | `FIREBASE_SA_JSON` | Firebase service-account JSON-এর পুরো টেক্সট (Owner-এর সংরক্ষিত কপি — `{` দিয়ে শুরু `}` দিয়ে শেষ) |
+   | Secret | `KILL_TOKEN` | ৪০-অক্ষরের টোকেন (চ্যাটে পাঠানো হয়েছে) |
+
+   Secrets deploy-এ মুছে যায় না — একবার দিলেই পরের সব deploy-এ থেকে যায়।
+3. **পরীক্ষা:** ব্রাউজারে
+   `https://family-remote-support.<আপনার-সাবডোমেইন>.workers.dev/health`
+   খুলুন → `"secretsPresent":{"FIREBASE_SA_JSON":true,"KILL_TOKEN":true}`
+   দেখা গেলেই সেটআপ সঠিক।
+4. আসল sweep-পরীক্ষা (`POST /sweep` + Bearer KILL_TOKEN) আমি sandbox থেকে
+   করব — /health-এর প্রমাণ চ্যাটে পাঠালেই।
+
+### Firestore database id — লাইভ-পরীক্ষায় প্রমাণিত (কোড বদলানো হয়নি)
+
+নির্দেশনা ছিল শর্তসাপেক্ষ: "database এর নাম (default) **হলে** কোডে
+`/databases/default/` কে `/databases/(default)/` করে দিন"। তাই SA দিয়ে লাইভ
+পরীক্ষা (read-only, tmp/dbid-test.mjs) করা হলো:
+
+| পরীক্ষা | ফলাফল |
+|---|---|
+| `GET /databases/default` | **200** — canonical name `projects/remote-family-support/databases/default`, FIRESTORE_NATIVE |
+| `GET /databases/(default)` | **404** — "database '(default)' does not exist" |
+| `runQuery /databases/default/documents:runQuery` (Worker-এর হুবহু কল-shape) | **200** — rows OK |
+| doc GET `config/quality` via `default` | **200** |
+| doc GET `config/quality` via `(default)` | **404** |
+
+**উপসংহার: এই প্রজেক্টের database-এর আসল নামই `default` — কোডে
+`/databases/default/` হুবহু সঠিক, তাই কোডে শূন্য পরিবর্তন।** উল্টো
+`(default)` করা হলে প্রতিটি sweep 404-এ ভেঙে যেত। (একই `/databases/default/`
+path দিয়েই GitHub Actions স্তর বহুদিন সফলভাবে kill-push পাঠাচ্ছে — সম্মত প্রমাণ।)
+
+---
+
+## পদ্ধতি B — হাতে-কোড-পেস্ট (বিকল্প; Git-connection বাদ দিলে)
+
+1. Workers & Pages → **Create Worker** → নাম দিন `frs-killpush` → **Deploy** →
+   **Edit code**।
+2. GitHub repo → `cloudflare/killpush-worker.js` → **Copy raw file** →
+   এডিটরে পুরনো কোড মুছে পেস্ট → **Deploy**।
+3. Settings → **Variables and Secrets** → উপরের ২টি Secret → Save।
+4. Settings → **Trigger Events** → Cron Trigger `* * * * *` → Save।
+5. একই `/health` পরীক্ষা।
+
+> পদ্ধতি A ব্যবহার করলে পদ্ধতি B আর দরকার নেই — **একটি Worker-ই যথেষ্ট**;
+> দুটি চালু থাকলে একটি মুছে দিন (বিল-শূন্য, তবে বিভ্রান্তি কমাতে পরিষ্কার রাখা ভালো)।
+
+---
 
 ## এটি কী দেয়
 
 | স্তর | লেটেন্সি | স্থায়িত্ব |
 |------|----------|-----------|
 | স্যান্ডবক্স mini-service (আগের স্তর) | ~৫ সেকেন্ড | স্যান্ডবক্স চলার সময় |
-| **Cloudflare Worker (নতুন, Phase 14)** | ~৬০ সেকেন্ড | **স্থায়ী — ২৪/৭, ফ্রি** |
-| GitHub Actions cron (আগের ব্যাকস্টপ) | ~৫ মিনিট | ব্যাকস্টপ |
+| **Cloudflare Worker (স্থায়ী স্তর)** | ~৬০ সেকেন্ড | **স্থায়ী — ২৪/৭, ফ্রি** |
+| GitHub Actions cron (ব্যাকস্টপ) | ~৫ মিনিট | ব্যাকস্টপ |
 
 অনুরোধের উত্তর-সময়সীমা ২ মিনিট — তাই প্রতি-মিনিট Worker স্তরটি সবসময়
 জানালার ভেতরে পুশ পৌঁছে দেয়। একই sweep-লজিক (gate, idempotent mark,
@@ -77,12 +120,13 @@ dead-token cleanup) Node বাস্তবায়নের হুবহু �
   (১,৪৪০/দিন) + ম্যানুয়াল/অ্যাপ sweep — লিমিটের ~২%-এরও কম।
 - CPU: প্রতি invocation ১০ ms — sweep-এর সব কাজ I/O (অপেক্ষা), CPU নয়।
 - Cron trigger: ফ্রি প্ল্যানে ৫টি পর্যন্ত — আমরা ১টি ব্যবহার করছি।
+- Workers Logs (observability): ফ্রিতে দিনে ২,০০,০০০ ইভেন্ট পর্যন্ত।
 
 লিমিট পার হলে (দূর-ভবিষ্যতে, বহু পরিবার যুক্ত হলে) তখনই $5/মাস Workers Paid —
 Owner-সিদ্ধান্ত অনুযায়ী ততদিন অপেক্ষা।
 
 ## পরবর্তী (Phase 14-পরবর্তী)
 
-- **অ্যাপ-পাশের instant কল (v0.19.0):** helper ফোন সেশন-doc তৈরি করেই
-  `POST /sweep` ডাকবে (fire-and-forget) → পুশ ~১-২ সেকেন্ডে।
+- **অ্যাপ-পাশের instant কল (Phase 14b, v0.19.0-প্রার্থী):** helper ফোন সেশন-doc
+  তৈরি করেই `POST /sweep` ডাকবে (fire-and-forget) → পুশ ~১-২ সেকেন্ডে।
 - টোকেন rotate: প্রয়োজন হলে নতুন টোকেন জেনারেট করে Secret আপডেট করলেই হবে।
