@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Phase 8 (v0.9.0) — Remote assist configuration.
-     canRetrieveWindowContent=false is the privacy cornerstone: the service
-     performs taps ONLY and can never read the screen (no passwords, no
-     messages, nothing). canPerformGestures is the single granted capability. -->
+     v0.12.0 (Phase 8.3 completion): canRetrieveWindowContent is now TRUE —
+     its ONLY consumer is the typing command, which searches the window tree
+     for the focused editable field to place the helper's text into
+     (ACTION_SET_TEXT). The code never reads node text, never logs or stores
+     screen content, and exposes no API that could — AssistService.kt's shape
+     enforces it. canPerformGestures still drives taps/swipes/long-presses;
+     the grantor can switch the service off at any moment to go back to
+     view-only. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/assist_service_description"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
     android:canPerformGestures="true"
-    android:canRetrieveWindowContent="false"
+    android:canRetrieveWindowContent="true"
     android:notificationTimeout="100" />
