@@ -1,0 +1,23 @@
+# Family Remote Support — kill-push permanent tier (Phase 14, infra only).
+# Deployed automatically by Cloudflare Workers Builds on every push to main
+# (deploy command: npx wrangler deploy).
+#
+# Worker code: cloudflare/killpush-worker.js — zero-dependency, exact port of
+# scripts/fcm-kill-push.mjs (the proven Node sweep). Single file, no bundling.
+#
+# Secrets (dashboard → Worker → Settings → Variables and Secrets, set ONCE —
+# they survive deploys):
+#   FIREBASE_SA_JSON  — full Firebase service-account JSON
+#   KILL_TOKEN        — shared bearer token for POST /sweep
+#
+# NOTE: `name` must match the Workers Builds project name exactly.
+
+name = "family-remote-support"
+main = "cloudflare/killpush-worker.js"
+compatibility_date = "2025-10-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
