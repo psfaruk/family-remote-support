@@ -14,6 +14,13 @@
 #
 # Note: GitHub disables scheduled workflows after 60 days of repository
 # inactivity — the repo is actively developed, but keep it in mind.
+#
+# 2026-10-29 observed reality: after landing on main (04:03 UTC) the schedule
+# fired only ONCE (10:50 UTC) and then went silent for hours — the known
+# GitHub "scheduled workflow runs sporadically" behavior. Touching this file
+# (this comment) re-registers the schedule. This tier is a best-effort
+# backstop only; PERMANENT every-minute coverage is the Cloudflare Worker
+# tier (cloudflare/killpush-worker.js + wrangler.toml cron trigger).
 name: kill-push
 
 on:
