@@ -5,7 +5,16 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **Phase 14 ✅ (infra, APK unchanged — versionCode stays 36) — KILL-PUSH PERMANENT TIER on
+- **Phase 11.8 ✅ (v0.18.1, versionCode 37) — CONNECT-FLOW DISCOVERABILITY FIX:** Owner report
+  (with screenshots) that the helper-side QR scanner and code import were invisible — root
+  cause: Phase 11 (v0.13.0) buried the helper section at the bottom of the long phone tab and
+  Phase 11.5 (v0.14.0) then moved the whole connect flow behind the small FAB sheet, while the
+  Owner's test phone was still on v0.13.0 (build 31), five releases behind. Fix: a permanent
+  always-visible "ফোন যুক্ত করুন · দুই ভাবে" card near the top of the phone tab with two
+  one-tap actions — "QR স্ক্যান · সাহায্য করব" (same QrScanDialog → same Phase-12 scan-to-setup
+  journey) and "কোড ইমপোর্ট · নতুন কোড বানান" (opens the pair sheet); tab-level dialog guarded
+  against double-render; empty-state hint points at the card. No backend/rules/signaling change.
+- **Phase 14 ✅ (infra, APK unchanged — versionCode stays 36→37) — KILL-PUSH PERMANENT TIER on
   Cloudflare Workers (free plan):** Owner opened a Cloudflare account and set the infra policy
   (no paid relay — free limits first; simple shared-token auth to start, tighten later; publish
   Uptodown first, Play Store after observation). `cloudflare/killpush-worker.js` is a
