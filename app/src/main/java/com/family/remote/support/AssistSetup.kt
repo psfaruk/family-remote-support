@@ -3,6 +3,7 @@ package com.family.remote.support
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.provider.Settings
 
 /**
@@ -62,11 +63,20 @@ object AssistSetup {
      * extra key is the (hidden but stable) Settings fragment argument —
      * inlined as a literal because EXTRA_FRAGMENT_ARG_KEY is @hide in the
      * public SDK. Falls back to the plain list when an OEM ignores it.
+     *
+     * v0.21.0 (audit): AOSP reads this extra as a BUNDLE — the old code put
+     * the flat string directly, so SettingsActivity got null from
+     * getBundleExtra and the scroll/highlight silently never happened (the
+     * v0.9.5 "wrong accessibility switch" guide fix had degraded to the
+     * plain maze list).
      */
     fun openAssistSettings(context: Context) {
         try {
             val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            i.putExtra(":settings:show_fragment_args", flatString(context))
+            val args = Bundle().apply {
+                putString(":settings:fragment_args_key", flatString(context))
+            }
+            i.putExtra(":settings:show_fragment_args", args)
             context.startActivity(i)
         } catch (_: Exception) {
             try {
