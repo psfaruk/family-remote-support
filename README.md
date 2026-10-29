@@ -121,7 +121,14 @@ A trusted family member helps fix another family phone — always with the recei
   tokens; the OS displays it in the `support_session_requests` channel from the killed
   state, and tapping it cold-starts the app into the in-app ask card. Idempotent
   (killPushSentAt mark), only pushes asks whose 2-minute answer window is still open,
-  auto-deletes UNREGISTERED tokens, and ships no new app dependencies.
+  auto-deletes UNREGISTERED tokens, and ships no new app dependencies; v0.9.9 —
+  remote SWIPE and LONG-PRESS join the tap (Phase 8.3): the helper's real drag
+  duration travels with each swipe (slow finger = slow scroll), long-press opens
+  context menus, and both land with the same real-display precision as taps —
+  still zero window-content retrieval. Plus low-bitrate-when-relayed: the sender
+  checks WebRTC stats 6 s after connect and, if the selected path is a TURN
+  relay, caps the stream at 1500 kbps so the metered.ca free tier lasts instead
+  of burning in ~17 minutes (direct/hotspot never capped).
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
