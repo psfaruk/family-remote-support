@@ -5,6 +5,23 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
+- **Phase 16 ✅ (v0.20.0, versionCode 39) — TAB RESTRUCTURE + HOME SHOWCASE + 15 LANGUAGES +
+  PRIVACY DOCS:** Owner review of build 38 drove five visible changes and zero security-logic
+  changes. (1) Bottom nav is now হোম · ফোন · লাইভ লোকেশন · সেটিংস — the একটিভিটি tab is gone
+  (its session-activity + paired-phones cards merged into Settings) and the Live-location tab
+  is an honest placeholder ("coming in a future update", nothing collected — Owner: work starts
+  later). (2) Home is an app SHOWCASE: hero welcome card (identity + one-line promise + sign-in
+  for signed-out users), a "what this app can do" feature grid with honest explainer popups,
+  and one compact setup strip — the technical 2×2 status grid, device list and quick-action
+  tiles moved to Settings. (3) Settings gained a user PROFILE (editable display name → Firebase
+  profile + users/{uid}), a 15-language selector (English default on fresh install; bn, hi, ar,
+  es, fr, pt, ru, id, ur, tr, de, zh, ja, ne; applied via attachBaseContext Locale wrap +
+  activity recreate; native names never translated), full in-app PRIVACY POLICY + USAGE RULES
+  documents (EN + BN), a one-tap TEST NOTIFICATION probe on the real session-request channel,
+  an About dialog WITHOUT Firebase project/app ids (privacy fix), and sign-out as the last row.
+  (4) The duplicate add-phone FAB is removed — the permanent top card is the single entry.
+  (5) Copy/Save/Share confirm themselves with toasts. New res/values-XX string files for 13
+  locales; privacy/rules bodies intentionally EN+BN only.
 - **Phase 11.8 ✅ (v0.18.1, versionCode 37) — CONNECT-FLOW DISCOVERABILITY FIX:** Owner report
   (with screenshots) that the helper-side QR scanner and code import were invisible — root
   cause: Phase 11 (v0.13.0) buried the helper section at the bottom of the long phone tab and
