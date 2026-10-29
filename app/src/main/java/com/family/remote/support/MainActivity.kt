@@ -1987,10 +1987,7 @@ private fun ScreenSharePanel(
                     }
                 }
                 // v0.12.0 (Phase 8.3 completion) — the typing entry point.
-                WideOutlinedButton(
-                    onClick = { showTypeDialog = true },
-                    modifier = Modifier.heightIn(min = 48.dp)
-                ) {
+                WideOutlinedButton(onClick = { showTypeDialog = true }) {
                     Text("⌨ Type text · লেখা টাইপ করুন")
                 }
                 WideOutlinedButton(onClick = { fullscreen = true }) {
