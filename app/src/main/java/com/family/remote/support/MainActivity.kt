@@ -1120,6 +1120,17 @@ fun HomeScreen() {
                 }
             )
         }
+        // Phase 15 — the approval ask as a CENTERED modal, app-wide (any
+        // tab, in front of the eyes). Same Firestore grant/deny as the home
+        // card; the security rules re-verify everything either way.
+        val askMe = openSession
+        val askUser = signedInUser
+        if (askUser != null && askMe != null &&
+            askMe.status == "REQUESTED" &&
+            askMe.recipientUid == askUser.uid
+        ) {
+            HomeConsentDialog(session = askMe, user = askUser)
+        }
     }
 
     PermissionWizard(
@@ -1301,15 +1312,10 @@ private fun HomeTab(
             HomeLiveHintCard(session = openSession, myUid = signedInUser.uid)
         }
     }
-    // Phase 15 (v0.19.0) — the same ask ALSO arrives as a CENTERED modal,
-    // in front of the eyes (Owner report: popups must never hide below
-    // the fold). Dismissing it decides nothing — the card stays on home.
-    if (signedInUser != null && openSession != null &&
-        openSession.status == "REQUESTED" &&
-        openSession.recipientUid == signedInUser.uid
-    ) {
-        HomeConsentDialog(session = openSession, user = signedInUser)
-    }
+    // Phase 15 (v0.19.0) — the approval ask surfaces as a CENTERED modal at
+    // the ROOT level (any tab), in front of the eyes (Owner report: popups
+    // must never hide below the fold). Dismissing it decides nothing — the
+    // card stays on home. Rendered app-wide in the root Box below.
 
     Text(
         text = "পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।",
@@ -2662,15 +2668,6 @@ private fun PairingSections(
         SessionUiBus.fullscreen = false
         SessionUiBus.stopConfirm = false
         SessionUiBus.typeDialog = false
-    }
-
-    // Phase 15 — when an approval ask arrives, jump to the home tab so the
-    // centered consent dialog + card are in front of the eyes immediately.
-    LaunchedEffect(openSession?.id, openSession?.status) {
-        val ask = openSession
-        if (ask != null && ask.status == "REQUESTED" && ask.recipientUid == user.uid) {
-            tab = 0
-        }
     }
 
     // Ticks once per second while a session is open so countdowns stay live.
