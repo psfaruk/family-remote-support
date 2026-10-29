@@ -24,6 +24,9 @@ rules_version = '2';
 //   screen share (offer/answer/ICE/watch/bye). Docs are addressed to
 //   one reader (aud), only participants of an ACTIVE session may
 //   write, and a writer may only address the OTHER participant.
+// Phase 9: hardening audit — fcmTokens fields are type-checked and
+//   size-bounded. Everything else survived the negative-probe suite
+//   (scripts/rules-negative-probe.mjs) unchanged.
 // Everything not matched below is denied by default.
 // ============================================================
 
@@ -195,13 +198,19 @@ service cloud.firestore {
     // ---------- Phase 5: FCM token registry ----------
     // Push registration only — sending notifications is a server-side concern
     // in a later phase. Tokens are strictly private to their owner.
+    // v0.10.0 (Phase 9): type-checked fields + an upper size bound — a real
+    // FCM token is 100–200 chars; 4096 keeps hostile writes out without
+    // ever rejecting a legitimate refresh.
     match /fcmTokens/{tokenId} {
       allow get, list: if signedIn() && resource.data.uid == request.auth.uid;
       allow create, update: if signedIn()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid', 'deviceId', 'token', 'updatedAt'])
+        && request.resource.data.uid is string
+        && request.resource.data.deviceId is string
         && request.resource.data.token is string
-        && request.resource.data.token.size() >= 32;
+        && request.resource.data.token.size() >= 32
+        && request.resource.data.token.size() <= 4096;
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
