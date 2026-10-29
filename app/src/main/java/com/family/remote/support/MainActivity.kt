@@ -996,6 +996,38 @@ fun HomeScreen() {
                         busy = true
                         scope.launch {
                             try {
+                                // Phase 13 — sign-out hygiene: while still
+                                // authenticated, delete this device's presence
+                                // heartbeat + push token (rules-allowed
+                                // self-deletes), so paired phones immediately
+                                // stop seeing "Online" and a signed-out phone
+                                // stops receiving session-request push. The
+                                // periodic WorkManager heartbeat is left
+                                // scheduled on purpose — HeartbeatWorker
+                                // no-ops without a signed-in user, and the
+                                // KEEP policy means re-sign-in needs no
+                                // re-scheduling. Best-effort: sign-out always
+                                // proceeds; any failure becomes an honest
+                                // notice on the login screen.
+                                var cleanupNote: String? = null
+                                val currentUser = FirebaseAuth.getInstance().currentUser
+                                if (currentUser != null) {
+                                    val clean = try {
+                                        deleteOwnPresenceAndToken(
+                                            currentUser.uid,
+                                            stableDeviceId(context)
+                                        )
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (_: Exception) {
+                                        false
+                                    }
+                                    if (!clean) {
+                                        cleanupNote = "সাইন-আউট হয়েছে — তবে নেটওয়ার্ক-সমস্যায় এই ফোনের " +
+                                            "উপস্থিতি/পুশ-টোকেন মুছা যায়নি। পরে ইন্টারনেট সহ সাইন-ইন করে " +
+                                            "আবার সাইন-আউট করলেই পরিষ্কার হয়ে যাবে।"
+                                    }
+                                }
                                 FirebaseAuth.getInstance().signOut()
                                 try {
                                     CredentialManager.create(context)
@@ -1006,7 +1038,13 @@ fun HomeScreen() {
                                 signedInUser = null
                                 deviceStatus = "Not checked yet"
                                 deviceList = emptyList()
+                                presenceStatus = "Signed out"
+                                pushStatus = "Signed out"
                                 statusMessage = null
+                                authMessage = null
+                                authNotice = cleanupNote
+                                    ?: "সাইন-আউট সম্পন্ন — এই ফোনের উপস্থিতি ও পুশ-টোকেন " +
+                                        "সার্ভার থেকে মুছে ফেলা হয়েছে।"
                             } catch (e: Exception) {
                                 statusMessage = "Sign-out failed: ${e.message}"
                             } finally {
