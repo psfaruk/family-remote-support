@@ -5,6 +5,36 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
+- **Phase 11.6 ✅ (v0.15.0, versionCode 33) — DESIGN SYSTEM + DARK MODE:** one design
+  source (`ui/Theme.kt`: light #246BFD blue + full dark scheme, senior type scale,
+  shapes/spacing tokens), Settings appearance group (System/Light/Dark, persisted,
+  flash-free first frame), `StatusBadge` (color+icon+text) across consent/activity/QR,
+  200dp white-plate QR with last-30 s warning, Guest countdown chip, friendly bilingual
+  errors, permission-wizard progress circles, ⓘ popups, 48dp touch targets, per-tab
+  scroll + imePadding, theme-aware window background + two vector illustrations. No
+  fake data anywhere; all Firestore/rules/FCM/WebRTC logic untouched.
+- **Phase 11.7 ✅ (v0.16.0, versionCode 34) — REAL LOGIN/SIGN-UP GATE:** the app now
+  BEGINS at a full-screen AuthGate (hero, tagline, trust chip, Login/Sign-up pill
+  toggle, name/email/password/confirm with inline errors, password reset, Google
+  option) per Owner direction; Email/Password provider enabled in Firebase; sign-in
+  gated wizard auto-open; sign-out returns to the gate.
+- **Phase 12 ✅ (v0.17.0, versionCode 35) — ROLE-TYPED QR + SCAN→SETUP:** Family and
+  Guest codes are visually distinct (560px ECC-H QR with a white center plate: 👪
+  Family / ⏳ Guest glyph, F/G fallback), the payload carries a cosmetic role marker
+  (`&k=fam|gst`), the scanner shows a Bangla viewfinder with a transparent center +
+  legend chips, and scanning opens a role-preview → confirm → AUTO-SETUP sheet. The
+  final role still comes from the server transaction; rules untouched — a guest can
+  never become family.
+- **Phase 13 ✅ (v0.18.0, versionCode 36) — SIGN-OUT HYGIENE + CI RELEASE GATE:**
+  signing out now deletes this device's `devicePresence` heartbeat and its
+  `fcmTokens` documents (rules-allowed self-deletes, no rules change) BEFORE auth is
+  cleared — paired phones stop seeing "Online" immediately and a signed-out phone
+  stops receiving session-request push; best-effort with an honest notice on the
+  login screen if the network failed. The periodic heartbeat work is intentionally
+  left scheduled (the worker no-ops signed-out). CI now runs
+  `scripts/verify-apk-axml.mjs` against every built release APK (versionCode INT_DEC
+  + versionName + v2 signature + stale-version probe) and posts the result to the
+  run summary — the previously manual Owner-side gate is automated.
 - **Phase 0–6 ✅** — planning, skeleton, Firebase + Google Sign-In, device registry, pairing
   (code + QR + Copy/Save/Share), presence + FCM registration + QR scan + revoke, and the
   **support session consent flow** — Start session → 2-min Allow/Deny ask → 15-min auto-ending
@@ -266,7 +296,10 @@ A trusted family member helps fix another family phone — always with the recei
 
 Every push to `main` runs the "Android Build" workflow and uploads `app-release-apk` and
 `app-debug-apk` artifacts. Release APKs are signed with the CI keystore (GitHub Secrets),
-so every version over-installs cleanly on the Owner's phone.
+so every version over-installs cleanly on the Owner's phone. Since v0.18.0 the workflow
+also runs `scripts/verify-apk-axml.mjs` against the built release APK — versionCode
+(INT_DEC), versionName, stale-version probe and the v2 signing block are asserted in CI
+and echoed into the run summary (exit 1 fails the build).
 
 ## Tech notes
 
