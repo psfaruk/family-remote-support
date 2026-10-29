@@ -34,19 +34,34 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -57,6 +72,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -327,6 +343,16 @@ fun HomeScreen() {
     var registerRetryKey by remember { mutableStateOf(0) }
     var presenceStatus by remember { mutableStateOf("Not sent yet") }
     var pushStatus by remember { mutableStateOf("Not set up yet") }
+    // Phase 11 — this device's id, for the top-bar presence chip.
+    var ownDeviceId by remember { mutableStateOf("") }
+
+    // Phase 11 — bottom navigation: 0 হোম · 1 ফোন · 2 একটিভিটি · 3 সেটিংস.
+    var tab by rememberSaveable { mutableStateOf(0) }
+
+    // Phase 11 — the permission wizard is an app-level overlay now, so a tab
+    // switch can never close it mid-step.
+    var showWizard by remember { mutableStateOf(false) }
+    var permSummary by remember { mutableStateOf(readPermChecklist(context)) }
 
     val webClientConfigured = remember { BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank() }
     val firebaseProjectId = remember {
@@ -351,6 +377,43 @@ fun HomeScreen() {
         SessionNotifier.start(context)
     }
 
+    // Phase 11 — one light session listener drives BOTH the bell badge and
+    // the home tab's consent/hint cards. PairingCard keeps its own listener
+    // for its interactive cards; both are rules-bound capped queries.
+    var homeSessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
+    DisposableEffect(signedInUser?.uid) {
+        val user = signedInUser
+        if (user == null) {
+            homeSessions = emptyList()
+            onDispose { }
+        } else {
+            val stop = watchSessions(
+                user,
+                onUpdate = { homeSessions = it },
+                onError = { homeSessions = emptyList() } // badge is best-effort
+            )
+            onDispose { stop() }
+        }
+    }
+    val openSession = homeSessions.firstOrNull {
+        it.status == "REQUESTED" || it.status == "ACTIVE"
+    }
+    val pendingAsk = openSession != null &&
+        openSession.status == "REQUESTED" &&
+        openSession.recipientUid == signedInUser?.uid
+
+    // v0.9.5 wizard auto-opens on first run; the checklist refreshes every
+    // 2.5 s regardless of which tab is showing.
+    LaunchedEffect(Unit) {
+        if (!isPermissionWizardDone(context)) showWizard = true
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            permSummary = readPermChecklist(context)
+            delay(2500)
+        }
+    }
+
     // After sign-in (or on app open while signed in): refresh device record + list.
     // registerRetryKey lets the user retry manually if the Firestore write failed
     // (e.g. rules not published yet or a flaky network).
@@ -359,6 +422,7 @@ fun HomeScreen() {
         deviceStatus = "Registering this device…"
         try {
             val deviceId = registerDevice(context, user)
+            ownDeviceId = deviceId
             deviceStatus = "Registered ✓ (id ${deviceId.take(8)}…)"
             // Phase 5 — presence heartbeat + push token registration.
             try {
@@ -385,228 +449,740 @@ fun HomeScreen() {
         }
     }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                showPresence = signedInUser != null && ownDeviceId.isNotBlank(),
+                presenceUid = signedInUser?.uid,
+                presenceDeviceId = ownDeviceId,
+                pendingAsk = pendingAsk,
+                onBellClick = { tab = 2 }
+            )
+        },
+        bottomBar = { AppBottomNav(tab = tab, onSelect = { tab = it }) }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Family Remote Support",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Help your family with their phone — always with their clear permission.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            StatusRow(
-                label = "App version · সংস্করণ",
-                value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
-            )
-
-            // v0.9.5 — PERMISSION WIZARD. The Owner asked for "সব পারমিশন
-            // ইনস্টল/ওপেনের সময়" — Android cannot grant runtime permissions
-            // at install time, so this is the honest equivalent: the FIRST
-            // open auto-launches the checklist (notifications, camera,
-            // Remote-assist accessibility, battery exemption) with live
-            // state; the card below re-opens it any time.
-            var showWizard by remember { mutableStateOf(false) }
-            var permSummary by remember { mutableStateOf(readPermChecklist(context)) }
-            LaunchedEffect(Unit) {
-                if (!isPermissionWizardDone(context)) showWizard = true
-            }
-            LaunchedEffect(Unit) {
-                while (true) {
-                    permSummary = readPermChecklist(context)
-                    delay(2500)
-                }
-            }
-            SectionCard(title = "Permissions · পারমিশন") {
-                if (permSummary.allDone) {
-                    Text(
-                        text = "সব পারমিশন চালু ✓ — অ্যাপ পুরোপুরি প্রস্তুত।",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                } else {
-                    Text(
-                        text = "চালু ${permSummary.doneCount}/4 — বাকি: ${permSummary.missingNamesBn()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "সব ফিচার মসৃণ চালাতে বাকিগুলো একবার চালু করুন।",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                WideOutlinedButton(onClick = { showWizard = true }) {
-                    Text("Permission check · পারমিশন চেক খুলুন")
-                }
-            }
-            PermissionWizard(
-                visible = showWizard,
-                onDismiss = {
-                    showWizard = false
-                    markPermissionWizardDone(context)
-                }
-            )
-
-            // Phase 9 (T1) — pairing is the heart of the app, so its card
-            // moved up right under the account; the dev-console rows moved
-            // into a collapsed About card and the dead "Phase 2 build check"
-            // card is retired (the About card carries the same Firebase
-            // facts).
-            SectionCard(title = "Account · অ্যাকাউন্ট") {
-                if (!webClientConfigured) {
-                    Text(
-                        text = "Sign-in is disabled in this build: the Web Client ID is not set yet. " +
-                            "Finish the Firebase console steps in the web guide, send the Web Client ID " +
-                            "to your assistant, and install the next build.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                if (signedInUser == null) {
-                    BigButton(
-                        enabled = webClientConfigured && !busy,
-                        onClick = {
-                            if (activity != null) {
-                                busy = true
-                                statusMessage = null
-                                scope.launch {
-                                    try {
-                                        signedInUser = signInWithGoogle(activity)
-                                    } catch (e: GetCredentialException) {
-                                        statusMessage = "Sign-in cancelled or failed: ${e.type}"
-                                    } catch (e: Exception) {
-                                        statusMessage = "Sign-in failed: ${e.message}"
-                                    } finally {
-                                        busy = false
-                                    }
-                                }
-                            }
-                        }
-                    ) {
-                        if (busy) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Sign in with Google · গুগল দিয়ে সাইন ইন")
-                        }
-                    }
-                } else {
-                    val user = signedInUser
-                    StatusRow(label = "Signed in as", value = user?.email ?: "(no email)")
-                    StatusRow(label = "Name", value = user?.displayName ?: "(no name)")
-                    Text(
-                        text = "Your account and device are stored only in your own Firebase project.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    WideOutlinedButton(
-                        enabled = !busy,
-                        onClick = {
+            when (tab) {
+                0 -> HomeTab(
+                    signedInUser = signedInUser,
+                    deviceStatus = deviceStatus,
+                    presenceStatus = presenceStatus,
+                    pushStatus = pushStatus,
+                    deviceList = deviceList,
+                    permSummary = permSummary,
+                    openSession = openSession,
+                    onOpenWizard = { showWizard = true },
+                    onRetryRegistration = { registerRetryKey++ },
+                    onGoPairing = { tab = 1 },
+                    onGoActivity = { tab = 2 }
+                )
+                1 -> PairingCard(signedInUser = signedInUser)
+                2 -> ActivityTab(user = signedInUser)
+                else -> SettingsTab(
+                    signedInUser = signedInUser,
+                    busy = busy,
+                    statusMessage = statusMessage,
+                    webClientConfigured = webClientConfigured,
+                    firebaseProjectId = firebaseProjectId,
+                    firebaseAppId = firebaseAppId,
+                    onSignIn = {
+                        if (activity != null) {
                             busy = true
+                            statusMessage = null
                             scope.launch {
                                 try {
-                                    FirebaseAuth.getInstance().signOut()
-                                    try {
-                                        CredentialManager.create(context)
-                                            .clearCredentialState(ClearCredentialStateRequest())
-                                    } catch (_: Exception) {
-                                        // clearing credential state is best-effort
-                                    }
-                                    signedInUser = null
-                                    deviceStatus = "Not checked yet"
-                                    deviceList = emptyList()
-                                    statusMessage = null
+                                    signedInUser = signInWithGoogle(activity)
+                                } catch (e: GetCredentialException) {
+                                    statusMessage = "Sign-in cancelled or failed: ${e.type}"
                                 } catch (e: Exception) {
-                                    statusMessage = "Sign-out failed: ${e.message}"
+                                    statusMessage = "Sign-in failed: ${e.message}"
                                 } finally {
                                     busy = false
                                 }
                             }
                         }
-                    ) {
-                        Text("Sign out · সাইন আউট")
+                    },
+                    onSignOut = {
+                        busy = true
+                        scope.launch {
+                            try {
+                                FirebaseAuth.getInstance().signOut()
+                                try {
+                                    CredentialManager.create(context)
+                                        .clearCredentialState(ClearCredentialStateRequest())
+                                } catch (_: Exception) {
+                                    // clearing credential state is best-effort
+                                }
+                                signedInUser = null
+                                deviceStatus = "Not checked yet"
+                                deviceList = emptyList()
+                                statusMessage = null
+                            } catch (e: Exception) {
+                                statusMessage = "Sign-out failed: ${e.message}"
+                            } finally {
+                                busy = false
+                            }
+                        }
                     }
-                }
-                statusMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+
+    PermissionWizard(
+        visible = showWizard,
+        onDismiss = {
+            showWizard = false
+            markPermissionWizardDone(context)
+        }
+    )
+}
+
+/** Phase 11 — top bar: app name + live presence chip + notification bell. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppTopBar(
+    showPresence: Boolean,
+    presenceUid: String?,
+    presenceDeviceId: String,
+    pendingAsk: Boolean,
+    onBellClick: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text(
+                text = "Family Remote Support",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        actions = {
+            if (showPresence) {
+                PresenceChip(uid = presenceUid, deviceId = presenceDeviceId)
+            }
+            IconButton(onClick = onBellClick) {
+                BadgedBox(badge = { if (pendingAsk) Badge() }) {
+                    Icon(
+                        imageVector = Icons.Filled.Notifications,
+                        contentDescription = "Notifications · নোটিফিকেশন"
                     )
                 }
             }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
 
-            PairingCard(signedInUser = signedInUser)
+/** Phase 11 — bottom navigation, four senior-friendly tabs. */
+@Composable
+private fun AppBottomNav(tab: Int, onSelect: (Int) -> Unit) {
+    NavigationBar {
+        NavigationBarItem(
+            selected = tab == 0,
+            onClick = { onSelect(0) },
+            icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+            label = { Text("হোম") }
+        )
+        NavigationBarItem(
+            selected = tab == 1,
+            onClick = { onSelect(1) },
+            icon = { Icon(Icons.Filled.Phone, contentDescription = null) },
+            label = { Text("ফোন") }
+        )
+        NavigationBarItem(
+            selected = tab == 2,
+            onClick = { onSelect(2) },
+            icon = { Icon(Icons.Filled.Notifications, contentDescription = null) },
+            label = { Text("একটিভিটি") }
+        )
+        NavigationBarItem(
+            selected = tab == 3,
+            onClick = { onSelect(3) },
+            icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+            label = { Text("সেটিংস") }
+        )
+    }
+}
 
-            SectionCard(title = "This device · এই ফোন") {
-                Text(
-                    text = deviceStatus,
-                    style = MaterialTheme.typography.bodyMedium
+/**
+ * Phase 11 — tiny live presence chip for the top bar: green-ish dot while
+ * this device's heartbeat is fresh, muted otherwise. Honest label only.
+ */
+@Composable
+private fun PresenceChip(uid: String?, deviceId: String) {
+    var heartbeatAt by remember(uid, deviceId) { mutableStateOf<Long?>(null) }
+    var unavailable by remember(uid, deviceId) { mutableStateOf(false) }
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(uid, deviceId) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(10_000)
+        }
+    }
+    DisposableEffect(uid, deviceId) {
+        val stopWatching = if (uid != null && deviceId.isNotBlank()) {
+            watchDevicePresence(
+                uid,
+                deviceId,
+                onChange = { view ->
+                    unavailable = false
+                    heartbeatAt = view?.heartbeatAtMillis
+                },
+                onError = { unavailable = true }
+            )
+        } else {
+            null
+        }
+        onDispose { stopWatching?.invoke() }
+    }
+
+    val age = heartbeatAt?.let { nowMillis - it } ?: -1L
+    val online = !unavailable && heartbeatAt != null && heartbeatAt != 0L &&
+        age >= 0 && age < PRESENCE_ONLINE_MILLIS
+    val label = when {
+        uid == null || deviceId.isBlank() -> "…"
+        unavailable -> "অবস্থা জানা যাচ্ছে না"
+        online -> "অনলাইন"
+        heartbeatAt == null || heartbeatAt == 0L -> "…"
+        else -> "অফলাইন"
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(
+                    color = when {
+                        online -> MaterialTheme.colorScheme.tertiary
+                        unavailable -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    },
+                    shape = CircleShape
                 )
-                if (deviceStatus.startsWith("Registration failed")) {
-                    WideOutlinedButton(onClick = { registerRetryKey++ }) {
-                        Text("Retry registration · আবার চেষ্টা করুন")
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Phase 11 — হোম ট্যাব: গ্রহীতা-সম্মতি কার্ড সবার উপরে (অনুরোধ এলেই), তারপর
+ * ভার্সন, পারমিশন-সারসংক্ষেপ, এই-ফোন স্ট্যাটাস ও দ্রুত-অ্যাকশন।
+ */
+@Composable
+private fun HomeTab(
+    signedInUser: FirebaseUser?,
+    deviceStatus: String,
+    presenceStatus: String,
+    pushStatus: String,
+    deviceList: List<String>,
+    permSummary: PermChecklist,
+    openSession: SessionView?,
+    onOpenWizard: () -> Unit,
+    onRetryRegistration: () -> Unit,
+    onGoPairing: () -> Unit,
+    onGoActivity: () -> Unit
+) {
+    if (signedInUser != null && openSession != null) {
+        if (openSession.status == "REQUESTED" &&
+            openSession.recipientUid == signedInUser.uid
+        ) {
+            // The consent card leads the default tab — no hunting for it.
+            HomeConsentCard(session = openSession, user = signedInUser)
+        } else {
+            Text(
+                text = when {
+                    openSession.status == "REQUESTED" ->
+                        "📨 ${openSession.recipientEmail}-কে অনুমতির অনুরোধ পাঠানো হয়েছে — 'ফোন' ট্যাবে বিস্তারিত।"
+                    openSession.helperUid == signedInUser.uid ->
+                        "🟢 ${openSession.recipientEmail}-এর ফোনে সেশন চলছে — 'ফোন' ট্যাবে ভিডিও ও নিয়ন্ত্রণ।"
+                    else ->
+                        "🟢 ${openSession.helperEmail.ifBlank { "Someone" }} আপনার ফোনে সাহায্য করছেন — 'ফোন' ট্যাবে বিস্তারিত।"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+
+    Text(
+        text = "Help your family with their phone — always with their clear permission.",
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Text(
+        text = "পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    StatusRow(
+        label = "App version · সংস্করণ",
+        value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+    )
+
+    SectionCard(title = "Permissions · পারমিশন") {
+        if (permSummary.allDone) {
+            Text(
+                text = "সব পারমিশন চালু ✓ — অ্যাপ পুরোপুরি প্রস্তুত।",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+        } else {
+            Text(
+                text = "চালু ${permSummary.doneCount}/4 — বাকি: ${permSummary.missingNamesBn()}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "সব ফিচার মসৃণ চালাতে বাকিগুলো একবার চালু করুন।",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        WideOutlinedButton(onClick = onOpenWizard) {
+            Text("Permission check · পারমিশন চেক খুলুন")
+        }
+    }
+
+    SectionCard(title = "This device · এই ফোন") {
+        Text(
+            text = deviceStatus,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        if (deviceStatus.startsWith("Registration failed")) {
+            WideOutlinedButton(onClick = onRetryRegistration) {
+                Text("Retry registration · আবার চেষ্টা করুন")
+            }
+        }
+        if (signedInUser != null) {
+            StatusRow(label = "Presence · অনলাইন", value = presenceStatus)
+            StatusRow(label = "Push · নোটিফিকেশন", value = pushStatus)
+        }
+        if (deviceList.isEmpty()) {
+            Text(
+                text = "No devices on this account yet.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            Text(
+                text = "Devices on this account:",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium
+            )
+            deviceList.forEachIndexed { index, entry ->
+                if (index > 0) HorizontalDivider()
+                Text(
+                    text = entry,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+
+    Text(
+        text = "দ্রুত অ্যাকশন · Quick actions",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+    WideOutlinedButton(onClick = onGoPairing) {
+        Text("Pair a phone · ফোন যুক্ত করুন")
+    }
+    WideOutlinedButton(onClick = onGoActivity) {
+        Text("See activity · একটিভিটি দেখুন")
+    }
+}
+
+/**
+ * Phase 11 — the recipient-side consent card, now on the home tab. Same
+ * Firestore actions as the pairing card's consent card (grant/deny); the
+ * security rules re-verify everything either way.
+ */
+@Composable
+private fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(session.id) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "${session.helperEmail.ifBlank { "Someone" }} এই ফোনে সাহায্য করতে চাইছেন।",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (session.kind == "guest") {
+                Text(
+                    text = "Guest (সাময়িক) সাহায্যকারী — এই লিংক দেওয়ার ২ ঘণ্টা পরে নিজেই " +
+                        "মুছে যাবে; সেশনটিও তার মেয়াদের মধ্যেই শেষ হবে।",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            val secondsLeft =
+                ((session.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
+            Text(
+                text = "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে। " +
+                    "(Allow only if you know them.)",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            message?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (it.contains("✓")) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
                     }
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = !busy,
+                    onClick = {
+                        busy = true
+                        scope.launch {
+                            try {
+                                grantSession(session.id, user.uid)
+                                message = "অনুমতি দেওয়া হয়েছে ✓ — 'ফোন' ট্যাবে সেশন দেখুন।"
+                            } catch (e: SessionException) {
+                                message = e.message
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                message = "অনুমতি দেওয়া যায়নি: ${describeFirestoreError(e)}"
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 52.dp)
+                ) {
+                    Text("Allow · অনুমতি দিন", fontWeight = FontWeight.Bold)
                 }
-                if (signedInUser != null) {
-                    StatusRow(label = "Presence · অনলাইন", value = presenceStatus)
-                    StatusRow(label = "Push · নোটিফিকেশন", value = pushStatus)
+                OutlinedButton(
+                    enabled = !busy,
+                    onClick = {
+                        busy = true
+                        scope.launch {
+                            try {
+                                denySession(session.id, user.uid)
+                                message = "অনুরোধ প্রত্যাখ্যাত হয়েছে।"
+                            } catch (e: SessionException) {
+                                message = e.message
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                message = "প্রত্যাখ্যান করা যায়নি: ${describeFirestoreError(e)}"
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 52.dp)
+                ) {
+                    Text("Deny · না", fontWeight = FontWeight.Bold)
                 }
-                if (deviceList.isEmpty()) {
-                    Text(
-                        text = "No devices on this account yet.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+            }
+        }
+    }
+}
+
+/**
+ * Phase 11 — একটিভিটি ট্যাব: শুধু প্রমাণিত ডেটা — লাইভ সেশন, শেষ-সেশন
+ * (open→closed ট্রানজিশনে এক-শট ফেচ) এবং যুক্ত ফোনের প্রেজেন্স। বানানো
+ * history নেই — সততা আগে।
+ */
+@Composable
+private fun ActivityTab(user: FirebaseUser?) {
+    if (user == null) {
+        SectionCard(title = "Activity · একটিভিটি") {
+            Text(
+                text = "একটিভিটি দেখতে আগে সেটিংস ট্যাব থেকে সাইন-ইন করুন। · Sign in from Settings to see activity.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        return
+    }
+    ActivityFeed(user)
+}
+
+@Composable
+private fun ActivityFeed(user: FirebaseUser) {
+    var sessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
+    var sessionSyncError by remember { mutableStateOf<String?>(null) }
+    var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
+    var relSyncError by remember { mutableStateOf<String?>(null) }
+    // The last session that closed — fetched once when it leaves the open set.
+    var lastFinished by remember { mutableStateOf<SessionView?>(null) }
+    var lastOpenId by remember { mutableStateOf<String?>(null) }
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(user.uid) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    DisposableEffect(user.uid) {
+        val stop = watchSessions(
+            user,
+            onUpdate = { sessionSyncError = null; sessions = it },
+            onError = { sessionSyncError = describeFirestoreError(it) }
+        )
+        onDispose { stop() }
+    }
+    DisposableEffect(user.uid) {
+        val stop = watchRelationships(
+            user,
+            onUpdate = { relSyncError = null; relationships = it },
+            onError = { relSyncError = describeFirestoreError(it) }
+        )
+        onDispose { stop() }
+    }
+
+    val openSession = sessions.firstOrNull {
+        it.status == "REQUESTED" || it.status == "ACTIVE"
+    }
+    LaunchedEffect(sessions) {
+        val currentOpenId = openSession?.id
+        val prevOpenId = lastOpenId
+        if (prevOpenId != null && prevOpenId != currentOpenId) {
+            try {
+                lastFinished = getSession(prevOpenId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // best effort — the history line is informational only
+            }
+        }
+        lastOpenId = currentOpenId
+    }
+
+    SectionCard(title = "Activity · একটিভিটি") {
+        if (openSession == null && lastFinished == null) {
+            Text(
+                text = "এখনো কোনো সেশন-একটিভিটি নেই। সেশন শুরু হলে বা অনুমতির অনুরোধ " +
+                    "এলে এখানে দেখা যাবে। · No support-session activity yet.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        openSession?.let { s ->
+            val secondsLeft = when (s.status) {
+                "REQUESTED" -> ((s.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
+                else -> ((s.sessionEndsAtMillis - nowMillis) / 1000).coerceAtLeast(0)
+            }
+            Text(
+                text = when {
+                    s.status == "REQUESTED" && s.recipientUid == user.uid ->
+                        "🔔 ${s.helperEmail.ifBlank { "Someone" }} সাহায্যের অনুরোধ করেছেন — " +
+                            "হোম ট্যাবে Allow/Deny দিন। বাকি ${mmss(secondsLeft)}।"
+                    s.status == "REQUESTED" ->
+                        "📨 ${s.recipientEmail}-কে অনুরোধ পাঠানো হয়েছে — বাকি ${mmss(secondsLeft)}। " +
+                            "('ফোন' ট্যাবে বাতিল করা যায়)"
+                    s.status == "ACTIVE" && s.helperUid == user.uid ->
+                        "🟢 ${s.recipientEmail}-এর ফোনে সেশন চলছে — 'ফোন' ট্যাবে ভিডিও ও নিয়ন্ত্রণ। " +
+                            "শেষ হবে ${mmss(secondsLeft)}-এ।"
+                    else ->
+                        "🟢 ${s.helperEmail.ifBlank { "Someone" }} আপনার ফোনে সাহায্য করছেন — " +
+                            "শেষ হবে ${mmss(secondsLeft)}-এ।"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (s.status == "ACTIVE") {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                }
+            )
+            if (s.kind == "guest") {
+                Text(
+                    text = "Guest (সাময়িক) সেশন — লিংকের মেয়াদের মধ্যেই শেষ হবে।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+        }
+        lastFinished?.let { s ->
+            HorizontalDivider()
+            Text(
+                text = "শেষ সেশন · Last session: ${sessionStatusBn(s.status)}" +
+                    " — ${s.helperEmail.ifBlank { "?" }} → ${s.recipientEmail}" +
+                    (s.endedBy?.let { " · শেষ করেছে: $it" } ?: ""),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        HorizontalDivider()
+        Text(
+            text = "যুক্ত ফোন · Paired phones",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        if (relSyncError != null) {
+            Text(
+                text = relSyncError!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        if (sessionSyncError != null) {
+            Text(
+                text = sessionSyncError!!,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        if (relationships.isEmpty() && relSyncError == null) {
+            Text(
+                text = "এখনো কোনো ফোন যুক্ত হয়নি।",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        relationships.forEach { rel ->
+            val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
+            val otherEmail =
+                if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "$role: ${otherEmail.ifBlank { "(no email)" }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
+                if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
+                    PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
                 } else {
                     Text(
-                        text = "Devices on this account:",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium
+                        text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
+                        style = MaterialTheme.typography.bodySmall
                     )
-                    deviceList.forEachIndexed { index, entry ->
-                        if (index > 0) HorizontalDivider()
-                        Text(
-                            text = entry,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
                 }
             }
+        }
+    }
+}
 
-            SectionCard(title = "About · অ্যাপ সম্পর্কে") {
-                var showAbout by remember { mutableStateOf(false) }
-                Text(
-                    text = if (showAbout) "Hide details ▴ · লুকান" else "Show details ▾ · বিস্তারিত",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable { showAbout = !showAbout }
-                )
-                if (showAbout) {
-                    StatusRow(label = "Package", value = "com.family.remote.support")
-                    StatusRow(label = "Firebase project", value = firebaseProjectId)
-                    StatusRow(label = "Firebase app ID", value = firebaseAppId)
-                    StatusRow(
-                        label = "Next milestone",
-                        value = "Phase 11 (UI/UX পলিশ) + family-scale rollout"
+/** Phase 11 — honest Bengali name for a session status. */
+private fun sessionStatusBn(status: String): String = when (status) {
+    "REQUESTED" -> "অনুরোধ করা হয়েছে"
+    "ACTIVE" -> "চলছে"
+    "ENDED" -> "শেষ হয়েছে"
+    "DENIED" -> "প্রত্যাখ্যাত"
+    "CANCELLED" -> "বাতিল"
+    "EXPIRED" -> "সময় শেষ"
+    else -> status
+}
+
+/** Phase 11 — সেটিংস ট্যাব: অ্যাকাউন্ট + About। */
+@Composable
+private fun SettingsTab(
+    signedInUser: FirebaseUser?,
+    busy: Boolean,
+    statusMessage: String?,
+    webClientConfigured: Boolean,
+    firebaseProjectId: String,
+    firebaseAppId: String,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit
+) {
+    SectionCard(title = "Account · অ্যাকাউন্ট") {
+        if (!webClientConfigured) {
+            Text(
+                text = "Sign-in is disabled in this build: the Web Client ID is not set yet. " +
+                    "Finish the Firebase console steps in the web guide, send the Web Client ID " +
+                    "to your assistant, and install the next build.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        if (signedInUser == null) {
+            BigButton(
+                enabled = webClientConfigured && !busy,
+                onClick = onSignIn
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
                     )
+                } else {
+                    Text("Sign in with Google · গুগল দিয়ে সাইন ইন")
                 }
             }
+        } else {
+            StatusRow(label = "Signed in as", value = signedInUser.email ?: "(no email)")
+            StatusRow(label = "Name", value = signedInUser.displayName ?: "(no name)")
+            Text(
+                text = "Your account and device are stored only in your own Firebase project.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            WideOutlinedButton(enabled = !busy, onClick = onSignOut) {
+                Text("Sign out · সাইন আউট")
+            }
+        }
+        statusMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+
+    SectionCard(title = "About · অ্যাপ সম্পর্কে") {
+        var showAbout by remember { mutableStateOf(false) }
+        Text(
+            text = if (showAbout) "Hide details ▴ · লুকান" else "Show details ▾ · বিস্তারিত",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.clickable { showAbout = !showAbout }
+        )
+        if (showAbout) {
+            StatusRow(label = "Package", value = "com.family.remote.support")
+            StatusRow(label = "Firebase project", value = firebaseProjectId)
+            StatusRow(label = "Firebase app ID", value = firebaseAppId)
+            StatusRow(
+                label = "Next milestone",
+                value = "Phase 12 (kill-push স্থায়ী স্তর + রিলে সিদ্ধান্ত) + family-scale rollout"
+            )
         }
     }
 }
@@ -1283,86 +1859,85 @@ private fun PairingSections(user: FirebaseUser) {
             )
         }
     } else {
-        relationships.forEach { rel ->
+        relationships.forEachIndexed { index, rel ->
             val isGuest = rel.kind == REL_KIND_GUEST
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
-                    val otherEmail =
-                        if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
+            if (index > 0) HorizontalDivider()
+            // Phase 11 — vertical sub-card: nothing sits beside the info
+            // column any more, so long presence text can never be crushed
+            // into one-char-per-line verticals, and the action buttons are
+            // full-width below, never squeezed ovals.
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                val role = if (rel.helperUid == user.uid) "আপনি সাহায্য করছেন" else "সাহায্য করছে"
+                val otherEmail =
+                    if (rel.helperUid == user.uid) rel.recipientEmail else rel.helperEmail
+                Text(
+                    text = "$role: ${otherEmail.ifBlank { "(no email)" }}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                // Phase 10 — the Family vs Guest badge. A guest row also
+                // shows the honest remaining window (refreshed every 30 s).
+                if (isGuest) {
+                    val remainingMin =
+                        ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
+                    val badge = when {
+                        rel.status != "ACTIVE" -> "Guest (সাময়িক) · ${rel.status}"
+                        rel.guestExpiresAtMillis <= 0L -> "Guest (সাময়িক)"
+                        remainingMin >= 60L ->
+                            "Guest (সাময়িক) · বাকি ${remainingMin / 60L}ঘ ${remainingMin % 60L}মি"
+                        else -> "Guest (সাময়িক) · বাকি ${remainingMin}মি"
+                    }
                     Text(
-                        text = "$role: ${otherEmail.ifBlank { "(no email)" }}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    // Phase 10 — the Family vs Guest badge. A guest row also
-                    // shows the honest remaining window (refreshed every 30 s).
-                    if (isGuest) {
-                        val remainingMin =
-                            ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
-                        val badge = when {
-                            rel.status != "ACTIVE" -> "Guest (সাময়িক) · ${rel.status}"
-                            rel.guestExpiresAtMillis <= 0L -> "Guest (সাময়িক)"
-                            remainingMin >= 60L ->
-                                "Guest (সাময়িক) · বাকি ${remainingMin / 60L}ঘ ${remainingMin % 60L}মি"
-                            else -> "Guest (সাময়িক) · বাকি ${remainingMin}মি"
-                        }
-                        Text(
-                            text = badge,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (rel.status == "ACTIVE" && remainingMin > 0L) {
-                                MaterialTheme.colorScheme.tertiary
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            }
-                        )
-                    } else {
-                        Text(
-                            text = "Family · স্থায়ী",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
-                        }
-                    } else {
-                        Text(
-                            text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    // Phase 6/10 — helper can ask to start a support session,
-                    // but a guest link only while its window is still live.
-                    if (rel.status == "ACTIVE" && rel.helperUid == user.uid) {
-                        if (rel.guestLive) {
-                            BigButton(
-                                enabled = !sessionBusy && openSession == null,
-                                onClick = { startSessionFor(rel) }
-                            ) {
-                                Text("Start session · সেশন শুরু করুন (অনুমতি চাইবে)")
-                            }
+                        text = badge,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (rel.status == "ACTIVE" && remainingMin > 0L) {
+                            MaterialTheme.colorScheme.tertiary
                         } else {
-                            Text(
-                                text = "Guest মেয়াদ শেষ — আর সেশন শুরু করা যাবে না। নতুন " +
-                                    "Guest কোড দিন। (Guest window over — share a new code.)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                            MaterialTheme.colorScheme.error
                         }
+                    )
+                } else {
+                    Text(
+                        text = "Family · স্থায়ী",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                // Phase 11 — model/status and presence each get their own
+                // line (they used to share one unweighted Row).
+                Text(
+                    text = "${rel.recipientDeviceModel.ifBlank { "Unknown device" }} · ${rel.status}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (rel.helperUid == user.uid && rel.recipientDeviceId.isNotBlank()) {
+                    PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
+                }
+                // Phase 6/10 — helper can ask to start a support session,
+                // but a guest link only while its window is still live.
+                if (rel.status == "ACTIVE" && rel.helperUid == user.uid && !rel.guestLive) {
+                    Text(
+                        text = "Guest মেয়াদ শেষ — আর সেশন শুরু করা যাবে না। নতুন " +
+                            "Guest কোড দিন। (Guest window over — share a new code.)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (rel.status == "ACTIVE" && rel.helperUid == user.uid && rel.guestLive) {
+                    BigButton(
+                        enabled = !sessionBusy && openSession == null,
+                        onClick = { startSessionFor(rel) }
+                    ) {
+                        Text("Start session · সেশন শুরু করুন (অনুমতি চাইবে)")
                     }
                 }
                 if (!isGuest && rel.status == "ACTIVE") {
                     OutlinedButton(
                         enabled = revokingId != rel.id,
-                        modifier = Modifier.heightIn(min = 48.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
                         onClick = {
                             revokingId = rel.id
                             scope.launch {
@@ -1387,7 +1962,9 @@ private fun PairingSections(user: FirebaseUser) {
                 if (isGuest) {
                     OutlinedButton(
                         enabled = revokingId != rel.id,
-                        modifier = Modifier.heightIn(min = 48.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
                         onClick = {
                             revokingId = rel.id
                             scope.launch {
@@ -2314,13 +2891,14 @@ private fun DiagnosticsPanel() {
 
 @Composable
 fun StatusRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    // Phase 11 — stacked label/value: a long value can never glue itself to
+    // the label ("অনলাইনOnline ✓") or crush it into one-char-per-line
+    // verticals. The small muted label above reads cleanly for seniors.
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
@@ -2373,8 +2951,10 @@ fun PresenceBadge(uid: String, deviceId: String) {
             }
         }
     }
+    // Phase 11 — no leading " · ": the badge now always sits on its own
+    // line (relationship rows and the activity feed), not appended inline.
     Text(
-        text = " · $label",
+        text = label,
         style = MaterialTheme.typography.bodySmall,
         color = when {
             label == "Online" -> MaterialTheme.colorScheme.primary
