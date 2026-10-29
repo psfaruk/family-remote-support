@@ -1203,3 +1203,37 @@ Actions স্তর — Worker সংযোজন; অ্যাপ-পাশে
 - পুশ ১: cloudflare/killpush-worker.js → 1cdfda2 (201 নতুন); readback MATCH (sha256)
 - পুশ ২ (ডক): docs/CLOUDFLARE_SETUP.md + docs/PHASE-0.md (§41) + README.md + worklog.md → নিচের
   প্রকাশনা-রেকর্ড; readback-verify ALL MATCH (sha256 স্থানীয়=রিমোট)
+
+---
+Task ID: 47
+Agent: Z.ai Code (main)
+Task: Phase 11.8 (v0.18.1, versionCode 37) — Connect-flow discoverability ফিক্স (Owner: "QR
+scanner ও কোড ইমপোর্ট করার অপশন টি frontend এ দেখা যাচ্ছে না... কোন phase এ ভুল করেছেন, খোঁজে
+বের করে সমাধান করেন")
+
+তদন্ত (সফল):
+- Owner-স্ক্রিনশট-প্রমাণ: তাঁর পরীক্ষার ফোনে "App version v0.13.0 (build 31)" — ৫ রিলিজ পেছনের
+  APK; স্ক্রিনশট-স্ট্রিং v0.13.0-কোডের সাথে হুবহু মিলে (HEAD-এর সাথে নয়)
+- Phase 11 (v0.13.0, f3d21730) — helper-অংশ (কোড-ইনপুট + "Scan QR · স্ক্যান") পাতার একদম নিচে
+  Section B-তে চাপা → ভুল ১
+- Phase 11.5 (v0.14.0) — পুরো connect-flow (কোড-বানানো+ইমপোর্ট+স্ক্যান) ছোট FAB-শিটের পেছনে → ভুল ২
+- ফাংশন কখনো মোছেনি — দুটোই discoverability-ভুল + বিতরণ-ফাঁক (পুরনো APK ফোনে রয়ে গেছে)
+
+ফিক্স (MainActivity.kt — কেবল UI-ওয়্যারিং; rules/Firestore/WebRTC/FCM শূন্য পরিবর্তন):
+- ফোন-ট্যাবের উপরে স্থায়ী "ফোন যুক্ত করুন · দুই ভাবে" কার্ড: BigButton "QR স্ক্যান · সাহায্য করব"
+  (→ QrScanDialog → Phase-12 scan-to-setup journey) + WideOutlinedButton "কোড ইমপোর্ট · নতুন কোড
+  বানান" (→ পেয়ারিং শিট)
+- ট্যাব-লেভেল ডায়ালগ `showScanner && !showPairSheet` গার্ডে — ডাবল-রেন্ডার অসম্ভব; state শেয়ার্ড
+- PairingCard/PairingSections-এ onOpenPairSheet callback (আগে শিট কেবল FAB-ই খুলতে পারত)
+- EmptyState-hint নতুন কার্ডের দিকে; versionCode 36→37, versionName 0.18.0→0.18.1
+
+যাচাই: brace-lexer balance {0,0,0} + duplicate-import 0 + কার্ড/গার্ড ×১ নিশ্চিত — PASS; push
+gradle 4faa463 + MainActivity 733e393, readback ২/২ MATCH (sha256); CI রান 40892361955 → SUCCESS,
+গেট-ধাপ success; আর্টিফ্যাক্ট স্থানীয় পুনঃযাচাই VERIFY: PASS (code=37, name=0.18.1, v2-sig, স্টেল
+শুধু [0.18.1]); APK → download/family-remote-support-v0.18.1-code37.apk (39.5 MB,
+sha256 d071c47d278f6b82…)
+
+ফেইল/বাকি: (১) Owner-করণীয় — উভয় ফোনে v0.18.1 ইনস্টল করা হয়নি এখনো (আমার পক্ষে সম্ভব নয়);
+(২) স্ক্রিনশটের "Could not reach Firestore (waited 30 s)" = সে-মুহূর্তের ইন্টারনেট-বিচ্ছিন্নতা
+(অ্যাপ-বাগ নয়); (৩) Phase 14b (অ্যাপ→Worker instant sweep-কল, v0.19.0-প্রার্থী) বাকি; (৪)
+Uptodown-প্রকাশ বাকি (আপডেট-বিতরণের স্থায়ী সমাধান)
