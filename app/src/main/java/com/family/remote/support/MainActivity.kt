@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Surface
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -120,7 +121,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
@@ -924,6 +928,11 @@ fun HomeScreen() {
         return
     }
 
+    // Phase 15 (v0.19.0) — a full-size Box so the helper's session control
+    // bar can be PINNED to the very bottom of the screen (above the bottom
+    // nav) while a watch is on — controls stay under the thumb instead of
+    // being buried mid-scroll (Owner report: the buttons were unreachable).
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             AppTopBar(
@@ -1056,6 +1065,60 @@ fun HomeScreen() {
                     onOpenWizard = { showWizard = true }
                 )
             }
+        }
+    }
+
+        // Phase 15 — the pinned bar itself. Visible ONLY for the helper while
+        // the viewer is running (and hidden while the full-screen viewer is
+        // open — that view carries its own overlay). The three system keys
+        // are honest controls: sendAssistNav rides the same epoch-gated
+        // command channel as taps and the recipient's assist service
+        // performs GLOBAL_ACTION_BACK/HOME/RECENTS, with the same
+        // per-command delivery feedback as every other assist command.
+        val barShareState by ScreenShareEngine.state.collectAsState()
+        val barSession = openSession
+        val barMe = signedInUser
+        val sessionBarVisible = barMe != null && barSession != null &&
+            barSession.status == "ACTIVE" &&
+            barSession.helperUid == barMe.uid &&
+            barShareState != ShareState.IDLE &&
+            !SessionUiBus.fullscreen
+        if (sessionBarVisible) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(bottom = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SessionKeyBar(touchOn = SessionUiBus.touchOn, inFullscreen = false)
+                if (!SessionUiBus.touchOn) {
+                    Text(
+                        text = "টাচ চালু করলে Back · Home · Recents ওদের ফোনে কাজ করবে",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                                RoundedCornerShape(999.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+        if (SessionUiBus.typeDialog && !SessionUiBus.fullscreen) {
+            AssistTypeDialog(onDismiss = { SessionUiBus.typeDialog = false })
+        }
+        if (SessionUiBus.stopConfirm && !SessionUiBus.fullscreen) {
+            StopWatchConfirmDialog(
+                onDismiss = { SessionUiBus.stopConfirm = false },
+                onConfirm = {
+                    SessionUiBus.stopConfirm = false
+                    ScreenShareEngine.stopHelper()
+                }
+            )
         }
     }
 
@@ -1237,6 +1300,15 @@ private fun HomeTab(
         } else {
             HomeLiveHintCard(session = openSession, myUid = signedInUser.uid)
         }
+    }
+    // Phase 15 (v0.19.0) — the same ask ALSO arrives as a CENTERED modal,
+    // in front of the eyes (Owner report: popups must never hide below
+    // the fold). Dismissing it decides nothing — the card stays on home.
+    if (signedInUser != null && openSession != null &&
+        openSession.status == "REQUESTED" &&
+        openSession.recipientUid == signedInUser.uid
+    ) {
+        HomeConsentDialog(session = openSession, user = signedInUser)
     }
 
     Text(
@@ -1572,6 +1644,114 @@ private fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
             }
         }
     }
+}
+
+/**
+ * Phase 15 (v0.19.0) — the approval ask now ALSO arrives as a CENTERED
+ * modal dialog (Owner report: the top card is easy to miss; popups must
+ * land in front of the eyes). Same Firestore grant/deny as the card — the
+ * security rules re-verify everything either way. Shown once per session
+ * id; dismissing it decides nothing, the card stays on home.
+ */
+@Composable
+private fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
+    var show by remember(session.id) { mutableStateOf(true) }
+    if (!show) return
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(session.id) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = { show = false },
+        title = { Text("সাহায্যের অনুরোধ", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "${session.helperEmail.ifBlank { "Someone" }} এই ফোনে সাহায্য করতে চাইছেন।",
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (session.kind == "guest") {
+                    Text(
+                        "Guest (সাময়িক) সাহায্যকারী — লিংক ২ ঘণ্টা পরে নিজেই মুছে যাবে।",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+                val secondsLeft =
+                    ((session.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
+                Text(
+                    "চিনি মানুষ হলে তবেই অনুমতি দিন। অনুরোধটি ${mmss(secondsLeft)}-এ শেষ হবে।",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                message?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (it.contains("✓")) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    scope.launch {
+                        try {
+                            grantSession(session.id, user.uid)
+                            message = "অনুমতি দেওয়া হয়েছে ✓ — 'ফোন' ট্যাবে সেশন দেখুন।"
+                            delay(600)
+                            show = false
+                        } catch (e: SessionException) {
+                            message = e.message
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            message = "অনুমতি দেওয়া যায়নি: ${describeFirestoreError(e)}"
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }
+            ) { Text("Allow · অনুমতি দিন", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            OutlinedButton(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    scope.launch {
+                        try {
+                            denySession(session.id, user.uid)
+                            message = "অনুরোধ প্রত্যাখ্যাত হয়েছে।"
+                            delay(600)
+                            show = false
+                        } catch (e: SessionException) {
+                            message = e.message
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            message = "প্রত্যাখ্যান করা যায়নি: ${describeFirestoreError(e)}"
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }
+            ) { Text("Deny · না", fontWeight = FontWeight.Bold) }
+        }
+    )
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2473,6 +2653,24 @@ private fun PairingSections(
             }
         }
         lastOpenSessionId = currentOpenId
+    }
+
+    // Phase 15 — fresh viewer state per session id (the pinned control bar
+    // and full-screen overlay share SessionUiBus; a new session must never
+    // inherit a stale fullscreen/stop dialog from the previous one).
+    LaunchedEffect(openSession?.id) {
+        SessionUiBus.fullscreen = false
+        SessionUiBus.stopConfirm = false
+        SessionUiBus.typeDialog = false
+    }
+
+    // Phase 15 — when an approval ask arrives, jump to the home tab so the
+    // centered consent dialog + card are in front of the eyes immediately.
+    LaunchedEffect(openSession?.id, openSession?.status) {
+        val ask = openSession
+        if (ask != null && ask.status == "REQUESTED" && ask.recipientUid == user.uid) {
+            tab = 0
+        }
     }
 
     // Ticks once per second while a session is open so countdowns stay live.
@@ -3962,6 +4160,119 @@ private fun mmss(seconds: Long): String = "%d:%02d".format(seconds / 60, seconds
  * recipient's assist service), with Back/Home/Recents shortcut buttons and
  * per-command delivery feedback.
  */
+// ═════════════════════════════════════════════════════════════════
+// Phase 15 (v0.19.0) — helper session CONTROL BAR.
+//
+// Owner report: the Back/Home/Recents keys lived mid-scroll in the phone
+// tab (unreachable, half-hidden behind the bottom nav) and the full-screen
+// viewer had NO controls at all. Fix: ONE compact bar in TWO surfaces —
+//   • inline: pinned to the very bottom of the SCREEN (root Box), above
+//     the bottom navigation, while the helper watches;
+//   • full-screen: the same bar as a small overlay at the bottom of the
+//     viewer (with an exit-to-small key).
+// The three system keys are REAL controls — sendAssistNav("back"/"home"/
+// "recents") rides the same epoch-gated command channel as taps, and the
+// recipient's assist service performs GLOBAL_ACTION_BACK/HOME/RECENTS.
+// SessionUiBus is the single source of truth for both surfaces.
+// ═════════════════════════════════════════════════════════════════
+
+/** Shared UI state for the helper's session surfaces (panel + pinned bar). */
+private object SessionUiBus {
+    var touchOn by mutableStateOf(false)      // mirrors the touch-control switch
+    var fullscreen by mutableStateOf(false)   // full-screen viewer open
+    var typeDialog by mutableStateOf(false)   // type-text dialog open
+    var stopConfirm by mutableStateOf(false)  // stop-watching confirm open
+}
+
+/** One compact key: ≥44 dp target, one glyph, real contentDescription. */
+@Composable
+private fun SessionKey(glyph: String, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(
+                if (enabled) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    Color.Transparent
+                }
+            )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = glyph,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            }
+        )
+    }
+}
+
+/** [◀][⌂][▦] | [⌨][⛶/⤡][✕] — small, bottom-pinned, always reachable. */
+@Composable
+private fun SessionKeyBar(touchOn: Boolean, inFullscreen: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.97f),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SessionKey("◀", "Back · পেছনে", touchOn) {
+                ScreenShareEngine.sendAssistNav("back")
+            }
+            SessionKey("⌂", "Home · হোম", touchOn) {
+                ScreenShareEngine.sendAssistNav("home")
+            }
+            SessionKey("▦", "Recents · সাম্প্রতিক", touchOn) {
+                ScreenShareEngine.sendAssistNav("recents")
+            }
+            SessionKey("⌨", "Type text · লেখা টাইপ", touchOn) {
+                SessionUiBus.typeDialog = true
+            }
+            SessionKey(
+                if (inFullscreen) "⤡" else "⛶",
+                if (inFullscreen) "Small view · ছোট স্ক্রিন" else "Full screen · ফুলস্ক্রিন",
+                true
+            ) { SessionUiBus.fullscreen = !inFullscreen }
+            SessionKey("✕", "Stop watching · দেখা বন্ধ", true) {
+                SessionUiBus.stopConfirm = true
+            }
+        }
+    }
+}
+
+/** Centered confirm before the helper stops watching (never a surprise). */
+@Composable
+private fun StopWatchConfirmDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("দেখা বন্ধ করবেন?", fontWeight = FontWeight.Bold) },
+        text = {
+            Text(
+                "তাদের ফোনের ছবি আপনার স্ক্রিন থেকে বন্ধ হবে (সেশনটি চালু থাকবে)।"
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("হ্যাঁ, বন্ধ করুন", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("না, দেখতে থাকব") }
+        }
+    )
+}
+
 @Composable
 private fun ScreenSharePanel(
     isHelper: Boolean,
@@ -3992,10 +4303,11 @@ private fun ScreenSharePanel(
             val egl = ScreenShareEngine.eglBaseContext
             val frameSize by ScreenShareEngine.frameSize.collectAsState()
             val assistStatus by ScreenShareEngine.assistStatus.collectAsState()
-            var fullscreen by remember { mutableStateOf(false) }
             // Phase 8 — when on, taps on the picture are delivered to the
             // recipient's phone instead of opening the local full-screen view.
-            var assistMode by remember { mutableStateOf(false) }
+            // Phase 15 — fullscreen + touch flags live on SessionUiBus (shared
+            // with the root-pinned bar and the full-screen overlay).
+            val assistMode = SessionUiBus.touchOn
             var boxPx by remember { mutableStateOf(IntSize.Zero) }
             // Phase 9 (T3) — one place decides "remote touch is actually
             // live"; it drives the rim, the badge and the tap routing
@@ -4093,9 +4405,9 @@ private fun ScreenSharePanel(
                     )
                 }
             if (egl != null) {
-                if (fullscreen) {
+                if (SessionUiBus.fullscreen) {
                     Dialog(
-                        onDismissRequest = { fullscreen = false },
+                        onDismissRequest = { SessionUiBus.fullscreen = false },
                         properties = DialogProperties(usePlatformDefaultWidth = false)
                     ) {
                         Box(
@@ -4129,30 +4441,62 @@ private fun ScreenSharePanel(
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
                             }
-                            // Phase 9 (T3) — the old 16dp "✕ Close" text was
-                            // far below a 44dp touch target; a real button now.
-                            Button(
-                                onClick = { fullscreen = false },
+                            // Phase 15 — compact overlay bar at the BOTTOM of
+                            // the full-screen viewer: the three system keys,
+                            // typing, exit-to-small and stop — everything the
+                            // inline bar has, so a full-screen session is
+                            // never a dead end (Owner report). The keys are
+                            // REAL: sendAssistNav → the recipient's assist
+                            // service performs GLOBAL_ACTION_BACK/HOME/RECENTS.
+                            Column(
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(12.dp)
-                                    .heightIn(min = 48.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .windowInsetsPadding(WindowInsets.navigationBars)
+                                    .padding(bottom = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("✕ বন্ধ", fontWeight = FontWeight.SemiBold)
+                                SessionKeyBar(touchOn = assistMode, inFullscreen = true)
+                                if (!assistMode) {
+                                    Text(
+                                        text = "টাচ চালু করলে Back · Home · Recents কাজ করবে",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        modifier = Modifier
+                                            .padding(top = 4.dp)
+                                            .background(
+                                                Color.Black.copy(alpha = 0.55f),
+                                                RoundedCornerShape(999.dp)
+                                            )
+                                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                            if (SessionUiBus.typeDialog) {
+                                AssistTypeDialog(onDismiss = { SessionUiBus.typeDialog = false })
+                            }
+                            if (SessionUiBus.stopConfirm) {
+                                StopWatchConfirmDialog(
+                                    onDismiss = { SessionUiBus.stopConfirm = false },
+                                    onConfirm = {
+                                        SessionUiBus.stopConfirm = false
+                                        ScreenShareEngine.stopHelper()
+                                        SessionUiBus.fullscreen = false
+                                    }
+                                )
                             }
                         }
                     }
                 } else {
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                         val targetHeight = frameSize?.let { (w, h) ->
-                            if (h > 0) maxWidth * (h.toFloat() / w.toFloat()) else 420.dp
-                        } ?: 420.dp
+                            if (h > 0) maxWidth * (h.toFloat() / w.toFloat()) else 380.dp
+                        } ?: 380.dp
                         Box {
                             VideoRendererBox(
                                 egl,
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(targetHeight.coerceAtMost(480.dp))
+                                    .height(targetHeight.coerceAtMost(400.dp))
                                     .then(
                                         if (assistLive) {
                                             // Phase 9 (T3) — a warm rim marks
@@ -4168,7 +4512,7 @@ private fun ScreenSharePanel(
                                     )
                                     .then(
                                         if (assistLive) assistGestureModifier()
-                                        else Modifier.clickable { fullscreen = true }
+                                        else Modifier.clickable { SessionUiBus.fullscreen = true }
                                     )
                             )
                             if (assistLive) {
@@ -4243,7 +4587,10 @@ private fun ScreenSharePanel(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                Switch(checked = assistMode, onCheckedChange = { assistMode = it })
+                Switch(
+                    checked = SessionUiBus.touchOn,
+                    onCheckedChange = { SessionUiBus.touchOn = it }
+                )
             }
             Text(
                 text = if (assistMode)
@@ -4253,51 +4600,10 @@ private fun ScreenSharePanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (assistMode) {
-                // v0.12.0 (Phase 8.3 completion) — TYPING lives behind one
-                // button and one honest dialog (state survives recomposition
-                // while the switch is on; it dies with the session naturally).
-                var showTypeDialog by remember { mutableStateOf(false) }
-                if (showTypeDialog) {
-                    AssistTypeDialog(onDismiss = { showTypeDialog = false })
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { ScreenShareEngine.sendAssistNav("back") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Text("◀ Back")
-                    }
-                    OutlinedButton(
-                        onClick = { ScreenShareEngine.sendAssistNav("home") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Text("⌂ Home")
-                    }
-                    OutlinedButton(
-                        onClick = { ScreenShareEngine.sendAssistNav("recents") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Text("▦ Recents")
-                    }
-                }
-                // v0.12.0 (Phase 8.3 completion) — the typing entry point.
-                WideOutlinedButton(onClick = { showTypeDialog = true }) {
-                    Text("⌨ লেখা টাইপ করুন · Type text")
-                }
-                WideOutlinedButton(onClick = { fullscreen = true }) {
-                    Text("⛶ ফুলস্ক্রিন · Full screen")
-                }
-            }
+            // Phase 15 — the old mid-scroll Back/Home/Recents row + type +
+            // full-screen buttons moved into the pinned bottom bar (root Box)
+            // and the full-screen overlay; nothing was removed, only placed
+            // where the thumb can always reach it (Owner report).
             assistStatus?.let {
                 Text(
                     text = it,
@@ -4305,9 +4611,8 @@ private fun ScreenSharePanel(
                     fontWeight = FontWeight.Medium
                 )
             }
-            WideOutlinedButton(onClick = { ScreenShareEngine.stopHelper() }) {
-                Text("দেখা বন্ধ · Stop watching")
-            }
+            // "দেখা বন্ধ · Stop watching" moved into the pinned bottom bar
+            // (✕ key, behind a centered confirm dialog) — Phase 15.
         }
     } else {
         if (!active) {
