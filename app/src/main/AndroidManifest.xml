@@ -69,6 +69,19 @@
                 android:resource="@xml/assist_service_config" />
         </service>
 
+        <!-- v0.9.8 (Phase 8.2): KILL-PUSH. When the app process is dead, the
+             Firebase SDK itself displays FCM notification messages with these
+             defaults — no process code runs. The channel id matches the
+             high-importance channel SessionNotifier creates on first open,
+             so tray notifications from the killed state land in the same
+             channel (and inherit its sound/priority) as the in-app ones. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="support_session_requests" />
+
         <!-- v0.6.1: lets the share sheet receive the QR PNG staged in the
              app cache without exposing any other file. -->
         <provider
