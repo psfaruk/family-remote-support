@@ -195,6 +195,17 @@ private fun QrCameraPreview(onCode: (code: String, kindHint: String?) -> Unit) {
     val executor = remember { Executors.newSingleThreadExecutor() }
     var handled by remember { mutableStateOf(false) }
     val controller = remember { LifecycleCameraController(context) }
+    // v0.21.0 (audit): the ML Kit scanner handle is now remember-scoped and
+    // CLOSEd on dispose — each dialog open used to leak a new native scanner
+    // handle (only the executor was shut down), which adds up on low-end
+    // family phones that scan repeatedly.
+    val scanner = remember {
+        BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+        )
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -202,6 +213,11 @@ private fun QrCameraPreview(onCode: (code: String, kindHint: String?) -> Unit) {
                 controller.unbind()
             } catch (_: Exception) {
                 // already unbound
+            }
+            try {
+                scanner.close()
+            } catch (_: Exception) {
+                // already closed
             }
             executor.shutdown()
         }
@@ -215,11 +231,6 @@ private fun QrCameraPreview(onCode: (code: String, kindHint: String?) -> Unit) {
                 controller.bindToLifecycle(lifecycleOwner)
                 previewView.controller = controller
 
-                val scanner = BarcodeScanning.getClient(
-                    BarcodeScannerOptions.Builder()
-                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                        .build()
-                )
                 controller.setImageAnalysisAnalyzer(
                     executor,
                     ImageAnalysis.Analyzer { proxy: ImageProxy ->
