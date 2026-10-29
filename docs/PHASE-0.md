@@ -1594,3 +1594,17 @@ kill-push পাঠাচ্ছে।
    বলুন, wrangler.toml-এর `name` বদলে দেব।
 3. Worker → Settings → Variables and Secrets → `FIREBASE_SA_JSON` + `KILL_TOKEN` যোগ করুন।
 4. `/health` খুলে `secretsPresent` দুটোই `true`-র প্রমাণ পাঠান → আমি `POST /sweep` লাইভ টেস্ট করব।
+
+### 43.6 পাশাপ্রমাণ — GitHub Actions kill-push schedule নীরব (আবিষ্কার + re-register)
+
+- যাচাইয়ের সময় ধরা পড়ল: `kill-push.yml` (cron `*/5`) repo-তে এসেছে আজ **04:03 UTC**
+  (commit 574e57d); scheduled রান হয়েছে **মাত্র ১ বার** (10:50 UTC, success) — তারপর
+  ৪.৫+ ঘণ্টা নীরব (হওয়ার কথা ~৫৪টি রান)। 04:03-এর রানটি `workflow_dispatch` (হাতে)।
+- এটি GitHub-এর পরিচিত "scheduled workflow sporadically/silently stops" আচরণ — ফাইলের
+  হেডার-মন্তব্যেই পূর্ব-সতর্কতা ছিল ("best-effort, can be delayed")। স্থায়ী সমাধানই
+  Cloudflare Worker স্তর (প্রতি মিনিট, ২৪/৭)।
+- **Workaround প্রয়োগ (commit c90cbda):** ফাইলে ডক-মন্তব্য যোগ করে re-push (schedule
+  re-register হয়) + Actions API-তে disable→enable চক্র (HTTP 204/204)। পরবর্তী কয়েক
+  মিনিটে scheduled রান ফিরে এলে নিশ্চিত; ব্যাকস্টপ স্তর পর্যবেক্ষণে থাকবে (best-effort)।
+- sweep-লজিক/secret/সাফল্য-ইতিহাস অপরিবর্তিত — দুটি পূর্ববর্তী রানই success; এটি কেবল
+  ট্রিগার-নিবন্ধন সমস্যা, ফায়ার হলেই sweep ঠিকভাবে চলে।
