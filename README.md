@@ -150,6 +150,38 @@ A trusted family member helps fix another family phone — always with the recei
   - **Secure-logging audit**: the app ships **zero** `android.util.Log` calls — the only
     diagnostics are the in-app 14-line ring buffer, which never leaves the device and
     never contains tokens/emails. Verified by grep across all sources.
+- **Guest mode ✅ (v0.11.0, versionCode 29) — roadmap Phase 10:**
+  - **Two pairing modes**: the "needs help" phone now creates either a FAMILY code
+    (permanent trusted link — unchanged) or a GUEST code — a short, server-bounded
+    2-hour link for one-time outside help. The invitation doc carries a frozen
+    `kind` field; the UI labels the live code ("Family কোড · স্থায়ী" vs
+    "Guest কোড · ২ ঘণ্টা") so the owner always knows which window they opened.
+  - **Server-enforced guest window**: a guest relationship stores
+    `guestExpiresAt` (client claims now+2 h; the rules re-bound it to
+    `request.time + 3 h` so no client can mint a longer-lived guest). Sessions
+    may only be ASKED while the window is live; the rules also require a
+    session's `kind` to match the relationship's kind.
+  - **Session-scoped guest authority**: a granted GUEST session can never
+    outlive the guest link — the grant transaction caps `sessionEndsAt` at
+    min(15 min, guest window), and the rules re-verify that cap server-side.
+    Stale guest links are lazily expired (ACTIVE → EXPIRED) by whichever app
+    notices first, with rules allowing exactly that transition.
+  - **guest ≠ family, absolutely**: a guest code can never attach to (or
+    convert) a family link and vice versa — rejected in the redeem transaction
+    AND in the rules (re-activation requires the SAME kind on both sides).
+    The documented way out of a guest pair is an explicit "Remove · সরান"
+    button (DELETE — rules allow it for guest docs only, never family),
+    after which a fresh family pairing may reuse the pair key.
+  - **UI honesty**: relationship rows show "Family · স্থায়ী" or
+    "Guest (সাময়িক) · বাকি Xঘ Yমি" badges (30 s refresh); the consent card,
+    the waiting line and the active-session card all carry the
+    "Guest (সাময়িক)" badge so the recipient always knows a temporary helper
+    is connected. Expired guests show a clear "মেয়াদ শেষ — নতুন Guest কোড দিন" state.
+  - **Rules proven, not assumed**: the negative-probe suite gains Phase 10
+    runtime probes (guest invitation + REST-commit redeem simulation, an
+    over-long guest window refused, family-into-guest re-activation refused,
+    a live guest session ask allowed then refused after the window passes) —
+    all executed against PRODUCTION Firestore with synthetic identities.
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
