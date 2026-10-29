@@ -2,6 +2,9 @@ package com.family.remote.support
 
 import android.Manifest
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -70,6 +73,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -125,12 +129,16 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
+import android.widget.Toast
+import androidx.compose.ui.res.stringResource
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.FamilyRemoteSupportTheme
+import com.family.remote.support.ui.LangPrefBus
 import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.ThemePreview
 import com.google.firebase.FirebaseNetworkException
@@ -149,6 +157,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -241,7 +250,9 @@ private fun SectionCard(
         AlertDialog(
             onDismissRequest = { showInfo = false },
             confirmButton = {
-                TextButton(onClick = { showInfo = false }) { Text("ঠিক আছে") }
+                TextButton(onClick = { showInfo = false }) {
+                    Text(stringResource(R.string.cmn_ok))
+                }
             },
             title = {
                 Text(text = title, fontWeight = FontWeight.Bold)
@@ -590,6 +601,14 @@ private fun WideOutlinedButton(
 }
 
 class MainActivity : ComponentActivity() {
+    // Phase 16 (v0.20.0) — the app opens in the SAVED language (English on a
+    // fresh install, per Owner) by wrapping the base context with that
+    // Locale. Changing the language in Settings recreates the activity, so
+    // every stringResource() repaints in the new language immediately.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LangPrefBus.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -742,20 +761,10 @@ fun HomeScreen() {
     var permSummary by remember { mutableStateOf(readPermChecklist(context)) }
 
     val webClientConfigured = remember { BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank() }
-    val firebaseProjectId = remember {
-        try {
-            FirebaseApp.getInstance().options.projectId ?: "not loaded"
-        } catch (e: Exception) {
-            "not loaded"
-        }
-    }
-    val firebaseAppId = remember {
-        try {
-            FirebaseApp.getInstance().options.applicationId
-        } catch (e: Exception) {
-            "not loaded"
-        }
-    }
+    // Phase 16 — the Firebase project/app-ids are NO LONGER read for the
+    // About popup (Owner: showing Firebase details to every user is a
+    // privacy smell). The About dialog now shows version + package + a
+    // plain-language storage note + the privacy/rules documents.
 
     // Phase 5 — schedule the 15-minute background heartbeat (idempotent).
     // Phase 6 — session-request notifications while the app is backgrounded.
@@ -940,24 +949,16 @@ fun HomeScreen() {
                 presenceUid = signedInUser?.uid,
                 presenceDeviceId = ownDeviceId,
                 pendingAsk = pendingAsk,
-                onBellClick = { tab = 2 }
+                // Phase 16 — the bell opens Settings, where the merged
+                // Activity section (sessions + paired phones) now lives.
+                onBellClick = { tab = 3 }
             )
         },
-        bottomBar = { AppBottomNav(tab = tab, onSelect = { tab = it }) },
-        floatingActionButton = {
-            // v0.14.0 — FAB only on the ফোন tab: opens the pair sheet.
-            if (tab == 1 && signedInUser != null) {
-                ExtendedFloatingActionButton(
-                    onClick = { showPairSheet = true },
-                    icon = {
-                        Icon(Icons.Filled.Add, contentDescription = null)
-                    },
-                    text = { Text("যুক্ত করুন") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        }
+        bottomBar = { AppBottomNav(tab = tab, onSelect = { tab = it }) }
+        // Phase 16 — the right-side "যুক্ত করুন" FAB is GONE (Owner: the
+        // add-phone action showed up in TWO places — the permanent top card
+        // on the phone tab already covers both directions, and the FAB even
+        // covered the Full-screen button mid-scroll). One place, one truth.
     ) { innerPadding ->
         // Phase 11.6 — per-tab scroll positions: switching tabs keeps each
         // tab's place instead of resetting everything back to the top.
@@ -976,13 +977,11 @@ fun HomeScreen() {
                     deviceStatus = deviceStatus,
                     presenceStatus = presenceStatus,
                     pushStatus = pushStatus,
-                    deviceList = deviceList,
                     permSummary = permSummary,
                     openSession = openSession,
                     onOpenWizard = { showWizard = true },
                     onRetryRegistration = { registerRetryKey++ },
                     onGoPairing = { tab = 1 },
-                    onGoActivity = { tab = 2 },
                     busy = busy,
                     onSignIn = startSignIn
                 )
@@ -992,14 +991,18 @@ fun HomeScreen() {
                     onDismissPairSheet = { showPairSheet = false },
                     onOpenPairSheet = { showPairSheet = true }
                 )
-                2 -> ActivityTab(user = signedInUser)
+                // Phase 16 — the old একটিভিটি tab became the LIVE LOCATION
+                // tab (Owner: "একটিভিটি ট্যাব টি মোছে দিয়ে live location নামে
+                // একটা ট্যাব ওপেন করেন; এটার কাজ ভবিষ্যতে করবো") — an honest
+                // placeholder, nothing collected. The Activity content moved
+                // INTO Settings (tab 3), as requested.
+                2 -> LiveLocationTab()
                 else -> SettingsTab(
                     signedInUser = signedInUser,
                     busy = busy,
                     statusMessage = statusMessage,
+                    deviceList = deviceList,
                     webClientConfigured = webClientConfigured,
-                    firebaseProjectId = firebaseProjectId,
-                    firebaseAppId = firebaseAppId,
                     permSummary = permSummary,
                     onSignIn = startSignIn,
                     onSignOut = {
@@ -1179,7 +1182,12 @@ private fun AppTopBar(
     )
 }
 
-/** Phase 11 — bottom navigation, four senior-friendly tabs. */
+/**
+ * Phase 11 — bottom navigation. Phase 16 (v0.20.0) — the tabs are now
+ * হোম · ফোন · লাইভ লোকেশন · সেটিংস (Owner: the একটিভিটি tab is gone —
+ * its content merged into Settings; the Live-location placeholder takes
+ * the slot). Labels come from the language resources (15 languages).
+ */
 @Composable
 private fun AppBottomNav(tab: Int, onSelect: (Int) -> Unit) {
     NavigationBar {
@@ -1187,25 +1195,25 @@ private fun AppBottomNav(tab: Int, onSelect: (Int) -> Unit) {
             selected = tab == 0,
             onClick = { onSelect(0) },
             icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-            label = { Text("হোম") }
+            label = { Text(stringResource(R.string.nav_home)) }
         )
         NavigationBarItem(
             selected = tab == 1,
             onClick = { onSelect(1) },
             icon = { Icon(Icons.Filled.Phone, contentDescription = null) },
-            label = { Text("ফোন") }
+            label = { Text(stringResource(R.string.nav_phone)) }
         )
         NavigationBarItem(
             selected = tab == 2,
             onClick = { onSelect(2) },
-            icon = { Icon(Icons.Filled.Notifications, contentDescription = null) },
-            label = { Text("একটিভিটি") }
+            icon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
+            label = { Text(stringResource(R.string.nav_location)) }
         )
         NavigationBarItem(
             selected = tab == 3,
             onClick = { onSelect(3) },
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-            label = { Text("সেটিংস") }
+            label = { Text(stringResource(R.string.nav_settings)) }
         )
     }
 }
@@ -1248,10 +1256,10 @@ private fun PresenceChip(uid: String?, deviceId: String) {
         age >= 0 && age < PRESENCE_ONLINE_MILLIS
     val label = when {
         uid == null || deviceId.isBlank() -> "…"
-        unavailable -> "অবস্থা জানা যাচ্ছে না"
-        online -> "অনলাইন"
+        unavailable -> stringResource(R.string.pres_checking)
+        online -> stringResource(R.string.pres_online)
         heartbeatAt == null || heartbeatAt == 0L -> "…"
-        else -> "অফলাইন"
+        else -> stringResource(R.string.pres_offline)
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1292,13 +1300,11 @@ private fun HomeTab(
     deviceStatus: String,
     presenceStatus: String,
     pushStatus: String,
-    deviceList: List<String>,
     permSummary: PermChecklist,
     openSession: SessionView?,
     onOpenWizard: () -> Unit,
     onRetryRegistration: () -> Unit,
     onGoPairing: () -> Unit,
-    onGoActivity: () -> Unit,
     busy: Boolean = false,
     onSignIn: () -> Unit = {}
 ) {
@@ -1317,83 +1323,222 @@ private fun HomeTab(
     // must never hide below the fold). Dismissing it decides nothing — the
     // card stays on home. Rendered app-wide in the root Box below.
 
+    // ── Phase 16 — HOME REDESIGN (Owner: "হোম ট্যাব ভিজিট করলেই সে অ্যাপ
+    // সম্পর্কে পুরোপুরি ধারণা নিয়ে নেবে… আকর্ষণীয় করেন… কিছু অপশন সেটিংসে
+    // দিন")। The home tab is now an app SHOWCASE:
+    //   ১. Hero welcome card (who you are + the one-line promise)
+    //   ২. "What this app can do" feature grid (the app's real features)
+    //   ৩. One compact setup strip (details moved to Settings)
+    // The old 2×2 technical status grid, the long device list and the
+    // quick-action tiles moved to Settings — home stays light and clear.
+
     Text(
-        text = "পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।",
+        text = stringResource(R.string.home_tagline),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 
-    // ২×২ স্ট্যাটাস গ্রিড — প্রতিটি টাইলে আইকন + সংক্ষিপ্ত অবস্থা; ট্যাপ করলে
-    // সংশ্লিষ্ট অ্যাকশন (উইজার্ড / রিট্রাই)।
+    // ১. Hero welcome card — who you are + the one-line promise.
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_auth_hero),
+                    contentDescription = null,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.home_welcome),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                )
+                Text(
+                    text = signedInUser?.let {
+                        stringResource(
+                            R.string.home_signed_in_as,
+                            it.displayName ?: it.email ?: ""
+                        )
+                    } ?: stringResource(R.string.home_not_signed_in),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = stringResource(R.string.home_tagline),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                )
+            }
+        }
+        if (signedInUser == null && webClientAvailable()) {
+            BigButton(enabled = !busy, onClick = onSignIn) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(stringResource(R.string.auth_btn_login))
+                }
+            }
+        }
+    }
+
+    // ২. "What this app can do" — the feature grid. Each tile opens an
+    // honest explainer; the pairing tiles also offer the phone tab.
+    Text(
+        text = stringResource(R.string.home_features),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            FeatureTile(
+                icon = Icons.Filled.PlayArrow,
+                title = stringResource(R.string.feat_screen_t),
+                desc = stringResource(R.string.feat_screen_d),
+                actionLabel = null
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            FeatureTile(
+                icon = Icons.Filled.Edit,
+                title = stringResource(R.string.feat_touch_t),
+                desc = stringResource(R.string.feat_touch_d),
+                actionLabel = null
+            )
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            FeatureTile(
+                icon = Icons.Filled.Favorite,
+                title = stringResource(R.string.feat_family_t),
+                desc = stringResource(R.string.feat_family_d),
+                actionLabel = stringResource(R.string.nav_phone),
+                onAction = onGoPairing
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            FeatureTile(
+                icon = Icons.Filled.Person,
+                title = stringResource(R.string.feat_guest_t),
+                desc = stringResource(R.string.feat_guest_d),
+                actionLabel = stringResource(R.string.nav_phone),
+                onAction = onGoPairing
+            )
+        }
+    }
+
+    // ৩. One compact setup strip (the technical 2×2 grid moved to Settings).
     val registered = deviceStatus.startsWith("Registered")
     val regFailed = deviceStatus.startsWith("Registration failed")
     val regBusy = deviceStatus.startsWith("Registering")
     val presenceOk = presenceStatus.startsWith("Online")
     val pushOk = pushStatus.startsWith("Push notifications ready")
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(modifier = Modifier.weight(1f)) {
-            IconStatusTile(
-                icon = Icons.Filled.Lock,
-                label = "পারমিশন",
-                value = if (permSummary.allDone) "সব চালু ✓" else "চালু ${permSummary.doneCount}/4",
-                ok = permSummary.allDone,
-                onClick = onOpenWizard
-            )
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            IconStatusTile(
-                icon = Icons.Filled.Phone,
-                label = "এই ফোন",
-                value = when {
-                    registered -> "রেজিস্টার্ড ✓"
-                    regBusy -> "চলছে…"
-                    regFailed -> "ব্যর্থ — চাপুন"
-                    else -> "চেক হয়নি"
-                },
-                ok = registered,
-                onClick = { if (regFailed) onRetryRegistration() else onOpenWizard() }
-            )
-        }
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(modifier = Modifier.weight(1f)) {
-            IconStatusTile(
-                icon = Icons.Filled.Person,
-                label = "অনলাইন",
-                value = when {
-                    signedInUser == null -> "সাইন-ইন নেই"
-                    presenceOk -> "অনলাইন ✓"
-                    presenceStatus.startsWith("Presence failed") -> "ব্যর্থ"
-                    else -> "অপেক্ষায়…"
-                },
-                ok = signedInUser != null && presenceOk,
-                onClick = onOpenWizard
-            )
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            IconStatusTile(
-                icon = Icons.Filled.Notifications,
-                label = "নোটিফিকেশন",
-                value = when {
-                    signedInUser == null -> "সাইন-ইন নেই"
-                    pushOk -> "প্রস্তুত ✓"
-                    pushStatus.startsWith("Push setup failed") -> "ব্যর্থ"
-                    else -> "সেটআপ হয়নি"
-                },
-                ok = signedInUser != null && pushOk,
-                onClick = onOpenWizard
+    val allGood = signedInUser != null && permSummary.allDone &&
+        registered && presenceOk && pushOk
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpenWizard)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(
+                        color = if (allGood) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (allGood) {
+                        Icons.Filled.CheckCircle
+                    } else {
+                        Icons.Filled.Lock
+                    },
+                    contentDescription = null,
+                    tint = if (allGood) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                Text(
+                    text = if (allGood) {
+                        stringResource(R.string.home_setup_ok)
+                    } else {
+                        stringResource(R.string.home_setup_pending, permSummary.doneCount)
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (allGood) {
+                        stringResource(R.string.home_setup_ok_sub)
+                    } else {
+                        stringResource(R.string.home_setup_pending_sub)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 
-    // যেকোনো সেটআপ-ব্যর্থতা থাকলে একটাই কম্প্যাক্ট এরর-কার্ড (প্রতিটি ব্যর্থতার
-    // পূর্ণ কারণ এখানেই — টাইলগুলো ছোট-পরিষ্কার থাকে)।
+    // Any real setup failure still gets its own honest compact card.
     val failures = buildList {
         if (regFailed) add(deviceStatus)
         if (presenceStatus.startsWith("Presence failed")) add(presenceStatus)
@@ -1412,7 +1557,7 @@ private fun HomeTab(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "সেটআপে সমস্যা",
+                    text = stringResource(R.string.home_setup_problem),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onErrorContainer
@@ -1425,58 +1570,9 @@ private fun HomeTab(
                     )
                 }
                 WideOutlinedButton(onClick = onRetryRegistration) {
-                    Text("আবার চেষ্টা করুন · Retry")
+                    Text(stringResource(R.string.home_retry))
                 }
             }
-        }
-    }
-
-    SectionCard(title = "এই অ্যাকাউন্টের ফোন", icon = Icons.Filled.Phone) {
-        if (deviceList.isEmpty()) {
-            Text(
-                text = "এখনো কোনো ফোন নিবন্ধিত হয়নি।",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            Column {
-                deviceList.forEachIndexed { index, entry ->
-                    if (index > 0) HorizontalDivider()
-                    val parts = entry.split(" · ")
-                    AppListTile(
-                        title = parts.getOrNull(0) ?: entry,
-                        subtitle = parts.drop(1).joinToString(" · ").ifBlank { " " },
-                        icon = Icons.Filled.Phone
-                    )
-                }
-            }
-        }
-    }
-
-    Text(
-        text = "দ্রুত অ্যাকশন · Quick actions",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Box(modifier = Modifier.weight(1f)) {
-            QuickActionTile(
-                icon = Icons.Filled.Add,
-                title = "ফোন যুক্ত করুন",
-                subtitle = "কোড বা QR স্ক্যান",
-                onClick = onGoPairing
-            )
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            QuickActionTile(
-                icon = Icons.Filled.List,
-                title = "একটিভিটি",
-                subtitle = "সেশন ও ফোন",
-                onClick = onGoActivity
-            )
         }
     }
 
@@ -1487,6 +1583,83 @@ private fun HomeTab(
         modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center
     )
+}
+
+/** True when the build actually has a Google Web Client ID for sign-in. */
+private fun webClientAvailable(): Boolean =
+    try {
+        com.family.remote.support.BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()
+    } catch (_: Exception) {
+        false
+    }
+
+/**
+ * Phase 16 — one feature tile of the home showcase grid: icon circle +
+ * title + 2-line description, optional action button. Opens an honest
+ * explainer dialog on tap (no fake navigation anywhere).
+ */
+@Composable
+private fun FeatureTile(
+    icon: ImageVector,
+    title: String,
+    desc: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    var showInfo by remember { mutableStateOf(false) }
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showInfo = true }
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        MaterialTheme.colorScheme.tertiaryContainer,
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (actionLabel != null && onAction != null) {
+                WideOutlinedButton(onClick = onAction) { Text(actionLabel) }
+            }
+        }
+    }
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { showInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showInfo = false }) {
+                    Text(stringResource(R.string.cmn_ok))
+                }
+            },
+            title = { Text(title, fontWeight = FontWeight.Bold) },
+            text = { Text(desc) }
+        )
+    }
 }
 
 /** v0.14.0 — one-line live-session hint card (non-consent cases). */
@@ -2186,17 +2359,23 @@ private fun SettingsTab(
     signedInUser: FirebaseUser?,
     busy: Boolean,
     statusMessage: String?,
+    deviceList: List<String>,
     webClientConfigured: Boolean,
-    firebaseProjectId: String,
-    firebaseAppId: String,
     permSummary: PermChecklist,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     onOpenWizard: () -> Unit
 ) {
     val context = LocalContext.current
+    // Phase 16 — full-screen policy documents (privacy / rules) rendered
+    // as overlays; null = none open.
+    var showDoc by remember { mutableStateOf<String?>(null) }
 
-    SectionCard(title = "অ্যাকাউন্ট", icon = Icons.Filled.Person) {
+    // ── ১. Account + PROFILE (Owner: "সেটিংস ট্যাব এর ভিতরে একটি ইউজার
+    // প্রোফাইল creat করেন") — name is editable, updates the Firebase
+    // profile AND the users/{uid} doc the rest of the app already reads.
+    var showEditName by remember { mutableStateOf(false) }
+    SectionCard(title = stringResource(R.string.set_section_account), icon = Icons.Filled.Person) {
         if (!webClientConfigured) {
             Text(
                 text = "এই বিল্ডে সাইন-ইন বন্ধ: Web Client ID সেট হয়নি। " +
@@ -2208,7 +2387,7 @@ private fun SettingsTab(
         if (signedInUser == null) {
             EmptyState(
                 icon = Icons.Filled.Person,
-                title = "সাইন-ইন করা নেই",
+                title = stringResource(R.string.home_not_signed_in),
                 hint = "ইমেইল বা Google অ্যাকাউন্ট দিয়ে সাইন-ইন করলে ডিভাইস ও যুক্তি সংরক্ষিত হবে।"
             )
             BigButton(
@@ -2231,18 +2410,44 @@ private fun SettingsTab(
                 initials = (signedInUser.displayName ?: signedInUser.email ?: "?")
                     .take(1).ifBlank { "?" }
             )
-            Text(
-                text = "আপনার অ্যাকাউন্ট ও ডিভাইস শুধু আপনার নিজের Firebase প্রজেক্টে থাকে।",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            SettingsTile(
+                icon = Icons.Filled.Create,
+                title = stringResource(R.string.set_edit_name),
+                description = stringResource(R.string.set_profile_sub),
+                onClick = { showEditName = true },
+                trailing = {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             )
-            WideOutlinedButton(enabled = !busy, onClick = onSignOut) {
-                Icon(
-                    imageVector = Icons.Filled.ExitToApp,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+            HorizontalDivider()
+            Text(
+                text = stringResource(R.string.set_devices_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            if (deviceList.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.set_no_devices),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text("  সাইন আউট")
+            } else {
+                Column {
+                    deviceList.forEachIndexed { index, entry ->
+                        if (index > 0) HorizontalDivider()
+                        val parts = entry.split(" · ")
+                        AppListTile(
+                            title = parts.getOrNull(0) ?: entry,
+                            subtitle = parts.drop(1).joinToString(" · ").ifBlank { " " },
+                            icon = Icons.Filled.Phone
+                        )
+                    }
+                }
             }
         }
         statusMessage?.let {
@@ -2254,8 +2459,10 @@ private fun SettingsTab(
         }
     }
 
+    // ── ২. Setup & permissions (unchanged logic; + the honest TEST
+    // notification probe below — Owner: "নোটিফিকেশন আসে না").
     SectionCard(
-        title = "সেটআপ ও পারমিশন",
+        title = stringResource(R.string.set_section_setup),
         icon = Icons.Filled.Lock,
         infoText = "এই ৪টি অনুমতি চালু থাকলে অ্যাপের সব ফিচার মসৃণ চলে: " +
             "নোটিফিকেশন (অ্যাপ বন্ধ থাকলেও অনুরোধ দেখা), ক্যামেরা (QR স্ক্যান), " +
@@ -2283,14 +2490,14 @@ private fun SettingsTab(
         HorizontalDivider()
         SettingsNotifTile()
         HorizontalDivider()
+        TestNotifRow()
+        HorizontalDivider()
         SettingsAssistTile()
     }
 
-    // Phase 11.6 — REAL appearance setting (docs §9): System / Light /
-    // Dark, persisted via ThemePrefBus. The root theme wrapper reads this
-    // exact state, so the whole app repaints instantly — not a fake toggle.
+    // ── ৩. Appearance (unchanged logic).
     SectionCard(
-        title = "চেহারা · Appearance",
+        title = stringResource(R.string.set_section_look),
         icon = Icons.Filled.Settings,
         infoText = "সিস্টেম = ফোনের দিন/রাত সেটিং মেনে চলে। লাইট = সবসময় উজ্জ্বল, " +
             "ডার্ক = সবসময় অন্ধকার (রাতে চোখে আরাম)। পছন্দ মনে রাখা হয়।"
@@ -2318,12 +2525,80 @@ private fun SettingsTab(
         )
     }
 
-    SectionCard(title = "অ্যাপ সম্পর্কে", icon = Icons.Filled.Info) {
+    // ── ৪. LANGUAGE (Owner: "প্রধান ভাষা ইংলিশ হবে… পপুলার কয়েকটা ভাষা
+    // যোগ করো 10 15 টি") — 15 languages; English is the default on a fresh
+    // install; changing it recreates the activity so EVERYTHING repaints.
+    SectionCard(
+        title = stringResource(R.string.set_section_lang),
+        icon = Icons.Filled.List,
+        infoText = "English is the default app language; your choice is remembered on this phone. " +
+            "Available: English, বাংলা, हिन्दी, العربية, Español, Français, Português, Русский, " +
+            "Bahasa Indonesia, اردو, Türkçe, Deutsch, 中文, 日本語, नेपाली।"
+    ) {
+        Text(
+            text = stringResource(R.string.set_lang_sub),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        LangPrefBus.supported.forEach { (code, nativeName) ->
+            LangOptionRow(
+                label = nativeName,
+                selected = LangPrefBus.code == code,
+                onClick = { LangPrefBus.set(context, code) }
+            )
+        }
+    }
+
+    // ── ৫. RULES & PRIVACY (Owner: "নীতিমালা ও প্রাইভেসি পলিসি এই ফিচারস
+    // গুলো উন্মুক্ত ও অ্যাপ এ থাকা উচিত") — full documents INSIDE the app.
+    SectionCard(
+        title = stringResource(R.string.set_section_rules),
+        icon = Icons.Filled.Lock
+    ) {
+        SettingsTile(
+            icon = Icons.Filled.Lock,
+            title = stringResource(R.string.set_privacy),
+            description = stringResource(R.string.set_privacy_sub),
+            onClick = { showDoc = "privacy" },
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+        HorizontalDivider()
+        SettingsTile(
+            icon = Icons.Filled.CheckCircle,
+            title = stringResource(R.string.set_rules),
+            description = stringResource(R.string.set_rules_sub),
+            onClick = { showDoc = "rules" },
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+    }
+
+    // ── ৬. ACTIVITY — the old একটিভিটি tab merged here (Owner request):
+    // session activity + paired phones with live online status.
+    ActivityTab(user = signedInUser)
+
+    // ── ৭. About — FIXED (Owner: "About অপশন টি ঠিক নাই, সেখানে Firebase
+    // এর তথ্য গুলো দেখা যাচ্ছে। এটা তো প্রাইভেসি হলো না"): version + package
+    // only, plus a plain-language storage note and the two policy docs.
+    SectionCard(title = stringResource(R.string.set_section_about), icon = Icons.Filled.Info) {
         var showAbout by remember { mutableStateOf(false) }
         SettingsTile(
             icon = Icons.Filled.Info,
             title = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
-            description = "প্যাকেজ, Firebase প্রজেক্ট ও অ্যাপ-ID বিস্তারিত",
+            description = stringResource(R.string.set_about_sub),
             onClick = { showAbout = true },
             trailing = {
                 Icon(
@@ -2338,19 +2613,320 @@ private fun SettingsTab(
             AlertDialog(
                 onDismissRequest = { showAbout = false },
                 confirmButton = {
-                    TextButton(onClick = { showAbout = false }) { Text("ঠিক আছে") }
+                    TextButton(onClick = { showAbout = false }) {
+                        Text(stringResource(R.string.cmn_ok))
+                    }
                 },
-                title = { Text("অ্যাপ সম্পর্কে", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(stringResource(R.string.set_section_about), fontWeight = FontWeight.Bold)
+                },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatusRow(label = "সংস্করণ", value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})")
+                        StatusRow(
+                            label = "সংস্করণ · Version",
+                            value = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+                        )
                         StatusRow(label = "Package", value = "com.family.remote.support")
-                        StatusRow(label = "Firebase project", value = firebaseProjectId)
-                        StatusRow(label = "Firebase app ID", value = firebaseAppId)
+                        Text(
+                            text = stringResource(R.string.about_storage),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { showDoc = "privacy" }) {
+                                Text(stringResource(R.string.set_privacy))
+                            }
+                            TextButton(onClick = { showDoc = "rules" }) {
+                                Text(stringResource(R.string.set_rules))
+                            }
+                        }
                     }
                 }
             )
         }
+    }
+
+    // ── ৮. Sign-out LAST (Owner: "লগআউট করার অপশন টি নিচের দিকে থাকলে ভালো")।
+    if (signedInUser != null) {
+        WideOutlinedButton(enabled = !busy, onClick = onSignOut) {
+            Icon(
+                imageVector = Icons.Filled.ExitToApp,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Text("  " + stringResource(R.string.set_sign_out))
+        }
+    }
+
+    // Full-screen policy document overlays.
+    when (showDoc) {
+        "privacy" -> DocOverlay(
+            title = stringResource(R.string.privacy_title),
+            body = stringResource(R.string.privacy_body)
+        ) { showDoc = null }
+        "rules" -> DocOverlay(
+            title = stringResource(R.string.rules_title),
+            body = stringResource(R.string.rules_body)
+        ) { showDoc = null }
+    }
+
+    // Edit-name dialog (profile).
+    if (showEditName && signedInUser != null) {
+        EditNameDialog(
+            currentName = signedInUser.displayName ?: "",
+            onDismiss = { showEditName = false }
+        )
+    }
+}
+
+/**
+ * Phase 16 — profile name editor: updates the Firebase Auth display name
+ * and mirrors it into users/{uid} (the doc the app already reads). Honest
+ * inline error on failure, toast on success, no silent lies.
+ */
+@Composable
+private fun EditNameDialog(
+    currentName: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var name by remember { mutableStateOf(currentName) }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text(stringResource(R.string.set_edit_name), fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.set_name_label)) },
+                    singleLine = true,
+                    enabled = !saving
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !saving && name.trim().length >= 2,
+                onClick = {
+                    saving = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val user = FirebaseAuth.getInstance().currentUser
+                                ?: throw IllegalStateException("Not signed in")
+                            user.updateProfile(
+                                UserProfileChangeRequest.Builder()
+                                    .setDisplayName(name.trim())
+                                    .build()
+                            ).await()
+                            Fb.db.collection("users").document(user.uid)
+                                .set(
+                                    hashMapOf(
+                                        "displayName" to name.trim(),
+                                        "updatedAt" to FieldValue.serverTimestamp()
+                                    ),
+                                    SetOptions.merge()
+                                ).await()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.set_saved),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            onDismiss()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            error = describeFirestoreError(e)
+                        } finally {
+                            saving = false
+                        }
+                    }
+                }
+            ) {
+                Text(stringResource(R.string.set_save))
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !saving, onClick = onDismiss) {
+                Text(stringResource(R.string.set_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Phase 16 — language option row: the language's OWN native name + a radio
+ * check. Native names never translate — each language shows as it calls
+ * itself, exactly like every mainstream app does.
+ */
+@Composable
+private fun LangOptionRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+/**
+ * Phase 16 — TEST NOTIFICATION (Owner: "নোটিফিকেশন আসে না") — an honest
+ * one-tap probe: posts a REAL notification on the SAME channel the session
+ * requests use, so channel + permission are verified instantly without
+ * asking anyone for help. If the permission is off, it says so instead of
+ * pretending.
+ */
+@Composable
+private fun TestNotifRow() {
+    val context = LocalContext.current
+    var feedback by remember { mutableStateOf<String?>(null) }
+    SettingsTile(
+        icon = Icons.Filled.Notifications,
+        title = stringResource(R.string.set_test_notif),
+        description = feedback ?: "নোটিফিকেশন চ্যানেল ও পারমিশন এক ট্যাপে যাচাই করুন।",
+        onClick = {
+            val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                feedback = context.getString(R.string.set_test_notif_blocked)
+                return@SettingsTile
+            }
+            try {
+                // The channel is created by SessionNotifier at app start;
+                // (re)creating it here is idempotent and keeps the probe
+                // honest even on a brand-new process.
+                val channelId = "support_session_requests"
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE)
+                    as NotificationManager
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    manager.createNotificationChannel(
+                        NotificationChannel(
+                            channelId,
+                            "Support session requests",
+                            NotificationManager.IMPORTANCE_HIGH
+                        )
+                    )
+                }
+                val openIntent = Intent(context, MainActivity::class.java)
+                val pending = PendingIntent.getActivity(
+                    context,
+                    990001,
+                    openIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val notification = NotificationCompat.Builder(context, channelId)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("Family Remote Support")
+                    .setContentText("Notifications are working ✓ · নোটিফিকেশন কাজ করছে ✓")
+                    .setAutoCancel(true)
+                    .setContentIntent(pending)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .build()
+                manager.notify(990001, notification)
+                feedback = context.getString(R.string.set_test_notif_sent)
+            } catch (_: Exception) {
+                feedback = context.getString(R.string.set_test_notif_blocked)
+            }
+        }
+    )
+}
+
+/**
+ * Phase 16 — full-screen policy document overlay (privacy / rules):
+ * scrollable, dismissible, honest — nothing leaves the device to show it.
+ */
+@Composable
+private fun DocOverlay(
+    title: String,
+    body: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .systemBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "বন্ধ করুন",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp)
+            ) {
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Phase 16 — the LIVE LOCATION tab: an honest placeholder (Owner: "একটিভিটি
+ * ট্যাব টি মোছে দিয়ে live location নামে একটা ট্যাব ওপেন করেন। এটার কাজ
+ * ভবিষ্যতে করবো")। Nothing is collected, nothing is shared, no fake map.
+ */
+@Composable
+private fun LiveLocationTab() {
+    SectionCard(title = stringResource(R.string.loc_title), icon = Icons.Filled.LocationOn) {
+        EmptyState(
+            icon = Icons.Filled.LocationOn,
+            title = stringResource(R.string.loc_coming_title),
+            hint = stringResource(R.string.loc_coming_body)
+        )
     }
 }
 
@@ -3120,9 +3696,6 @@ private fun PairingSections(
                 val qr = remember(currentInvite.code, inviteKind) {
                     qrBitmap(currentInvite.qrPayload, badge = QrBadge.ofKind(inviteKind))
                 }
-                var copiedJustNow by remember(currentInvite.invitationId) {
-                    mutableStateOf(false)
-                }
                 var saveBusy by remember(currentInvite.invitationId) { mutableStateOf(false) }
                 var saveRequest by remember(currentInvite.invitationId) { mutableStateOf(false) }
                 var saveFeedback by remember(currentInvite.invitationId) {
@@ -3146,19 +3719,28 @@ private fun PairingSections(
                     val bitmap = qr
                     if (bitmap == null) return@LaunchedEffect
                     saveBusy = true
-                    saveFeedback = withContext(Dispatchers.IO) {
+                    val savedNote = withContext(Dispatchers.IO) {
                         val fileName = "pairing-code-${currentInvite.invitationId}.png"
                         saveQrToDownloads(context, bitmap, fileName)
-                            ?.let { "Saved ✓ $it" }
-                            ?: "Could not save the QR image."
                     }
                     saveBusy = false
-                }
-
-                LaunchedEffect(copiedJustNow) {
-                    if (copiedJustNow) {
-                        delay(2000)
-                        copiedJustNow = false
+                    // Phase 16 — the Owner asked for self-confirming actions:
+                    // a saved QR now TELLS you it was saved (toast), plus the
+                    // inline note stays on the card.
+                    if (savedNote != null) {
+                        saveFeedback = "Saved ✓ $savedNote"
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_saved, savedNote),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        saveFeedback = "Could not save the QR image."
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.toast_save_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
@@ -3205,9 +3787,18 @@ private fun PairingSections(
                                 text = { Text("কোড কপি · Copy") },
                                 onClick = {
                                     menuOpen = false
-                                    copyToClipboard(
+                                    val ok = copyToClipboard(
                                         context, "Pairing code", currentInvite.code
                                     )
+                                    // Phase 16 — copy now confirms itself
+                                    // (Owner: "কপি হয়েছে দেখাতে হবে")।
+                                    if (ok) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.toast_copied),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 }
                             )
                             DropdownMenuItem(
@@ -3236,6 +3827,11 @@ private fun PairingSections(
                                     if (q == null) {
                                         saveFeedback =
                                             "Could not prepare the QR image for sharing."
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.toast_share_prep_failed),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     } else {
                                         val intent = buildQrShareIntent(
                                             context, q, currentInvite.code
@@ -3245,10 +3841,20 @@ private fun PairingSections(
                                                 context.startActivity(intent)
                                             } catch (_: Exception) {
                                                 saveFeedback = "No app available for sharing."
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(R.string.toast_share_no_app),
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         } else {
                                             saveFeedback =
                                                 "Could not prepare the QR image for sharing."
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.toast_share_prep_failed),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
                                 }
