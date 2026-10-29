@@ -1237,3 +1237,46 @@ sha256 d071c47d278f6b82…)
 (২) স্ক্রিনশটের "Could not reach Firestore (waited 30 s)" = সে-মুহূর্তের ইন্টারনেট-বিচ্ছিন্নতা
 (অ্যাপ-বাগ নয়); (৩) Phase 14b (অ্যাপ→Worker instant sweep-কল, v0.19.0-প্রার্থী) বাকি; (৪)
 Uptodown-প্রকাশ বাকি (আপডেট-বিতরণের স্থায়ী সমাধান)
+
+---
+Task ID: 48
+Agent: Z.ai Code (main)
+Task: Phase 14.1 (infra — APK অপরিবর্তিত, versionCode 37): Cloudflare Workers Builds deploy-fix —
+wrangler.toml (repo root) + Firestore database-id লাইভ-প্রমাণ
+
+প্রেক্ষাপট: Owner Cloudflare dashboard-এ Git-connected build (Workers Builds, deploy command
+`npx wrangler deploy`) চালিয়েছেন; build ব্যর্থ — "✘ [ERROR] Could not detect a directory
+containing static files (e.g. html, css and js) for the project"। Owner-নির্দেশনা: repo root-এ
+wrangler.toml বানান (name/main/compatibility_date + [triggers] crons), main-এ আসল কোড-ফাইলের
+নাম; আর "Firestore database এর নাম (default) হলে কোডে /databases/default/ কে /databases/(default)/
+করে দিন"।
+
+তদন্ত (সফল): fail-এর রুট-কজ — repo root-এ wrangler.toml ছিল না, তাই config-ছাড়া wrangler
+static-assets Worker ধরে deploy করতে গিয়ে static file না পেয়ে ভেঙেছে; কোড-সিনট্যাক্সের দোষ নয়।
+Database-id প্রশ্নটি অনুমানে নয়, লাইভে মাপা হলো (tmp/dbid-test.mjs, SA-OAuth read-only):
+GET /databases/default → 200 (canonical: projects/remote-family-support/databases/default,
+FIRESTORE_NATIVE); GET /databases/(default) → 404 "database '(default)' does not exist";
+Worker-এর হুবহু call-shape runQuery /databases/default/documents:runQuery → 200 (rows OK);
+doc GET config/quality via default → 200, via (default) → 404। অর্থাৎ এই প্রজেক্টের database-এর
+আসল নামই `default` — Worker-এর /databases/default/ হুবহু সঠিক; (default) করা হলে প্রতিটি sweep
+404-এ ভেঙে যেত। কোডে শূন্য পরিবর্তন। সম্মত প্রমাণ: প্রমাণিত scripts/fcm-kill-push.mjs (GH Actions
+স্তর) একই path দিয়েই বহুদিন kill-push পাঠাচ্ছে।
+
+বাস্তবায়ন: নতুন wrangler.toml (repo root) — name="family-remote-support" (Workers Builds
+প্রজেক্ট-নামের সাথে হুবহু মিলতে হবে — Owner-কে নাম-মিল সতর্কতা দেওয়া হয়েছে),
+main="cloudflare/killpush-worker.js" (আসল কোড-ফাইল), compatibility_date="2025-10-01",
+[triggers] crons=["* * * * *"] (cron এখন কনফিগ থেকেই সেট হবে — dashboard-এ আলাদা ধাপ নেই),
+[observability] enabled=true (sweep-লগ dashboard Logs-এ)। ডক: CLOUDFLARE_SETUP.md নতুন করে
+লেখা — পদ্ধতি A (Git-connected Workers Builds: root-cause, wrangler.toml ব্যাখ্যা, secrets
+একবারই, /health-টেস্ট, নাম-মিল সতর্কতা, database-id প্রমাণ-টেবিল) + পদ্ধতি B (পুরনো manual
+paste flow, বিকল্প হিসেবে); PHASE-0 §43 (রুট-কজ/ফিক্স/লাইভ-প্রমাণ/অপরিবর্তিত/Owner-করণীয়);
+README Phase 14 বুলেটে deploy-পদ্ধতি ও database-id-প্রমাণ।
+
+যাচাই: Worker কোড হুবহু অপরিবর্তিত (mock-সুইট tmp/worker-test.mjs আগেই সব PASS); dbid-test
+লাইভ রান — ৫ প্রোব উপরের মতো; push + readback-verify ALL MATCH (sha256)।
+
+ফেইল/বাকি: (১) Cloudflare build-ফলাফল Owner-এর ড্যাশবোর্ডে দেখতে হবে (আমার অ্যাক্সেস নেই) —
+সফল হলে secrets যোগ করে /health-প্রমাণ পাঠান, তারপর আমি POST /sweep লাইভ টেস্ট করব; (২)
+নাম-মিল যাচাই (build প্রজেক্টের নাম family-remote-support কিনা — ভিন্ন হলে wrangler.toml-এর
+name বদলাবো); (৩) Phase 14b অ্যাপ→Worker instant sweep-কল (v0.19.0); (৪) Uptodown-প্রকাশ;
+(৫) উভয় ফোনে v0.18.1 ইনস্টল।
