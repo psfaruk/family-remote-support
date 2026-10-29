@@ -204,6 +204,27 @@ A trusted family member helps fix another family phone — always with the recei
     system service description (English + Bangla): "the service looks at the screen
     only to find the focused text field; the app never reads, stores or sends your
     screen text."
+- **Phase 11 ✅ (v0.13.0, versionCode 31) — APP SHELL: BOTTOM NAV + TOP BAR:** the one
+  long scroll became a real mobile app shape (Owner brief: "bottom 4 buttons — home,
+  settings & others; top notification icon + activity"):
+  - **Four tabs (Material 3 `NavigationBar`, Bangla labels, icons-core)**: হোম (version,
+    the recipient's Allow/Deny consent card at the VERY TOP when a request arrives,
+    permission card + wizard, this-device status, quick actions) · ফোন (the full
+    pairing card: create/scan/redeem + paired phones + session actions) · একটিভিটি
+    (honest activity feed: live session, last-session line fetched once on the
+    open→closed transition, paired-phone presence) · সেটিংস (account, about).
+  - **Top bar**: app name + live presence chip (green-ish dot while the heartbeat is
+    fresh) + a notification bell with a badge dot whenever a session ask is pending —
+    tapping jumps to the activity tab. The permission wizard is an app-level overlay
+    now, so switching tabs never closes it mid-step.
+  - **Layout bugs fixed (screenshot-proven)**: `StatusRow` became stacked label/value —
+    a long value can no longer glue to its label ("অনলাইনOnline ✓") or crush it into
+    one-char-per-line verticals; paired-phone rows became vertical sub-cards with
+    full-width buttons BELOW the info (the side-by-side Revoke pill that squeezed
+    "last seen…" into vertical letters and turned Start-session into an oval is gone);
+    device-model and presence each get their own line.
+  - Zero security changes: same Firestore queries/actions, rules re-verify everything;
+    the home-tab consent card calls the same `grantSession`/`denySession`.
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
