@@ -11,18 +11,26 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -282,6 +290,11 @@ fun PermissionWizard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+                // Phase 11.6 — visible progress: x of 4 at a glance.
+                LinearProgressIndicator(
+                    progress = { st.doneCount / 4f },
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Text(
                     text = "এই অ্যাপ শুধু আপনার অনুমতি নিয়েই কাজ করে। নিচের ৪টা জিনিস " +
                         "একবার চালু করলেই সব ফিচার মসৃণ চলবে।",
@@ -295,13 +308,25 @@ fun PermissionWizard(
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     ) {
-                        Text(
-                            text = "✓ সব প্রস্তুত! অ্যাপ পুরোপুরি চালু হওয়ার জন্য রেডি।",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(14.dp)
-                        )
+                        // Phase 11.6 — friendly success moment (docs §12).
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Text(
+                                text = "সব প্রস্তুত! অ্যাপ পুরোপুরি চালু হওয়ার জন্য রেডি।",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 } else {
                     Text(
@@ -406,17 +431,44 @@ private fun PermRow(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "$step.",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+                // Phase 11.6 — numbered step bubble; turns into a ✓ badge
+                // when that permission is done.
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(
+                            color = if (done) {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer
+                            },
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (done) {
+                        Text(
+                            text = "✓",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    } else {
+                        Text(
+                            text = step,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .weight(1f)
                 )
                 Text(
                     text = if (done) "✓ চালু" else "⬜ বাকি",
