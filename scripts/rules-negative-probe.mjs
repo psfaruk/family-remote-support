@@ -448,6 +448,10 @@ async function main() {
 
   const t0 = Date.now();
   const devHex24 = crypto.randomBytes(12).toString("hex");
+  // v0.21.0 — the synthetic invitations carry the RAW one-time token field
+  // (mirrors the v0.21.0 app + rules: redemption must prove token knowledge
+  // SERVER-SIDE via claimToken == the stored token).
+  const PROBE_TOKEN = "0123456789abcdef0123"; // exactly 20 chars, like the app's
   const FAKE_EMAILS = {
     [PROBE_UID]: "rules-probe@invalid.local",
     [HELPER_UID]: "rules-probe-helper@invalid.local",
@@ -474,6 +478,7 @@ async function main() {
           status: F("PENDING"),
           kind: F(kind),
           tokenHash: F("c".repeat(64)),
+          token: F(PROBE_TOKEN),
           createdAt: TS(t0),
           expiresAt: TS(t0 + 5 * 60_000),
         },
@@ -482,20 +487,28 @@ async function main() {
     return r;
   }
 
-  /** One atomic commit: invitation -> PAIRED (+ guest rel when guestKind). */
-  function redeemCommit(invId, relId, kind, guestEndsMs) {
+  /** One atomic commit: invitation -> PAIRED (+ guest rel when guestKind).
+   * v0.21.0: [claimToken] proves knowledge of the raw token server-side;
+   * [claimTokenValue] lets the N17/N18 attack reproductions omit/forge it. */
+  function redeemCommit(invId, relId, kind, guestEndsMs, claimTokenValue = PROBE_TOKEN) {
+    const invFields = {
+      status: F("PAIRED"),
+      claimedBy: F(HELPER_UID),
+      claimedEmail: F(FAKE_EMAILS[HELPER_UID]),
+      claimedAt: TS(Date.now()),
+      updatedAt: TS(Date.now()),
+    };
+    const invMask = ["status", "claimedBy", "claimedEmail", "claimedAt", "updatedAt"];
+    if (claimTokenValue !== null) {
+      invFields.claimToken = F(claimTokenValue);
+      invMask.push("claimToken");
+    }
     const invUpdate = {
       update: {
         name: `${RELDOC}/pairingInvitations/${invId}`,
-        fields: {
-          status: F("PAIRED"),
-          claimedBy: F(HELPER_UID),
-          claimedEmail: F(FAKE_EMAILS[HELPER_UID]),
-          claimedAt: TS(Date.now()),
-          updatedAt: TS(Date.now()),
-        },
+        fields: invFields,
       },
-      updateMask: { fieldPaths: ["status", "claimedBy", "claimedEmail", "claimedAt", "updatedAt"] },
+      updateMask: { fieldPaths: invMask },
     };
     const relFields = {
       helperUid: F(HELPER_UID),
@@ -569,6 +582,22 @@ async function main() {
     await makeInvitation("PRBGST1", "guest");
     const r = await redeemCommit("PRBGST1", relIdG, "guest", Date.now() + 65_000);
     return { expected: "200 ALLOWED", got: `HTTP ${r.status}`, pass: r.status === 200 };
+  });
+
+  // ---------- N17 (v0.21.0): redeem WITHOUT the token — must be DENIED ----
+  // This is the exact audit attack: the old rules verified NOTHING about the
+  // token, so anyone who learned the 6-char doc id could claim the pairing.
+  await run("N17 redeem with NO claimToken (audit attack)", async () => {
+    await makeInvitation("PRBWOT1", "guest");
+    const r = await redeemCommit("PRBWOT1", null, "guest", Date.now() + 65_000, null);
+    return { expected: "403 DENIED", got: `HTTP ${r.status}`, pass: r.status === 403 };
+  });
+
+  // ---------- N18 (v0.21.0): redeem with a FORGED token — must be DENIED ---
+  await run("N18 redeem with WRONG claimToken (forged)", async () => {
+    await makeInvitation("PRBWOT2", "guest");
+    const r = await redeemCommit("PRBWOT2", null, "guest", Date.now() + 65_000, "ffffffffffffffffffff");
+    return { expected: "403 DENIED", got: `HTTP ${r.status}`, pass: r.status === 403 };
   });
 
   // ---------- G2: live guest ask allowed (+ honest cancel cleanup) ----------
@@ -771,14 +800,24 @@ async function main() {
   // ================= report ===============================================
   console.log("\n────────── Phase 9/10 negative-probe results ──────────");
   let allPass = true;
+  let skipped = 0;
   for (const r of results) {
-    const mark = r.pass ? "✔" : "✘";
+    const mark = r.pass ? (String(r.got).startsWith("SKIPPED") ? "◐" : "✔") : "✘";
     if (!r.pass) allPass = false;
+    if (String(r.got).startsWith("SKIPPED")) skipped += 1;
     console.log(`${mark} ${r.name.padEnd(52)} expected ${r.expected.padEnd(12)} got ${r.got}`);
   }
   console.log(`\nsynthetic Auth user cleanup (accounts:delete): ${cleanup}`);
+  // v0.21.0 (audit): SKIPPED probes used to print under the same green
+  // banner — on an empty database the probe claimed "everything proven"
+  // while having proven almost nothing. They no longer fail the run (they
+  // are environment-dependent, not rule drift) but they are now COUNTED and
+  // reported so a green run cannot create false confidence.
+  if (skipped > 0) {
+    console.log(`◐ NOTE: ${skipped} probe(s) were SKIPPED (no fixture doc) — NOT proven either way.`);
+  }
   console.log(allPass
-    ? "✔✔ ALL EXPECTATIONS MET — the live rules refused every hostile path."
+    ? "✔✔ ALL EXECUTED EXPECTATIONS MET — the live rules refused every hostile path it could test."
     : "✘✘ RULES DRIFT — at least one hostile path was NOT denied!");
   process.exit(allPass ? 0 : 1);
 }
