@@ -82,10 +82,16 @@ object LangPrefBus {
     /**
      * Wrap a base context so its resources resolve the saved language.
      * Called from Activity.attachBaseContext (before onCreate/setContent).
+     *
+     * v0.21.0 (audit): ALWAYS wrap, English included. The old early-return
+     * for EN meant a fresh install on a Bengali/French/… system device
+     * opened in the SYSTEM language (contradicting the Owner requirement
+     * "app opens in English"), and after bn→en switching every
+     * default-locale format kept rendering Bengali digits inside the English
+     * UI (Locale.setDefault was never reset).
      */
     fun wrap(context: Context): Context {
         loadSync(context)
-        if (code == EN) return context
         val locale = Locale(code)
         Locale.setDefault(locale)
         val config = Configuration(context.resources.configuration)
@@ -98,9 +104,10 @@ object LangPrefBus {
         code = value
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(KEY, value).apply()
-        if (value != EN) {
-            Locale.setDefault(Locale(value))
-        }
+        // v0.21.0 (audit): reset the process default locale for EVERY value
+        // (English included) so locale-sensitive formatting follows the app
+        // language, not the previous selection.
+        Locale.setDefault(Locale(value))
         // Walk out of any ContextWrapper to the Activity and recreate it.
         var ctx: Context = context
         while (ctx is ContextWrapper) {
