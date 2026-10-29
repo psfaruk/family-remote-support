@@ -1288,3 +1288,48 @@ success), তারপর ৪.৫+ ঘণ্টা শূন্য — GitHub-�
 readback MATCH) + Actions API disable→enable চক্র (HTTP 204/204) — schedule re-registered;
 ফল পর্যবেক্ষণে। স্থায়ী সমাধান Cloudflare Worker স্তরই (প্রতি মিনিট, ২৪/৭)। sweep-লজিক/secret
 অপরিবর্তিত — ফায়ার হলেই sweep ঠিকভাবে চলে (দুই পূর্ববর্তী রান success)।
+
+---
+Task ID: 49
+Agent: Z.ai Code (main)
+Task: Phase 15 (v0.19.0, versionCode 38) — SESSION-VIEW UX + FIT-TO-SCREEN (Owner-screenshot
+report: ছোট-ভিউতে কন্ট্রোল-বাটন ভুল জায়গায় ও বড়; full-screen-এ ব্যাক/হোম বাটন দেখা যায় না বা
+কাজ করে না; popup নিচে চাপা পড়ে; UI সব ফোনে বড় লাগে — "zoom কমিয়ে ফিট করান, deeply")
+
+Owner-রিপোর্ট (স্ক্রিনশট Screenshot_2026-10-29-21-25-34 + বার্তা): (১) ছোট স্ক্রিনে অন্য ফোন
+দেখার সময় নিচের বাটনগুলো সঠিক পজিশনে নেই — স্ক্রিনের একদম নিচে ছোট করে থাকতে হবে যেন কন্ট্রোল
+সহজ হয়; (২) full-screen-এ শেয়ার করা ফোনের ব্যাক-বাটন দেখা/কাজ করে না — নিচে ছোট overlay-ট্যাব
+চাই (অপশন/হোম/ব্যাক + ছোট-স্ক্রিন + ক্লোজ), আর দেখা-ওয়াচার ফোন থেকে চাপলে তা সত্যিই অন্য ফোনে
+কাজ করতে হবে; (৩) popup স্ক্রিনের মাঝখানে চোখের সামনে আসতে হবে; (৪) পুরো UI সব ফোনে ফিট —
+zoom কমান, প্রতিটি section এক স্ক্রিনে।
+
+বাস্তবায়ন (MainActivity.kt + ui/Theme.kt — শূন্য backend/rules/signaling/FCM পরিবর্তন):
+(১) SessionKeyBar — রুট-লেভেল Box-এ স্ক্রিনের একদম নিচে pin করা কমপ্যাক্ট কন্ট্রোল-বার
+(navigationBars-inset সচেতন), [Back][Home][Recents] | [type][fullscreen][stop], 44dp touch
+target; তিন সিস্টেম-কি প্রকৃত কন্ট্রোল — sendAssistNav একই epoch-gated command-channel-এ
+যায় (tap-এর মতোই), recipient-এর assist service GLOBAL_ACTION_BACK/HOME/RECENTS করে (Phase-8
+ওয়্যারিং প্রমাণিত); touch বন্ধ থাকলে সৎ hint-chip; পুরনো mid-scroll Back/Home/Recents সারি +
+type + full-screen + stop বাটন সরানো। (২) একই বার full-screen viewer-এর ভেতরে ছোট নিচের
+overlay হিসেবে (exit-to-small সহ) — full-screen আর dead-end নয়; পুরনো top-right close সরানো;
+stop watching এখন centered confirm-dialog চায়। (৩) approval-ask এখন CENTERED modal dialog
+(HomeConsentDialog, session-id প্রতি একবার, একই Firestore grant/deny যা উপরের কার্ডে ছিল) হিসেবেও
+আসে + REQUESTED ask এলে অ্যাপ নিজেই home-ট্যাবে জাম্প করে — popup চোখের সামনে, নিচে-চাপা নয়।
+(৪) Theme.kt-তে কমপ্যাক্ট type-scale (প্রতিটি slot −1..2sp, tight line-height) + inline-ভিডিও
+cap 480→400dp — সাধারণ ফোনে section এক স্ক্রিনে ফিট। SessionUiBus = একক সত্য-উৎস
+(panel/pinned-bar/fullscreen সিংক; নতুন session-id-তে fresh reset — পুরনো fullscreen/stop-dialog
+বহন করে না)। versionCode 37→38, versionName 0.18.1→0.19.0।
+
+যাচাই: ৪-কমিট ধারাবাহিক push — gradle a35391d, MainActivity c3002d0 (এক কমিটের ট্রানজিয়েন্ট
+"Unresolved reference 'tab'" :2672 — পরের MainActivity re-push-এ সংশোধিত), Theme 038e59b,
+MainActivity চূড়ান্ত 92af51e; চূড়ান্ত CI রান 40910033808 → SUCCESS
+(github.com/psfaruk/family-remote-support/actions/runs/40910033808); readback-verify ৩/৩ MATCH
+(fresh Contents API sha256 — gradle/MainActivity/Theme); আর্টিফ্যাক্ট স্থানীয় পুনঃযাচাই
+verify-apk-axml → PASS (code=38 INT_DEC, name=0.19.0, v2-sig উপস্থিত, stale-প্রোব শুধু [0.19.0]);
+APK → download/family-remote-support-v0.19.0-code38.apk (39.56 MB)।
+
+ফেইল/বাকি: (১) Owner-করণীয় — উভয় ফোনে v0.19.0 ইনস্টল করে বাস্তব-পরীক্ষা (ছোট-বার, full-screen
+overlay-বাটন, centered popup, ফিট-ফিল) — আমার পক্ষে সম্ভব নয়; (২) Phase-14.1-বাকি: Cloudflare
+dashboard-এ build-সফল নিশ্চিত + FIREBASE_SA_JSON/KILL_TOKEN secrets + /health secretsPresent
+দুই-true প্রমাণ, তারপর POST /sweep লাইভ-টেস্ট; (৩) Phase 14b (অ্যাপ→Worker instant sweep-কল)
+বাকি; (৪) Uptodown-প্রকাশ — Owner জানালে শুরু হবে; (৫) GH kill-push cron re-register-ফল
+পর্যবেক্ষণে (one-time পর্যবেক্ষণ-কাজ সেট)।
