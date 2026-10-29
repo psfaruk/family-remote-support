@@ -1528,3 +1528,69 @@ code scanner ও কোড ইমপোর্ট করার অপশন ট�
    রোল-নিশ্চিতকরণ → যুক্ত → Start session → গ্রহীতার Allow → সেশন।
 3. নোট: স্ক্রিনশটে দেখা "Could not reach Firestore (waited 30 s)" ত্রুটিগুলো ছিল সে-মুহূর্তের
    ইন্টারনেট-বিচ্ছিন্নতার (টপ-বারে "অফলাইন") — অ্যাপ-বাগ নয়; সংযোগ এলে নিজেই স্বাভাবিক হয়।
+
+## §43 — Phase 14.1 (infra — APK অপরিবর্তিত, versionCode 37): Cloudflare Workers Builds deploy-fix — wrangler.toml + database-id লাইভ-প্রমাণ (২০২৬-১০-২৯)
+
+**উৎপত্তি (Owner-রিপোর্ট + build-লগ):** Cloudflare dashboard-এ Git-connected build (Workers
+Builds, deploy command `npx wrangler deploy`) ব্যর্থ —
+`✘ [ERROR] Could not detect a directory containing static files (e.g. html, css and js) for the project`।
+সাথে Owner-নির্দেশনা: repo root-এ wrangler.toml বানান (name/main/compatibility_date +
+[triggers] crons), `main`-এ আসল কোড-ফাইলের পথ; আর "Firestore database এর নাম (default) হলে
+কোডে /databases/default/ কে /databases/(default)/ করে দিন"।
+
+### 43.1 রুট-কজ
+
+- repo root-এ **wrangler.toml ছিল না** → config-ছাড়া wrangler বুঝতে পারেনি কী deploy করবে,
+  static-assets Worker ধরে deploy-এর চেষ্টা করেছে, static file না পেয়ে ভেঙেছে — এই ত্রুটিটিই।
+  কোড/সিনট্যাক্সের দোষ নয় (killpush-worker.js অপরিবর্তিত, mock-সুইট আগেই সব PASS)।
+
+### 43.2 ফিক্স — নতুন wrangler.toml (repo root)
+
+```toml
+name = "family-remote-support"
+main = "cloudflare/killpush-worker.js"
+compatibility_date = "2025-10-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
+```
+
+- `name` — Workers Builds প্রজেক্টের নামের সাথে **হুবহু মিলতে হবে** (Owner-কে সতর্ক করা হয়েছে;
+  ভিন্ন হলে deploy ভিন্ন Worker-এ গিয়ে পড়ে)।
+- `main` — আসল কোড ফাইল `cloudflare/killpush-worker.js` (একক ফাইল, bundle-এর দরকার নেই)।
+- `[triggers]` — cron `* * * * *` এখন কনফিগ থেকেই সেট হয়; dashboard-এ আলাদা করে যোগ করা লাগবে না।
+- `[observability]` — sweep-লগ dashboard Logs-এ (ফ্রিতে দিনে ২,০০,০০০ ইভেন্ট)।
+- Secrets (`FIREBASE_SA_JSON`, `KILL_TOKEN`) dashboard-এ একবারই — deploy-এ মুছে যায় না।
+
+### 43.3 Firestore database-id — লাইভ-পরীক্ষায় চূড়ান্ত প্রমাণ (SA, read-only; tmp/dbid-test.mjs)
+
+নির্দেশনাটি ছিল শর্তসাপেক্ষ ("(default) **হলে**"), তাই অনুমান নয় — পরীক্ষা:
+
+| প্রোব | ফলাফল |
+|---|---|
+| `GET /databases/default` | **200** — canonical `projects/remote-family-support/databases/default`, FIRESTORE_NATIVE |
+| `GET /databases/(default)` | **404** "database '(default)' does not exist" |
+| `runQuery /databases/default/documents:runQuery` (Worker-এর হুবহু কল-shape) | **200**, rows OK |
+| doc GET `config/quality` via `default` | **200** |
+| doc GET `config/quality` via `(default)` | **404** |
+
+**উপসংহার: এই প্রজেক্টের database-এর আসল নামই `default` — Worker-এর `/databases/default/`
+হুবহু সঠিক; কোডে শূন্য পরিবর্তন।** `(default)` করা হলে প্রতিটি sweep 404-এ ভেঙে যেত। সম্মত
+প্রমাণ: প্রমাণিত `scripts/fcm-kill-push.mjs` (GitHub Actions স্তর) একই path দিয়েই বহুদিন
+kill-push পাঠাচ্ছে।
+
+### 43.4 অপরিবর্তিত
+
+- APK (v0.18.1 / versionCode 37), Firestore rules, sweep-লজিক, sandbox mini-service ও GitHub
+  Actions স্তর — শূন্য পরিবর্তন; Worker কোডও হুবহু আগেরটাই।
+
+### 43.5 Owner-করণীয়
+
+1. push-এর পর Cloudflare-এ নতুন build নিজেই চলবে — সফল হলে ব্যস। আবার fail করলে নতুন log পাঠান।
+2. **নাম-মিল যাচাই:** Workers Builds প্রজেক্টের নাম `family-remote-support` কিনা — ভিন্ন হলে
+   বলুন, wrangler.toml-এর `name` বদলে দেব।
+3. Worker → Settings → Variables and Secrets → `FIREBASE_SA_JSON` + `KILL_TOKEN` যোগ করুন।
+4. `/health` খুলে `secretsPresent` দুটোই `true`-র প্রমাণ পাঠান → আমি `POST /sweep` লাইভ টেস্ট করব।
