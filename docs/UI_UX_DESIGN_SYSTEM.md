@@ -1,9 +1,9 @@
 # UI/UX Design System — Remote Family Support (Phase 11.6 সমন্বিত স্পেসিফিকেশন)
 
-**Status:** 🔶 **DRAFT — OWNER-অনুমোদনের অপেক্ষায়** (এই ডকুমেন্ট পরিকল্পনা; কোনো UI কোড এখনো পরিবর্তিত হয়নি)
-**Version:** 1.0 (2025-10-29) · **Applies to:** v0.14.0 (versionCode 32) থেকে এগিয়ে
+**Status:** ✅ **বাস্তবায়িত (v0.15.0, versionCode 33) — Owner-এর "11.6 শুরু করো deeply" অনুমোদনে** · ভিজ্যুয়াল যাচাই = Owner-ফোন-টেস্ট বাকি (§22)
+**Version:** 1.1 (2025-10-29) · **Applies to:** v0.15.0 থেকে এগিয়ে
 **Sources:** Owner-এর ৫-কনসেপ্ট রেফারেন্স ছবি (Modern & Minimal / Friendly & Warm / Dark Mode / Colorful & Playful / Professional & Tech) + উন্নত UI/UX ইন্টিগ্রেশন প্রম্পট
-**Verification basis:** সব মূল্যায়ন **সোর্স-কোড পরিদর্শনে ভিত্তিক** (MainActivity.kt ৩৯১৩ লাইন, PermissionWizard.kt, build.gradle.kts, res/)। এমুলেটর/স্ক্রিনশট-ভিত্তিক ভিজ্যুয়াল যাচাই এই সেশনে সম্ভব হয়নি — যেখানে কোড-পাঠ বনাম চোখে-দেখা আলাদা, সেখানে স্পষ্টভাবে বলা হয়েছে।
+**Verification basis:** পরিকল্পনা-মূল্যায়ন ছিল সোর্স-কোড পাঠে; বাস্তবায়ন-পরে সব পরিবর্তন CI-বিল্ড + APK-AXML-verify + readback-verify দিয়ে যাচাইকৃত (worklog Task 46)।
 
 ---
 
@@ -506,14 +506,36 @@ Phase 11.6 "সম্পন্ন" গণ্য হবে যদি —
 |---|---|
 | রিপো-পরিদর্শন | ✅ সম্পন্ন (কোড-প্রমাণসহ, §7/§18) |
 | Phase 11-সমন্বয় | ✅ সম্পন্ন (§17) |
-| ডিজাইন-সিদ্ধান্ত | 🔶 প্রস্তাবনা — **Owner-অনুমোদন অপেক্ষমাণ** |
-| UI কোড-বাস্তবায়ন | ⛔ শুরু হয়নি (ইচ্ছাকৃত) |
-| Phase 12 | ⛔ শুরু হয়নি |
+| ডিজাইন-সিদ্ধান্ত | ✅ **Owner-অনুমোদিত** — "11.6 শুরু করো deeply" (§24-এর ৪টি সুপারিশই গৃহীত: নীল-প্রাইমারি ✓, ডার্ক মোড ✓, P2 এখনই ✓, সাইন-ইন কার্ড ✓) |
+| UI কোড-বাস্তবায়ন | ✅ **সম্পন্ন** — §19-চেকলিস্টের ১৫/১৫ আইটেম (v0.15.0, code 33) |
+| CI + APK-verify | ✅ CI SUCCESS + AXML versionCode 33 / versionName 0.15.0 + signing v2 (worklog Task 46) |
+| Owner-ফোন-ভিজ্যুয়াল-টেস্ট | 🔶 বাকি — §22-চেকলিস্ট (দুই ফোনে v0.15.0 ইনস্টল করে) |
+| Phase 12 | ⛔ শুরু হয়নি — 11.6-এর §22-টেস্ট-রিপোর্ট ও পরবর্তী নির্দেশের অপেক্ষায় |
 
-**Owner-এর সিদ্ধান্ত-বিন্দু (উত্তর দিলেই বাস্তবায়ন শুরু):**
-1. নীল-প্রাইমারি (#246BFD) গ্রহণ — অ্যাম্বার Family-অ্যাকসেন্টে নেমে আসবে? **[হ্যাঁ/না]** *(সুপারিশ: হ্যাঁ)*
-2. ডার্ক মোড + Light/Dark/System-সেটিং যোগ? **[হ্যাঁ/না]** *(সুপারিশ: হ্যাঁ)*
-3. §19-চেকলিস্টের P2-আইটেম (ইলাস্ট্রেশন, সাইন-ইন-কার্ড, স্ক্রল-সংশোধনী) এই ফেজেই, নাকি পরে? **[এখনই/পরে]**
-4. Sign-in — Settings-বিভাগ+হোম-কার্ড যথেষ্ট, নাকি ভবিষ্যতে পূর্ণ-স্ক্রিন চান? **[যথেষ্ট/পূর্ণ-স্ক্রিন-ব্যাকলগ]**
+**Owner-সিদ্ধান্ত-বিন্দু — সমাধান:**
+1. নীল-প্রাইমারি (#246BFD) → **গৃহীত** (LightColors ui/Theme.kt; অ্যাম্বার secondary-অ্যাকসেন্টে সংরক্ষিত)
+2. ডার্ক মোড + Light/Dark/System-সেটিং → **গৃহীত** (DarkColors + ThemePrefBus, SharedPreferences-persist)
+3. P2-আইটেম → **এখনই** (সাইন-ইন-কার্ড, ইলাস্ট্রেশন, স্ক্রল-সংশোধনী সব বাস্তব)
+4. সাইন-ইন উপস্থাপনা → **Settings-বিভাগ + হোম-আমন্ত্রণ-কার্ড** (পূর্ণ-স্ক্রিন ব্যাকলগে নয় — সিদ্ধান্ত: যথেষ্ট)
 
-**স্বাক্ষর:** এই ডকুমেন্ট প্রস্তুত হয়েছে Phase 11.6-পরিকল্পনা হিসেবে; অনুমোদন ছাড়া কোনো কোড-পরিবর্তন হবে না।
+**§19-চেকলিস্ট → বাস্তব-ম্যাপ (১৫/১৫):**
+
+| # | কাজ | বাস্তব |
+|---|---|---|
+| 1 | ui/Theme.kt টোকেন-ফাইল | ✅ LightColors/DarkColors/SeniorTypography/AppShapes/Spacing/ThemePreview/AppWarningColor/FamilyRemoteSupportTheme |
+| 2 | চেহারা গ্রুপ | ✅ SettingsTab-এ ThemeOptionRow ×৩ + ThemePrefBus persist |
+| 3 | নীল-মাইগ্রেশন | ✅ FamilyWarmColors বিলুপ্ত; অ্যাম্বার secondaryContainer-এ |
+| 4 | StatusBadge | ✅ + sessionBadgeKind/statusChipColors; সম্মতি/একটিভিটি/QR-তে প্রয়োগ |
+| 5 | ⓘ 48dp | ✅ 36→48dp (আইকন 22dp) |
+| 6 | QR-পলিশ | ✅ 200dp সাদা-তল, ≤30s warning-কাউন্টডাউন, অবস্থা-ব্যাজ |
+| 7 | Guest warning-চিপ | ✅ <১৫ মিনিটে AppWarningColor চিপ |
+| 8 | FriendlyError | ✅ friendlyErrorBn (নেটওয়ার্ক/অনুমতি-ম্যাপ) — রেজিস্ট্রেশন/প্রেজেন্স/পুশ/সাইন-ইনে |
+| 9 | উইজার্ড-রিস্টাইল | ✅ LinearProgressIndicator + ধাপ-বৃত্ত→✓ + সাফল্য-রো |
+| 10 | হোম-সাইন-ইন-কার্ড | ✅ startSignIn শেয়ার্ড-অ্যাকশন |
+| 11 | স্ক্রল/imePadding | ✅ tabScrollStates ×৪ + পেয়ারিং-শিটে imePadding |
+| 12 | window-background | ✅ colors.xml + values-night/colors.xml + themes.xml |
+| 13 | ইলাস্ট্রেশন | ✅ ic_empty_devices + ic_empty_activity (ভেক্টর, EmptyState-illustrationRes) |
+| 14 | সেমান্টিক্স | ✅ সম্মতি-কার্ডে mergeDescendants |
+| 15 | §22-যাচাই + প্রকাশ | ✅ lexer 0/0, readback 9/9 MATCH, CI, APK-verify |
+
+**স্বাক্ষর:** বাস্তবায়ন সম্পন্ন হয়েছে অনুমোদিত §19-চেকলিস্ট অনুযায়ী; চূড়ান্ত ভিজ্যুয়াল বিচার = §22 Owner-ফোন-টেস্ট।
