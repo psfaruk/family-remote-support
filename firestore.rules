@@ -27,6 +27,15 @@ rules_version = '2';
 // Phase 9: hardening audit — fcmTokens fields are type-checked and
 //   size-bounded. Everything else survived the negative-probe suite
 //   (scripts/rules-negative-probe.mjs) unchanged.
+// Phase 10: Guest mode — pairingInvitations + trustedDeviceRelationships
+//   + supportSessions carry a kind ('family' | 'guest'). A guest
+//   relationship is a server-bounded window (guestExpiresAt, <= 3 h):
+//   sessions may only be ASKED while the window is live, a granted guest
+//   session can never outlive it, and guest != family is absolute — a
+//   guest doc can never be re-activated through a family invitation or
+//   vice versa. The only way out of a guest pair is an explicit DELETE
+//   (allowed for participants on guest docs only), after which a fresh
+//   family pairing may reuse the pair key. Family links stay permanent.
 // Everything not matched below is denied by default.
 // ============================================================
 
@@ -79,10 +88,15 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(
           ['inviterUid', 'inviterEmail', 'recipientDeviceId', 'recipientDeviceModel',
-           'status', 'tokenHash', 'createdAt', 'expiresAt']
+           'status', 'kind', 'tokenHash', 'createdAt', 'expiresAt']
         )
         && request.resource.data.inviterUid == request.auth.uid
         && request.resource.data.status == 'PENDING'
+        // Phase 10: kind is optional (legacy family invites) but, when
+        // present, must be one of the two pairing modes. It is frozen
+        // afterwards — the update rule below never lists it.
+        && (!('kind' in request.resource.data)
+            || request.resource.data.kind in ['family', 'guest'])
         && request.resource.data.tokenHash is string
         && request.resource.data.tokenHash.size() == 64
         && request.resource.data.expiresAt is timestamp
@@ -113,11 +127,33 @@ service cloud.firestore {
     }
 
     // ---------- Phase 4: trusted relationships ----------
+    // Phase 10: kind 'family' (permanent) vs 'guest' (bounded window).
     match /trustedDeviceRelationships/{relId} {
       // Post-transaction state of the invitation that created this
       // relationship — lets the rules verify the atomic claim.
       function inviteAfter(relData) {
         return getAfter(/databases/$(database)/documents/pairingInvitations/$(relData.createdByInvitation)).data;
+      }
+
+      // True only when the map carries kind == 'guest' (missing kind on
+      // legacy docs = family, never an error).
+      function isGuestRel(d) {
+        return 'kind' in d && d.kind == 'guest';
+      }
+
+      // The invitation that created the relationship must NOT be a guest
+      // invite (missing kind on legacy invites = family).
+      function familyInvite(inv) {
+        return !('kind' in inv) || inv.kind == 'family';
+      }
+
+      // The guest window the CLIENT claims, re-bounded by the server:
+      // it must be a timestamp, live now, and no more than 3 h out.
+      function saneGuestWindow(d) {
+        return 'guestExpiresAt' in d
+          && d.guestExpiresAt is timestamp
+          && d.guestExpiresAt > request.time
+          && d.guestExpiresAt < request.time + duration.value(3, 'h');
       }
 
       // v0.6.2 fix: the redeem transaction READS the relationship doc to
@@ -138,32 +174,86 @@ service cloud.firestore {
             || resource.data.recipientUid == request.auth.uid);
 
       // Created only inside the redeem transaction: the invitation must end
-      // up PAIRED with this exact helper, and the recipient must be its owner.
+      // up PAIRED with this exact helper, the recipient must be its owner,
+      // and (Phase 10) the relationship kind must match the invitation kind.
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(
           ['helperUid', 'helperEmail', 'recipientUid', 'recipientEmail',
            'recipientDeviceId', 'recipientDeviceModel', 'pairKey', 'status',
-           'createdByInvitation', 'createdAt', 'updatedAt']
+           'createdByInvitation', 'createdAt', 'updatedAt', 'kind', 'guestExpiresAt']
         )
         && request.resource.data.helperUid == request.auth.uid
         && request.resource.data.status == 'ACTIVE'
         && request.resource.data.pairKey == (request.resource.data.helperUid + '_' + request.resource.data.recipientUid)
         && inviteAfter(request.resource.data).status == 'PAIRED'
         && inviteAfter(request.resource.data).claimedBy == request.auth.uid
-        && request.resource.data.recipientUid == inviteAfter(request.resource.data).inviterUid;
+        // Phase 10: the invitation must have been claimed IN THIS redeem
+        // (claimedAt within 2 min) — otherwise an already-PAIRED guest
+        // invitation could silently extend/refresh windows forever.
+        && inviteAfter(request.resource.data).claimedAt > request.time - duration.value(2, 'm')
+        && request.resource.data.recipientUid == inviteAfter(request.resource.data).inviterUid
+        && (
+          // family pairing — permanent link, no window
+          ( !isGuestRel(request.resource.data)
+            && !('guestExpiresAt' in request.resource.data)
+            && familyInvite(inviteAfter(request.resource.data)) )
+          ||
+          // guest pairing — bounded 2 h window (client-claimed, server-bounded)
+          ( isGuestRel(request.resource.data)
+            && 'kind' in inviteAfter(request.resource.data)
+            && inviteAfter(request.resource.data).kind == 'guest'
+            && saneGuestWindow(request.resource.data) )
+        );
 
-      // After creation only status changes: REVOKED by either participant,
-      // or re-activated through a fresh PAIRED invitation of the same pair.
+      // After creation only status (+ guest window refresh) changes:
+      //   REVOKED  — either participant, any kind
+      //   EXPIRED  — lazy cleanup of an over-time GUEST link (kind frozen)
+      //   ACTIVE   — re-activation through a fresh PAIRED invitation of the
+      //              SAME kind (family->family: status only; guest->guest:
+      //              status + a re-bounded guestExpiresAt). A guest link can
+      //              never be re-activated by a family invitation and vice
+      //              versa — guest != family is absolute.
       allow update: if signedIn()
         && (resource.data.helperUid == request.auth.uid
             || resource.data.recipientUid == request.auth.uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-        && request.resource.data.status in ['ACTIVE', 'REVOKED']
-        && (request.resource.data.status == 'REVOKED'
-            || (inviteAfter(request.resource.data).status == 'PAIRED'
-                && inviteAfter(request.resource.data).claimedBy == request.auth.uid));
+        && request.resource.data.status in ['ACTIVE', 'REVOKED', 'EXPIRED']
+        && (
+          request.resource.data.status == 'REVOKED'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          || (request.resource.data.status == 'EXPIRED'
+            && isGuestRel(resource.data)
+            && isGuestRel(request.resource.data)
+            && resource.data.guestExpiresAt < request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+          || (request.resource.data.status == 'ACTIVE'
+            && !isGuestRel(resource.data)
+            && !isGuestRel(request.resource.data)
+            && familyInvite(inviteAfter(request.resource.data))
+            && inviteAfter(request.resource.data).status == 'PAIRED'
+            && inviteAfter(request.resource.data).claimedBy == request.auth.uid
+            && inviteAfter(request.resource.data).claimedAt > request.time - duration.value(2, 'm')
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+          || (request.resource.data.status == 'ACTIVE'
+            && isGuestRel(resource.data)
+            && isGuestRel(request.resource.data)
+            && 'kind' in inviteAfter(request.resource.data)
+            && inviteAfter(request.resource.data).kind == 'guest'
+            && inviteAfter(request.resource.data).status == 'PAIRED'
+            && inviteAfter(request.resource.data).claimedBy == request.auth.uid
+            && inviteAfter(request.resource.data).claimedAt > request.time - duration.value(2, 'm')
+            && saneGuestWindow(request.resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['status', 'guestExpiresAt', 'updatedAt']))
+        );
 
-      allow delete: if false;
+      // Phase 10: a GUEST link may be REMOVED by either participant — the
+      // documented, non-automatic path out of a guest pair (afterwards a
+      // fresh family pairing may reuse the pair key). Family links are
+      // permanent and can never be deleted through the client API.
+      allow delete: if signedIn()
+        && (resource.data.helperUid == request.auth.uid
+            || resource.data.recipientUid == request.auth.uid)
+        && isGuestRel(resource.data);
     }
 
     // ---------- Phase 5: device presence (heartbeat) ----------
@@ -223,10 +313,19 @@ service cloud.firestore {
     //   REQUESTED -> EXPIRED  either participant (lazy cleanup)
     //   ACTIVE    -> ENDED    either participant (endedBy = uid or "timeout")
     // Nothing else is possible; deletes are impossible.
+    // Phase 10: sessions carry kind ('family' | 'guest', absent = family on
+    //   legacy docs). kind must match the relationship's kind, a guest rel
+    //   only authorizes asks while guestExpiresAt is live, and a granted
+    //   guest session's sessionEndsAt can never pass that window.
     match /supportSessions/{sessionId} {
       function isSessionParticipant() {
         return resource.data.helperUid == request.auth.uid
           || resource.data.recipientUid == request.auth.uid;
+      }
+
+      // The relationship the ask is riding on (create-time check).
+      function relNow() {
+        return get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.resource.data.relId)).data;
       }
 
       allow get: if signedIn() && isSessionParticipant();
@@ -237,7 +336,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(
           ['relId', 'helperUid', 'helperEmail', 'recipientUid', 'recipientEmail',
-           'recipientDeviceModel', 'status', 'requestedAt', 'respondDeadline',
+           'recipientDeviceModel', 'status', 'kind', 'requestedAt', 'respondDeadline',
            'createdAt', 'updatedAt']
         )
         && request.resource.data.helperUid == request.auth.uid
@@ -246,9 +345,24 @@ service cloud.firestore {
         && request.resource.data.helperEmail is string
         && request.resource.data.recipientEmail is string
         && request.resource.data.recipientDeviceModel is string
+        // Phase 10: kind is optional (legacy family clients) but, when
+        // present, must be one of the two modes and must MATCH the rel.
+        && (!('kind' in request.resource.data)
+            || request.resource.data.kind in ['family', 'guest'])
         && request.resource.data.relId == (request.resource.data.helperUid + '_' + request.resource.data.recipientUid)
         && exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.resource.data.relId))
-        && get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.resource.data.relId)).data.status == 'ACTIVE'
+        && relNow().status == 'ACTIVE'
+        && (
+          // family rel — only family/legacy asks, any time
+          ( !('kind' in relNow()) || relNow().kind == 'family' )
+            ? ( !('kind' in request.resource.data)
+                || request.resource.data.kind == 'family' )
+          // guest rel — only guest asks, and only inside the live window
+            : ( relNow().kind == 'guest'
+                && 'guestExpiresAt' in relNow()
+                && relNow().guestExpiresAt > request.time
+                && request.resource.data.kind == 'guest' )
+        )
         && request.resource.data.respondDeadline is timestamp
         && request.resource.data.respondDeadline > request.time
         && request.resource.data.respondDeadline < request.time + duration.value(5, 'm');
@@ -265,7 +379,12 @@ service cloud.firestore {
               ['status', 'respondedAt', 'grantedAt', 'sessionEndsAt', 'updatedAt'])
             && request.resource.data.sessionEndsAt is timestamp
             && request.resource.data.sessionEndsAt > request.time
-            && request.resource.data.sessionEndsAt < request.time + duration.value(20, 'm'))
+            && request.resource.data.sessionEndsAt < request.time + duration.value(20, 'm')
+            // Phase 10: a GUEST session can never outlive its guest link's
+            // window (family/legacy sessions skip this extra cap).
+            && (!('kind' in resource.data) || resource.data.kind != 'guest'
+                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(resource.data.relId)).data.guestExpiresAt
+                    >= request.resource.data.sessionEndsAt))
           // recipient denies
           || (resource.data.status == 'REQUESTED'
             && request.resource.data.status == 'DENIED'
