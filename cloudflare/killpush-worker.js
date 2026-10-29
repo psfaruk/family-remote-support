@@ -40,6 +40,22 @@ const CHANNEL_ID = "support_session_requests";
 /** Only asks requested within this window are pushed (stale ones are noise). */
 const FRESH_WINDOW_MILLIS = 10 * 60 * 1000;
 
+// v0.21.0 (audit) — CROSS-TIER IDEMPOTENCY. Three sweep tiers (sandbox 5 s,
+// this Worker 60 s, GitHub Actions 5 min) used to race check-then-send-then-
+// mark: two tiers reading the same second BOTH sent → duplicate high-
+// priority notifications. Each tier now CLAIMS the doc first with an
+// optimistic-concurrency precondition (currentDocument.updateTime from the
+// read): exactly one claim can win, and only the winner sends.
+const CLAIM_TTL_MILLIS = 5 * 60 * 1000;
+/** v0.21.0 (audit): free-plan subrequest ceiling is 50/invocation; a fresh
+ * doc costs ≤9 (claim + token query + ≤3 sends + ≤3 deletes + mark), so a
+ * hard cap of 4 docs/pass keeps the worst case at 37 + the initial query. */
+const MAX_DOCS_PER_SWEEP = 4;
+/** v0.21.0 (audit): stale REQUESTED docs (deadline long over) are lazily
+ * EXPIRED by the sweep itself — they used to be re-fetched by all 1,440
+ * daily sweeps forever (read cost + notification-bombing surface). */
+const EXPIRE_GRACE_MILLIS = 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Per-isolate state (best effort — isolates may restart at any time)
 // ---------------------------------------------------------------------------
@@ -174,7 +190,11 @@ async function authHeaders(env, extra = {}) {
 const fsBase = (sa) =>
   `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/default/documents`;
 
-/** All docs of a single-equality query (automatic single-field index). */
+/** All docs of a single-equality query (automatic single-field index).
+ * v0.21.0 (audit): NDJSON-tolerant parsing — Google sometimes answers
+ * :runQuery with streamed/newline-delimited chunks; the old res.json() then
+ * threw and killed the whole sweep pass. Also captures updateTime for the
+ * claim precondition. */
 async function queryWhere(env, collectionId, fieldPath, value) {
   const sa = loadSa(env);
   const res = await fetch(`${fsBase(sa)}:runQuery`, {
@@ -192,12 +212,29 @@ async function queryWhere(env, collectionId, fieldPath, value) {
   if (!res.ok) {
     throw new Error(`runQuery ${collectionId}: ${res.status} ${(await res.text()).slice(0, 300)}`);
   }
-  const rows = await res.json();
+  const text = await res.text();
+  let rows;
+  try {
+    rows = JSON.parse(text);
+  } catch {
+    // NDJSON fallback: parse line by line, skipping blank/keepalive lines.
+    rows = [];
+    for (const line of text.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      try {
+        rows.push(JSON.parse(t));
+      } catch {
+        /* skip malformed fragment */
+      }
+    }
+  }
   return rows
     .filter((r) => r.document)
     .map((r) => ({
       id: r.document.name.split("/").pop(),
       name: r.document.name,
+      updateTime: r.document.updateTime || null,
       fields: r.document.fields || {},
     }));
 }
@@ -214,6 +251,32 @@ async function patchDoc(env, docPath, fields, maskPaths) {
     throw new Error(`patch ${docPath}: ${res.status} ${(await res.text()).slice(0, 300)}`);
   }
   return res.json();
+}
+
+/** v0.21.0 (audit) — PATCH with an optimistic-concurrency precondition:
+ * succeeds ONLY if the doc's updateTime still equals [expectedUpdateTime].
+ * Returns true when the claim landed; false on 409/ABORTED (another tier
+ * touched the doc first — that tier owns the push). */
+async function patchDocIfUnchanged(env, docPath, fields, maskPaths, expectedUpdateTime) {
+  const sa = loadSa(env);
+  const mask = maskPaths.map((p) => `updateMask.fieldPaths=${encodeURIComponent(p)}`).join("&");
+  const res = await fetch(`${fsBase(sa)}/${docPath}?${mask}`, {
+    method: "PATCH",
+    headers: await authHeaders(env, { "Content-Type": "application/json" }),
+    body: JSON.stringify({ fields, currentDocument: { updateTime: expectedUpdateTime } }),
+  });
+  if (res.ok) return true;
+  if (res.status === 409 || res.status === 400) {
+    // 400: Firestore rejects preconditions on docs without updateTime; 409:
+    // precondition failed. Either way this tier does not own the doc.
+    try {
+      await res.text();
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+  throw new Error(`claim patch ${docPath}: ${res.status} ${(await res.text()).slice(0, 300)}`);
 }
 
 async function deleteDoc(env, docPath) {
@@ -281,6 +344,8 @@ async function sweepOnce(env, log = () => {}) {
     tokenErrors: 0,
     deadTokensDeleted: 0,
     alreadyPushed: 0,
+    claimLost: 0,
+    expiredStale: 0,
     errors: [],
   };
 
@@ -290,108 +355,173 @@ async function sweepOnce(env, log = () => {}) {
   const docs = await queryWhere(env, "supportSessions", "status", "REQUESTED");
   summary.requestedDocs = docs.length;
 
+  // v0.21.0 (audit): doc-id order from Firestore is arbitrary — process the
+  // most urgent (soonest deadline) first under the subrequest cap.
+  const byDeadline = (a, b) =>
+    (fieldGet(a.fields, "respondDeadline") ?? 0) - (fieldGet(b.fields, "respondDeadline") ?? 0);
+  docs.sort(byDeadline);
+
+  let processed = 0;
   for (const doc of docs) {
-    const f = doc.fields;
-    const requestedAt = fieldGet(f, "requestedAt") ?? fieldGet(f, "createdAt") ?? 0;
-    const deadline = fieldGet(f, "respondDeadline") ?? 0;
-    const pushedAt = fieldGet(f, "killPushSentAt");
-
-    if (pushedAt) {
-      summary.alreadyPushed += 1;
-      continue;
-    }
-    if (!deadline || deadline <= now) {
-      continue; // window already over — a push now would be confusing
-    }
-    if (!requestedAt || now - requestedAt > FRESH_WINDOW_MILLIS) {
-      continue; // stale REQUESTED doc nobody ever answered
-    }
-    summary.fresh += 1;
-
-    const recipientUid = fieldGet(f, "recipientUid") || "";
-    const helperEmail = fieldGet(f, "helperEmail") || "A family member";
-    const sessionId = doc.id;
-    if (!recipientUid) {
-      summary.errors.push(`${sessionId}: missing recipientUid`);
-      continue;
-    }
-
-    // Recipient's registered tokens.
-    let tokens;
+    // v0.21.0 (audit): one broken doc must never abort the remaining sweep
+    // (the old code let a single send/delete rejection escape the loop).
     try {
-      const tokenDocs = await queryWhere(env, "fcmTokens", "uid", recipientUid);
-      tokens = tokenDocs
-        .map((t) => ({ docId: t.id, token: fieldGet(t.fields, "token") }))
-        .filter((t) => typeof t.token === "string" && t.token.length >= 32);
-    } catch (e) {
-      summary.errors.push(`${sessionId}: token lookup failed — ${e.message}`);
-      continue;
-    }
-    if (tokens.length === 0) {
-      summary.noTokens += 1;
-      log(`kill-push: ${sessionId} → recipient has no FCM tokens (app never registered / new install)`);
-      // Deliberately NOT marked: if the recipient opens the app inside the
-      // window, registration appears and the next sweep can still push.
-      continue;
-    }
+      const f = doc.fields;
+      const requestedAt = fieldGet(f, "requestedAt") ?? fieldGet(f, "createdAt") ?? 0;
+      const deadline = fieldGet(f, "respondDeadline") ?? 0;
+      const pushedAt = fieldGet(f, "killPushSentAt");
+      const claimedAt = fieldGet(f, "killPushClaimAt");
 
-    const message = {
-      token: tokens[0].token, // one device = typically one token; extras are fallback below
-      notification: {
-        title: "Help requested",
-        body: `${helperEmail} wants to help with this phone — open to allow or deny. (সাহায্যের অনুরোধ — অনুমতি দিতে অ্যাপটি খুলুন)`,
-      },
-      data: {
-        type: "session_request",
-        sessionId,
-        helperEmail,
-      },
-      android: {
-        priority: "HIGH",
-        notification: { channel_id: CHANNEL_ID },
-      },
-    };
+      if (pushedAt) {
+        summary.alreadyPushed += 1;
+        continue;
+      }
+      // A live claim from another tier (or our own crashed attempt) owns
+      // this doc until CLAIM_TTL passes.
+      if (claimedAt && now - claimedAt < CLAIM_TTL_MILLIS) {
+        continue;
+      }
+      if (!deadline || deadline <= now) {
+        // v0.21.0 (audit): stale REQUESTED docs are expired here (admin path,
+        // same transition the lazy client cleanup performs) — they used to
+        // be re-fetched by every one of the 1,440 daily sweeps forever.
+        if (deadline && now - deadline > EXPIRE_GRACE_MILLIS) {
+          try {
+            await patchDoc(
+              env,
+              `supportSessions/${doc.id}`,
+              { status: { stringValue: "EXPIRED" }, updatedAt: { timestampValue: new Date().toISOString() } },
+              ["status", "updatedAt"]
+            );
+            summary.expiredStale += 1;
+          } catch {
+            /* best effort — the client lazy cleanup also covers this */
+          }
+        }
+        continue; // window already over — a push now would be confusing
+      }
+      if (!requestedAt || now - requestedAt > FRESH_WINDOW_MILLIS) {
+        continue; // stale REQUESTED doc nobody ever answered
+      }
+      if (processed >= MAX_DOCS_PER_SWEEP) {
+        continue; // subrequest budget — the next 60 s sweep takes the rest
+      }
+      processed += 1;
+      summary.fresh += 1;
 
-    let sent = 0;
-    let lastKind = "";
-    for (const t of tokens.slice(0, 3)) {
-      message.token = t.token;
-      const r = await sendFcm(env, message);
-      if (r.ok) {
-        sent += 1;
-        log(`kill-push: ${sessionId} → token ${t.docId.slice(0, 8)}… OK (${r.messageId})`);
-      } else if (r.kind === "UNREGISTERED" || r.kind === "BAD_TOKEN") {
-        summary.deadTokensDeleted += 1;
+      const recipientUid = fieldGet(f, "recipientUid") || "";
+      const helperEmail = fieldGet(f, "helperEmail") || "A family member";
+      const sessionId = doc.id;
+      if (!recipientUid) {
+        summary.errors.push(`${sessionId}: missing recipientUid`);
+        continue;
+      }
+
+      // v0.21.0 (audit): CLAIM-BEFORE-SEND — exactly one of the three sweep
+      // tiers can win this preconditioned write; the losers skip the doc, so
+      // duplicate high-priority pushes are gone.
+      const claimed = await patchDocIfUnchanged(
+        env,
+        `supportSessions/${sessionId}`,
+        { killPushClaimAt: { timestampValue: new Date().toISOString() } },
+        ["killPushClaimAt"],
+        doc.updateTime
+      );
+      if (!claimed) {
+        summary.claimLost += 1;
+        continue;
+      }
+
+      // Recipient's registered tokens.
+      let tokens;
+      try {
+        const tokenDocs = await queryWhere(env, "fcmTokens", "uid", recipientUid);
+        tokens = tokenDocs
+          .map((t) => ({ docId: t.id, token: fieldGet(t.fields, "token") }))
+          .filter((t) => typeof t.token === "string" && t.token.length >= 32);
+      } catch (e) {
+        summary.errors.push(`${sessionId}: token lookup failed — ${e.message}`);
+        continue;
+      }
+      if (tokens.length === 0) {
+        summary.noTokens += 1;
+        log(`kill-push: ${sessionId} → recipient has no FCM tokens (app never registered / new install)`);
+        // Deliberately NOT marked: if the recipient opens the app inside the
+        // window, registration appears and the next sweep can still push.
+        continue;
+      }
+
+      const message = {
+        token: tokens[0].token, // one device = typically one token; extras are fallback below
+        notification: {
+          title: "Help requested",
+          body: `${helperEmail} wants to help with this phone — open to allow or deny. (সাহায্যের অনুরোধ — অনুমতি দিতে অ্যাপটি খুলুন)`,
+        },
+        data: {
+          type: "session_request",
+          sessionId,
+          helperEmail,
+        },
+        android: {
+          priority: "HIGH",
+          notification: { channel_id: CHANNEL_ID },
+        },
+      };
+
+      let sent = 0;
+      let lastKind = "";
+      for (const t of tokens.slice(0, 3)) {
+        message.token = t.token;
+        let r;
         try {
-          await deleteDoc(env, `fcmTokens/${t.docId}`);
-          log(`kill-push: token ${t.docId.slice(0, 8)}… UNREGISTERED → registry entry deleted`);
+          r = await sendFcm(env, message);
         } catch (e) {
-          summary.errors.push(`token ${t.docId} delete failed — ${e.message}`);
+          // v0.21.0 (audit): a transient network rejection on ONE token
+          // must not kill the doc (it used to escape and abort the sweep).
+          lastKind = `network:${String(e && e.message ? e.message : e).slice(0, 120)}`;
+          continue;
+        }
+        if (r.ok) {
+          sent += 1;
+          log(`kill-push: ${sessionId} → token ${t.docId.slice(0, 8)}… OK (${r.messageId})`);
+        } else if (r.kind === "UNREGISTERED" || r.kind === "BAD_TOKEN") {
+          summary.deadTokensDeleted += 1;
+          try {
+            await deleteDoc(env, `fcmTokens/${t.docId}`);
+            log(`kill-push: token ${t.docId.slice(0, 8)}… UNREGISTERED → registry entry deleted`);
+          } catch (e) {
+            summary.errors.push(`token ${t.docId} delete failed — ${e.message}`);
+          }
+        } else {
+          lastKind = `${r.kind}${r.detail ? ` (${r.detail.slice(0, 120)})` : ""}`;
+        }
+      }
+
+      if (sent > 0) {
+        summary.pushed += 1;
+        try {
+          await patchDoc(
+            env,
+            `supportSessions/${sessionId}`,
+            {
+              killPushSentAt: { timestampValue: new Date().toISOString() },
+              killPushStatus: { stringValue: `sent:${sent}/${Math.min(tokens.length, 3)}` },
+            },
+            ["killPushSentAt", "killPushStatus"]
+          );
+        } catch (e) {
+          // Delivery happened; the claim + next-sweep TTL covers the rare
+          // duplicate this can cause (same trade-off as before, but rarer).
+          summary.errors.push(`${sessionId}: mark failed — ${e.message}`);
         }
       } else {
-        lastKind = `${r.kind}${r.detail ? ` (${r.detail.slice(0, 120)})` : ""}`;
+        summary.tokenErrors += 1;
+        if (lastKind) summary.errors.push(`${sessionId}: all sends failed — ${lastKind}`);
       }
-    }
-
-    if (sent > 0) {
-      summary.pushed += 1;
-      try {
-        await patchDoc(
-          env,
-          `supportSessions/${sessionId}`,
-          {
-            killPushSentAt: { timestampValue: new Date().toISOString() },
-            killPushStatus: { stringValue: `sent:${sent}/${Math.min(tokens.length, 3)}` },
-          },
-          ["killPushSentAt", "killPushStatus"]
-        );
-      } catch (e) {
-        // Delivery happened; a duplicate on the next sweep is acceptable.
-        summary.errors.push(`${sessionId}: mark failed — ${e.message}`);
-      }
-    } else {
-      summary.tokenErrors += 1;
-      if (lastKind) summary.errors.push(`${sessionId}: all sends failed — ${lastKind}`);
+    } catch (e) {
+      summary.errors.push(
+        `${doc.id}: sweep error — ${String(e && e.message ? e.message : e).slice(0, 160)}`
+      );
     }
   }
 
@@ -410,37 +540,36 @@ async function runSweep(env) {
     const s = await sweepOnce(env);
     last.at = at;
     last.ok = true;
-    last.summary = JSON.stringify(s);
+    // v0.21.0 (audit): /health used to expose the FULL summary (doc ids,
+    // token-id prefixes, Google error text) to the public internet — keep
+    // only counts + a coarse error tally here; the full detail lives in the
+    // Worker observability logs (dashboard-only).
+    const { errors, ...counts } = s;
+    last.summary = JSON.stringify({ ...counts, errors: Array.isArray(errors) ? errors.length : 0 });
     return s;
   } catch (e) {
     last.at = at;
     last.ok = false;
-    last.summary = "error: " + String(e && e.message ? e.message : e);
+    // Truncated — /health is public; the full error lives in observability logs.
+    last.summary = ("error: " + String(e && e.message ? e.message : e)).slice(0, 80);
     throw e;
   } finally {
     inFlight = false;
   }
 }
 
-const CORS_OK = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type",
-};
-
 const json = (obj, status = 200) =>
+  // v0.21.0 (audit): CORS headers REMOVED — this Worker serves cron + a
+  // bearer-token POST endpoint only; "*" origins with Authorization allowed
+  // served no purpose and widened the blast radius if KILL_TOKEN ever leaks.
   new Response(JSON.stringify(obj), {
     status,
-    headers: { "Content-Type": "application/json", ...CORS_OK },
+    headers: { "Content-Type": "application/json" },
   });
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_OK });
-    }
 
     if (url.pathname === "/health") {
       return json({
