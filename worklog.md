@@ -1164,3 +1164,42 @@ Stage Summary:
   কাস্টম-attestation ছাড়া ঝুঁকি), kill-push স্থায়ী-ইনস্ট্যান্ট স্তর (Cloudflare Workers —
   ফ্রি/কার্ডহীন, Owner অ্যাকাউন্ট খুলতে হবে), রিলে পেইড-সিদ্ধান্ত, টোকেন-rotate (SA/PAT),
   Oracle TURN বিকল্প, Phase 7-ফরমাল-ক্লোজ স্ক্রিনশট
+
+---
+Task ID: 46
+Agent: Z.ai Code (main)
+Task: Phase 14 (infra — APK অপরিবর্তিত): kill-push স্থায়ী স্তর Cloudflare Workers ফ্রি-প্ল্যানে + Owner-সিদ্ধান্ত-রেকর্ড
+(Owner উদ্ধৃতি: "Cloudflare Worker ব্যবহার করা সবচেয়ে সহজ ও নিরাপদ" / "পেইড রিলে সার্ভারে টাকা খরচ
+করার দরকার নেই। ফ্রি লিমিট পার হলে তখন পেইড ভাবা যাবে" / "সাধারণ টোকেন অথেন্টিকেশন দিয়ে শুরু" /
+"প্রথমে uptodown এ পাবলিশ করব... পরে play store"; সাথে: Cloudflare অ্যাকাউন্ট খোলা হয়েছে)
+
+প্রেক্ষাপট: v0.18.0-র ব্যাকলগে স্থায়ী kill-push স্তর + রিলে পেইড-সিদ্ধান্ত ছিল (§40-Stage-Summary);
+Owner-এর বার্তাই তিনটিরই উত্তর দিল — Cloudflare Workers (ফ্রি/কার্ডহীন) + ফ্রি-লিমিট-পর্যন্ত-ফ্রি +
+সাধারণ টোকেন-অথ। প্রথম কাজ: স্যান্ডবক্স স্টেল ছিল (MainActivity 2109 লাইন) → রিমোট ট্রি (৪৭ ফাইল)
+সম্পূর্ণ মিরর করে সত্য-অবস্থায় (v0.18.0) পুনঃসিঙ্ক করা হয়েছে; সব কাজ রিমোট-সত্যায়িত কপিতে।
+
+বাস্তবায়ন:
+- cloudflare/killpush-worker.js (নতুন): scripts/fcm-kill-push.mjs-এর প্রমাণিত sweep-এর শূন্য-নির্ভরতার
+  Web-Crypto-প্রতিলিপি — একই runQuery(status==REQUESTED)/freshness-gate(≤১০ মি)/fcmTokens-lookup/
+  FCM-v1-message(HIGH, support_session_requests)/killPushSentAt-idempotent-mark/UNREGISTERED-cleanup —
+  দুই স্তর কখনো drift করতে পারে না; GET /health (খোলা, secret-মুক্ত), POST /sweep (Bearer KILL_TOKEN,
+  timing-safe, in-flight গার্ড), scheduled (cron * * * * *); PKCS8→importKey→RS256 Web Crypto-তে
+- docs/CLOUDFLARE_SETUP.md (নতুন): ফোন-বান্ধব ৪-ধাপ বাংলা dashboard-গাইড (Worker তৈরি → raw-কোড
+  পেস্ট → FIREBASE_SA_JSON+KILL_TOKEN secrets → cron * * * * *) + ফ্রি-লিমিট হিসাব (১,৪৪০/১,০০,০০০
+  দিন <২%) + rotate-নোট
+- PHASE-0 §41 (উদ্ধৃতি-সহ সিদ্ধান্ত-রেকর্ড, তিন-স্তর টেবিল, Worker-ডিজাইন, যাচাই, প্রকাশনা-পরিকল্পনা
+  Uptodown→Play + Play-প্রস্তুতি-তালিকা) + README Status-এ Phase 14 বুলেট
+- KILL_TOKEN: ৪০-hex → .secrets/cf-kill-token.txt (Owner dashboard-পেস্টের জন্য চ্যাটে দেওয়া; repo-তে নয়)
+
+যাচাই: node --check PASS; mock-সুইট (tmp/worker-test.mjs) — মক-fetch-এ আসল Worker-কোড: RS256/PKCS8
+সত্যিকারে সই করে, ৩ REQUESTED→১ fresh (stale/expired বাদ), pushed=1, UNREGISTERED→ডিলিট=1,
+killPushSentAt-মার্ক নিশ্চিত, bad-token→401, GET→405, /health ঠিক, scheduled() পুশ করে, প্রকৃত SA
+PKCS8-PEM গঠন OK — সব PASS
+
+যা অপরিবর্তিত: APK (versionCode 36), Firestore rules (SA admin-পথ), স্যান্ডবক্স mini-service ও GH
+Actions স্তর — Worker সংযোজন; অ্যাপ-পাশের instant helper-কল Phase 14b (v0.19.0-প্রার্থী)
+
+প্রকাশনা:
+- পুশ ১: cloudflare/killpush-worker.js → 1cdfda2 (201 নতুন); readback MATCH (sha256)
+- পুশ ২ (ডক): docs/CLOUDFLARE_SETUP.md + docs/PHASE-0.md (§41) + README.md + worklog.md → নিচের
+  প্রকাশনা-রেকর্ড; readback-verify ALL MATCH (sha256 স্থানীয়=রিমোট)
