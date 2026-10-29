@@ -88,7 +88,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(
           ['inviterUid', 'inviterEmail', 'recipientDeviceId', 'recipientDeviceModel',
-           'status', 'kind', 'tokenHash', 'createdAt', 'expiresAt']
+           'status', 'kind', 'tokenHash', 'token', 'createdAt', 'expiresAt']
         )
         && request.resource.data.inviterUid == request.auth.uid
         && request.resource.data.status == 'PENDING'
@@ -99,6 +99,11 @@ service cloud.firestore {
             || request.resource.data.kind in ['family', 'guest'])
         && request.resource.data.tokenHash is string
         && request.resource.data.tokenHash.size() == 64
+        // v0.21.0 (audit): the RAW one-time token is stored (alongside its
+        // hash) so the redeem update can PROVE token knowledge server-side —
+        // see the update rule below.
+        && request.resource.data.token is string
+        && request.resource.data.token.size() == 20
         && request.resource.data.expiresAt is timestamp
         && request.resource.data.expiresAt > request.time
         && request.resource.data.expiresAt < request.time + duration.value(10, 'm');
@@ -107,6 +112,17 @@ service cloud.firestore {
       //   1) the inviter cancels their own pending invitation
       //   2) another signed-in user redeems it (PENDING -> PAIRED)
       // In both cases the token hash can never change.
+      //
+      // v0.21.0 (audit — THE PAIRING TOKEN WAS DECORATIVE): the redeem branch
+      // now requires claimToken == the stored raw token, so redemption
+      // genuinely proves knowledge of the 80-bit out-of-band secret
+      // SERVER-SIDE. Previously the rules verified NOTHING about the token
+      // (only honest clients did, client-side): any signed-in user who
+      // learned/guessed the 6-character doc id (~30 bits, publicly probeable
+      // via get) could patch the doc to PAIRED + claimedBy=themselves and
+      // create a permanent trusted relationship. Screen control still
+      // needed the victim's Allow tap, but the pairing layer itself was
+      // compromised — closed here.
       allow update: if signedIn()
         && resource.data.status == 'PENDING'
         && request.resource.data.tokenHash == resource.data.tokenHash
@@ -119,8 +135,9 @@ service cloud.firestore {
             && request.time < resource.data.expiresAt
             && request.resource.data.status == 'PAIRED'
             && request.resource.data.claimedBy == request.auth.uid
+            && request.resource.data.claimToken == resource.data.token
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-              ['status', 'claimedBy', 'claimedEmail', 'claimedAt', 'updatedAt']))
+              ['status', 'claimedBy', 'claimedEmail', 'claimedAt', 'updatedAt', 'claimToken']))
         );
 
       allow delete: if signedIn() && resource.data.inviterUid == request.auth.uid;
@@ -262,9 +279,21 @@ service cloud.firestore {
     // readers may read their own or a paired counterpart's (relationship doc
     // id == pairKey == helperUid_recipientUid).
     match /devicePresence/{docId} {
+      // v0.21.0 (audit): myPairing now checks the relationship's STATUS and
+      // (for guest links) the live window — the old exists()-only check kept
+      // granting presence reads (heartbeat cadence, device model, deviceId)
+      // to REVOKED/EXPIRED ex-partners forever.
       function myPairing(deviceUid) {
-        return exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid))
-          || exists(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid));
+        return (
+          (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid))
+            && get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.status == 'ACTIVE'
+            && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data)
+                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.guestExpiresAt > request.time))
+          || (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid))
+            && get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.status == 'ACTIVE'
+            && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data)
+                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.guestExpiresAt > request.time))
+        );
       }
 
       allow get: if signedIn()
@@ -437,6 +466,12 @@ service cloud.firestore {
 
         allow create: if signedIn()
           && sessionNow().status == 'ACTIVE'
+          // v0.21.0 (audit): the session WINDOW is now enforced server-side
+          // too — expiry used to be purely lazy/client-side, so a patched
+          // helper could keep writing signals (including remote-touch cmds)
+          // into an over-time but still-ACTIVE session, and queued cmds could
+          // even execute on the victim's next process start.
+          && sessionNow().sessionEndsAt > request.time
           && (sessionNow().helperUid == request.auth.uid
               || sessionNow().recipientUid == request.auth.uid)
           && request.resource.data.from == request.auth.uid
