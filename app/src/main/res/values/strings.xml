@@ -8,4 +8,119 @@
          text (nothing in the code even could). -->
     <string name="assist_service_label">Family Remote Support assist</string>
     <string name="assist_service_description">During a support session a trusted family helper may tap, swipe, long-press and type text on this screen to guide you. The service looks at the screen only to find the focused text field; the app never reads, stores or sends your screen text.</string>
+
+    <!-- ═══ Phase 16 (v0.20.0) — app language system (ui/Lang.kt) + shell
+         strings. Default locale = ENGLISH (Owner: app opens in English);
+         বাংলা lives in values-bn/. Deep technical screens keep their
+         bilingual inline "বাংলা · English" copy for now (follow-up 16b). ═══ -->
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_phone">Phone</string>
+    <string name="nav_location">Live location</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Top bar presence chip -->
+    <string name="pres_online">Online</string>
+    <string name="pres_offline">Offline</string>
+    <string name="pres_checking">Checking…</string>
+
+    <!-- Common -->
+    <string name="cmn_ok">OK</string>
+    <string name="cmn_details">Details</string>
+
+    <!-- Home tab (Phase 16 showcase redesign) -->
+    <string name="home_tagline">Remote help for family phones — always with clear consent.</string>
+    <string name="home_welcome">Welcome</string>
+    <string name="home_signed_in_as">Signed in as %1$s</string>
+    <string name="home_not_signed_in">Not signed in yet</string>
+    <string name="home_features">What this app can do</string>
+    <string name="feat_screen_t">Live screen view</string>
+    <string name="feat_screen_d">See the other phone\'s screen in real time during a session.</string>
+    <string name="feat_touch_t">Remote touch</string>
+    <string name="feat_touch_d">Tap, swipe and type on their phone — only while they allow it.</string>
+    <string name="feat_family_t">Family pairing</string>
+    <string name="feat_family_d">Pair trusted phones once with a QR code or a code.</string>
+    <string name="feat_guest_t">Guest support</string>
+    <string name="feat_guest_d">Temporary 2-hour help for people outside your family.</string>
+    <string name="home_setup_ok">Setup complete ✓</string>
+    <string name="home_setup_ok_sub">All 4 permissions are on — the app is fully ready.</string>
+    <string name="home_setup_pending">Setup %1$d/4 done</string>
+    <string name="home_setup_pending_sub">Some permissions are missing — check now.</string>
+    <string name="home_setup_problem">Setup problem</string>
+    <string name="home_retry">Try again</string>
+
+    <!-- Live location tab (honest placeholder — work starts later) -->
+    <string name="loc_title">Live location</string>
+    <string name="loc_coming_title">Coming in a future update</string>
+    <string name="loc_coming_body">Live family location will appear here — always with the other person\'s explicit consent. Today nothing is collected and nothing is shared.</string>
+
+    <!-- Settings tab -->
+    <string name="set_section_account">Account</string>
+    <string name="set_profile_title">Profile</string>
+    <string name="set_profile_sub">Name and email of this account</string>
+    <string name="set_edit_name">Edit name</string>
+    <string name="set_name_label">Your name</string>
+    <string name="set_save">Save</string>
+    <string name="set_saved">Name updated ✓</string>
+    <string name="set_name_min">Name needs at least 2 characters</string>
+    <string name="set_cancel">Cancel</string>
+    <string name="set_devices_title">This account\'s phones</string>
+    <string name="set_no_devices">No phones registered yet.</string>
+    <string name="set_section_setup">Setup &amp; permissions</string>
+    <string name="set_section_look">Appearance</string>
+    <string name="set_section_lang">Language</string>
+    <string name="set_lang_sub">App language — English is the default</string>
+    <string name="set_section_rules">Rules &amp; privacy</string>
+    <string name="set_privacy">Privacy policy</string>
+    <string name="set_privacy_sub">What data is used and what is never collected</string>
+    <string name="set_rules">Usage rules</string>
+    <string name="set_rules_sub">Consent, guest expiry and fair-use rules</string>
+    <string name="set_section_activity">Activity</string>
+    <string name="set_section_about">About</string>
+    <string name="set_about_sub">Version, package and policies</string>
+    <string name="about_storage">Your account and device data live only in this app\'s own Firebase project. Screen content is never recorded or stored.</string>
+    <string name="set_sign_out">Sign out</string>
+    <string name="set_test_notif">Send test notification</string>
+    <string name="set_test_notif_sent">Test notification sent — check your notification shade ✓</string>
+    <string name="set_test_notif_blocked">Notifications are off — turn them on with the toggle above first.</string>
+
+    <!-- Toast feedback (Owner: copy/download must confirm themselves) -->
+    <string name="toast_copied">Copied ✓</string>
+    <string name="toast_saved">Saved ✓ %1$s</string>
+    <string name="toast_save_failed">Could not save the QR image.</string>
+    <string name="toast_share_prep_failed">Could not prepare the QR image for sharing.</string>
+    <string name="toast_share_no_app">No app available for sharing.</string>
+
+    <!-- Auth screen (first screen a fresh user sees) -->
+    <string name="auth_tagline">Trusted remote help for family phones —\nalways with clear consent.</string>
+    <string name="auth_trust">No one can get in without your permission</string>
+    <string name="auth_login">Log in</string>
+    <string name="auth_signup">New account</string>
+    <string name="auth_name">Your name</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_confirm">Confirm password</string>
+    <string name="auth_show">Show</string>
+    <string name="auth_hide">Hide</string>
+    <string name="auth_err_name">Enter a name of at least 2 characters</string>
+    <string name="auth_err_email">Enter a valid email address</string>
+    <string name="auth_err_pw">Password must be at least 6 characters</string>
+    <string name="auth_err_confirm">The two passwords do not match</string>
+    <string name="auth_wait">Please wait…</string>
+    <string name="auth_btn_login">Log in</string>
+    <string name="auth_btn_signup">Create account</string>
+    <string name="auth_forgot">Forgot password?</string>
+    <string name="auth_or">or</string>
+    <string name="auth_google">Continue with Google</string>
+    <string name="auth_footer">Your account and device data live only in your own Firebase project. Being paired never means permanent access — every session asks again.</string>
+
+    <!-- Privacy policy (EN canonical; values-bn carries the Bengali text,
+         other locales fall back to this English text by design) -->
+    <string name="privacy_title">Privacy policy</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location. The Live location tab is a placeholder — nothing is collected today.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence and push token.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment.</string>
+
+    <!-- Usage rules (নীতিমালা) — EN canonical; Bengali in values-bn -->
+    <string name="rules_title">Usage rules</string>
+    <string name="rules_body">These rules keep Family Remote Support safe for everyone.\n\n1. Consent first. Every single help session needs a fresh, explicit approval on the phone that receives help. Pairing alone never grants access.\n\n2. Pairing codes are one-time and expire in about 5 minutes. A code can be redeemed only once and only by the person who scans or types it in time.\n\n3. Guest help is temporary. A guest connection expires by itself after 2 hours and can never become a permanent family pairing by itself.\n\n4. You can always stop. The person being helped can deny a request, end a running session at any second, or revoke a paired phone completely.\n\n5. The helper must be trusted. Only share your code or QR with people you actually trust. A helper sees your screen while a session runs — close sensitive apps first if you are unsure.\n\n6. No bypassing. The app never tries to unlock a phone, read passwords, silently grant permissions, or hide that a session is running. It only works inside what Android explicitly allows.\n\n7. Fair use only. Do not use the app to harass, spy on, or pressure anyone. Abuse leads to revoked access.\n\n8. Families first. This app is built for helping family members and close friends with their phones — nothing else.</string>
 </resources>
