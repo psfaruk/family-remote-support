@@ -1223,3 +1223,40 @@ Owner-এর উন্নত UI/UX-ইন্টিগ্রেশন নির�
 তিন অপশন কাজ করছে? (২) দুই থিমেই হোম/ফোন/একটিভিটি/সেটিংস/QR পড়া যায়? (৩) সেশন-অনুরোধে
 নীল সম্মতি-কার্ড + ব্যাজ? (৪) QR বড়-সাদা-তলে স্ক্যান হয়? (৫) পুরনো সব ফ্লো অপরিবর্তিত?
 রিপোর্ট দিলে Phase 11 বন্ধ হবে; Phase 12 শুধু পরবর্তী স্পষ্ট নির্দেশে।
+
+## §38 — Phase 11.7 (v0.16.0 / versionCode 34): AuthGate — আলাদা লগইন/সাইন-আপ পেজ
+
+**উৎপত্তি:** Owner-এর সরাসরি নির্দেশ — (ক) Phase 0→11 পূর্ণাঙ্গ অডিট (backend-frontend
+জুক্তি-সংগতি), (খ) "লগিং পেজ টি আলাদা হবে — নতুন ইউজার হিসাবে লগিং ও সাইন আপ পেজ থাকবে",
+(গ) "প্রত্যেকটি ডিজাইন আমার দেওয়া অ্যাপ প্রম্পট এর মত করে দেন" → UI_UX_DESIGN_SYSTEM.md
+§24-সিদ্ধান্ত-৪ সুপারসিডেড, §25-এ AuthGate-স্পেসিফিকেশন।
+
+### 38.1 অডিট-সারসংক্ষেপ (৩-সমান্তরাল তদন্ত)
+- **ফেজ-ম্যাট্রিক্স:** Phase 0→11.6 সব শিপড-প্রমাণিত (push+CI+APK-AXML); সতর্কতা — Phase 7-এর
+  ফরমাল-ক্লোজ নেই (প্রমাণ আপোষ্য: Task 32/34), Phase 8-টাচ-কন্ট্রোলের Owner-ফোন-সফলতা রেকর্ডে
+  নেই, Phase 10-এর ডক-সেকশন ছিল না, Phase 11-এর ক্লোজ §37.4-অপেক্ষায়।
+- **কোড↔rules:** ৭-কালেকশন মিল; সব অ্যাক্সেস Fb.db (database-id "default") হুবহু; সিগন্যাল ৭-টাইপ
+  rules-whitelistে; FCM channel_id = `support_session_requests` manifest↔sender মিল;
+  Manifest↔কোড নির্দোষ।
+- **চিহ্নিত ফাঁক:** FirebaseMessagingService নেই (নোটিফিকেশন-মেসেজ ডিজাইন — সচেতন), সাইন-আউটে
+  devicePresence/fcmTokens মুছে না, App Check প্রতিশ্রুত-কিন্তু-অনুপস্থিত, verify-apk-axml CI-তে
+  নেই (Owner-লোকাল গেট), kill-push instant-tier sandbox-বাঁধা (Owner-সিদ্ধান্ত-বাকি)।
+
+### 38.2 বাস্তবায়ন (v0.16.0)
+- Firebase Email/Password প্রদানকারী চালু (identitytoolkit Admin API, PATCH → GET যাচাই
+  `enabled:true, passwordRequired:true`); রোডম্যাপ §22.2-এর পূর্ণতা; **rules অপরিবর্তিত**।
+- **ui/AuthGate.kt** (নতুন): পূর্ণ-স্ক্রিন গেট — হিরো ic_auth_hero + ট্যাগলাইন + আস্থা-চিপ +
+  লগইন/সাইন-আপ পিল-টগল + নাম/ইমেইল/পাসওয়ার্ড/নিশ্চিতকরণ (inline-ত্রুটি, দেখুন-লুকান) +
+  পাসওয়ার্ড-রিসেট + Google-বিকল্প + ট্রাস্ট-ফুটার; সব টোকেন-ভিত্তিক (ডার্ক-মোড-প্রস্তুত)।
+- **MainActivity.kt:** `signInWithEmailPassword`/`signUpWithEmailPassword`; AuthGate-বাইন্ডিং
+  (early-return গেট); authMessage/authNotice স্টেট; friendlyErrorBn-এ ৬ Auth-ম্যাপ; উইজার্ড
+  অটো-ওপেন সাইন-ইন-গেটেড; ডেড হোম-সাইন-ইন-কার্ড অপসারণ; Settings/Pairing কপি আপডেট।
+- build.gradle.kts: versionCode **34**, versionName **"0.16.0"**; পুশ-তালিকায় AuthGate.kt +
+  ic_auth_hero.xml যোগ।
+- যাচাই: lexer net-0 (mismatch-প্যাটার্ন HEAD-এও বিদ্যমান — false-positive), ডুপ্লিকেট-import শূন্য,
+  XML valid; পুশ readback-verify, CI, APK-AXML (code 34) — নিচের প্রকাশনা-রেকর্ড।
+
+### 38.3 Owner-করণীয়
+নতুন ফোনে অ্যাপ খুলে: (১) লগইন/সাইন-আপ পেজ দেখা যায়? (২) ইমেইল-সাইন-আপ → ডিভাইস-রেজিস্ট্রেশন →
+৪-ট্যাব; (৩) ভুল পাসওয়ার্ডে বাংলা-ত্রুটি বার্তা? (৪) রিসেট-লিংক ইমেইলে আসে? (৫) Google-বোতামও
+কাজ করে? (৬) সাইন-আউটে আবার লগইন-পেজ?
