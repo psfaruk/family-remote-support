@@ -53,7 +53,10 @@ data class SessionView(
     /** 0 until the session is granted. */
     val sessionEndsAtMillis: Long,
     /** "helperEmail" | "recipientEmail" of the ender, or "timeout". */
-    val endedBy: String?
+    val endedBy: String?,
+    /** Phase 10 — family | guest. A guest session can never outlive the
+     *  guest link's window (enforced at grant time and by the rules). */
+    val kind: String = "family"
 )
 
 private fun DocumentSnapshot.toSessionView(): SessionView? {
@@ -71,7 +74,8 @@ private fun DocumentSnapshot.toSessionView(): SessionView? {
         requestedAtMillis = getTimestamp("requestedAt")?.toDate()?.time ?: 0L,
         respondDeadlineMillis = getTimestamp("respondDeadline")?.toDate()?.time ?: 0L,
         sessionEndsAtMillis = getTimestamp("sessionEndsAt")?.toDate()?.time ?: 0L,
-        endedBy = getString("endedBy")
+        endedBy = getString("endedBy"),
+        kind = getString("kind") ?: "family"
     )
 }
 
@@ -121,6 +125,7 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
             "recipientEmail" to rel.recipientEmail,
             "recipientDeviceModel" to rel.recipientDeviceModel,
             "status" to "REQUESTED",
+            "kind" to rel.kind,
             "requestedAt" to FieldValue.serverTimestamp(),
             "respondDeadline" to Timestamp(deadline),
             "createdAt" to FieldValue.serverTimestamp(),
@@ -139,7 +144,8 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
         requestedAtMillis = System.currentTimeMillis(),
         respondDeadlineMillis = deadline.time,
         sessionEndsAtMillis = 0L,
-        endedBy = null
+        endedBy = null,
+        kind = rel.kind
     )
 }
 
@@ -147,7 +153,12 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
  * Recipient side: allow the ask. One atomic transaction:
  *   read  - the session doc; caller must be the asked recipient, the status
  *           must still be REQUESTED and the 2-minute deadline not passed
- *   write - status ACTIVE with a 15-minute sessionEndsAt
+ *   write - status ACTIVE with a sessionEndsAt lifetime
+ *
+ * Phase 10 — a GUEST session can never outlive its guest link's window:
+ * when the session kind is guest, the relationship's guestExpiresAt is read
+ * in the same transaction and the session end is capped at min(15 min,
+ * guest window). The rules re-verify this cap server-side.
  */
 suspend fun grantSession(sessionId: String, uid: String): SessionView {
     val db = Fb.db
@@ -171,8 +182,18 @@ suspend fun grantSession(sessionId: String, uid: String): SessionView {
             throw SessionException("This request already expired — ask the helper to send a new one.")
         }
 
+        // ---------- lifetime: 15 min, capped by a live guest window ----------
+        var endsAtMillis = System.currentTimeMillis() + SESSION_ACTIVE_TTL_MILLIS
+        if (session.kind == "guest" && session.relId.isNotBlank()) {
+            val relSnap = tx.get(
+                db.collection(RELATIONSHIP_COLLECTION).document(session.relId)
+            )
+            val guestEnds = relSnap.getTimestamp("guestExpiresAt")?.toDate()?.time ?: 0L
+            if (guestEnds in 1 until endsAtMillis) endsAtMillis = guestEnds
+        }
+        val endsAt = Timestamp(Date(endsAtMillis))
+
         // ---------- write ----------
-        val endsAt = Timestamp(Date(System.currentTimeMillis() + SESSION_ACTIVE_TTL_MILLIS))
         tx.update(
             ref,
             mapOf(
