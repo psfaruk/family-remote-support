@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 11.7 (v0.16.0) — auth-gate hero mark: a trust shield in the app's
+     blue identity with a warm amber heart (docs/UI_UX_DESIGN_SYSTEM.md —
+     Modern & Minimal + Friendly & Warm fusion). Flat, minimal, no text. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+
+    <!-- Soft backing circle (theme-neutral cool tint) -->
+    <path
+        android:fillColor="#EAF2FF"
+        android:pathData="M120,10 A110,110 0 1,0 120,230 A110,110 0 1,0 120,10 Z" />
+
+    <!-- Shield body (primary blue) -->
+    <path
+        android:fillColor="#246BFD"
+        android:pathData="M120,32 C147,47 172,55 194,59 L194,118 C194,166 160,194 120,210 C80,194 46,166 46,118 L46,59 C68,55 93,47 120,32 Z" />
+
+    <!-- Shield inner sheen (lighter blue, subtle) -->
+    <path
+        android:fillColor="#4A87FF"
+        android:pathData="M120,44 C143,56 164,63 182,67 L182,117 C182,158 152,184 120,198 C88,184 58,158 58,117 L58,67 C76,63 97,56 120,44 Z"
+        android:fillAlpha="0.55" />
+
+    <!-- Warm amber heart (Friendly & Warm accent) -->
+    <path
+        android:fillColor="#FFB77C"
+        android:pathData="M120,164 C117,162 86,140 86,112 C86,96 98,86 111,86 C116,86 120,89 120,94 C120,89 124,86 129,86 C142,86 154,96 154,112 C154,140 123,162 120,164 Z" />
+
+    <!-- Small success badge (tertiary green) -->
+    <path
+        android:fillColor="#16845B"
+        android:pathData="M170,140 A26,26 0 1,0 170,192 A26,26 0 1,0 170,140 Z" />
+    <path
+        android:pathData="M158,166 L167,175 L183,156"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>
