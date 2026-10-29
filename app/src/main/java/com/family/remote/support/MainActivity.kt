@@ -119,6 +119,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import kotlin.math.hypot
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -782,23 +783,60 @@ fun HomeScreen() {
     // Phase 11 — one light session listener drives BOTH the bell badge and
     // the home tab's consent/hint cards. PairingCard keeps its own listener
     // for its interactive cards; both are rules-bound capped queries.
+    // v0.21.0 (audit F1): a LOADED flag separates "not loaded yet" from "no
+    // session" — the first snapshot arrives asynchronously, and the old
+    // tab-scoped teardown effect could not tell an empty loading state from
+    // a genuinely closed session, so it killed LIVE shares on tab switches,
+    // rotations and language changes.
     var homeSessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
+    var homeSessionsLoaded by remember { mutableStateOf(false) }
     DisposableEffect(signedInUser?.uid) {
         val user = signedInUser
         if (user == null) {
             homeSessions = emptyList()
+            homeSessionsLoaded = false
             onDispose { }
         } else {
             val stop = watchSessions(
                 user,
-                onUpdate = { homeSessions = it },
-                onError = { homeSessions = emptyList() } // badge is best-effort
+                onUpdate = {
+                    homeSessionsLoaded = true
+                    homeSessions = it
+                },
+                // v0.21.0 (audit): KEEP the last list on a transient listener
+                // error — clearing it here used to unmount the consent modal
+                // mid-ask and re-prompt the same session after reconnect.
+                onError = { }
             )
             onDispose { stop() }
         }
     }
     val openSession = homeSessions.firstOrNull {
         it.status == "REQUESTED" || it.status == "ACTIVE"
+    }
+
+    // v0.21.0 (audit F1): the ONLY "no open session → stop everything"
+    // effect, hoisted to the ROOT so it runs on every tab (the old one lived
+    // inside the Phones tab section and only fired while that tab was
+    // composed). Gated on the loaded flag: before the first snapshot the
+    // empty list means "still loading", NOT "no session". Both calls are
+    // no-ops when nothing is running.
+    LaunchedEffect(homeSessionsLoaded, openSession == null, signedInUser?.uid) {
+        if (homeSessionsLoaded && openSession == null) {
+            ScreenShareEngine.stopHelper()
+            ScreenShareService.stop(context)
+        }
+    }
+
+    // Phase 15 — fresh viewer state per session id (moved from the Phones
+    // tab section to the ROOT in v0.21.0: the old placement only reset when
+    // that tab was composed). A new session must never inherit a stale
+    // fullscreen/stop dialog/touch-control state from the previous one.
+    LaunchedEffect(openSession?.id) {
+        SessionUiBus.fullscreen = false
+        SessionUiBus.stopConfirm = false
+        SessionUiBus.typeDialog = false
+        SessionUiBus.touchOn = false // v0.21.0 (audit): touch is per-session
     }
     val pendingAsk = openSession != null &&
         openSession.status == "REQUESTED" &&
@@ -811,7 +849,10 @@ fun HomeScreen() {
     LaunchedEffect(signedInUser != null) {
         if (signedInUser != null && !isPermissionWizardDone(context)) showWizard = true
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(signedInUser != null) {
+        // v0.21.0 (audit): no binder reads on the login screen — the poll
+        // only runs while a user is actually signed in.
+        if (signedInUser == null) return@LaunchedEffect
         while (true) {
             permSummary = readPermChecklist(context)
             delay(2500)
@@ -824,32 +865,48 @@ fun HomeScreen() {
     LaunchedEffect(signedInUser?.uid, registerRetryKey) {
         val user = signedInUser ?: return@LaunchedEffect
         deviceStatus = "Registering this device…"
+        // v0.21.0 (audit): the FCM token registration used to sit INSIDE the
+        // device-registration success path — one transient Firestore failure
+        // skipped it entirely, the kill-push sweep then found "noTokens" and
+        // killed-app notifications silently never fired (the Owner's
+        // "notification asche na" root cause). Each step now runs
+        // independently with its own error handling and retry.
+        var registeredDeviceId: String? = null
         try {
-            val deviceId = registerDevice(context, user)
-            ownDeviceId = deviceId
-            deviceStatus = "Registered ✓ (id ${deviceId.take(8)}…)"
-            // Phase 5 — presence heartbeat + push token registration.
-            try {
-                sendHeartbeat(user.uid, deviceId, Build.MODEL)
-                presenceStatus = "Online ✓ — heartbeat sent just now"
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                presenceStatus = "Presence failed: ${friendlyErrorBn(e)}"
-            }
-            try {
-                registerFcmToken(user.uid, deviceId)
-                pushStatus = "Push notifications ready ✓"
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                pushStatus = "Push setup failed: ${friendlyErrorBn(e)}"
-            }
-            deviceList = loadDevices(user)
+            registeredDeviceId = registerDevice(context, user)
+            deviceStatus = "Registered ✓ (id ${registeredDeviceId.take(8)}…)"
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             deviceStatus = "Registration failed: ${friendlyErrorBn(e)}"
+        }
+        // Phase 5 — presence heartbeat + push token registration. The token
+        // registry key is the stable device id, which exists even when the
+        // device-record write above failed (rules allow both self-writes).
+        val deviceId = registeredDeviceId ?: stableDeviceId(context)
+        ownDeviceId = deviceId
+        try {
+            sendHeartbeat(user.uid, deviceId, Build.MODEL)
+            presenceStatus = "Online ✓ — heartbeat sent just now"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            presenceStatus = "Presence failed: ${friendlyErrorBn(e)}"
+        }
+        try {
+            registerFcmToken(user.uid, deviceId)
+            pushStatus = "Push notifications ready ✓"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            pushStatus = "Push setup failed: ${friendlyErrorBn(e)}"
+        }
+        try {
+            deviceList = loadDevices(user)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // the device list is informational — never block the flow
         }
     }
 
@@ -948,6 +1005,11 @@ fun HomeScreen() {
     // nav) while a watch is on — controls stay under the thumb instead of
     // being buried mid-scroll (Owner report: the buttons were unreachable).
     Box(modifier = Modifier.fillMaxSize()) {
+    // v0.21.0 (audit): measured height of the bottom NavigationBar — the
+    // pinned SessionKeyBar pads itself up by this so it can never COVER the
+    // tab bar (the old code only respected the system inset and drew the key
+    // bar on top of the navigation items).
+    var bottomNavHeightPx by remember { mutableStateOf(0) }
     Scaffold(
         topBar = {
             AppTopBar(
@@ -960,7 +1022,11 @@ fun HomeScreen() {
                 onBellClick = { tab = 3 }
             )
         },
-        bottomBar = { AppBottomNav(tab = tab, onSelect = { tab = it }) }
+        bottomBar = {
+            Box(modifier = Modifier.onSizeChanged { bottomNavHeightPx = it.height }) {
+                AppBottomNav(tab = tab, onSelect = { tab = it })
+            }
+        }
         // Phase 16 — the right-side "যুক্ত করুন" FAB is GONE (Owner: the
         // add-phone action showed up in TWO places — the permanent top card
         // on the phone tab already covers both directions, and the FAB even
@@ -1028,6 +1094,19 @@ fun HomeScreen() {
                                 // re-scheduling. Best-effort: sign-out always
                                 // proceeds; any failure becomes an honest
                                 // notice on the login screen.
+                                // v0.21.0 (audit): signing out must also
+                                // tear down any live share/viewer — the old
+                                // code left the MediaProjection foreground
+                                // service CAPTURING under a signed-out account
+                                // (privacy) and the helper's viewer listeners
+                                // alive against now-unauthorized rules. Both
+                                // calls are no-ops when nothing is running.
+                                ScreenShareEngine.stopHelper()
+                                ScreenShareService.stop(context)
+                                SessionUiBus.fullscreen = false
+                                SessionUiBus.stopConfirm = false
+                                SessionUiBus.typeDialog = false
+                                SessionUiBus.touchOn = false
                                 var cleanupNote: String? = null
                                 val currentUser = FirebaseAuth.getInstance().currentUser
                                 if (currentUser != null) {
@@ -1096,8 +1175,13 @@ fun HomeScreen() {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(bottom = 10.dp),
+                    // v0.21.0 (audit): pad up by the measured bottom-bar height
+                    // (NavigationBar already includes its own navigationBars
+                    // inset in that height) so the pinned keys sit ABOVE the
+                    // tab bar instead of covering it.
+                    .padding(bottom = with(LocalDensity.current) {
+                        bottomNavHeightPx.toDp()
+                    } + 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 SessionKeyBar(touchOn = SessionUiBus.touchOn, inFullscreen = false)
@@ -1840,7 +1924,12 @@ private fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
  */
 @Composable
 private fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
-    var show by remember(session.id) { mutableStateOf(true) }
+    var show by remember(session.id) {
+        // v0.21.0 (audit): durable one-per-ask dedup on the process-level bus —
+        // a positional remember() re-prompted the SAME ask after rotation,
+        // language change or a listener error/reconnect cycle.
+        mutableStateOf(session.id !in SessionUiBus.shownAsks)
+    }
     if (!show) return
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -1854,7 +1943,10 @@ private fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
         }
     }
     AlertDialog(
-        onDismissRequest = { show = false },
+        onDismissRequest = {
+            SessionUiBus.shownAsks.add(session.id)
+            show = false
+        },
         title = { Text("সাহায্যের অনুরোধ", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1897,6 +1989,7 @@ private fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
                         try {
                             grantSession(session.id, user.uid)
                             message = "অনুমতি দেওয়া হয়েছে ✓ — 'ফোন' ট্যাবে সেশন দেখুন।"
+                            SessionUiBus.shownAsks.add(session.id)
                             delay(600)
                             show = false
                         } catch (e: SessionException) {
@@ -1921,6 +2014,7 @@ private fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
                         try {
                             denySession(session.id, user.uid)
                             message = "অনুরোধ প্রত্যাখ্যাত হয়েছে।"
+                            SessionUiBus.shownAsks.add(session.id)
                             delay(600)
                             show = false
                         } catch (e: SessionException) {
@@ -2848,7 +2942,7 @@ private fun TestNotifRow() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 val notification = NotificationCompat.Builder(context, channelId)
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(R.drawable.ic_stat_notify)
                     .setContentTitle("Family Remote Support")
                     .setContentText("Notifications are working ✓ · নোটিফিকেশন কাজ করছে ✓")
                     .setAutoCancel(true)
@@ -3107,8 +3201,8 @@ private fun PairingSections(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var invite by remember { mutableStateOf<InviteCode?>(null) }
-    var inviteKind by remember { mutableStateOf(REL_KIND_FAMILY) }
+    var invite by PairingUiBus.inviteState
+    var inviteKind by PairingUiBus.inviteKindState
     var inviteStatus by remember { mutableStateOf<String?>(null) }
     var claimerEmail by remember { mutableStateOf<String?>(null) }
     var inviteSyncError by remember { mutableStateOf<String?>(null) }
@@ -3243,14 +3337,11 @@ private fun PairingSections(
         lastOpenSessionId = currentOpenId
     }
 
-    // Phase 15 — fresh viewer state per session id (the pinned control bar
-    // and full-screen overlay share SessionUiBus; a new session must never
-    // inherit a stale fullscreen/stop dialog from the previous one).
-    LaunchedEffect(openSession?.id) {
-        SessionUiBus.fullscreen = false
-        SessionUiBus.stopConfirm = false
-        SessionUiBus.typeDialog = false
-    }
+    // v0.21.0 (audit F1): the per-session viewer-state reset AND the
+    // "no open session → stop everything" teardown both moved to the
+    // HomeScreen ROOT (they used to live here, so they only ran while the
+    // Phones tab was composed — and the teardown fired on the empty
+    // pre-snapshot loading state, killing live shares on tab switches).
 
     // Ticks once per second while a session is open so countdowns stay live.
     LaunchedEffect(openSession?.id, openSession?.status) {
@@ -3292,15 +3383,8 @@ private fun PairingSections(
         }
     }
 
-    // Phase 7 — when the session closes (ended/denied/expired) or the app
-    // restarts with no session, make sure no screen share survives. Both calls
-    // are no-ops when nothing is running.
-    LaunchedEffect(openSession == null) {
-        if (openSession == null) {
-            ScreenShareEngine.stopHelper()
-            ScreenShareService.stop(context)
-        }
-    }
+    // v0.21.0 (audit F1): the session-close teardown moved to the
+    // HomeScreen root (loaded-guarded) — see the comment there.
 
     // v0.8.2 — the helper's "Request sent…" line is sticky in-memory state;
     // once the session turns ACTIVE on the helper's side it is stale (the
@@ -3703,7 +3787,12 @@ private fun PairingSections(
                     qrBitmap(currentInvite.qrPayload, badge = QrBadge.ofKind(inviteKind))
                 }
                 var saveBusy by remember(currentInvite.invitationId) { mutableStateOf(false) }
-                var saveRequest by remember(currentInvite.invitationId) { mutableStateOf(false) }
+                // v0.21.0 (audit): a monotonic trigger counter — the old Boolean
+                // flag was reset INSIDE the LaunchedEffect keyed on it, so the
+                // effect cancelled itself mid-IO and the "Saved ✓" toast (the
+                // exact Owner complaint about missing save feedback) almost
+                // never appeared; repeated taps then stacked duplicate PNGs.
+                var saveTrigger by remember(currentInvite.invitationId) { mutableStateOf(0) }
                 var saveFeedback by remember(currentInvite.invitationId) {
                     mutableStateOf<String?>(null)
                 }
@@ -3712,16 +3801,15 @@ private fun PairingSections(
                     ActivityResultContracts.RequestPermission()
                 ) { granted ->
                     if (granted) {
-                        saveRequest = true
+                        saveTrigger += 1
                     } else {
                         saveFeedback =
                             "Storage permission is needed to save the QR image."
                     }
                 }
 
-                LaunchedEffect(saveRequest) {
-                    if (!saveRequest) return@LaunchedEffect
-                    saveRequest = false
+                LaunchedEffect(saveTrigger) {
+                    if (saveTrigger == 0) return@LaunchedEffect
                     val bitmap = qr
                     if (bitmap == null) return@LaunchedEffect
                     saveBusy = true
@@ -3817,7 +3905,7 @@ private fun PairingSections(
                                             Manifest.permission.WRITE_EXTERNAL_STORAGE
                                         ) == PackageManager.PERMISSION_GRANTED
                                     ) {
-                                        saveRequest = true
+                                        saveTrigger += 1
                                     } else {
                                         storagePermissionLauncher.launch(
                                             Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -4791,6 +4879,27 @@ private object SessionUiBus {
     var fullscreen by mutableStateOf(false)   // full-screen viewer open
     var typeDialog by mutableStateOf(false)   // type-text dialog open
     var stopConfirm by mutableStateOf(false)  // stop-watching confirm open
+
+    /**
+     * v0.21.0 (audit) — session asks the CENTERED consent modal already
+     * showed (dismissed or answered). Keeping this OUT of composition memory
+     * makes the "one prompt per session id" promise durable across tab
+     * switches, rotations, language changes and listener error-reconnects,
+     * where a positional remember() used to re-prompt the SAME ask.
+     */
+    val shownAsks = mutableSetOf<String>()
+}
+
+/**
+ * v0.21.0 (audit) — process-level pairing-card state. The live invitation
+ * used to be plain remember() inside the tab-scoped pairing section, so a
+ * recreate (language change, rotation) stranded a PENDING invitation: the
+ * card and its watcher vanished while the invitation stayed live in
+ * Firestore until expiry. Delegating to this bus keeps the card alive.
+ */
+private object PairingUiBus {
+    val inviteState = mutableStateOf<InviteCode?>(null)
+    val inviteKindState = mutableStateOf(REL_KIND_FAMILY)
 }
 
 /** One compact key: ≥44 dp target, one glyph, real contentDescription. */
@@ -5155,7 +5264,10 @@ private fun ScreenSharePanel(
             // normal budget, without restarting anything. It rides the same
             // epoch-gated command channel as the touch commands and gets the
             // same truthful ack, so the switch can never silently lie.
-            var dataSaver by remember { mutableStateOf(false) }
+            // v0.21.0 (audit): reset with every session id — the old plain
+            // remember() could show OFF while the engine still capped the
+            // bitrate (or lie the other way after a recreate).
+            var dataSaver by remember(sessionId) { mutableStateOf(false) }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
