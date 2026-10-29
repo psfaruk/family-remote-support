@@ -256,6 +256,17 @@ object ScreenShareEngine {
     private val _diag = MutableStateFlow<List<String>>(emptyList())
     val diag: StateFlow<List<String>> = _diag
 
+    // v0.10.0 (Phase 9) — assist-command abuse/replay budget (see constants).
+    private val cmdTimes = ArrayDeque<Long>()
+
+    /** Replay guard: a Firestore "cmd" older than this is refused. */
+    private val cmdFreshMillis = 15_000L
+    /** Firestore-cmd / p2p-message size cap — a real command is a few hundred bytes. */
+    private val maxCmdChars = 4_096
+    /** Flood cap: at most this many assist commands applied per sliding window. */
+    private val cmdRateWindowMillis = 1_000L
+    private val cmdRateMax = 25
+
     /** One-line frame health for the UI ("video: decoded N · drawn M"). */
     private val _frameStats = MutableStateFlow<String?>(null)
     val frameStats: StateFlow<String?> = _frameStats
@@ -1026,7 +1037,9 @@ object ScreenShareEngine {
         val stop = SignalingRepo.watch(
             sid,
             me,
-            onSignal = { type, ep, payload -> main.post { handleSignal(type, ep, payload) } },
+            onSignal = { type, ep, payload, createdAt ->
+                main.post { handleSignal(type, ep, payload, createdAt) }
+            },
             onError = { e -> main.post { fail("Signal channel error: ${e.message ?: "unknown"}") } }
         )
         signalStop = stop
@@ -1034,7 +1047,7 @@ object ScreenShareEngine {
         SignalingRepo.clearAsync(sid, me)
     }
 
-    private fun handleSignal(type: String, ep: String, payload: String) {
+    private fun handleSignal(type: String, ep: String, payload: String, createdAtMillis: Long) {
         val pc = peerConnection
         try {
             val key = type + "|" + payload.take(120)
@@ -1132,8 +1145,21 @@ object ScreenShareEngine {
                 // their acknowledgements (recipient → helper). Both are
                 // epoch-gated like every other signal, so a stale command from
                 // an earlier round can never act on a fresh session.
+                // v0.10.0 (Phase 9) — REPLAY/ABUSE GUARDS for "cmd": the doc
+                // must be fresh (server createdAt within 15 s), the payload
+                // small, and the applied-command rate inside the flood cap.
+                // SDP/ICE/ack are untouched — only the injector path is gated.
                 "cmd" -> if (!isHelper && captureAlive && ep.isNotBlank() && ep == peerEpoch) {
-                    handleAssistCommand(JSONObject(payload))
+                    val age = if (createdAtMillis > 0) {
+                        System.currentTimeMillis() - createdAtMillis
+                    } else Long.MAX_VALUE
+                    when {
+                        age > cmdFreshMillis ->
+                            diagLog("assist cmd refused (stale ${if (age == Long.MAX_VALUE) "no-timestamp" else "${age}ms"})")
+                        payload.length > maxCmdChars ->
+                            diagLog("assist cmd refused (oversized payload)")
+                        else -> handleAssistCommand(JSONObject(payload))
+                    }
                 }
                 "cmdack" -> if (isHelper && ep.isNotBlank() && ep == myEpoch) {
                     showAssistAck(payload)
@@ -1152,29 +1178,71 @@ object ScreenShareEngine {
      * helper's UI which of the two worlds they are in. v0.9.6: called from
      * BOTH transports — the Firestore "cmd" path (epoch-gated by the
      * caller) and the p2p touch data channel (per-round by construction).
+     *
+     * v0.10.0 (Phase 9) — hardening at the injector boundary:
+     *  - RATE CAP: at most 25 commands per sliding second (a human finger
+     *    produces a handful; a flood would make the grantor's phone jumpy).
+     *  - PAYLOAD SANITY: coordinates must be finite and are clamped to 0..1
+     *    here (AssistService clamps again — two independent fences),
+     *    durations are clamped. A malformed command acks "bad-payload"
+     *    instead of acting.
+     *  - The ack always tells the truth, even for refused commands.
      */
     private fun handleAssistCommand(obj: JSONObject) {
         val kind = obj.optString("kind")
+
+        // ---- flood cap (sliding 1 s window) ----
+        val now = System.currentTimeMillis()
+        while (cmdTimes.isNotEmpty() && now - cmdTimes.first() > cmdRateWindowMillis) {
+            cmdTimes.removeFirst()
+        }
+        if (cmdTimes.size >= cmdRateMax) {
+            diagLog("assist $kind refused (rate cap)")
+            sendAssistAck(kind, ok = false, reason = "rate")
+            return
+        }
+        cmdTimes.addLast(now)
+
+        /** Non-finite → null; otherwise clamped to the 0..1 command space. */
+        fun sane(v: Double): Double? = if (v.isFinite()) v.coerceIn(0.0, 1.0) else null
+        fun saneDur(v: Long, lo: Long, hi: Long): Long = v.coerceIn(lo, hi)
+
+        var badPayload = false
         val ok: Boolean
         when (kind) {
-            "tap" -> ok = AssistService.tapNormalized(
-                obj.optDouble("x", -1.0), obj.optDouble("y", -1.0)
-            )
+            "tap" -> {
+                val x = sane(obj.optDouble("x", Double.NaN))
+                val y = sane(obj.optDouble("y", Double.NaN))
+                badPayload = x == null || y == null
+                ok = !badPayload && AssistService.tapNormalized(x!!, y!!)
+            }
             // v0.9.9 (Phase 8.3) — swipe carries the helper's REAL drag time;
             // long-press defaults to 800 ms (Android's threshold is ~500 ms).
-            "swipe" -> ok = AssistService.swipeNormalized(
-                obj.optDouble("x1", -1.0), obj.optDouble("y1", -1.0),
-                obj.optDouble("x2", -1.0), obj.optDouble("y2", -1.0),
-                obj.optLong("dur", 400L)
-            )
-            "long" -> ok = AssistService.longPressNormalized(
-                obj.optDouble("x", -1.0), obj.optDouble("y", -1.0),
-                obj.optLong("dur", 800L)
-            )
+            "swipe" -> {
+                val x1 = sane(obj.optDouble("x1", Double.NaN))
+                val y1 = sane(obj.optDouble("y1", Double.NaN))
+                val x2 = sane(obj.optDouble("x2", Double.NaN))
+                val y2 = sane(obj.optDouble("y2", Double.NaN))
+                badPayload = x1 == null || y1 == null || x2 == null || y2 == null
+                ok = !badPayload && AssistService.swipeNormalized(
+                    x1!!, y1!!, x2!!, y2!!, saneDur(obj.optLong("dur", 400L), 120L, 3_000L)
+                )
+            }
+            "long" -> {
+                val x = sane(obj.optDouble("x", Double.NaN))
+                val y = sane(obj.optDouble("y", Double.NaN))
+                badPayload = x == null || y == null
+                ok = !badPayload && AssistService.longPressNormalized(
+                    x!!, y!!, saneDur(obj.optLong("dur", 800L), 400L, 2_000L)
+                )
+            }
             "back" -> ok = AssistService.pressBack()
             "home" -> ok = AssistService.pressHome()
             "recents" -> ok = AssistService.pressRecents()
-            else -> return
+            else -> {
+                sendAssistAck(kind, ok = false, reason = "unknown-kind")
+                return
+            }
         }
         // v0.9.6 — log WHERE the tap landed (percent of the real display) so
         // one screenshot proves the precision fix worked. v0.9.9 — swipes and
@@ -1189,17 +1257,37 @@ object ScreenShareEngine {
                     "→${(obj.optDouble("x2", 0.0) * 100).toInt()}%,${(obj.optDouble("y2", 0.0) * 100).toInt()}% in ${obj.optLong("dur", 400L)}ms"
             else -> ""
         }
-        diagLog("assist $kind$where → ${if (ok) "performed" else "assist-off"}")
+        diagLog("assist $kind$where → ${when {
+            ok -> "performed"
+            badPayload -> "bad-payload"
+            else -> "assist-off"
+        }}")
         if (!ok) {
             runOnMain { _assistDropped.value += 1 }
         }
+        sendAssistAck(
+            kind,
+            ok = ok,
+            reason = when {
+                ok -> ""
+                badPayload -> "bad-payload"
+                else -> "assist-off"
+            }
+        )
+    }
+
+    /**
+     * v0.10.0 (Phase 9) — one truthful ack for every command outcome (the
+     * old code only acked after a gesture attempt; refused commands now ack
+     * too, so the helper's UI never lies). Data channel first, Firestore
+     * cmdack as the fallback.
+     */
+    private fun sendAssistAck(kind: String, ok: Boolean, reason: String) {
         val ack = JSONObject()
             .put("kind", kind)
             .put("ok", ok)
-            .put("reason", if (ok) "" else "assist-off")
+            .put("reason", reason)
             .toString()
-        // v0.9.6 — ack over the data channel when it is open (instant);
-        // Firestore cmdack remains the fallback.
         if (sendCtrl(ack)) return
         val sid = sessionId ?: return
         val me = myUid ?: return
@@ -1245,6 +1333,9 @@ object ScreenShareEngine {
                 } catch (_: Exception) {
                     return
                 }
+                // v0.10.0 (Phase 9) — p2p size cap: a real command/ack is a
+                // few hundred bytes; anything bigger is malformed or hostile.
+                if (text.length > maxCmdChars) return
                 main.post {
                     if (ctrlChannel !== dc) return@post
                     try {
@@ -1822,6 +1913,7 @@ object ScreenShareEngine {
         main.removeCallbacks(assistClear)
         _assistStatus.value = null
         _assistDropped.value = 0
+        cmdTimes.clear()
         relayMaxKbps = null
         senderVideoTrack = null
         _state.value = ShareState.IDLE
