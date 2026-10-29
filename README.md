@@ -22,8 +22,14 @@ A trusted family member helps fix another family phone — always with the recei
   REQUESTED asks → fcmTokens lookup → high-priority FCM → idempotent mark + dead-token cleanup)
   with an every-minute Cron Trigger (permanent 24/7, ~60 s worst-case latency inside the
   2-minute answer window), `POST /sweep` behind a timing-safe shared `KILL_TOKEN`, and an open
-  `GET /health`. Free-tier usage <2% of limits. Setup guide: `docs/CLOUDFLARE_SETUP.md`
-  (Bangla, 4 steps). No app code, no rules change; sandbox + GitHub Actions tiers keep running.
+  `GET /health`. Free-tier usage <2% of limits. Deployed via Cloudflare Workers Builds
+  (Git-connected auto-deploy on push): `wrangler.toml` at the repo root (`name` =
+  "family-remote-support" — must match the build project, `main` = `cloudflare/killpush-worker.js`,
+  cron `* * * * *` from `[triggers]`, observability on). Firestore database id verified LIVE via
+  the service account: this project's database is literally named `default` (FIRESTORE_NATIVE;
+  `(default)` 404s) — so the code's `/databases/default/` is exactly correct and was NOT changed.
+  Setup guide: `docs/CLOUDFLARE_SETUP.md` (Bangla — Workers Builds flow + manual alternative).
+  No app code, no rules change; sandbox + GitHub Actions tiers keep running.
 - **Phase 11.6 ✅ (v0.15.0, versionCode 33) — DESIGN SYSTEM + DARK MODE:** one design
   source (`ui/Theme.kt`: light #246BFD blue + full dark scheme, senior type scale,
   shapes/spacing tokens), Settings appearance group (System/Light/Dark, persisted,
