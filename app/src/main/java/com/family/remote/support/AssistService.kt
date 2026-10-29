@@ -6,8 +6,11 @@ import android.content.Context
 import android.graphics.Path
 import android.graphics.Point
 import android.os.Build
+import android.os.Bundle
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 
 /**
  * Phase 8 (v0.9.0) — REMOTE ASSIST.
@@ -48,8 +51,18 @@ import android.view.accessibility.AccessibilityEvent
  *
  * v0.9.9 (Phase 8.3) — the finger grew: SWIPE (one stroke from A to B, the
  * helper's real drag duration is carried along, clamped) and LONG-PRESS
- * (a held stroke at one point) joined the tap. Still the same trust model:
- * canRetrieveWindowContent stays FALSE — gestures only, nothing read.
+ * (a held stroke at one point) joined the tap.
+ *
+ * v0.12.0 (Phase 8.3 completion) — the finger learned to TYPE. That one
+ * capability needs window content (ACTION_SET_TEXT must find the focused
+ * editable field), so canRetrieveWindowContent is now TRUE — with a
+ * strictly narrowed purpose, documented in res/xml/assist_service_config.xml
+ * and enforced by this file's shape: the ONLY consumer of window content is
+ * the "find the focused editable box" search (findEditableInTree), which
+ * reads capability flags but never node text, and the service exposes no
+ * API that could return screen content to anyone. Nothing seen here is
+ * logged, stored or transmitted — the diag log for a typing command
+ * records the text LENGTH only, in the engine.
  */
 class AssistService : AccessibilityService() {
 
@@ -125,6 +138,126 @@ class AssistService : AccessibilityService() {
         )
     }
 
+    /**
+     * v0.12.0 (Phase 8.3 completion) — TYPING. Places [text] into the focused
+     * editable field via ACTION_SET_TEXT and reports the exact outcome as
+     * "ok" | "assist-off" | "no-field" | "failed" so the engine can ack the
+     * truth instead of a shrug.
+     *
+     * Note: SET_TEXT REPLACES the field's current content (there is no safe
+     * append without reading screen text — which this service refuses to
+     * do). The helper's typing dialog says so in plain Bengali.
+     */
+    fun typeTextStatus(text: String): String {
+        if (text.isBlank()) return "failed"
+        val target = findTypingTarget() ?: return "no-field"
+        val args = Bundle().apply {
+            putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text
+            )
+        }
+        return try {
+            if (target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+                "ok"
+            } else {
+                "failed"
+            }
+        } catch (_: Exception) {
+            "failed"
+        }
+    }
+
+    /**
+     * Where should the helper's text land? Fast path: the active window
+     * (usually the app the recipient is in). But when the remote keyboard
+     * is open the IME may BE the active window — and an IME has no editable
+     * field — so the fallback walks every retrievable window, application
+     * windows first, before honestly giving up ("no-field").
+     */
+    private fun findTypingTarget(): AccessibilityNodeInfo? {
+        try {
+            rootInActiveWindow?.let { root ->
+                findEditableInTree(root, 400)?.let { return it }
+            }
+        } catch (_: Exception) {
+        }
+        val windows = try {
+            this.windows
+        } catch (_: Exception) {
+            null
+        } ?: return null
+        val ordered = try {
+            windows.sortedByDescending {
+                try {
+                    it.type == AccessibilityWindowInfo.TYPE_APPLICATION
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        } catch (_: Exception) {
+            return null
+        }
+        for (w in ordered) {
+            try {
+                w.root?.let { root ->
+                    findEditableInTree(root, 400)?.let { return it }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return null
+    }
+
+    /**
+     * Depth-first search for the best target: a FOCUSED editable field
+     * first (that is where the user just tapped), else the first editable
+     * field anywhere in the tree. Capability flags only — node text is
+     * never read. [budget] bounds the walk: accessibility trees can be
+     * enormous and every node costs an IPC hop, so a bounded traversal
+     * keeps the typing command inside the ack-latency budget and can never
+     * hang the gesture thread.
+     */
+    private fun findEditableInTree(
+        root: AccessibilityNodeInfo,
+        budget: Int
+    ): AccessibilityNodeInfo? {
+        var firstEditable: AccessibilityNodeInfo? = null
+        var visited = 0
+        val stack = ArrayDeque<AccessibilityNodeInfo>()
+        stack.addLast(root)
+        while (stack.isNotEmpty() && visited < budget) {
+            val node = try {
+                stack.removeLast()
+            } catch (_: Exception) {
+                continue
+            }
+            visited++
+            val editable = try {
+                node.isEditable
+            } catch (_: Exception) {
+                false
+            }
+            val focused = try {
+                node.isFocused
+            } catch (_: Exception) {
+                false
+            }
+            if (editable && focused) return node
+            if (editable && firstEditable == null) firstEditable = node
+            try {
+                for (i in 0 until node.childCount) {
+                    try {
+                        node.getChild(i)?.let { stack.addLast(it) }
+                    } catch (_: Exception) {
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return firstEditable
+    }
+
     /** Normalized (0..1) of the REAL display → pixel point (v0.9.6 mapping). */
     private fun toRealPixels(nx: Double, ny: Double): Pair<Float, Float> {
         val size = realDisplaySize()
@@ -176,6 +309,15 @@ class AssistService : AccessibilityService() {
         /** v0.9.9 — one long-press (held stroke) at the point. */
         fun longPressNormalized(nx: Double, ny: Double, durationMs: Long): Boolean =
             instance?.longPressNormalized(nx, ny, durationMs) ?: false
+
+        /**
+         * v0.12.0 (Phase 8.3 completion) — place text into the focused
+         * editable field. Returns "ok" | "assist-off" | "no-field" |
+         * "failed" — the engine acks the exact outcome so the helper
+         * always knows what happened (and what to do next).
+         */
+        fun typeTextStatus(text: String): String =
+            instance?.typeTextStatus(text) ?: "assist-off"
 
         fun pressBack(): Boolean =
             instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) ?: false
