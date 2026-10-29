@@ -26,7 +26,7 @@
 
     <application
         android:name=".App"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -69,15 +69,29 @@
                 android:resource="@xml/assist_service_config" />
         </service>
 
+        <!-- v0.21.0 (audit): FCM token ROTATION — rewrites the fcmTokens
+             registry doc the moment Firebase mints a fresh token. Without
+             this, a rotation left a stale doc until the next app open and
+             the sweep then deleted it as UNREGISTERED (push dead). -->
+        <service
+            android:name=".PushTokenService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <!-- v0.9.8 (Phase 8.2): KILL-PUSH. When the app process is dead, the
              Firebase SDK itself displays FCM notification messages with these
              defaults — no process code runs. The channel id matches the
              high-importance channel SessionNotifier creates on first open,
              so tray notifications from the killed state land in the same
-             channel (and inherit its sound/priority) as the in-app ones. -->
+             channel (and inherit its sound/priority) as the in-app ones.
+             v0.21.0 (audit): monochrome status icon (the adaptive launcher
+             tinted into a blob). -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@drawable/ic_stat_notify" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="support_session_requests" />
