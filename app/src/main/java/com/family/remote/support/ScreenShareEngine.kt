@@ -311,6 +311,18 @@ object ScreenShareEngine {
     private var effectiveH264 = false
     private var encFpsCap = 30
     private var negotiatedCodec: String? = null
+
+    /**
+     * v0.9.9 (Phase 8.3) — data-saver for relayed sessions. When the SELECTED
+     * ICE pair turns out to be a TURN relay (metered.ca free tier = 500 MB/month,
+     * and a relayed 1536-class 4 Mbps stream burns it in ~17 minutes), the
+     * bitrate ceiling is capped once, mid-session, without restarting capture.
+     * Direct/hotspot paths are never capped.
+     */
+    private var relayMaxKbps: Int? = null
+
+    /** The recipient's local "screen" track — the sender applyScreenBitrate touches. */
+    private var senderVideoTrack: VideoTrack? = null
     private var probeLogged = false
     private var h264Enc = false
     private var h264Dec = false
@@ -535,6 +547,7 @@ object ScreenShareEngine {
 
             val track = factory!!.createVideoTrack("screen", source)
             peerConnection?.addTrack(track, listOf("screen"))
+            senderVideoTrack = track // v0.9.9 — the relay bandwidth cap re-applies here
             // v0.9.3 — give the screen stream a real bitrate budget
             // (see applyScreenBitrate): without it a relayed 4G path sits
             // blurry-laggy at the estimator's tiny default.
@@ -602,8 +615,11 @@ object ScreenShareEngine {
             val params = sender.parameters ?: return
             params.encodings.firstOrNull()?.let { enc ->
                 // v0.9.7 — budget from config/quality (defaults = v0.9.6's).
-                enc.minBitrateBps = quality.minKbps * 1_000
-                enc.maxBitrateBps = quality.maxKbps * 1_000
+                // v0.9.9 — relayed sessions are capped harder (data-saver).
+                val capK = relayMaxKbps
+                val maxK = minOf(quality.maxKbps, capK ?: quality.maxKbps)
+                enc.minBitrateBps = minOf(quality.minKbps, maxK) * 1_000
+                enc.maxBitrateBps = maxK * 1_000
                 try {
                     // stream-webrtc-android declares maxFramerate as Int?.
                     enc.maxFramerate = encFpsCap
@@ -616,13 +632,67 @@ object ScreenShareEngine {
             } catch (_: Exception) {
             }
             sender.setParameters(params)
+            val capK = relayMaxKbps
             diagLog(
-                "bitrate ${quality.minKbps}k–${quality.maxKbps}k · $encFpsCap fps · " +
-                    "keep-resolution · codec ${if (effectiveH264) "H264-HW" else "VP8"}"
+                "bitrate ${quality.minKbps}k–${minOf(quality.maxKbps, capK ?: quality.maxKbps)}k · $encFpsCap fps · " +
+                    "keep-resolution · codec ${if (effectiveH264) "H264-HW" else "VP8"}" +
+                    (if (capK != null && capK < quality.maxKbps) " · relay-capped" else "")
             )
         } catch (e: Exception) {
             diagLog("bitrate set skipped: ${e.javaClass.simpleName}")
         }
+    }
+
+    /**
+     * v0.9.9 (Phase 8.3) — LOW-BITRATE-WHEN-RELAYED. Once the peer connection
+     * is live, wait for ICE to settle, then ask getStats() which candidate
+     * pair actually got SELECTED. If either end of it is a TURN relay, the
+     * stream re-applies its bitrate with a hard 1500 kbps ceiling — the
+     * metered.ca free tier holds ~17 minutes of full-quality video but hours
+     * of a data-saver stream, and scrolling text survives the cap fine.
+     * Direct/hotspot sessions are never touched. Best-effort: any stats
+     * failure just keeps the normal budget.
+     */
+    private fun scheduleRelayBandwidthCheck(pc: PeerConnection?) {
+        if (pc == null) return
+        main.postDelayed({
+            val live = peerConnection ?: return@postDelayed
+            if (live !== pc) return@postDelayed
+            try {
+                pc.getStats { report ->
+                    val relayed = try {
+                        val stats = report.statsMap
+                        val pair = stats.values.firstOrNull {
+                            it.type == "candidate-pair" &&
+                                java.lang.Boolean.TRUE == it.members["selected"]
+                        } ?: stats.values.firstOrNull {
+                            it.type == "candidate-pair" && it.members["state"] == "succeeded"
+                        }
+                        if (pair == null) {
+                            false
+                        } else {
+                            val localId = pair.members["localCandidateId"] as? String
+                            val remoteId = pair.members["remoteCandidateId"] as? String
+                            fun candidateType(id: String?): String? =
+                                stats.values.firstOrNull { s ->
+                                    (s.type == "local-candidate" || s.type == "remote-candidate") &&
+                                        s.id == id
+                                }?.members?.get("candidateType") as? String
+                            candidateType(localId) == "relay" || candidateType(remoteId) == "relay"
+                        }
+                    } catch (_: Exception) {
+                        false
+                    }
+                    if (relayed && relayMaxKbps == null) {
+                        relayMaxKbps = 1500
+                        diagLog("relay path selected — bitrate capped to 1500 kbps (relay data-saver)")
+                        main.post { applyScreenBitrate(pc, senderVideoTrack) }
+                    }
+                }
+            } catch (e: Exception) {
+                diagLog("relay bandwidth check skipped: ${e.javaClass.simpleName}")
+            }
+        }, 6_000L)
     }
 
     // ------------------------------------------------------------------ //
@@ -716,6 +786,8 @@ object ScreenShareEngine {
         candSrflx = 0
         candRelay = 0
         negotiatedCodec = null
+        relayMaxKbps = null
+        senderVideoTrack = null
         effectiveH264 = false
         encFpsCap = 30
         _netInfo.value = null
@@ -857,6 +929,9 @@ object ScreenShareEngine {
                     when (newState) {
                         PeerConnection.PeerConnectionState.CONNECTED -> {
                             diagLog("peer connection CONNECTED")
+                            // v0.9.9 — find out whether this live path is a TURN
+                            // relay and cap the sender bitrate if it is.
+                            scheduleRelayBandwidthCheck(mine())
                             if (isHelper) {
                                 retryBudget = 3 // success refills the auto-retry budget
                                 _info.value = "Connection established — starting the video…"
@@ -1085,16 +1160,35 @@ object ScreenShareEngine {
             "tap" -> ok = AssistService.tapNormalized(
                 obj.optDouble("x", -1.0), obj.optDouble("y", -1.0)
             )
+            // v0.9.9 (Phase 8.3) — swipe carries the helper's REAL drag time;
+            // long-press defaults to 800 ms (Android's threshold is ~500 ms).
+            "swipe" -> ok = AssistService.swipeNormalized(
+                obj.optDouble("x1", -1.0), obj.optDouble("y1", -1.0),
+                obj.optDouble("x2", -1.0), obj.optDouble("y2", -1.0),
+                obj.optLong("dur", 400L)
+            )
+            "long" -> ok = AssistService.longPressNormalized(
+                obj.optDouble("x", -1.0), obj.optDouble("y", -1.0),
+                obj.optLong("dur", 800L)
+            )
             "back" -> ok = AssistService.pressBack()
             "home" -> ok = AssistService.pressHome()
             "recents" -> ok = AssistService.pressRecents()
             else -> return
         }
         // v0.9.6 — log WHERE the tap landed (percent of the real display) so
-        // one screenshot proves the precision fix worked.
-        val where = if (kind == "tap" && obj.has("x")) {
-            " @${(obj.optDouble("x", 0.0) * 100).toInt()}%,${(obj.optDouble("y", 0.0) * 100).toInt()}%"
-        } else ""
+        // one screenshot proves the precision fix worked. v0.9.9 — swipes and
+        // long-presses land in the same place, so the same proof exists.
+        val where = when {
+            kind == "tap" && obj.has("x") ->
+                " @${(obj.optDouble("x", 0.0) * 100).toInt()}%,${(obj.optDouble("y", 0.0) * 100).toInt()}%"
+            kind == "long" && obj.has("x") ->
+                " @${(obj.optDouble("x", 0.0) * 100).toInt()}%,${(obj.optDouble("y", 0.0) * 100).toInt()}% held ${obj.optLong("dur", 800L)}ms"
+            kind == "swipe" && obj.has("x1") ->
+                " @${(obj.optDouble("x1", 0.0) * 100).toInt()}%,${(obj.optDouble("y1", 0.0) * 100).toInt()}%" +
+                    "→${(obj.optDouble("x2", 0.0) * 100).toInt()}%,${(obj.optDouble("y2", 0.0) * 100).toInt()}% in ${obj.optLong("dur", 400L)}ms"
+            else -> ""
+        }
         diagLog("assist $kind$where → ${if (ok) "performed" else "assist-off"}")
         if (!ok) {
             runOnMain { _assistDropped.value += 1 }
@@ -1209,6 +1303,8 @@ object ScreenShareEngine {
                 "back" -> "Back delivered ✓"
                 "home" -> "Home delivered ✓"
                 "recents" -> "Recents delivered ✓"
+                "swipe" -> "Swipe delivered ✓"
+                "long" -> "Long-press delivered ✓"
                 else -> "Tap delivered ✓"
             }
             // Success clears itself shortly.
@@ -1259,6 +1355,20 @@ object ScreenShareEngine {
     /** Tap the recipient's screen at normalized (0..1) coordinates. */
     fun sendAssistTap(nx: Double, ny: Double) =
         sendAssistCmd("{" + "\"kind\":\"tap\",\"x\":$nx,\"y\":$ny" + "}")
+
+    /**
+     * v0.9.9 (Phase 8.3) — swipe from A to B. [durMs] is the helper's REAL
+     * drag time (the UI sends elapsed milliseconds, clamped app-side) so a
+     * slow finger produces a slow remote scroll, not a violent fling.
+     */
+    fun sendAssistSwipe(nx1: Double, ny1: Double, nx2: Double, ny2: Double, durMs: Long) =
+        sendAssistCmd(
+            "{" + "\"kind\":\"swipe\",\"x1\":$nx1,\"y1\":$ny1,\"x2\":$nx2,\"y2\":$ny2,\"dur\":$durMs" + "}"
+        )
+
+    /** v0.9.9 (Phase 8.3) — long-press for context menus / text selection. */
+    fun sendAssistLongPress(nx: Double, ny: Double, durMs: Long = 800L) =
+        sendAssistCmd("{" + "\"kind\":\"long\",\"x\":$nx,\"y\":$ny,\"dur\":$durMs" + "}")
 
     /** One of the three global navigation actions: back / home / recents. */
     fun sendAssistNav(kind: String) =
@@ -1712,6 +1822,8 @@ object ScreenShareEngine {
         main.removeCallbacks(assistClear)
         _assistStatus.value = null
         _assistDropped.value = 0
+        relayMaxKbps = null
+        senderVideoTrack = null
         _state.value = ShareState.IDLE
     }
 
