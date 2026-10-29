@@ -1308,3 +1308,13 @@ QR জেনারেট ও স্ক্যানারে পরিবর্�
 (১) Owner-ফোনে Guest কোড বানান → QR-এর মাঝে ⏳ দেখা যায়? (২) পারিবারিক ফোনে স্ক্যান → রোল-প্রিভিউ
 শিট আসে? বাতিল চাপলে কিছু না হয়? (৩) নিশ্চিত চাপলে সাকসেস-ব্যাজে রোল দেখায়? (৪) Family কোডের
 QR-এ 👪 আছে? (৫) পুরনো (v≤0.16) কোড স্ক্যানে "কোড যাচাই করা হবে" নিরপেক্ষ প্রিভিউ আসে?
+
+### 39.4 প্রকাশনা-রেকর্ড (v0.17.0)
+- পুশ: Contents-API per-file — মধ্যবর্তী রান fail (জ্ঞাত আর্টিফ্যাক্ট: QrScanner-MainActivity
+  onCode-সিগনেচার ক্রস-নির্ভরতা per-file কমিটে), চূড়ান্ত গাছ **07f1574** CI **SUCCESS**
+  (run 40868598783)।
+- নির্মাণকালে ধরা-পড়া-শেখা বাগ: `apply{}`-ব্লকে `textSize = textSize` বাইরের `val textSize`-কেই
+  shadow করত ("'val' cannot be reassigned" ×২) — লোকাল rename `glyphSize` (07f1574)।
+- APK verify (artifact 12894822120): versionCode **INT_DEC 35** ✓, versionName **"0.17.0"** ✓
+  (স্টেল 0.9.9/0.10.0 স্ট্রিং অনুপস্থিত), APK Signing Block v2 ✓ ("APK Sig Block 42")।
+- download/family-remote-support-v0.17.0-code35.apk (39.5 MB) সংরক্ষিত।
