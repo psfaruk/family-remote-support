@@ -286,8 +286,12 @@ suspend fun endSession(sessionId: String, uid: String, byTimeout: Boolean = fals
         val snap = tx.get(ref)
         val session = if (snap.exists()) snap.toSessionView() else null
 
-        // ---------- write (only when still active) ----------
-        if (session != null && session.status == "ACTIVE") {
+        // ---------- write (only when still active AND we are a participant —
+        // v0.21.0 (audit): the participant check is defense in depth; the
+        // rules already enforce it server-side) ----------
+        if (session != null && session.status == "ACTIVE" &&
+            (session.helperUid == uid || session.recipientUid == uid)
+        ) {
             tx.update(
                 ref,
                 mapOf(
@@ -307,18 +311,33 @@ suspend fun endSession(sessionId: String, uid: String, byTimeout: Boolean = fals
  * Best effort from whichever client sees the staleness first — the rules let
  * either participant perform exactly this transition, and a race with a real
  * answer simply fails here without harm.
+ *
+ * v0.21.0 (audit): now a read-validate-write transaction — the old BLIND
+ * unconditional update could race a just-granted session (helper-side lazy
+ * expire flipping an ACTIVE session straight to EXPIRED seconds after
+ * consent) if the rules were ever stale/loose.
  */
 suspend fun expireSession(sessionId: String) {
-    Fb.db
-        .collection(SESSION_COLLECTION)
-        .document(sessionId)
-        .update(
-            mapOf(
-                "status" to "EXPIRED",
-                "updatedAt" to FieldValue.serverTimestamp()
+    val db = Fb.db
+    db.runTransaction { tx ->
+        val ref = db.collection(SESSION_COLLECTION).document(sessionId)
+        val snap = tx.get(ref)
+        val session = if (snap.exists()) snap.toSessionView() else null
+        val deadlineMillis = session?.respondDeadlineMillis ?: 0L
+        if (session != null && session.status == "REQUESTED" &&
+            deadlineMillis > 0 &&
+            System.currentTimeMillis() > deadlineMillis + 2000
+        ) {
+            tx.update(
+                ref,
+                mapOf(
+                    "status" to "EXPIRED",
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
             )
-        )
-        .awaitWithTimeout("expiring the old request")
+        }
+        Unit
+    }.awaitWithTimeout("expiring the old request")
 }
 
 /**
