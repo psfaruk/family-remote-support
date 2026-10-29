@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assist_service_description">সাহায্যের সেশন চলাকালীন একজন বিশ্বস্ত পরিবারের সাহায্যকারী এই স্ক্রিনে ট্যাপ, সোয়াইপ, লং-প্রেস ও লেখা টাইপ করতে পারেন। সার্ভিস স্ক্রিন শুধু ফোকাসড লেখা-ঘরটি খুঁজে বের করতে দেখে; অ্যাপ কখনো আপনার স্ক্রিনের লেখা পড়ে, জমা রাখে বা পাঠায় না।</string>
+
+    <string name="nav_home">হোম</string>
+    <string name="nav_phone">ফোন</string>
+    <string name="nav_location">লাইভ লোকেশন</string>
+    <string name="nav_settings">সেটিংস</string>
+
+    <string name="pres_online">অনলাইন</string>
+    <string name="pres_offline">অফলাইন</string>
+    <string name="pres_checking">দেখা হচ্ছে…</string>
+
+    <string name="cmn_ok">ঠিক আছে</string>
+    <string name="cmn_details">বিস্তারিত</string>
+
+    <string name="home_tagline">পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।</string>
+    <string name="home_welcome">স্বাগতম</string>
+    <string name="home_signed_in_as">সাইন-ইন করেছেন: %1$s</string>
+    <string name="home_not_signed_in">এখনো সাইন-ইন নেই</string>
+    <string name="home_features">এই অ্যাপ যা যা করতে পারে</string>
+    <string name="feat_screen_t">লাইভ স্ক্রিন ভিউ</string>
+    <string name="feat_screen_d">সেশন চলাকালীন অন্য ফোনের স্ক্রিন সরাসরি দেখুন।</string>
+    <string name="feat_touch_t">রিমোট টাচ</string>
+    <string name="feat_touch_d">তাদের ফোনে ট্যাপ, সোয়াইপ ও টাইপ — শুধু তারা অনুমতি দিলে।</string>
+    <string name="feat_family_t">ফ্যামিলি পেয়ারিং</string>
+    <string name="feat_family_d">QR কোড বা কোড দিয়ে একবারই বিশ্বস্ত ফোন যুক্ত করুন।</string>
+    <string name="feat_guest_t">গেস্ট সাপোর্ট</string>
+    <string name="feat_guest_d">পরিবারের বাইরের কারও জন্য ২ ঘণ্টার সাময়িক সাহায্য।</string>
+    <string name="home_setup_ok">সেটআপ সম্পূর্ণ ✓</string>
+    <string name="home_setup_ok_sub">৪টি পারমিশনই চালু — অ্যাপ পুরোপুরি প্রস্তুত।</string>
+    <string name="home_setup_pending">সেটআপ %1$d/4 হয়েছে</string>
+    <string name="home_setup_pending_sub">কিছু পারমিশন বাকি — এখনই দেখে নিন।</string>
+    <string name="home_setup_problem">সেটআপে সমস্যা</string>
+    <string name="home_retry">আবার চেষ্টা করুন</string>
+
+    <string name="loc_title">লাইভ লোকেশন</string>
+    <string name="loc_coming_title">ভবিষ্যতের আপডেটে আসছে</string>
+    <string name="loc_coming_body">এখানে পরিবারের লাইভ লোকেশন দেখা যাবে — সবসময় অন্য মানুষের স্পষ্ট অনুমতি নিয়ে। আজ কিছুই সংগ্রহ করা হয় না এবং কিছুই শেয়ার করা হয় না।</string>
+
+    <string name="set_section_account">অ্যাকাউন্ট</string>
+    <string name="set_profile_title">প্রোফাইল</string>
+    <string name="set_profile_sub">এই অ্যাকাউন্টের নাম ও ইমেইল</string>
+    <string name="set_edit_name">নাম বদলান</string>
+    <string name="set_name_label">আপনার নাম</string>
+    <string name="set_save">সংরক্ষণ</string>
+    <string name="set_saved">নাম আপডেট হয়েছে ✓</string>
+    <string name="set_name_min">কমপক্ষে ২ অক্ষরের নাম দিন</string>
+    <string name="set_cancel">বাতিল</string>
+    <string name="set_devices_title">এই অ্যাকাউন্টের ফোন</string>
+    <string name="set_no_devices">এখনো কোনো ফোন নিবন্ধিত হয়নি।</string>
+    <string name="set_section_setup">সেটআপ ও পারমিশন</string>
+    <string name="set_section_look">চেহারা</string>
+    <string name="set_section_lang">ভাষা</string>
+    <string name="set_lang_sub">অ্যাপের ভাষা — ডিফল্ট ইংরেজি</string>
+    <string name="set_section_rules">নীতিমালা ও গোপনীয়তা</string>
+    <string name="set_privacy">প্রাইভেসি পলিসি</string>
+    <string name="set_privacy_sub">কোন তথ্য ব্যবহৃত হয়, কী কখনো নেওয়া হয় না</string>
+    <string name="set_rules">নীতিমালা</string>
+    <string name="set_rules_sub">অনুমতি, গেস্টের মেয়াদ ও ভালো-ব্যবহারের নিয়ম</string>
+    <string name="set_section_activity">গতিবিধি</string>
+    <string name="set_section_about">অ্যাপ সম্পর্কে</string>
+    <string name="set_about_sub">সংস্করণ, প্যাকেজ ও নীতিমালা</string>
+    <string name="about_storage">আপনার অ্যাকাউন্ট ও ডিভাইসের তথ্য শুধু এই অ্যাপের নিজের Firebase প্রজেক্টে থাকে। স্ক্রিনের বিষয়বস্তু কখনো রেকর্ড বা সংরক্ষণ করা হয় না।</string>
+    <string name="set_sign_out">সাইন আউট</string>
+    <string name="set_test_notif">টেস্ট নোটিফিকেশন পাঠান</string>
+    <string name="set_test_notif_sent">টেস্ট নোটিফিকেশন গেছে — নোটিফিকেশন শেডে দেখুন ✓</string>
+    <string name="set_test_notif_blocked">নোটিফিকেশন বন্ধ — আগে উপরের টগল থেকে চালু করুন।</string>
+
+    <string name="toast_copied">কপি হয়েছে ✓</string>
+    <string name="toast_saved">ডাউনলোড হয়েছে ✓ %1$s</string>
+    <string name="toast_save_failed">QR ছবিটি সেভ করা যায়নি।</string>
+    <string name="toast_share_prep_failed">শেয়ারের জন্য QR ছবি বানানো যায়নি।</string>
+    <string name="toast_share_no_app">শেয়ার করার মতো কোনো অ্যাপ নেই।</string>
+
+    <string name="auth_tagline">পরিবারের ফোনে দূর থেকে বিশ্বস্ত সহায়তা —\nসবসময় স্পষ্ট অনুমতি নিয়ে।</string>
+    <string name="auth_trust">আপনার অনুমতি ছাড়া কেউ ঢুকতে পারবে না</string>
+    <string name="auth_login">লগইন</string>
+    <string name="auth_signup">নতুন অ্যাকাউন্ট</string>
+    <string name="auth_name">আপনার নাম</string>
+    <string name="auth_email">ইমেইল</string>
+    <string name="auth_password">পাসওয়ার্ড</string>
+    <string name="auth_confirm">পাসওয়ার্ড আবার লিখুন</string>
+    <string name="auth_show">দেখুন</string>
+    <string name="auth_hide">লুকান</string>
+    <string name="auth_err_name">কমপক্ষে ২ অক্ষরের নাম লিখুন</string>
+    <string name="auth_err_email">সঠিক ইমেইল ঠিকানা লিখুন</string>
+    <string name="auth_err_pw">পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে</string>
+    <string name="auth_err_confirm">দুটি পাসওয়ার্ড মিলছে না</string>
+    <string name="auth_wait">অপেক্ষা করুন…</string>
+    <string name="auth_btn_login">লগইন করুন</string>
+    <string name="auth_btn_signup">অ্যাকাউন্ট তৈরি করুন</string>
+    <string name="auth_forgot">পাসওয়ার্ড ভুলে গেছেন?</string>
+    <string name="auth_or">অথবা</string>
+    <string name="auth_google">Google দিয়ে চালিয়ে যান</string>
+    <string name="auth_footer">আপনার অ্যাকাউন্ট ও ফোনের তথ্য শুধু আপনার নিজের Firebase প্রজেক্টে থাকে। যুক্ত থাকা মানেই স্থায়ী অনুমতি নয় — প্রতিটি সেশনে আবার জিজ্ঞেস করা হয়।</string>
+
+    <string name="privacy_title">প্রাইভেসি পলিসি</string>
+    <string name="privacy_body">Family Remote Support বিশ্বস্ত মানুষদের ফোনের কাজে একে অপরকে সাহায্য করার অ্যাপ। এই পলিসিতে হুবহু বলা হলো অ্যাপ কোন তথ্য ব্যবহার করে।\n\nযা সংগ্রহ করা হয়\n• অ্যাকাউন্ট: আপনার নাম, ইমেইল ও সাইন-ইন করা Google অ্যাকাউন্টের আইডি।\n• ডিভাইস: মডেল, মেকার, Android সংস্করণ ও অ্যাপ-সংস্করণ।\n• একটি অ্যাপ-নির্দিষ্ট ডিভাইস-আইডি, যাতে আপনার ফোনগুলোর তালিকা বানানো যায়।\n• পুশ-টোকেন: শুধু আপনার ফোনকে জানাতে যে কেউ সাহায্যের অনুরোধ পাঠিয়েছে।\n• সেশন-রেকর্ড: কে কাকে অনুরোধ করেছে, শুরু/শেষের সময় ও চূড়ান্ত অবস্থা — অ্যাপে যে গতিবিধি দেখেন তাই।\n\nযা কখনো সংগ্রহ করা হয় না\n• স্ক্রিনের বিষয়বস্তু। লাইভ স্ক্রিন-ভিডিও শুধু আপনার অনুমোদিত সেশনেই থাকে; দুই ফোনের মাঝে সরাসরি যায়, কোথাও জমা হয় না।\n• পাসওয়ার্ড, স্ক্রিনের লেখা, কি-প্রেস বা ছবি।\n• লোকেশন। লাইভ লোকেশন ট্যাবটি এখনো খালি প্রতিশ্রুতি-পাতা — আজ কিছুই সংগ্রহ হয় না।\n\nআপনার তথ্য কোথায় থাকে\nশুধু এই অ্যাপের নিজের Firebase প্রজেক্টে। বিক্রি হয় না, বিজ্ঞাপনদের দেওয়া হয় না, ট্র্যাকিংয়ে ব্যবহৃত হয় না।\n\nকে কী দেখতে পায়\nযুক্ত সাহায্যকারী আপনার ফোনের অনলাইন-অবস্থা দেখতে পারেন, আর সেশন খুলতে পারেন শুধু আপনি প্রতিবার স্পষ্টভাবে অনুমতি দিলে। যেকোনো সময় ফোনটি revoke করতে পারবেন; সাইন-আউট করলে এই ফোনের উপস্থিতি ও পুশ-টোকেন মুছে যায়।\n\nনিয়ন্ত্রণ আপনার হাতে: প্রতিটি সেশনে লাইভ অনুমতি লাগে, চলাকালীন স্পষ্ট ইঙ্গিত দেখা যায়, আর যেকোনো মুহূর্তে আপনিই বন্ধ করতে পারেন।</string>
+
+    <string name="rules_title">নীতিমালা</string>
+    <string name="rules_body">এই নিয়মগুলো Family Remote Support-কে সবার জন্য নিরাপদ রাখে।\n\n১. আগে অনুমতি। প্রতিটি সাহায্য-সেশনে যে ফোন সাহায্য পাবে তাতে একবারে স্পষ্ট অনুমতি লাগবে। শুধু যুক্ত থাকা মানেই প্রবেশাধিকার নয়।\n\n২. পেয়ারিং কোড একবার-ব্যবহারযোগ্য, প্রায় ৫ মিনিটে মেয়াদ শেষ। কোড শুধু একবার, শুধু সময়মতো স্ক্যান/লেখা মানুষটিই ব্যবহার করতে পারে।\n\n৩. গেস্ট সাহায্য সাময়িক। গেস্ট যুক্তি ২ ঘণ্টা পরে নিজেই শেষ হয় এবং নিজে থেকে কখনো স্থায়ী ফ্যামিলি-পেয়ারিং হয় না।\n\n৪. আপনি সবসময় থামাতে পারবেন। যিনি সাহায্য পাচ্ছেন তিনি অনুরোধ নাকচ করতে, চলমান সেশন যেকোনো সেকেন্ডে শেষ করতে, বা যুক্ত ফোন সম্পূর্ণ বাতিল (revoke) করতে পারেন।\n\n৫. সাহায্যকারী বিশ্বস্ত হতে হবে। আপনার কোড/QR শুধু সত্যিই বিশ্বস্ত মানুষকে দিন। সেশন চলাকালীন সাহায্যকারী আপনার স্ক্রিন দেখেন — সন্দেহ থাকলে আগে ব্যক্তিগত অ্যাপগুলো বন্ধ করুন।\n\n৬. ফাঁকি নয়। অ্যাপ কখনো ফোন আনলক, পাসওয়ার্ড পড়া, নীরবে পারমিশন দেওয়া, বা সেশন-চলছে লুকানোর চেষ্টা করে না। শুধু Android যা স্পষ্টভাবে অনুমতি দেয়, তার ভেতরেই কাজ করে।\n\n৭. শুধু ভালো ব্যবহার। অ্যাপটি কাউকে ভয় দেখানো, নজরদারি বা চাপ দেওয়ার কাজে ব্যবহার করা যাবে না। অপব্যবহারে প্রবেশাধিকার বাতিল হবে।\n\n৮. পরিবারই আগে। অ্যাপটি পরিবারের মানুষ ও ঘনিষ্ঠ বন্ধুদের ফোনের কাজে সাহায্য করার জন্যই — অন্য কিছুর জন্য নয়।</string>
+</resources>
