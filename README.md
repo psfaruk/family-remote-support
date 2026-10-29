@@ -5,6 +5,16 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
+- **Phase 14 ✅ (infra, APK unchanged — versionCode stays 36) — KILL-PUSH PERMANENT TIER on
+  Cloudflare Workers (free plan):** Owner opened a Cloudflare account and set the infra policy
+  (no paid relay — free limits first; simple shared-token auth to start, tighten later; publish
+  Uptodown first, Play Store after observation). `cloudflare/killpush-worker.js` is a
+  zero-dependency Web-Crypto port of the proven kill-push sweep (Firestore REST query of fresh
+  REQUESTED asks → fcmTokens lookup → high-priority FCM → idempotent mark + dead-token cleanup)
+  with an every-minute Cron Trigger (permanent 24/7, ~60 s worst-case latency inside the
+  2-minute answer window), `POST /sweep` behind a timing-safe shared `KILL_TOKEN`, and an open
+  `GET /health`. Free-tier usage <2% of limits. Setup guide: `docs/CLOUDFLARE_SETUP.md`
+  (Bangla, 4 steps). No app code, no rules change; sandbox + GitHub Actions tiers keep running.
 - **Phase 11.6 ✅ (v0.15.0, versionCode 33) — DESIGN SYSTEM + DARK MODE:** one design
   source (`ui/Theme.kt`: light #246BFD blue + full dark scheme, senior type scale,
   shapes/spacing tokens), Settings appearance group (System/Light/Dark, persisted,
