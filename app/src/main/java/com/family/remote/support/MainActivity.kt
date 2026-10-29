@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +63,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.hypot
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -1543,30 +1546,85 @@ private fun ScreenSharePanel(
                     }
                 }
             }
-            // Maps a tap inside the letterboxed video box to normalized (0..1)
-            // coordinates of the REAL remote frame and sends one "cmd" signal.
-            // Used both inline and in the full-screen dialog.
-            fun assistTapModifier(): Modifier = Modifier
+            // Maps a point inside the letterboxed video box to normalized
+            // (0..1) coordinates of the REAL remote frame. Shared by tap,
+            // long-press and swipe alike. Used inline and in full-screen.
+            fun normalized(off: Offset): Pair<Double, Double>? {
+                val fs = frameSize ?: return null
+                val (fw, fh) = fs
+                if (fw <= 0 || fh <= 0 || boxPx.width <= 0 || boxPx.height <= 0) {
+                    return null
+                }
+                val scale = minOf(
+                    boxPx.width.toFloat() / fw.toFloat(),
+                    boxPx.height.toFloat() / fh.toFloat()
+                )
+                val cw = fw * scale
+                val ch = fh * scale
+                val ox = (boxPx.width - cw) / 2f
+                val oy = (boxPx.height - ch) / 2f
+                val nx = ((off.x - ox) / cw).coerceIn(0f, 1f).toDouble()
+                val ny = ((off.y - oy) / ch).coerceIn(0f, 1f).toDouble()
+                return nx to ny
+            }
+            // Phase 8 (v0.9.0) — TAP. Phase 8.3 (v0.9.9) — LONG-PRESS + SWIPE.
+            // The three detectors coexist by Compose's gesture rules: a finger
+            // held still past the long-press timeout fires onLongPress; a
+            // finger that passes touch-slop is claimed by detectDragGestures
+            // (which cancels the tap); a quick unmoved release stays a tap.
+            fun assistGestureModifier(): Modifier = Modifier
                 .onSizeChanged { boxPx = it }
                 .pointerInput(frameSize) {
-                    detectTapGestures { off ->
-                        val fs = frameSize ?: return@detectTapGestures
-                        val (fw, fh) = fs
-                        if (fw <= 0 || fh <= 0 || boxPx.width <= 0 || boxPx.height <= 0) {
-                            return@detectTapGestures
+                    detectTapGestures(
+                        onTap = { off ->
+                            val n = normalized(off) ?: return@detectTapGestures
+                            ScreenShareEngine.sendAssistTap(n.first, n.second)
+                        },
+                        onLongPress = { off ->
+                            val n = normalized(off) ?: return@detectTapGestures
+                            ScreenShareEngine.sendAssistLongPress(n.first, n.second)
                         }
-                        val scale = minOf(
-                            boxPx.width.toFloat() / fw.toFloat(),
-                            boxPx.height.toFloat() / fh.toFloat()
-                        )
-                        val cw = fw * scale
-                        val ch = fh * scale
-                        val ox = (boxPx.width - cw) / 2f
-                        val oy = (boxPx.height - ch) / 2f
-                        val nx = ((off.x - ox) / cw).coerceIn(0f, 1f).toDouble()
-                        val ny = ((off.y - oy) / ch).coerceIn(0f, 1f).toDouble()
-                        ScreenShareEngine.sendAssistTap(nx, ny)
-                    }
+                    )
+                }
+                .pointerInput(frameSize) {
+                    var start: Offset? = null
+                    var cur: Offset? = null
+                    var t0 = 0L
+                    detectDragGestures(
+                        onDragStart = { off ->
+                            start = off
+                            cur = off
+                            t0 = System.currentTimeMillis()
+                        },
+                        onDrag = { change, _ ->
+                            cur = change.position
+                        },
+                        onDragEnd = {
+                            val s = start
+                            val c = cur
+                            start = null
+                            cur = null
+                            if (s != null && c != null) {
+                                val a = normalized(s)
+                                val b = normalized(c)
+                                if (a != null && b != null &&
+                                    hypot(b.first - a.first, b.second - a.second) > 0.02
+                                ) {
+                                    // The helper's REAL drag time travels with the
+                                    // stroke (clamped): slow finger = slow scroll.
+                                    val dur = (System.currentTimeMillis() - t0)
+                                        .coerceIn(160L, 1_500L)
+                                    ScreenShareEngine.sendAssistSwipe(
+                                        a.first, a.second, b.first, b.second, dur
+                                    )
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            start = null
+                            cur = null
+                        }
+                    )
                 }
             if (egl != null) {
                 if (fullscreen) {
@@ -1584,7 +1642,7 @@ private fun ScreenSharePanel(
                                 Modifier
                                     .fillMaxSize()
                                     .then(
-                                        if (assistLive) assistTapModifier()
+                                        if (assistLive) assistGestureModifier()
                                         else Modifier
                                     )
                             )
@@ -1643,7 +1701,7 @@ private fun ScreenSharePanel(
                                         }
                                     )
                                     .then(
-                                        if (assistLive) assistTapModifier()
+                                        if (assistLive) assistGestureModifier()
                                         else Modifier.clickable { fullscreen = true }
                                     )
                             )
@@ -1691,7 +1749,7 @@ private fun ScreenSharePanel(
             }
             Text(
                 text = if (assistMode)
-                    "চালু — ট্যাপ এখন তাদের ফোনে যাবে (তাদের Remote assist চালু থাকতে হবে)।"
+                    "চালু — ট্যাপ, সোয়াইপ ও লং-প্রেস এখন তাদের ফোনে যাবে (তাদের Remote assist চালু থাকতে হবে)। ছবির ওপর: ট্যাপ = ট্যাপ · ধরে রাখা = লং-প্রেস · টেনে ছাড়া = সোয়াইপ।"
                 else
                     "বন্ধ — শুধু দেখা যাচ্ছে। ট্যাপ পাঠাতে সুইচ চালু করুন।",
                 style = MaterialTheme.typography.bodySmall,
