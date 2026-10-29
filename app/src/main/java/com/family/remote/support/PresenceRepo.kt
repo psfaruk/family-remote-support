@@ -120,6 +120,64 @@ suspend fun registerFcmToken(uid: String, deviceId: String) {
 }
 
 /**
+ * Phase 13 — sign-out hygiene. Removes this device's traces from Firestore
+ * while the user is still authenticated (rules require signedIn for both):
+ *   1. devicePresence/{uid}_{deviceId} — paired phones stop seeing this
+ *      device as "Online" immediately instead of waiting out the TTL.
+ *   2. fcmTokens documents owned by this uid on THIS deviceId — after
+ *      sign-out the kill-push sweep finds no token, so a signed-out phone
+ *      no longer receives session-request notifications.
+ * Both deletes are exactly what the published rules already permit
+ * (own-uid only) — no rules change is involved.
+ *
+ * Best-effort by design: a network failure here must never trap the user
+ * inside a signed-in state. Every step degrades independently; the caller
+ * proceeds with signOut() regardless and shows an honest notice when
+ * anything failed.
+ *
+ * @return true when every trace was removed, false when any step failed.
+ */
+suspend fun deleteOwnPresenceAndToken(uid: String, deviceId: String): Boolean {
+    var clean = true
+    try {
+        Fb.db.collection(PRESENCE_COLLECTION)
+            .document(presenceDocId(uid, deviceId))
+            .delete()
+            .awaitWithTimeout("removing this device's presence")
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        clean = false
+    }
+    // Token document ids are SHA-256 hashes of the raw FCM token — they
+    // cannot be derived without the token itself, so list this user's
+    // token docs (rules: list only ever returns uid == mine) and delete
+    // the ones registered to this device.
+    try {
+        val mine = Fb.db.collection(TOKEN_COLLECTION)
+            .whereEqualTo("uid", uid)
+            .get()
+            .awaitWithTimeout("listing this device's push tokens")
+        for (doc in mine.documents) {
+            if (doc.getString("deviceId") != deviceId) continue
+            try {
+                doc.reference.delete()
+                    .awaitWithTimeout("removing a push token")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                clean = false
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        clean = false
+    }
+    return clean
+}
+
+/**
  * Background heartbeat worker. WorkManager's periodic floor is 15 minutes;
  * the app also heartbeats on every foreground, which keeps the badge fresh
  * during real use.
