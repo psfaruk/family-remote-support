@@ -113,28 +113,33 @@ val DarkColors = darkColorScheme(
 
 /**
  * Senior-friendly type scale (Phase 9 concept, kept and formalized):
- * one notch larger body, semi-bold titles — hierarchy via size+weight,
- * never via hardcoded Bold on every Text. All sp, all wrapping.
+ * semi-bold titles — hierarchy via size+weight, never via hardcoded Bold
+ * on every Text. All sp, all wrapping.
+ *
+ * Phase 15 (v0.19.0) — one notch COMPACTER per Owner feedback: the UI felt
+ * oversized ("স্ক্রিন একটু zoom কমিয়ে আনেন · যতদূর সম্ভব ফিট রাখেন"), so
+ * every slot dropped ~1-2 sp and tighter line heights — sections now fit
+ * one screen on common phones while staying comfortably readable.
  */
 val SeniorTypography: Typography = Typography().let { base ->
     base.copy(
         titleLarge = base.titleLarge.copy(
-            fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold
+            fontSize = 20.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold
         ),
         titleMedium = base.titleMedium.copy(
-            fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold
+            fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold
         ),
         titleSmall = base.titleSmall.copy(
-            fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold
-        ),
-        bodyLarge = base.bodyLarge.copy(fontSize = 17.sp, lineHeight = 25.sp),
-        bodyMedium = base.bodyMedium.copy(fontSize = 16.sp, lineHeight = 23.sp),
-        bodySmall = base.bodySmall.copy(fontSize = 14.sp, lineHeight = 20.sp),
-        labelLarge = base.labelLarge.copy(
             fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold
         ),
+        bodyLarge = base.bodyLarge.copy(fontSize = 15.sp, lineHeight = 22.sp),
+        bodyMedium = base.bodyMedium.copy(fontSize = 14.5.sp, lineHeight = 20.sp),
+        bodySmall = base.bodySmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+        labelLarge = base.labelLarge.copy(
+            fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold
+        ),
         labelMedium = base.labelMedium.copy(
-            fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium
+            fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium
         )
     )
 }
