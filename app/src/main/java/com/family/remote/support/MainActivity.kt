@@ -1892,6 +1892,39 @@ private fun ScreenSharePanel(
                     )
                 }
             }
+            // v0.12.0 (Phase 8.3 completion) — DATA SAVER. The helper caps
+            // the stream's bitrate mid-session (600 kbps) or restores the
+            // normal budget, without restarting anything. It rides the same
+            // epoch-gated command channel as the touch commands and gets the
+            // same truthful ack, so the switch can never silently lie.
+            var dataSaver by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Data saver · ছবি হালকা",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = dataSaver,
+                    onCheckedChange = {
+                        dataSaver = it
+                        ScreenShareEngine.sendAssistDataSaver(it)
+                    }
+                )
+            }
+            Text(
+                text = if (dataSaver)
+                    "চালু — ছবি ৬০০ kbps-এ ক্যাপ: ডেটা বাঁচবে, ছবি একটু ঝাপসা হবে। " +
+                        "রিলে বা মিটার্ড নেটওয়ার্কে কাজের।"
+                else
+                    "বন্ধ — স্বাভাবিক মান। রিলে-পথে ইঞ্জিন নিজেই ১৫০০ kbps-এ ক্যাপ করে।",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             // Phase 8 — the touch-control switch, global navigation buttons
             // and per-command delivery feedback. Phase 9 (T3): a clear section
             // header, equal-width ≥48dp nav buttons, bilingual state copy.
@@ -1910,13 +1943,20 @@ private fun ScreenSharePanel(
             }
             Text(
                 text = if (assistMode)
-                    "চালু — ট্যাপ, সোয়াইপ ও লং-প্রেস এখন তাদের ফোনে যাবে (তাদের Remote assist চালু থাকতে হবে)। ছবির ওপর: ট্যাপ = ট্যাপ · ধরে রাখা = লং-প্রেস · টেনে ছাড়া = সোয়াইপ।"
+                    "চালু — ট্যাপ, সোয়াইপ, লং-প্রেস ও লেখা টাইপ এখন তাদের ফোনে যাবে (তাদের Remote assist চালু থাকতে হবে)। ছবির ওপর: ট্যাপ = ট্যাপ · ধরে রাখা = লং-প্রেস · টেনে ছাড়া = সোয়াইপ।"
                 else
                     "বন্ধ — শুধু দেখা যাচ্ছে। ট্যাপ পাঠাতে সুইচ চালু করুন।",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (assistMode) {
+                // v0.12.0 (Phase 8.3 completion) — TYPING lives behind one
+                // button and one honest dialog (state survives recomposition
+                // while the switch is on; it dies with the session naturally).
+                var showTypeDialog by remember { mutableStateOf(false) }
+                if (showTypeDialog) {
+                    AssistTypeDialog(onDismiss = { showTypeDialog = false })
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1945,6 +1985,13 @@ private fun ScreenSharePanel(
                     ) {
                         Text("▦ Recents")
                     }
+                }
+                // v0.12.0 (Phase 8.3 completion) — the typing entry point.
+                WideOutlinedButton(
+                    onClick = { showTypeDialog = true },
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Text("⌨ Type text · লেখা টাইপ করুন")
                 }
                 WideOutlinedButton(onClick = { fullscreen = true }) {
                     Text("⛶ Full screen · ফুলস্ক্রিন")
@@ -2056,14 +2103,14 @@ private fun ScreenSharePanel(
             }
             if (assistOn) {
                 Text(
-                    text = "Remote assist চালু ✓ — সাহায্যকারী এই স্ক্রিনে ট্যাপও করতে পারবেন।",
+                    text = "Remote assist চালু ✓ — সাহায্যকারী এই স্ক্রিনে ট্যাপ, সোয়াইপ, লং-প্রেস ও লেখা টাইপও করতে পারবেন।",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
             } else {
                 Text(
-                    text = "Remote assist বন্ধ — সাহায্যকারী শুধু দেখতে পারবেন, ট্যাপ করতে পারবেন না।",
+                    text = "Remote assist বন্ধ — সাহায্যকারী শুধু দেখতে পারবেন, ট্যাপ বা টাইপ করতে পারবেন না।",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -2089,7 +2136,7 @@ private fun ScreenSharePanel(
                 Text(
                     text = "একবারই সেটআপ লাগবে: তালিকায় \"Family Remote Support assist\" খুঁজে চালু করুন। " +
                         "⚠️ \"Accessibility menu shortcut\" নয় — সেটা কাজ করবে না। এই সার্ভিস স্ক্রিনের " +
-                        "কিছুই পড়ে না — শুধু ট্যাপ করতে পারে।",
+                        "কিছুই পড়ে না, জমা রাখে না, পাঠায় না — লেখা বসানোই একমাত্র কাজ।",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2120,6 +2167,78 @@ private fun ScreenSharePanel(
     }
     // v0.9.2 — frame health + the expandable engine log (on both roles).
     DiagnosticsPanel()
+}
+
+/**
+ * v0.12.0 (Phase 8.3 completion) — the helper's typing dialog.
+ *
+ * Honest by design: it says the text REPLACES the field's current content
+ * and that the field must be focused first (tap it with remote touch).
+ * The 500-char cap mirrors the engine's maxTextChars; send is disabled
+ * while empty. The engine acks the outcome — "no-field" comes back as an
+ * actionable banner, not a shrug.
+ */
+@Composable
+private fun AssistTypeDialog(onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Type on their phone · ওদের ফোনে লিখুন",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "আগে রিমোট টাচ দিয়ে ওদের ফোনে লেখার ঘরে ট্যাপ করে নিন। " +
+                        "লেখাটি ঘরের আগের লেখা বদলে বসবে। (নতুন লাইন-সহ লেখাও যায়।)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= 500) text = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("লেখা লিখুন…") },
+                    minLines = 2
+                )
+                Text(
+                    text = "${text.length}/500",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.End)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
+                        Text("Cancel · বাতিল")
+                    }
+                    Button(
+                        onClick = {
+                            ScreenShareEngine.sendAssistText(text)
+                            onDismiss()
+                        },
+                        enabled = text.isNotBlank(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
+                        Text("Send · পাঠান")
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
