@@ -182,6 +182,28 @@ A trusted family member helps fix another family phone — always with the recei
     over-long guest window refused, family-into-guest re-activation refused,
     a live guest session ask allowed then refused after the window passes) —
     all executed against PRODUCTION Firestore with synthetic identities.
+- **Phase 8.3 completed ✅ (v0.12.0, versionCode 30) — TYPING + DATA SAVER:** the two
+  deferred items of the remote-touch roadmap (§31.5) ship:
+  - **Remote typing**: the helper gets a "⌨ Type text · লেখা টাইপ করুন" button (Touch
+    control section) → an honest bilingual dialog (500-char cap, "replaces the field's
+    current content" said in plain words) → the text rides the same epoch-gated
+    `cmd` channel → the recipient's assist service finds the FOCUSED editable field
+    (depth-budgeted search over every retrievable window — the open IME can BE the
+    active window) and places it via `ACTION_SET_TEXT`. Every outcome acks truthfully:
+    "Text delivered ✓" / "no focused field — tap it first" / "field refused the text" /
+    assist-off. Trust-model update, stated honestly everywhere the user looks: the
+    service now has `canRetrieveWindowContent=true` — its ONLY consumer is the
+    focused-field search, which reads capability flags but never node text; nothing
+    seen is logged (diag records length only), stored or transmitted, and no API
+    exposes it.
+  - **Data saver (helper toggle)**: a "Data saver · ছবি হালকা" switch in the video
+    panel caps the stream at a hard 600 kbps (below the automatic 1500 kbps relay cap)
+    mid-session without restarting capture; OFF restores the normal budget
+    (relay-capped if the path is relayed). Same truthful ack as every command.
+  - **Privacy copy updated** in the recipient's assist card, the setup guide and the
+    system service description (English + Bangla): "the service looks at the screen
+    only to find the focused text field; the app never reads, stores or sends your
+    screen text."
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
