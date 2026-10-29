@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 11.6 — empty-phones illustration: two simple device shapes.
+     On-device vector (docs §13): no remote images, one flat style. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#EAF2FF"
+        android:pathData="M22,16 h20 a6,6 0 0 1 6,6 v52 a6,6 0 0 1 -6,6 h-20 a6,6 0 0 1 -6,-6 v-52 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#246BFD"
+        android:pathData="M52,24 h20 a6,6 0 0 1 6,6 v52 a6,6 0 0 1 -6,6 h-20 a6,6 0 0 1 -6,-6 v-52 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,76 h4 v4 h-4 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,70 h8 a2,2 0 0 1 0,4 h-8 a2,2 0 0 1 0,-4 z" />
+</vector>
