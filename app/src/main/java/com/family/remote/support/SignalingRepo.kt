@@ -32,6 +32,10 @@ import com.google.firebase.firestore.ListenerRegistration
  * participant, and a reader may only read documents addressed to them.
  * Signal docs carry no long-lived secrets — SDP/ICE are per-session anyway —
  * and both sides delete their own queue as they start and finish.
+ *
+ * v0.10.0 (Phase 9) — watch() now also reports each doc's server-side
+ * createdAt, so the engine can REFUSE stale "cmd" signals (replay guard:
+ * an old assist command re-delivered in the same round can never act).
  */
 internal object SignalingRepo {
 
@@ -70,7 +74,7 @@ internal object SignalingRepo {
     fun watch(
         sessionId: String,
         audUid: String,
-        onSignal: (type: String, ep: String, payload: String) -> Unit,
+        onSignal: (type: String, ep: String, payload: String, createdAtMillis: Long) -> Unit,
         onError: (Exception) -> Unit = {}
     ): () -> Unit {
         val reg: ListenerRegistration = Fb.db.collection(SESSION_COLLECTION)
@@ -87,7 +91,12 @@ internal object SignalingRepo {
                     val type = change.document.getString("type") ?: continue
                     val payload = change.document.getString("payload") ?: ""
                     val ep = change.document.getString("ep") ?: ""
-                    onSignal(type, ep, payload)
+                    // v0.10.0 (Phase 9) — server-side write time; 0 when absent
+                    // (never observed in practice: serverTimestamp is committed
+                    // before any listener can receive the doc).
+                    val createdAt = change.document.getTimestamp("createdAt")
+                        ?.toDate()?.time ?: 0L
+                    onSignal(type, ep, payload, createdAt)
                 }
             }
         return { reg.remove() }
