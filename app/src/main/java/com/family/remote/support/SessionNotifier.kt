@@ -87,6 +87,11 @@ object SessionNotifier {
                 if (app.startedActivities > 0) return@addSnapshotListener
                 val now = System.currentTimeMillis()
                 for (doc in snap.documents) {
+                    // v0.21.0 (audit): the dedupe set was populated but never
+                    // CONSULTED — every listener event re-alerted ALL pending
+                    // asks (repeat sound/vibration/heads-up spam within the
+                    // 2-minute window). Consult it first.
+                    if (doc.id in seenRequestIds) continue
                     seenRequestIds.add(doc.id)
                     val deadline = doc.getTimestamp("respondDeadline")?.toDate()?.time ?: 0L
                     // Only fresh asks ring; stale ones are handled as EXPIRED.
@@ -116,10 +121,11 @@ object SessionNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentTitle("Help requested")
             .setContentText("$helperEmail wants to help with this phone — open to allow or deny.")
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true) // v0.21.0 (audit): never re-sound the same ask
             .setContentIntent(pending)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
