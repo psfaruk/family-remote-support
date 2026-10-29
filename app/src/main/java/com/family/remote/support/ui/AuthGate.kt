@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -162,7 +163,7 @@ fun AuthGate(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "পরিবারের ফোনে দূর থেকে বিশ্বস্ত সহায়তা —\nসবসময় স্পষ্ট অনুমতি নিয়ে।",
+                text = stringResource(R.string.auth_tagline),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -184,7 +185,7 @@ fun AuthGate(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "আপনার অনুমতি ছাড়া কেউ ঢুকতে পারবে না",
+                        text = stringResource(R.string.auth_trust),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
@@ -202,7 +203,7 @@ fun AuthGate(
         ) {
             Row(modifier = Modifier.padding(4.dp)) {
                 ToggleSide(
-                    label = "লগইন",
+                    label = stringResource(R.string.auth_login),
                     selected = mode == MODE_LOGIN,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -211,7 +212,7 @@ fun AuthGate(
                     onClearMessages()
                 }
                 ToggleSide(
-                    label = "নতুন অ্যাকাউন্ট",
+                    label = stringResource(R.string.auth_signup),
                     selected = mode == MODE_SIGNUP,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -229,7 +230,7 @@ fun AuthGate(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("আপনার নাম") },
+                label = { Text(stringResource(R.string.auth_name)) },
                 leadingIcon = {
                     Icon(Icons.Filled.Person, contentDescription = null,
                         modifier = Modifier.size(20.dp))
@@ -237,7 +238,7 @@ fun AuthGate(
                 singleLine = true,
                 isError = tried && !nameOk,
                 supportingText = if (tried && !nameOk) {
-                    { Text("কমপক্ষে ২ অক্ষরের নাম লিখুন") }
+                    { Text(stringResource(R.string.auth_err_name)) }
                 } else null,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
@@ -247,7 +248,7 @@ fun AuthGate(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("ইমেইল") },
+            label = { Text(stringResource(R.string.auth_email)) },
             leadingIcon = {
                 Icon(Icons.Filled.Email, contentDescription = null,
                     modifier = Modifier.size(20.dp))
@@ -255,7 +256,7 @@ fun AuthGate(
             singleLine = true,
             isError = tried && !emailOk,
             supportingText = if (tried && !emailOk) {
-                { Text("সঠিক ইমেইল ঠিকানা লিখুন") }
+                { Text(stringResource(R.string.auth_err_email)) }
             } else null,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
@@ -267,7 +268,7 @@ fun AuthGate(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("পাসওয়ার্ড") },
+            label = { Text(stringResource(R.string.auth_password)) },
             leadingIcon = {
                 Icon(Icons.Filled.Lock, contentDescription = null,
                     modifier = Modifier.size(20.dp))
@@ -278,7 +279,8 @@ fun AuthGate(
                     modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Text(
-                        text = if (showPw) "লুকান" else "দেখুন",
+                        text = if (showPw) stringResource(R.string.auth_hide)
+                        else stringResource(R.string.auth_show),
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -286,7 +288,7 @@ fun AuthGate(
             singleLine = true,
             isError = tried && !pwOk,
             supportingText = if (tried && !pwOk) {
-                { Text("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে") }
+                { Text(stringResource(R.string.auth_err_pw)) }
             } else null,
             visualTransformation = if (showPw) VisualTransformation.None
             else PasswordVisualTransformation(),
@@ -301,7 +303,7 @@ fun AuthGate(
             OutlinedTextField(
                 value = confirm,
                 onValueChange = { confirm = it },
-                label = { Text("পাসওয়ার্ড আবার লিখুন") },
+                label = { Text(stringResource(R.string.auth_confirm)) },
                 leadingIcon = {
                     Icon(Icons.Filled.Lock, contentDescription = null,
                         modifier = Modifier.size(20.dp))
@@ -309,7 +311,7 @@ fun AuthGate(
                 singleLine = true,
                 isError = tried && !confirmOk,
                 supportingText = if (tried && !confirmOk) {
-                    { Text("দুটি পাসওয়ার্ড মিলছে না") }
+                    { Text(stringResource(R.string.auth_err_confirm)) }
                 } else null,
                 visualTransformation = if (showPw) VisualTransformation.None
                 else PasswordVisualTransformation(),
@@ -423,10 +425,11 @@ fun AuthGate(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(Modifier.width(10.dp))
-                Text("অপেক্ষা করুন…")
+                Text(stringResource(R.string.auth_wait))
             } else {
                 Text(
-                    text = if (mode == MODE_LOGIN) "লগইন করুন" else "অ্যাকাউন্ট তৈরি করুন",
+                    text = if (mode == MODE_LOGIN) stringResource(R.string.auth_btn_login)
+                    else stringResource(R.string.auth_btn_signup),
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -443,7 +446,7 @@ fun AuthGate(
                 enabled = !busy
             ) {
                 Text(
-                    text = "পাসওয়ার্ড ভুলে গেছেন?",
+                    text = stringResource(R.string.auth_forgot),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -464,7 +467,7 @@ fun AuthGate(
                     .background(MaterialTheme.colorScheme.outlineVariant)
             )
             Text(
-                text = "অথবা",
+                text = stringResource(R.string.auth_or),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp)
@@ -492,7 +495,7 @@ fun AuthGate(
             )
             Spacer(Modifier.width(10.dp))
             Text(
-                text = "Google দিয়ে চালিয়ে যান",
+                text = stringResource(R.string.auth_google),
                 style = MaterialTheme.typography.labelLarge
             )
         }
@@ -501,8 +504,7 @@ fun AuthGate(
 
         // ── Trust footer (Professional) ─────────────────────────────────
         Text(
-            text = "অ্যাকাউন্ট ও ফোনের যুক্তি শুধু আপনার নিজের Firebase প্রজেক্টে থাকে। " +
-                "পেয়ার থাকলেও প্রতিটি সেশনে আলাদা অনুমতি দরকার।",
+            text = stringResource(R.string.auth_footer),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
