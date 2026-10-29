@@ -93,7 +93,8 @@ A trusted family member helps fix another family phone — always with the recei
     "Tap delivered ✓" or "Remote assist is switched off there" — never a silent failure.
   - Coordinate mapping is resolution-independent: the helper's letterboxed video tap is
     converted to (0..1) normalized coordinates and re-scaled to the recipient's real
-    display (`displayMetrics`) before `dispatchGesture` injects the ~60 ms tap.
+    display (maximumWindowMetrics / getRealSize — status + navigation bars included,
+    exactly the space the video shows) before `dispatchGesture` injects the tap.
 - **Since v0.9.0 (fixes, no new phases):** v0.9.1 — runtime metered.ca TURN via the
   `config/turn` Firestore doc (free tier 500MB/month, burns only on cross-network relay);
   v0.9.2 — the three forensics-proven root causes of the black/dead picture fixed
@@ -102,7 +103,17 @@ A trusted family member helps fix another family phone — always with the recei
   panel; v0.9.3 — bitrate floor (min 800kbps / max 2.5Mbps, MAINTAIN_RESOLUTION so text
   stays readable) + 20 fps capture + PERSISTENT assist-off warning with an actionable
   hint (the tap pipeline itself was proven working — the recipient's Accessibility
-  service was simply switched off) + the About panel shows the REAL version.
+  service was simply switched off) + the About panel shows the REAL version;
+  v0.9.5 — enablement-UX: a first-open Permission Wizard with a Bengali guide that opens
+  the RIGHT Accessibility switch (highlighted) instead of Android's generic
+  "Accessibility menu shortcut" + a dropped-tap warning banner; v0.9.6 — pixel-perfect
+  touch (taps now map onto the REAL display instead of the smaller app window — the
+  root cause of "pressed h, tapped u"), INSTANT taps (WebRTC data channel, sub-100 ms),
+  30 fps 1536-class capture; v0.9.7 — the owner-tunable `config/quality` Firestore doc
+  (codec vp8/h264, 10–60 fps, bitrate floor/ceiling — flipped remotely, no new APK),
+  the hardware-H264 path with an on-screen capability probe ("codec probe — H264
+  enc=Y dec=Y …"), negotiated-codec proof in diagnostics, and automatic VP8/30fps
+  fallback whenever hardware H264 is unavailable.
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
