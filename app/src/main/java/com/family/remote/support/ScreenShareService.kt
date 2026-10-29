@@ -10,6 +10,11 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Phase 7 — foreground service that keeps the MediaProjection alive while the
@@ -23,6 +28,11 @@ import androidx.core.app.NotificationCompat
  * singleton that does the work; stopping the service tears the engine down.
  */
 class ScreenShareService : Service() {
+
+    // v0.21.0 (audit): stops the service when the engine goes idle — the
+    // "Screen sharing active" foreground notification used to linger until
+    // the session TTL or a manual stop even after the engine had ENDED.
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -51,12 +61,24 @@ class ScreenShareService : Service() {
             peerUid,
             projectionData
         )
+        // v0.21.0 (audit): watch the engine — when it reaches IDLE (including
+        // the 4 s grace after ENDED) the service stops itself, so the
+        // foreground notification can never outlive the actual capture.
+        serviceScope.launch {
+            ScreenShareEngine.state.collect { s ->
+                if (s == ShareState.IDLE) stopSelf()
+            }
+        }
         return Service.START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        // Idempotent; also fires when the engine stopped on its own (bye).
-        ScreenShareEngine.stopRecipient()
+        serviceScope.cancel()
+        // v0.21.0 (audit): ROLE-GUARDED stop — this service only owns the
+        // RECIPIENT round. The old unconditional stopRecipient() tore down
+        // the HELPER session (and sent "bye" to the wrong peer) if the engine
+        // had switched roles while a leftover service instance died.
+        ScreenShareEngine.stopRecipientFromService()
         super.onDestroy()
     }
 
@@ -80,7 +102,7 @@ class ScreenShareService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentTitle("Screen sharing active")
             .setContentText("A helper is watching this phone's screen. Tap to open.")
             .setOngoing(true)
