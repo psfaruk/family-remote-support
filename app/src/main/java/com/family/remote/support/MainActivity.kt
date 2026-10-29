@@ -3642,6 +3642,15 @@ private fun ScannedRoleSheet(
                             )
                         }
                     }
+                    // Phase 12 — a failed redeem comes back here honestly:
+                    // the server's refusal shows INSIDE the sheet.
+                    if (message != null) {
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     BigButton(
                         enabled = !redeeming,
                         onClick = onConfirm
