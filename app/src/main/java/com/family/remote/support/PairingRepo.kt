@@ -269,6 +269,14 @@ suspend fun createInvitation(
             "status" to "PENDING",
             "kind" to kind,
             "tokenHash" to sha256Hex(invite.token),
+            // v0.21.0 (audit — pairing token was decorative): the RAW token
+            // is now stored alongside its hash. The security rules compare the
+            // claimer's submitted claimToken against THIS field server-side,
+            // so a patched/hostile client can no longer redeem an invitation
+            // it only enumerated (the old rules checked nothing about the
+            // token; only honest clients did). The field is unreadable to
+            // anyone who cannot already read the invitation doc.
+            "token" to invite.token,
             "createdAt" to FieldValue.serverTimestamp(),
             "expiresAt" to Timestamp(Date(expiryMillis))
         )
@@ -356,15 +364,23 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
                     "signed in with their own Google account."
             )
         }
-        if (snap.getString("status") != "PENDING") {
-            throw RedemptionException("This code was already used or cancelled. Ask for a new one.")
-        }
-        val expiresAt = snap.getTimestamp("expiresAt")
-        if (expiresAt != null && expiresAt.toDate().before(Date())) {
-            throw RedemptionException("This code has expired. Ask for a fresh 5-minute code.")
-        }
-        if (snap.getString("tokenHash") != tokenHash) {
-            throw RedemptionException("Wrong code — compare every character with the other phone.")
+        // v0.21.0 (audit): RESUME path — if THIS user already claimed the
+        // invitation (a previous attempt committed the claim but died before
+        // the relationship write), skip the re-claim (the rules would refuse
+        // the PENDING→PAIRED transition) and just finish the relationship.
+        val alreadyMine = snap.getString("status") == "PAIRED" &&
+            snap.getString("claimedBy") == user.uid
+        if (!alreadyMine) {
+            if (snap.getString("status") != "PENDING") {
+                throw RedemptionException("This code was already used or cancelled. Ask for a new one.")
+            }
+            val expiresAt = snap.getTimestamp("expiresAt")
+            if (expiresAt != null && expiresAt.toDate().before(Date())) {
+                throw RedemptionException("This code has expired. Ask for a fresh 5-minute code.")
+            }
+            if (snap.getString("tokenHash") != tokenHash) {
+                throw RedemptionException("Wrong code — compare every character with the other phone.")
+            }
         }
 
         val recipientEmail = snap.getString("inviterEmail") ?: ""
@@ -394,16 +410,23 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         val guestEndsMillis = System.currentTimeMillis() + GUEST_RELATIONSHIP_TTL_MILLIS
 
         // ---------- writes (only after every read above) ----------
-        tx.update(
-            invRef,
-            mapOf(
-                "status" to "PAIRED",
-                "claimedBy" to user.uid,
-                "claimedEmail" to (user.email ?: ""),
-                "claimedAt" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp()
+        if (!alreadyMine) {
+            tx.update(
+                invRef,
+                mapOf(
+                    "status" to "PAIRED",
+                    "claimedBy" to user.uid,
+                    "claimedEmail" to (user.email ?: ""),
+                    "claimedAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                    // v0.21.0 (audit): the claim now carries the RAW token so
+                    // the SECURITY RULES can verify token knowledge
+                    // SERVER-SIDE (claimToken == the stored token field).
+                    // Client-side checks remain for friendly error messages.
+                    "claimToken" to code.token
+                )
             )
-        )
+        }
 
         if (existing.exists()) {
             // Rules (Phase 4/10) only allow re-activation to change status
