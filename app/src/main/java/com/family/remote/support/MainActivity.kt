@@ -124,10 +124,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import com.family.remote.support.ui.AppWarningColor
+import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.FamilyRemoteSupportTheme
 import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.ThemePreview
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthTooManyRequestsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.auth.UserProfileChangeRequest
 import org.webrtc.EglBase
 import kotlinx.coroutines.delay
 import org.webrtc.SurfaceViewRenderer
@@ -620,6 +628,29 @@ private suspend fun signInWithGoogle(activity: ComponentActivity): FirebaseUser 
     throw IllegalStateException("Unexpected credential type: ${credential.type}")
 }
 
+/**
+ * Phase 11.7 — email + password sign-in (Owner direction: a dedicated
+ * login/sign-up page for new users). Same FirebaseAuth, same uid → all
+ * Firestore paths and rules stay untouched (roadmap §22.2).
+ */
+private suspend fun signInWithEmailPassword(email: String, password: String): FirebaseUser {
+    val result = FirebaseAuth.getInstance()
+        .signInWithEmailAndPassword(email, password).await()
+    return result.user ?: throw IllegalStateException("Sign-in returned no user")
+}
+
+/** Create a new email/password account and stamp the chosen display name. */
+private suspend fun signUpWithEmailPassword(name: String, email: String, password: String): FirebaseUser {
+    val result = FirebaseAuth.getInstance()
+        .createUserWithEmailAndPassword(email, password).await()
+    val user = result.user ?: throw IllegalStateException("Sign-up returned no user")
+    if (name.isNotBlank()) {
+        val profile = UserProfileChangeRequest.Builder().setDisplayName(name).build()
+        user.updateProfile(profile).await()
+    }
+    return user
+}
+
 /** Stable per-device id (hashed ANDROID_ID) used as the Firestore doc id. */
 internal fun stableDeviceId(context: Context): String {
     val androidId = Settings.Secure.getString(
@@ -681,6 +712,10 @@ fun HomeScreen() {
     var signedInUser by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser) }
     var busy by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    // Phase 11.7 — dedicated to the AuthGate screen: friendly error and
+    // success text for the login/sign-up/reset attempts.
+    var authMessage by remember { mutableStateOf<String?>(null) }
+    var authNotice by remember { mutableStateOf<String?>(null) }
     var deviceStatus by remember { mutableStateOf("Not checked yet") }
     var deviceList by remember { mutableStateOf<List<String>>(emptyList()) }
     var registerRetryKey by remember { mutableStateOf(0) }
@@ -750,9 +785,11 @@ fun HomeScreen() {
         openSession.recipientUid == signedInUser?.uid
 
     // v0.9.5 wizard auto-opens on first run; the checklist refreshes every
-    // 2.5 s regardless of which tab is showing.
-    LaunchedEffect(Unit) {
-        if (!isPermissionWizardDone(context)) showWizard = true
+    // 2.5 s regardless of which tab is showing. Phase 11.7 — auto-open now
+    // waits for sign-in: a new user sees the LOGIN page first, then the
+    // wizard (never the wizard over the login screen).
+    LaunchedEffect(signedInUser != null) {
+        if (signedInUser != null && !isPermissionWizardDone(context)) showWizard = true
     }
     LaunchedEffect(Unit) {
         while (true) {
@@ -796,25 +833,94 @@ fun HomeScreen() {
         }
     }
 
-    // Phase 11.6 — ONE shared sign-in action: the home invite card and the
-    // settings account card both run exactly this (same Firebase Auth path,
-    // same friendly error mapping).
+    // Phase 11.7 — ONE shared sign-in action: the AuthGate's Google button
+    // and the settings account card both run exactly this (same Firebase
+    // Auth path, same friendly error mapping).
     val startSignIn: () -> Unit = {
         if (activity != null) {
             busy = true
-            statusMessage = null
+            authMessage = null
+            authNotice = null
             scope.launch {
                 try {
                     signedInUser = signInWithGoogle(activity)
                 } catch (e: GetCredentialException) {
-                    statusMessage = "সাইন-ইন বাতিল বা ব্যর্থ হয়েছে · Sign-in cancelled or failed"
+                    authMessage = "সাইন-ইন বাতিল বা ব্যর্থ হয়েছে · Sign-in cancelled or failed"
                 } catch (e: Exception) {
-                    statusMessage = "সাইন-ইন হয়নি: ${friendlyErrorBn(e)}"
+                    authMessage = "সাইন-ইন হয়নি: ${friendlyErrorBn(e)}"
                 } finally {
                     busy = false
                 }
             }
         }
+    }
+
+    // Phase 11.7 — the app BEGINS at a real login/sign-up gate. A brand-new
+    // user sees THIS screen first (Owner direction: আলাদা লগইন ও সাইন-আপ
+    // পেজ); the 4-tab shell below only exists once signed in. Sign-out
+    // returns here automatically because signedInUser flips back to null.
+    if (signedInUser == null) {
+        AuthGate(
+            busy = busy,
+            authMessage = authMessage,
+            authNotice = authNotice,
+            onClearMessages = {
+                authMessage = null
+                authNotice = null
+            },
+            onGoogleSignIn = startSignIn,
+            onEmailSignIn = { email, password ->
+                busy = true
+                authMessage = null
+                authNotice = null
+                scope.launch {
+                    try {
+                        signedInUser = signInWithEmailPassword(email, password)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        authMessage = friendlyErrorBn(e)
+                    } finally {
+                        busy = false
+                    }
+                }
+            },
+            onEmailSignUp = { name, email, password ->
+                busy = true
+                authMessage = null
+                authNotice = null
+                scope.launch {
+                    try {
+                        signedInUser = signUpWithEmailPassword(name, email, password)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        authMessage = friendlyErrorBn(e)
+                    } finally {
+                        busy = false
+                    }
+                }
+            },
+            onPasswordReset = { email ->
+                busy = true
+                authMessage = null
+                authNotice = null
+                scope.launch {
+                    try {
+                        FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+                        authNotice =
+                            "পাসওয়ার্ড-রিসেট লিংক $email ঠিকানায় পাঠানো হয়েছে — ইমেইল (স্প্যামসহ) দেখুন।"
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        authMessage = friendlyErrorBn(e)
+                    } finally {
+                        busy = false
+                    }
+                }
+            }
+        )
+        return
     }
 
     Scaffold(
@@ -1090,37 +1196,6 @@ private fun HomeTab(
             HomeConsentCard(session = openSession, user = signedInUser)
         } else {
             HomeLiveHintCard(session = openSession, myUid = signedInUser.uid)
-        }
-    }
-
-    // Phase 11.6 — sign-in invitation card (docs §10-C): visible exactly
-    // when signed out; the account keeps devices + relationships safe.
-    if (signedInUser == null) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = "শুরু করতে সাইন-ইন করুন",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = "Google অ্যাকাউন্টেই ফোন ও যুক্তি সংরক্ষিত থাকে — আপনার নিজের Firebase-প্রজেক্টে।",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                BigButton(enabled = !busy, onClick = onSignIn) {
-                    Text("Google দিয়ে সাইন-ইন")
-                }
-            }
         }
     }
 
@@ -1767,6 +1842,19 @@ private fun StatusBadge(label: String, kind: String) {
  * through to the full technical describeFirestoreError.
  */
 private fun friendlyErrorBn(e: Exception): String = when (e) {
+    // Phase 11.7 — auth-specific failures in family language first.
+    is FirebaseAuthInvalidUserException ->
+        "এই ইমেইলে কোনো অ্যাকাউন্ট পাওয়া যায়নি — 'নতুন অ্যাকাউন্ট' ট্যাবে গিয়ে অ্যাকাউন্ট তৈরি করুন। · No account found"
+    is FirebaseAuthInvalidCredentialsException ->
+        "ইমেইল বা পাসওয়ার্ড ভুল — আবার চেষ্টা করুন। · Wrong email or password"
+    is FirebaseAuthUserCollisionException ->
+        "এই ইমেইলেই অ্যাকাউন্ট আছে — 'লগইন' ট্যাবে ঢুকে চেষ্টা করুন। · Email already in use"
+    is FirebaseAuthWeakPasswordException ->
+        "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে। · Weak password"
+    is FirebaseAuthTooManyRequestsException ->
+        "অনেকবার চেষ্টা হয়েছে — কিছুক্ষণ পরে আবার করুন। · Too many attempts"
+    is FirebaseNetworkException ->
+        "ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না — একটু পরে আবার চেষ্টা করুন। · No internet connection"
     is FirebaseFirestoreException -> when (e.code) {
         FirebaseFirestoreException.Code.UNAVAILABLE,
         FirebaseFirestoreException.Code.DEADLINE_EXCEEDED ->
@@ -1895,7 +1983,7 @@ private fun SettingsTab(
             EmptyState(
                 icon = Icons.Filled.Person,
                 title = "সাইন-ইন করা নেই",
-                hint = "Google অ্যাকাউন্ট দিয়ে সাইন-ইন করলে ডিভাইস ও যুক্তি সংরক্ষিত হবে।"
+                hint = "ইমেইল বা Google অ্যাকাউন্ট দিয়ে সাইন-ইন করলে ডিভাইস ও যুক্তি সংরক্ষিত হবে।"
             )
             BigButton(
                 enabled = webClientConfigured && !busy,
@@ -2185,7 +2273,7 @@ fun PairingCard(
             EmptyState(
                 icon = Icons.Filled.Person,
                 title = "প্রথমে সাইন-ইন করুন",
-                hint = "যুক্তি তৈরি করতে Google অ্যাকাউন্ট দরকার — সেটিংস ট্যাব থেকে সাইন-ইন করুন।"
+                hint = "যুক্তি তৈরি করতে সাইন-ইন দরকার — অ্যাপ খুললেই লগইন/সাইন-আপ পেজ আসে।"
             )
         }
     } else {
