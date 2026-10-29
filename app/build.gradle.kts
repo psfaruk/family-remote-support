@@ -13,8 +13,8 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 30
-        versionName = "0.12.0"
+        versionCode = 31
+        versionName = "0.13.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
@@ -93,6 +93,9 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    // Phase 11 — bottom-nav + top-bar icons (core set: Home/Phone/
+    // Notifications/Settings…). Version comes from the Compose BOM.
+    implementation("androidx.compose.material:material-icons-core")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Firebase (Phase 2) — BoM keeps all Firebase versions in sync
