@@ -129,10 +129,10 @@ import com.family.remote.support.ui.FamilyRemoteSupportTheme
 import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.ThemePreview
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.auth.FirebaseAuthTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -1851,7 +1851,7 @@ private fun friendlyErrorBn(e: Exception): String = when (e) {
         "এই ইমেইলেই অ্যাকাউন্ট আছে — 'লগইন' ট্যাবে ঢুকে চেষ্টা করুন। · Email already in use"
     is FirebaseAuthWeakPasswordException ->
         "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে। · Weak password"
-    is FirebaseAuthTooManyRequestsException ->
+    is FirebaseTooManyRequestsException ->
         "অনেকবার চেষ্টা হয়েছে — কিছুক্ষণ পরে আবার করুন। · Too many attempts"
     is FirebaseNetworkException ->
         "ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না — একটু পরে আবার চেষ্টা করুন। · No internet connection"
