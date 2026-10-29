@@ -129,6 +129,27 @@ A trusted family member helps fix another family phone — always with the recei
   checks WebRTC stats 6 s after connect and, if the selected path is a TURN
   relay, caps the stream at 1500 kbps so the metered.ca free tier lasts instead
   of burning in ~17 minutes (direct/hotspot never capped).
+- **Security hardening ✅ (v0.10.0, versionCode 28) — roadmap Phase 9:**
+  - **Runtime negative-probe of the LIVE rules** (`scripts/rules-negative-probe.mjs`): a
+    synthetic "rules-probe" identity (self-signed Firebase custom token → Identity Toolkit
+    ID token) fires 12 hostile paths against production Firestore — reading another user's
+    profile/token, listing sessions/invitations, writing config, creating a session without
+    an ACTIVE relationship, injecting a signal/cmd into a real session, oversized/too-short
+    FCM tokens, mutating a real session, deleting a relationship — **all 12 refused with
+    403** (positive control: the probe writes+deletes its own presence doc). No secrets in
+    repo, no project-state residue (probe user deleted, throwaway doc removed).
+  - **Replay/abuse guards on the assist injector** (engine): Firestore `cmd` signals must
+    be fresh (server `createdAt` ≤ 15 s — `SignalingRepo.watch` now passes it), payloads
+    ≤ 4 KB on both transports, coordinates must be finite and are clamped to 0..1 at the
+    boundary (AssistService re-clamps — two independent fences), durations clamped, and a
+    sliding-window rate cap (25 cmds/s) stops gesture floods. Every refused command now
+    acks truthfully (`bad-payload` / `rate` / `assist-off`) so the helper's UI never lies.
+  - **Rules tightening**: `fcmTokens` writes are type-checked (`uid`/`deviceId`/`token`
+    strings) and size-bounded (32–4096 chars; real tokens are ~142) — deployed live and
+    readback-verified (ruleset fc6d8ec0).
+  - **Secure-logging audit**: the app ships **zero** `android.util.Log` calls — the only
+    diagnostics are the in-app 14-line ring buffer, which never leaves the device and
+    never contains tokens/emails. Verified by grep across all sources.
 - **Phase 9 ✅ (v0.9.4, versionCode 22) — FAMILY UI POLISH (T0–T3):**
   - **T0 — warm family theme**: one fixed light Material 3 scheme (warm amber/brown
     primary, warm surfaces — no cold corporate blue) + a senior type scale
