@@ -45,6 +45,11 @@ import android.view.accessibility.AccessibilityEvent
  * normalized coordinates by the app-window height therefore pulled every
  * tap UP the screen by roughly one keyboard row (the 28 Oct report:
  * "pressed h, u fired"). maximumWindowMetrics/getRealSize fixes the map.
+ *
+ * v0.9.9 (Phase 8.3) — the finger grew: SWIPE (one stroke from A to B, the
+ * helper's real drag duration is carried along, clamped) and LONG-PRESS
+ * (a held stroke at one point) joined the tap. Still the same trust model:
+ * canRetrieveWindowContent stays FALSE — gestures only, nothing read.
  */
 class AssistService : AccessibilityService() {
 
@@ -68,10 +73,7 @@ class AssistService : AccessibilityService() {
      * (v0.9.6 — the same space the shared video covers, system bars included).
      */
     private fun tapNormalized(nx: Double, ny: Double): Boolean {
-        val size = realDisplaySize()
-            ?: resources.displayMetrics.let { it.widthPixels to it.heightPixels }
-        val x = (nx.coerceIn(0.0, 1.0) * size.first).toFloat()
-        val y = (ny.coerceIn(0.0, 1.0) * size.second).toFloat()
+        val (x, y) = toRealPixels(nx, ny)
         val path = Path().apply { moveTo(x, y) }
         val stroke = GestureDescription.StrokeDescription(path, 0L, 60L)
         return dispatchGesture(
@@ -79,6 +81,57 @@ class AssistService : AccessibilityService() {
             null,
             null
         )
+    }
+
+    /**
+     * v0.9.9 (Phase 8.3) — inject one swipe from A to B. [durationMs] is the
+     * helper's REAL drag time (clamped): fast flicks scroll, slow drags pull
+     * lists gently — the same muscle memory as a local finger.
+     */
+    private fun swipeNormalized(
+        nx1: Double, ny1: Double, nx2: Double, ny2: Double, durationMs: Long
+    ): Boolean {
+        val (x1, y1) = toRealPixels(nx1, ny1)
+        val (x2, y2) = toRealPixels(nx2, ny2)
+        val path = Path().apply {
+            moveTo(x1, y1)
+            lineTo(x2, y2)
+        }
+        val stroke = GestureDescription.StrokeDescription(
+            path, 0L, durationMs.coerceIn(120L, 3_000L)
+        )
+        return dispatchGesture(
+            GestureDescription.Builder().addStroke(stroke).build(),
+            null,
+            null
+        )
+    }
+
+    /**
+     * v0.9.9 (Phase 8.3) — inject one long-press (context menu / selection).
+     * A held stroke at one point; 800 ms clears Android's ~500 ms threshold
+     * with margin on slow touch screens.
+     */
+    private fun longPressNormalized(nx: Double, ny: Double, durationMs: Long): Boolean {
+        val (x, y) = toRealPixels(nx, ny)
+        val path = Path().apply { moveTo(x, y) }
+        val stroke = GestureDescription.StrokeDescription(
+            path, 0L, durationMs.coerceIn(400L, 2_000L)
+        )
+        return dispatchGesture(
+            GestureDescription.Builder().addStroke(stroke).build(),
+            null,
+            null
+        )
+    }
+
+    /** Normalized (0..1) of the REAL display → pixel point (v0.9.6 mapping). */
+    private fun toRealPixels(nx: Double, ny: Double): Pair<Float, Float> {
+        val size = realDisplaySize()
+            ?: resources.displayMetrics.let { it.widthPixels to it.heightPixels }
+        val x = (nx.coerceIn(0.0, 1.0) * size.first).toFloat()
+        val y = (ny.coerceIn(0.0, 1.0) * size.second).toFloat()
+        return x to y
     }
 
     /**
@@ -113,6 +166,16 @@ class AssistService : AccessibilityService() {
 
         fun tapNormalized(nx: Double, ny: Double): Boolean =
             instance?.tapNormalized(nx, ny) ?: false
+
+        /** v0.9.9 — one swipe A→B over [durationMs] (the helper's real drag time). */
+        fun swipeNormalized(
+            nx1: Double, ny1: Double, nx2: Double, ny2: Double, durationMs: Long
+        ): Boolean =
+            instance?.swipeNormalized(nx1, ny1, nx2, ny2, durationMs) ?: false
+
+        /** v0.9.9 — one long-press (held stroke) at the point. */
+        fun longPressNormalized(nx: Double, ny: Double, durationMs: Long): Boolean =
+            instance?.longPressNormalized(nx, ny, durationMs) ?: false
 
         fun pressBack(): Boolean =
             instance?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) ?: false
