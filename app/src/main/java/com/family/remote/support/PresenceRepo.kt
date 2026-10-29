@@ -34,8 +34,14 @@ import kotlinx.coroutines.CancellationException
 private const val PRESENCE_COLLECTION = "devicePresence"
 private const val TOKEN_COLLECTION = "fcmTokens"
 
-/** A heartbeat newer than this shows as "Online". */
-const val PRESENCE_ONLINE_MILLIS = 5 * 60 * 1000L
+/** A heartbeat newer than this shows as "Online".
+ *
+ * v0.21.0 (audit): 5 → 20 minutes. The heartbeat cadence is WorkManager's
+ * 15-minute floor (often deferred further in Doze), so with a 5-minute
+ * window an actively-used phone flipped to "Last seen…" between worker
+ * ticks — the badge mathematically could not stay Online. 20 min covers
+ * the worst-case worker interval. */
+const val PRESENCE_ONLINE_MILLIS = 20 * 60 * 1000L
 /** A heartbeat older than this (but under 1 h) shows as "Last seen … ago". */
 const val PRESENCE_STALE_MILLIS = 60 * 60 * 1000L
 
@@ -100,13 +106,24 @@ fun watchDevicePresence(
  * Save this device's FCM registration token (SHA-256-hash document id, so the
  * raw token is the doc content but the id never leaks it in lists). Sending
  * notifications is a later phase — this only registers the address.
+ *
+ * v0.21.0 (audit): split into [writeFcmTokenDoc] so PushTokenService
+ * (onNewToken, no coroutine context) can refresh the registry the moment
+ * FCM rotates the token — previously a rotation left a stale doc until the
+ * next app open, and the sweep then deleted it as UNREGISTERED (push dead).
  */
 suspend fun registerFcmToken(uid: String, deviceId: String) {
     val token = FirebaseMessaging.getInstance().token
         .awaitWithTimeout("fetching the push-notification token")
+    writeFcmTokenDoc(uid, deviceId, token)
+        .awaitWithTimeout("saving the push-notification token")
+}
+
+/** Fire-and-forget registry write usable from a FirebaseMessagingService. */
+fun writeFcmTokenDoc(uid: String, deviceId: String, token: String): com.google.android.gms.tasks.Task<Void> {
     val hash = MessageDigest.getInstance("SHA-256").digest(token.toByteArray())
         .joinToString("") { "%02x".format(it) }.take(24)
-    Fb.db.collection(TOKEN_COLLECTION).document(hash)
+    return Fb.db.collection(TOKEN_COLLECTION).document(hash)
         .set(
             mapOf(
                 "uid" to uid,
@@ -116,7 +133,6 @@ suspend fun registerFcmToken(uid: String, deviceId: String) {
             ),
             SetOptions.merge()
         )
-        .awaitWithTimeout("saving the push-notification token")
 }
 
 /**
