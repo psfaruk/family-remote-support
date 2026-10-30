@@ -102,4 +102,45 @@
     <string name="privacy_body">Family Remote Support ayuda a personas de confianza a ayudarse mutuamente con sus teléfonos. Esta política explica exactamente qué datos usa la aplicación.\n\nQué se recopila\n• Tu cuenta: nombre, correo electrónico y el ID de la cuenta de Google con la que inicias sesión.\n• Tu dispositivo: modelo, fabricante, versión de Android y versión de la aplicación.\n• Un ID de dispositivo aleatorio y exclusivo de la app para que se puedan listar tus teléfonos.\n• Token push: se usa únicamente para avisar a tu teléfono que alguien pidió ayudarte.\n• Registros de sesión: quién pidió qué y a quién, hora de inicio/fin y el estado final. Es el historial de actividad honesto que ves en la app.\n\nQué NUNCA se recopila\n• Contenido de la pantalla. El video en vivo de la pantalla existe solo durante una sesión que aprobaste; se transmite directamente entre los dos teléfonos y no se guarda.\n• Contraseñas, texto de pantalla, pulsaciones de teclas o fotos.\n• Ubicación. La pestaña de ubicación en vivo es un marcador de posición — hoy no se recopila nada.\n\nDónde viven tus datos\nÚnicamente en el proyecto de Firebase que pertenece a esta app. No se venden, no se comparten con anunciantes y no se usan para rastrear.\n\nQuién puede ver qué\nUn asistente vinculado puede ver el estado en línea de tu dispositivo y solo puede abrir una sesión después de que apruebes cada solicitud de forma explícita. Puedes revocar un teléfono vinculado en cualquier momento, y cerrar sesión borra la presencia y el token push de este teléfono.\n\nTú mantienes el control: cada sesión requiere tu aprobación en vivo, muestra un indicador claro mientras funciona y puedes detenerla en cualquier momento.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Estas reglas mantienen Family Remote Support seguro para todos.\n\n1. Primero el consentimiento. Cada sesión de ayuda necesita una aprobación nueva y explícita en el teléfono que recibe la ayuda. Emparejar por sí solo nunca otorga acceso.\n\n2. Los códigos de emparejamiento son de un solo uso y caducan en unos 5 minutos. Un código solo se puede canjear una vez y únicamente por la persona que lo escanea o lo escribe a tiempo.\n\n3. La ayuda de invitado es temporal. Una conexión de invitado caduca sola a las 2 horas y nunca puede convertirse por sí misma en un emparejamiento familiar permanente.\n\n4. Siempre puedes detener. La persona que recibe ayuda puede rechazar una solicitud, terminar una sesión en cualquier segundo o revocar por completo un teléfono emparejado.\n\n5. El asistente debe ser de confianza. Comparte tu código o QR solo con personas en las que realmente confías. Un asistente ve tu pantalla mientras la sesión está activa — cierra primero las aplicaciones sensibles si tienes dudas.\n\n6. Sin atajos. La app nunca intenta desbloquear un teléfono, leer contraseñas, otorgar permisos en silencio ni ocultar que una sesión está en curso. Solo funciona dentro de lo que Android permite explícitamente.\n\n7. Solo uso justo. No uses la app para acosar, espiar ni presionar a nadie. El abuso conlleva la revocación del acceso.\n\n8. Las familias primero. Esta app está hecha para ayudar a familiares y amigos cercanos con sus teléfonos — nada más.</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">Escanea el código QR del otro teléfono</string>
+    <string name="qr_scan_hint">El distintivo del centro del código indica el rol — tras escanear verás una confirmación de rol.</string>
+    <string name="qr_scan_permission_text">Se necesita la cámara para escanear un código QR. Si prefiere, vuelva atrás y escriba el código.</string>
+    <string name="qr_scan_permission_btn">Permitir cámara</string>
+    <string name="qr_scan_close_btn">Cerrar cámara</string>
+    <string name="qr_badge_family">Familia · permanente</string>
+    <string name="qr_badge_guest">Invitado · 2 horas</string>
+    <string name="pw_guide_title">Cómo activar Remote assist</string>
+    <string name="pw_guide_intro">Siga exactamente los 3 pasos siguientes — solo hará falta una vez en la vida:</string>
+    <string name="pw_step_1">1</string>
+    <string name="pw_step_2">2</string>
+    <string name="pw_step_3">3</string>
+    <string name="pw_step_4">4</string>
+    <string name="pw_guide_step1_text">En Ajustes, busque en la lista la línea \"Family Remote Support assist\" (la de nuestra aplicación — normalmente está resaltada).</string>
+    <string name="pw_guide_step2_text">Toque la línea y active el interruptor (ON).</string>
+    <string name="pw_guide_step3_text">Cuando aparezca la advertencia de Android, toque Allow (Permitir).</string>
+    <string name="pw_guide_warning">⚠️ Atención: activar \"Accessibility menu shortcut\" u otro interruptor no funcionará — ¡ese no es el nuestro! Solo la línea \"Family Remote Support assist\" es la correcta.</string>
+    <string name="pw_guide_privacy">Para escribir, el servicio solo encuentra el cuadro de texto enfocado — pero la aplicación no lee, ni guarda, ni envía nada de su pantalla; su única tarea es tocar y colocar texto. Puede desactivarla cuando quiera desde el mismo lugar.</string>
+    <string name="pw_open_settings">Abrir ajustes</string>
+    <string name="pw_later">Más tarde</string>
+    <string name="pw_title">Verificación de permisos</string>
+    <string name="pw_intro">Esta aplicación funciona solo con su permiso. Active una vez las 4 cosas de abajo y todo funcionará sin problemas.</string>
+    <string name="pw_all_done">¡Todo listo! La aplicación está preparada para funcionar por completo.</string>
+    <string name="pw_progress">%1$d de 4 activados — pendiente: %2$s</string>
+    <string name="pw_perm_notif">Notificaciones</string>
+    <string name="pw_perm_camera">Cámara</string>
+    <string name="pw_perm_assist_title">Remote assist · toque remoto</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">Exención de batería</string>
+    <string name="pw_perm_notif_desc">Cuando llegue una solicitud de sesión, el teléfono se lo avisará.</string>
+    <string name="pw_perm_camera_desc">Se necesita para escanear el código QR de emparejamiento (no hace falta si escribe el código).</string>
+    <string name="pw_perm_assist_desc">La persona que ayuda puede tocar su pantalla. No se lee nada de la pantalla — solo toques.</string>
+    <string name="pw_perm_battery_desc">Los mensajes llegarán a tiempo incluso con la aplicación en segundo plano.</string>
+    <string name="pw_allow_btn">Permitir</string>
+    <string name="pw_setup_open_btn">Abrir configuración</string>
+    <string name="pw_screen_share_note">Android pide el permiso de compartir pantalla cada vez que comienza una compartición — por seguridad no se puede conceder de antemano.</string>
+    <string name="pw_done_btn">Listo</string>
+    <string name="pw_status_done">✓ Activado</string>
+    <string name="pw_status_pending">⬜ Pendiente</string>
 </resources>
