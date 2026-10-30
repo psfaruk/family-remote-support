@@ -1767,3 +1767,49 @@ stringResource); পূর্ণ-নিষ্কাশন = আলাদা ফ�
 build.gradle.kts 0.25.0/44→0.26.0/45 (4ceae79) — readback-verify ALL MATCH। APK v0.26.0/code 45
 (CI 41067945483 SUCCESS)। Owner-কর্ম: দুই ফোনেই v0.26.0 (code 45) ইনস্টল — একই বিল্ড দুই প্রান্তে।
 পরবর্তী: 18.8 (security/privacy) — Owner-নির্দেশে।
+
+## §59 — Phase 18.8 (infra — APK অপরিবর্তিত v0.26.0/45): security/privacy deep audit — rules size-cap ব্যাচ + লাইভ প্রমাণ (২০২৬-১০-৩০)
+
+Owner "শুরু করো" → 18.8। পদ্ধতি: ২৭ ফাইল remote থেকে blob-SHA-ভেরিফাইড (rules / worker / node /
+manifest / google-services.json / build.gradle / workflows / ১২ Kotlin logic ফাইল) + প্যাটার্ন-স্ক্যান
+(সিক্রেট/PII/লগ/পারমিশন) + rules লাইন-বাই-লাইন + privacy_body দাবি বনাম কোড ক্রস-চেক।
+
+**F1 (ফিক্স): অবশিষ্ট আনবাউন্ডেড free-text স্ট্রিং-এ সাইজ-ক্যাপ** — 18.5 প্রোফাইল+ইনভাইটে ক্যাপ
+দিয়েছিল; বাকি ছিল: users/devices (model, manufacturer, androidVersion, appVersionName),
+devicePresence (model, deviceId), fcmTokens (deviceId), supportSessions-create (helperEmail,
+recipientEmail, recipientDeviceModel), trustedDeviceRelationships-create (helperEmail,
+recipientEmail, recipientDeviceId, recipientDeviceModel)। ক্যাপ: email<320, model<256/120,
+deviceId<128, os/appVer<64 — hostile পার্টিসিপ্যান্ট আর recipient-এর UI পুল-পথে প্রায়-১MB ব্লব
+পার্ক করাতে পারবে না (18.5-এর হুবহু প্যাটার্ন, বাকি পথগুলোতে)।
+
+**লাইভ ডেপ্লয় + ৩-সুট প্রমাণ:** publish-firestore-rules.mjs → ruleset caea54c1 (release-verify)।
+প্রোব: pairing-probe (P1a/P1b=200 + N1/N2=403 — কনট্র্যাক্ট ইনট্যাক্ট), negative-probe (গেস্ট-
+লাইফসাইকেল + claim-token অ্যাটাক — সব প্রত্যাশা মেট), audit-probe ২৩-কেস (A0–A21 সব মেট;
+A0/A1/A7/A17/A20 পজিটিভ=200 প্রমাণ করে নতুন ক্যাপ রিয়েল রাইট ভাঙে না)। প্রথম দুই রান 429 —
+SA-commit কন্ট্রোল প্রমাণ করে Firestore নিজে থ্রটল করছে না, থ্রটলটা identitytoolkit-এ; অপেক্ষার পর
+ক্লিন পাস। শূন্য রেসিডিউ (cleanup 11/11 + 2/2 + সব ফিক্সচার)।
+
+**যাচাই-করা-পরিষ্কার (নো-ফিক্স):** (১) ট্র্যাকড-ফাইলে সিক্রেট শূন্য (google-services.json
+public-by-design; SA শুধু .secrets/ + GH/CF secrets-এ); (২) Manifest least-privilege — ৭ পারমিশন
+সব-যুক্তিসহ (WRITE_EXTERNAL_STORAGE maxSdkVersion=28; লোকেশন/মাইক নেই), allowBackup=false,
+শুধু launcher exported, cleartext নেই; (৩) Log-এ PII শূন্য; (৪) Worker: /health কাউন্ট-মাত্র,
+/sweep timing-safe bearer, CORS-বিহীন, 18.4 query-param precondition Node+Worker দুটোতেই উপস্থিত,
+scopes সঠিক; (৫) workflows সিক্রেট-ইকো শূন্য; wrangler.toml নির্মল; (৬) ডিপেন্ডেন্সি analytics/ads/
+crashlytics-শূন্য — privacy_body-র "tracking নেই" দাবি ধরে; (৭) QR payload fragment-URL (#) —
+কোনো সার্ভারে যায় না, শুধু inv+tok; (৮) sign-out ক্লিনআপ কোডে যাচাই — presence + own-device
+token-docs delete, ব্যর্থতায় সৎ নোটিশ — privacy_body-র দাবি হুবহু সত্য।
+
+**রেকর্ড-মাত্র (নো-ফিক্স):** (১) pairingInvitations-এ raw token PAIRED-পরেও থাকে — rules-ভাষায়
+crypto নেই বলে অনিবার্য ট্রেড-অফ; one-time-use + ৫-মিনিট expiry + ৫৯.৫-বিট doc-id দিয়ে বাউন্ডেড;
+(২) helperEmail display-spoofing সম্ভব — display-মাত্র, authority নেই (18.6-এও রেকর্ডেড);
+(৩) google-services.json-এ RTDB URL আছে (remote-family-support-default-rtdb) — অ্যাপ RTDB
+ব্যবহার করে না; Owner চাইলে কনসোলে RTDB লক/অক্ষম যাচাই করবেন (repo থেকে যাচাই-অযোগ্য);
+(৪) release build isMinifyEnabled=false — ভবিষ্যৎ R8 সুযোগ, ঝুঁকি নয়।
+
+**সেশন-লেসন:** স্যান্ডবক্স-আউটপুট DLP লেয়ার টুল-আউটপুটে key-আকৃতির লিটারেল (PEM BEGIN-হেডার)
+[REDACTED:…] করে দেয় — প্রথম স্ক্যানে Worker-এর বৈধ regex-কে "ভাঙা" মনে হয়েছিল; grep-ক্রস-চেক +
+বুলিয়ান-ভেরিফিকেশনে false-positive প্রমাণ। ভবিষ্যৎ অডিটে key-আকৃতি প্যাটার্ন সবসময় বুলিয়ানে
+যাচাই — প্রিন্টেড লিটারেল বিশ্বাস-অযোগ্য।
+
+**পুশ:** firestore.rules (e340d4b, readback MATCH) — APK v0.26.0/code 45 অপরিবর্তিত (rules-only)।
+পরবর্তী: 18.9 (CI/CD + docs) — Owner-নির্দেশে।
