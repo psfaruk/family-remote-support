@@ -10,6 +10,9 @@
     <string name="pres_online">Online</string>
     <string name="pres_offline">Offline</string>
     <string name="pres_checking">Wird geprüft…</string>
+    <string name="pres_unavailable">Präsenz nicht verfügbar</string>
+    <string name="pres_never_seen">nie gesehen</string>
+    <string name="pres_last_seen_min">zuletzt vor %1$d Min. gesehen</string>
     <string name="cmn_ok">OK</string>
     <string name="cmn_details">Details</string>
     <string name="home_tagline">Fernhilfe für Familientelefone — immer mit klarer Zustimmung.</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">Dieses Paar ist bereits als Familie (dauerhaft) gekoppelt — hier ist kein Gast-Code nötig.</string>
     <string name="err_pair_guest_exists">Dieses Paar ist als Gast gekoppelt. Für Familie: die Gast-Kopplung am Empfänger-Telefon entfernen und einen neuen Family-Code ausstellen.</string>
     <string name="err_generic">Firestore-Fehler %1$s: %2$s</string>
+    <string name="err_quota">Das kostenlose tägliche Nutzungslimit von Firebase ist erreicht — nach dem täglichen Zurücksetzen der Quote (etwa mittags) funktioniert wieder alles. Keine Daten verloren.</string>
     <string name="cd_details">Details</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
