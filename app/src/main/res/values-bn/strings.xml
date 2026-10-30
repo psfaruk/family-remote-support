@@ -108,4 +108,45 @@
     <string name="notif_help_requested_body">%1$s এই ফোনে সাহায্য করতে চাইছেন — অনুমতি দিতে বা নাকচ করতে খুলুন।</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">পরিবারের একজন মানুষ</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">অন্য ফোনের QR কোড স্ক্যান করুন</string>
+    <string name="qr_scan_hint">কোডের মাঝখানের প্রতীকটি রোল বলে দেয় — স্ক্যানের পরে রোল-নিশ্চিতকরণ দেখাবে।</string>
+    <string name="qr_scan_permission_text">QR স্ক্যান করতে ক্যামেরা লাগবে। না চাইলে পেছনে গিয়ে কোডটি টাইপ করেও যুক্ত হওয়া যায়।</string>
+    <string name="qr_scan_permission_btn">ক্যামেরার অনুমতি দিন</string>
+    <string name="qr_scan_close_btn">ক্যামেরা বন্ধ করুন</string>
+    <string name="qr_badge_family">Family · স্থায়ী</string>
+    <string name="qr_badge_guest">Guest · ২ ঘণ্টা</string>
+    <string name="pw_guide_title">Remote assist চালু করার নিয়ম</string>
+    <string name="pw_guide_intro">নিচের ৩টা ধাপ হুবহু করুন — জীবনে একবারই লাগবে:</string>
+    <string name="pw_step_1">১</string>
+    <string name="pw_step_2">২</string>
+    <string name="pw_step_3">৩</string>
+    <string name="pw_step_4">৪</string>
+    <string name="pw_guide_step1_text">সেটিংস খুললে তালিকায় \"Family Remote Support assist\" লাইনটা খুঁজুন (আমাদের অ্যাপেরটা — সাধারণত হাইলাইট করা থাকে)।</string>
+    <string name="pw_guide_step2_text">লাইনটায় ট্যাপ করে সুইচটা চালু (ON) করুন।</string>
+    <string name="pw_guide_step3_text">Android-এর সতর্কবার্তা এলে Allow / অনুমতি দিন চাপুন।</string>
+    <string name="pw_guide_warning">⚠️ সাবধান: \"Accessibility menu shortcut\" বা অন্য কোনো সুইচ চালু করলে কাজ হবে না — সেটা আমাদেরটা নয়! শুধু \"Family Remote Support assist\" লাইনটাই সঠিক।</string>
+    <string name="pw_guide_privacy">টাইপ করার জন্য সার্ভিস ফোকাসড লেখার-ঘরটি খুঁজে পায় — কিন্তু অ্যাপ স্ক্রিনের কোনো লেখা পড়ে না, জমা রাখে না, পাঠায় না; এর কাজ শুধু ট্যাপ ও লেখা বসানো। যখন চান, একই জায়গা থেকে বন্ধ করে দিতে পারবেন।</string>
+    <string name="pw_open_settings">সেটিংস খুলুন</string>
+    <string name="pw_later">পরে করব</string>
+    <string name="pw_title">পারমিশন চেক</string>
+    <string name="pw_intro">এই অ্যাপ শুধু আপনার অনুমতি নিয়েই কাজ করে। নিচের ৪টা জিনিস একবার চালু করলেই সব ফিচার মসৃণ চলবে।</string>
+    <string name="pw_all_done">সব প্রস্তুত! অ্যাপ পুরোপুরি চালু হওয়ার জন্য রেডি।</string>
+    <string name="pw_progress">চালু %1$d/4 — বাকি: %2$s</string>
+    <string name="pw_perm_notif">নোটিফিকেশন</string>
+    <string name="pw_perm_camera">ক্যামেরা</string>
+    <string name="pw_perm_assist_title">Remote assist · রিমোট টাচ</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">ব্যাটারি ছাড়</string>
+    <string name="pw_perm_notif_desc">সেশনের অনুরোধ এলে ফোন আপনাকে জানাবে।</string>
+    <string name="pw_perm_camera_desc">পেয়ারিং QR কোড স্ক্যান করতে লাগে (কোড টাইপ করলে লাগে না)।</string>
+    <string name="pw_perm_assist_desc">সাহায্যকারী আপনার স্ক্রিনে ট্যাপ করতে পারবেন। স্ক্রিনের কিছুই পড়ে না — শুধু ট্যাপ।</string>
+    <string name="pw_perm_battery_desc">অ্যাপটা ব্যাকগ্রাউন্ডে থাকলেও বার্তা সময়মত পাবে।</string>
+    <string name="pw_allow_btn">অনুমতি দিন</string>
+    <string name="pw_setup_open_btn">সেটআপ খুলুন</string>
+    <string name="pw_screen_share_note">স্ক্রিন শেয়ারের অনুমতি প্রতিবার শেয়ার শুরুর সময় Android নিজেই জিজ্ঞেস করে — নিরাপত্তার জন্য সেটা আগে থেকে দেওয়া যায় না।</string>
+    <string name="pw_done_btn">শুরু করুন</string>
+    <string name="pw_status_done">✓ চালু</string>
+    <string name="pw_status_pending">⬜ বাকি</string>
 </resources>
