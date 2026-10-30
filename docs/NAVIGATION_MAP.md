@@ -1,8 +1,10 @@
 # NAVIGATION_MAP — Target Hierarchy (Master-Plan PART 3)
 
-> Status: **PLANNING — awaiting Owner approval.** Current shell = manual 4-tab state machine
-> (`MainActivity.kt:763,1304-1331`); target = same 4 tabs + type-safe nested routes
-> (Decision C3 in PROJECT_CONTEXT §19).
+> Status: **M2 SHELL IMPLEMENTED (2026-10-31, v0.30.0/49).** The 4 tabs + notifications route
+> now run on Navigation-Compose (Decision C3 ADOPTED — `ui/nav/AppNav.kt` routes + bars,
+> crossfade 120 ms, saveState/restoreState). The nested detail routes below (home/family/{relId},
+> add/*, settings/*, tracking/{relId}) remain the M3+ target; today's tab content is unchanged
+> except the C1 rename and the notifications surface.
 
 ## 1. Decision C1/C2 — primary tabs (exactly four, per master instruction)
 
@@ -91,8 +93,10 @@ e.g., Home with no devices → "Add Device" CTA), error (localized + retry, reus
 system-settings hand-off). These states are design-system components (`ui/components/States.kt`),
 not per-screen ad-hoc UI.
 
-## 6. Rename mechanics (when approved)
+## 6. Rename mechanics — ✅ EXECUTED in M2 (v0.30.0/49)
 
-`nav_home / nav_phone → nav_add_device / nav_location → nav_tracking` and their 15 locale
-files; bottom bar labels + Home quick-action strings updated together; version bump
-v0.30.0/49 at the first implementation release. No database/rule impact.
+`nav_phone → nav_add_device`, `nav_location → nav_tracking` in all 15 locale files (old keys
+removed); bottom-bar labels + the two Home quick-action labels updated together; the 7 copy
+strings that pointed users to the old "Phone" tab (hint_requested/active/helping,
+msg_allow_ok, feed_in_progress, devices_info, devices_empty_hint) had their tab name fixed
+per locale in the same push. No database/rule impact.
