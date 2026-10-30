@@ -79,11 +79,18 @@ service cloud.firestore {
             ['model', 'manufacturer', 'androidVersion', 'sdkInt',
              'appVersionName', 'appVersionCode', 'createdAt', 'updatedAt']
           )
+          // v0.26.0 (Phase 18.8 audit): the remaining free-text device
+          // fields are size-bounded like every other blob carrier (18.5
+          // capped the profile — these live on the same read path).
           && request.resource.data.model is string
+          && request.resource.data.model.size() < 256
           && request.resource.data.manufacturer is string
+          && request.resource.data.manufacturer.size() < 128
           && request.resource.data.androidVersion is string
+          && request.resource.data.androidVersion.size() < 64
           && request.resource.data.sdkInt is int
           && request.resource.data.appVersionName is string
+          && request.resource.data.appVersionName.size() < 64
           && request.resource.data.appVersionCode is int;
         allow delete: if isSelf(uid);
       }
@@ -222,6 +229,17 @@ service cloud.firestore {
            'createdByInvitation', 'createdAt', 'updatedAt', 'kind', 'guestExpiresAt']
         )
         && request.resource.data.helperUid == request.auth.uid
+        // v0.26.0 (Phase 18.8 audit): free-text fields size-bounded (same
+        // caps as supportSessions/pairingInvitations — emails 320, model
+        // 120, deviceId 128; helperUid/recipientUid equality-pinned).
+        && request.resource.data.helperEmail is string
+        && request.resource.data.helperEmail.size() < 320
+        && request.resource.data.recipientEmail is string
+        && request.resource.data.recipientEmail.size() < 320
+        && request.resource.data.recipientDeviceId is string
+        && request.resource.data.recipientDeviceId.size() < 128
+        && request.resource.data.recipientDeviceModel is string
+        && request.resource.data.recipientDeviceModel.size() < 120
         && request.resource.data.status == 'ACTIVE'
         && request.resource.data.pairKey == (request.resource.data.helperUid + '_' + request.resource.data.recipientUid)
         && inviteAfter(request.resource.data).status == 'PAIRED'
@@ -331,7 +349,11 @@ service cloud.firestore {
         )
         && request.resource.data.uid is string
         && request.resource.data.deviceId is string
+        // v0.26.0 (Phase 18.8 audit): size-bound the free-text fields (uid
+        // is equality-pinned to auth.uid, inherently bounded).
+        && request.resource.data.deviceId.size() < 128
         && request.resource.data.model is string
+        && request.resource.data.model.size() < 256
         // v0.24.0 (Phase 18.5 audit): timestamps type-checked — the badge
         // math silently mis-aged a hostile non-timestamp heartbeatAt.
         && request.resource.data.heartbeatAt is timestamp
@@ -353,6 +375,9 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'deviceId', 'token', 'updatedAt'])
         && request.resource.data.uid is string
         && request.resource.data.deviceId is string
+        // v0.26.0 (Phase 18.8 audit): deviceId size-bound (uid equality
+        // already bounds uid; token was capped in Phase 9).
+        && request.resource.data.deviceId.size() < 128
         && request.resource.data.token is string
         && request.resource.data.token.size() >= 32
         && request.resource.data.token.size() <= 4096
@@ -399,9 +424,16 @@ service cloud.firestore {
         && request.resource.data.helperUid == request.auth.uid
         && request.resource.data.status == 'REQUESTED'
         && request.resource.data.relId is string
+        // v0.26.0 (Phase 18.8 audit): the three free-text ask fields were
+        // type-only — a hostile helper could park a near-1MB string in
+        // every field of a doc the recipient's UI pulls. Same caps as the
+        // invitation rules (email 320, model 120).
         && request.resource.data.helperEmail is string
+        && request.resource.data.helperEmail.size() < 320
         && request.resource.data.recipientEmail is string
+        && request.resource.data.recipientEmail.size() < 320
         && request.resource.data.recipientDeviceModel is string
+        && request.resource.data.recipientDeviceModel.size() < 120
         // Phase 10: kind is optional (legacy family clients) but, when
         // present, must be one of the two modes and must MATCH the rel.
         && (!('kind' in request.resource.data)
