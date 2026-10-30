@@ -131,4 +131,45 @@
     <string name="notif_help_requested_body">%1$s wants to help with this phone — open to allow or deny.</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">A family member</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">Scan the other phone\'s QR code</string>
+    <string name="qr_scan_hint">The badge in the middle of the code shows the role — a role confirmation appears after scanning.</string>
+    <string name="qr_scan_permission_text">The camera is needed to scan a QR code. If you prefer, go back and type the code instead.</string>
+    <string name="qr_scan_permission_btn">Allow camera</string>
+    <string name="qr_scan_close_btn">Close camera</string>
+    <string name="qr_badge_family">Family · permanent</string>
+    <string name="qr_badge_guest">Guest · 2 hours</string>
+    <string name="pw_guide_title">How to turn on Remote assist</string>
+    <string name="pw_guide_intro">Follow the 3 steps below exactly — you only ever need to do this once:</string>
+    <string name="pw_step_1">1</string>
+    <string name="pw_step_2">2</string>
+    <string name="pw_step_3">3</string>
+    <string name="pw_step_4">4</string>
+    <string name="pw_guide_step1_text">In Settings, find the \"Family Remote Support assist\" row in the list (our app\'s row — it is usually highlighted).</string>
+    <string name="pw_guide_step2_text">Tap the row and turn the switch ON.</string>
+    <string name="pw_guide_step3_text">When the Android warning appears, tap Allow.</string>
+    <string name="pw_guide_warning">⚠️ Careful: turning on \"Accessibility menu shortcut\" or any other switch will not work — that one is not ours! Only the \"Family Remote Support assist\" row is correct.</string>
+    <string name="pw_guide_privacy">For typing, the service can only find the focused text box — the app does not read, store, or send anything on your screen; its only job is taps and placing text. You can turn it off any time from the same place.</string>
+    <string name="pw_open_settings">Open settings</string>
+    <string name="pw_later">Later</string>
+    <string name="pw_title">Permission check</string>
+    <string name="pw_intro">This app works only with your permission. Turn on the 4 things below once, and every feature will run smoothly.</string>
+    <string name="pw_all_done">All set! The app is ready to run at full power.</string>
+    <string name="pw_progress">%1$d of 4 on — remaining: %2$s</string>
+    <string name="pw_perm_notif">Notifications</string>
+    <string name="pw_perm_camera">Camera</string>
+    <string name="pw_perm_assist_title">Remote assist</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">Battery exemption</string>
+    <string name="pw_perm_notif_desc">When a session request arrives, the phone will let you know.</string>
+    <string name="pw_perm_camera_desc">Needed to scan the pairing QR code (not needed when you type the code).</string>
+    <string name="pw_perm_assist_desc">The helper can tap on your screen. Nothing on the screen is read — taps only.</string>
+    <string name="pw_perm_battery_desc">Messages arrive on time even when the app is in the background.</string>
+    <string name="pw_allow_btn">Allow</string>
+    <string name="pw_setup_open_btn">Open setup</string>
+    <string name="pw_screen_share_note">Android asks for the screen-share permission itself every time a share starts — for security, it cannot be granted in advance.</string>
+    <string name="pw_done_btn">Done</string>
+    <string name="pw_status_done">✓ On</string>
+    <string name="pw_status_pending">⬜ Pending</string>
 </resources>
