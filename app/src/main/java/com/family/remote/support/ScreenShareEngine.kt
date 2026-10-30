@@ -356,6 +356,19 @@ object ScreenShareEngine {
     private var relayMaxKbps: Int? = null
 
     /**
+     * v0.24.0 (Phase 18.3 — Bug C: "টাচ রিয়েল-টাইমে কাজ করে, ভিডিও দেরিতে আসে")
+     * — adaptive RTT ceiling. getStats-এর currentRoundTripTime ৫ সেকেন্ড পর
+     * পর নমুনা নেওয়া হয়; দেরি বাড়লে সিলিং দ্রুত নামে (700k পর্যন্ত), সুস্থ
+     * হলে ধীরে ওঠে — এনকোডার কখনো ফ্রেম-ব্যাকলগ জমাতে পারে না।
+     */
+    private var rttCapKbps: Int? = null
+    /** bumped on every teardown — an in-flight watchdog tick self-cancels on mismatch */
+    private var rttWatchdogGen = 0
+    /** Adaptive tier ladder (kbps) — top tier crossed ⇒ cap fully removed. */
+    private val rttTiers = intArrayOf(700, 1_000, 1_600)
+    private const val RTT_POLL_MILLIS = 5_000L
+
+    /**
      * v0.12.0 (Phase 8.3 completion) — HELPER data-saver. When the helper
      * flips "Data saver", the stream re-applies its bitrate with a hard
      * 600 kbps ceiling (below the automatic 1500 kbps relay cap) and lifts
@@ -704,7 +717,8 @@ object ScreenShareEngine {
                 // v0.9.9 — relayed sessions are capped harder (data-saver).
                 // v0.12.0 — the helper's Data-saver toggle adds a second cap;
                 // whichever of the two is lower wins.
-                val capK = listOfNotNull(relayMaxKbps, dataSaverKbps).minOrNull()
+                // v0.24.0 — the adaptive RTT ceiling composes in too.
+                val capK = listOfNotNull(relayMaxKbps, dataSaverKbps, rttCapKbps).minOrNull()
                 val maxK = minOf(quality.maxKbps, capK ?: quality.maxKbps)
                 enc.minBitrateBps = minOf(quality.minKbps, maxK) * 1_000
                 enc.maxBitrateBps = maxK * 1_000
@@ -715,18 +729,32 @@ object ScreenShareEngine {
                 }
             }
             try {
-                params.degradationPreference =
-                    org.webrtc.RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
+                // v0.24.0 (Phase 18.3 — Bug C): MAINTAIN_RESOLUTION kept the
+                // picture sharp by STARVING frames under bandwidth pressure —
+                // the touch commands (data channel) stayed real-time while
+                // the video lagged seconds behind. The default is now
+                // MAINTAIN_FRAMERATE: pressure downscales the picture instead
+                // of stalling it, so latency stays bounded. The Owner can
+                // flip this live via config/quality.degradationPreference.
+                params.degradationPreference = when (quality.pref) {
+                    "balanced" ->
+                        org.webrtc.RtpParameters.DegradationPreference.BALANCED
+                    "resolution" ->
+                        org.webrtc.RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
+                    else ->
+                        org.webrtc.RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE
+                }
             } catch (_: Exception) {
             }
             sender.setParameters(params)
-            val capK = listOfNotNull(relayMaxKbps, dataSaverKbps).minOrNull()
+            val capK = listOfNotNull(relayMaxKbps, dataSaverKbps, rttCapKbps).minOrNull()
             diagLog(
                 "bitrate ${quality.minKbps}k–${minOf(quality.maxKbps, capK ?: quality.maxKbps)}k · $encFpsCap fps · " +
-                    "keep-resolution · codec ${if (effectiveH264) "H264-HW" else "VP8"}" +
+                    "${quality.pref}-first · codec ${if (effectiveH264) "H264-HW" else "VP8"}" +
                     (if (capK != null && capK < quality.maxKbps) {
-                        " · capped " + (if (dataSaverKbps != null) "(data-saver)" else "(relay)")
-                    } else "")
+                        " · capped " + (if (dataSaverKbps != null) "(data-saver)" else "(relay/rtt)")
+                    } else "") +
+                    (if (rttCapKbps != null) " · rtt-adaptive" else "")
             )
         } catch (e: Exception) {
             diagLog("bitrate set skipped: ${e.javaClass.simpleName}")
@@ -745,6 +773,8 @@ object ScreenShareEngine {
      */
     private fun scheduleRelayBandwidthCheck(pc: PeerConnection?) {
         if (pc == null) return
+        // v0.24.0 (Phase 18.3) — the RTT watchdog rides along from the start.
+        scheduleRttWatchdog(pc)
         main.postDelayed({
             val live = peerConnection ?: return@postDelayed
             if (live !== pc) return@postDelayed
@@ -783,6 +813,85 @@ object ScreenShareEngine {
                 diagLog("relay bandwidth check skipped: ${e.javaClass.simpleName}")
             }
         }, 6_000L)
+    }
+
+    /**
+     * v0.24.0 (Phase 18.3 — Bug C) — ৫-সেকেন্ড RTT নমুনা → অ্যাডাপটিভ সিলিং।
+     * The touch channel never backs up (data channel), but the video encoder
+     * used to: an over-optimistic bitrate on a weak 4G/relay path built a
+     * growing frame backlog — "video arrives late". Pressure now shows up as
+     * RTT and is answered by stepping the ceiling DOWN fast, recovering SLOW
+     * (one tier per healthy poll) so a momentary lull cannot re-flood the
+     * pipe. Worsening jumps straight to the target tier — relief is urgent.
+     */
+    private fun scheduleRttWatchdog(pc: PeerConnection?) {
+        if (pc == null) return
+        val gen = ++rttWatchdogGen
+        fun tick(g: Int) {
+            if (g != rttWatchdogGen) return // a newer session took over
+            val live = peerConnection
+            if (live == null || live !== pc) return
+            try {
+                live.getStats { report ->
+                    try {
+                        val stats = report.statsMap
+                        val pair = stats.values.firstOrNull {
+                            it.type == "candidate-pair" &&
+                                java.lang.Boolean.TRUE == it.members["selected"]
+                        } ?: stats.values.firstOrNull {
+                            it.type == "candidate-pair" && it.members["state"] == "succeeded"
+                        }
+                        val raw = pair?.members?.get("currentRoundTripTime")
+                        val rttSec = when (raw) {
+                            is Double -> raw
+                            is Int -> raw.toDouble()
+                            is Long -> raw.toDouble()
+                            is Float -> raw.toDouble()
+                            else -> null
+                        }
+                        if (rttSec != null && rttSec >= 0.0) onRttSample(rttSec, pc)
+                    } catch (_: Exception) {
+                    }
+                    main.postDelayed({ tick(g) }, RTT_POLL_MILLIS)
+                }
+            } catch (e: Exception) {
+                diagLog("rtt watchdog skipped: ${e.javaClass.simpleName}")
+                main.postDelayed({ tick(g) }, RTT_POLL_MILLIS)
+            }
+        }
+        main.postDelayed({ tick(gen) }, RTT_POLL_MILLIS)
+    }
+
+    /** Consume one RTT sample (seconds) and move the ceiling tier if needed. */
+    private fun onRttSample(rttSec: Double, pc: PeerConnection?) {
+        main.post {
+            if (peerConnection !== pc) return@post
+            val rttMs = (rttSec * 1000).toInt()
+            val idx = when {
+                rttMs > 300 -> 2
+                rttMs > 200 -> 1
+                rttMs > 120 -> 0
+                else -> -1 // healthy
+            }
+            val cur = rttCapKbps
+            val next: Int? = when {
+                idx < 0 -> when {
+                    cur == null -> null
+                    cur >= rttTiers.last() -> null // already the top tier — fully recovered
+                    else -> rttTiers.firstOrNull { it > cur } // step UP one tier only
+                }
+                cur == null -> rttTiers[idx] // first bad sample — straight to the tier
+                rttTiers[idx] < cur -> rttTiers[idx] // worse — straight to the tier
+                else -> cur // hold (hysteresis between tiers)
+            }
+            if (next != cur) {
+                rttCapKbps = next
+                diagLog("rtt ${rttMs}ms — adaptive ceiling ${next ?: "config"} kbps")
+                val pc2 = peerConnection
+                val t = senderVideoTrack
+                if (pc2 != null && t != null) applyScreenBitrate(pc2, t)
+            }
+        }
     }
 
     // ------------------------------------------------------------------ //
@@ -892,6 +1001,8 @@ object ScreenShareEngine {
         candRelay = 0
         negotiatedCodec = null
         relayMaxKbps = null
+        rttCapKbps = null
+        rttWatchdogGen += 1
         dataSaverKbps = null // v0.12.0 — the helper's cap dies with the round
         senderVideoTrack = null
         effectiveH264 = false
@@ -2159,6 +2270,8 @@ object ScreenShareEngine {
         _assistDropped.value = 0
         cmdTimes.clear()
         relayMaxKbps = null
+        rttCapKbps = null
+        rttWatchdogGen += 1
         dataSaverKbps = null // v0.12.0 — a fresh session starts uncapped
         senderVideoTrack = null
         _state.value = ShareState.IDLE
