@@ -601,7 +601,12 @@ async function main() {
   });
 
   // ---------- G2: live guest ask allowed (+ honest cancel cleanup) ----------
-  const guestSessionId = "prb-gst-session";
+  // v0.24.0 (Phase 18.5): UNIQUE per-run doc id — the old fixed id
+  // ("prb-gst-session") collided with its own CANCELLED leftover from a
+  // previous run (client deletes are denied by the rules) and G2 returned
+  // 409 CONFLICT — a fixture bug, not rules drift. The SA cleanup at the
+  // end now also deletes this run's session doc (zero residue).
+  const guestSessionId = `prb-gst-${Date.now()}`;
   await run("G2 guest session ask inside window", async () => {
     const r = await fetch(`${BASE}/supportSessions?documentId=${guestSessionId}`, {
       method: "POST",
@@ -763,6 +768,30 @@ async function main() {
     });
     return { expected: "200 ALLOWED", got: `HTTP ${r.status}`, pass: r.status === 200 };
   });
+
+  // ---------- cleanup: SA deletes the run's session fixture (zero residue) --
+  try {
+    const at = await saAccessToken();
+    const d = await fetch(`${BASE}/supportSessions/${guestSessionId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${at}` },
+    });
+    console.log(`session fixture cleanup (SA): supportSessions/${guestSessionId} → HTTP ${d.status}`);
+  } catch (e) {
+    console.log(`session fixture cleanup (SA): THREW ${e.message}`);
+  }
+
+  // ---------- cleanup: SA deletes yesterday's stale fixed-id fixture too -----
+  try {
+    const at = await saAccessToken();
+    const d = await fetch(`${BASE}/supportSessions/prb-gst-session`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${at}` },
+    });
+    console.log(`stale fixture cleanup (SA): supportSessions/prb-gst-session → HTTP ${d.status}`);
+  } catch (e) {
+    console.log(`stale fixture cleanup (SA): THREW ${e.message}`);
+  }
 
   // ---------- cleanup: probe A deletes its synthetic invitations ----------
   let invCleanup = "n/a";
