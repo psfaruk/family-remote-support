@@ -128,6 +128,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -5094,7 +5095,7 @@ private fun FullscreenKeyOverlay(touchOn: Boolean) {
                             onDragStart = { bump() },
                             onDrag = { change, amount ->
                                 bump()
-                                pillDrag = clampPill(pillDrag + amount)
+                                pillDrag = clampPill(pillDrag + amount.round())
                                 change.consume()
                             }
                         )
@@ -5129,7 +5130,7 @@ private fun FullscreenKeyOverlay(touchOn: Boolean) {
                             onDragStart = { bump() },
                             onDrag = { change, amount ->
                                 bump()
-                                barDrag = clampBar(barDrag + amount)
+                                barDrag = clampBar(barDrag + amount.round())
                                 change.consume()
                             }
                         )
