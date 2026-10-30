@@ -13,7 +13,20 @@ A trusted family member helps fix another family phone — always with the recei
   6→12 digits (18.6, v0.25.0/44), UI/i18n audit — notification localization + privacy/rules text in
   13 more languages, 15-language system complete (18.7, v0.26.0/45), security/privacy audit —
   free-text size-caps on remaining rules paths + secrets/manifest/logging/worker sweep clean
-  (18.8, infra). **Current build: v0.26.0 (versionCode 45)** — full records in `worklog.md` §55–§59.
+  (18.8, infra). Full records in `worklog.md` §55–§59.
+
+- **Phase 19 + 20 ✅ (v0.27.0→v0.29.0, versionCode 46→48) — FULL i18n + QUOTA RESILIENCE:**
+  Phase 19: the ~305 hardcoded Bengali UI strings are fully extracted into the 15-language
+  system — QrScanner + PermissionWizard (19.1, v0.27.0/46), then MainActivity + the error
+  pipeline with 231 keys × 15 locales, Compose-context-safe stringResource (19.2, v0.28.0/47);
+  `worklog.md` §61–§62. Phase 20 fixes the Owner's live "Firestore error RESOURCE_EXHAUSTED"
+  screens (Firestore free tier = 50,000 reads/day): the sandbox kill-push tier polled every
+  5 s — 2 queries × 17,280 sweeps/day ≈ 69% of the whole quota; it now polls every 30 s with
+  quota-aware backoff (≈ 11.5%), the shared sweep EXPIRES deadline-less zombie REQUESTED docs
+  instead of re-reading them forever, RESOURCE_EXHAUSTED now shows an honest localized message
+  (err_quota × 15 locales) instead of a raw English dump, and the presence badge/chip labels
+  are localized too. **Current build: v0.29.0 (versionCode 48)** — full records in
+  `worklog.md` §63.
 
 - **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
   audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
