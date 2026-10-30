@@ -3,8 +3,10 @@
     <string name="assist_service_description">সাহায্যের সেশন চলাকালীন একজন বিশ্বস্ত পরিবারের সাহায্যকারী এই স্ক্রিনে ট্যাপ, সোয়াইপ, লং-প্রেস ও লেখা টাইপ করতে পারেন। সার্ভিস স্ক্রিন শুধু ফোকাসড লেখা-ঘরটি খুঁজে বের করতে দেখে; অ্যাপ কখনো আপনার স্ক্রিনের লেখা পড়ে, জমা রাখে বা পাঠায় না।</string>
 
     <string name="nav_home">হোম</string>
-    <string name="nav_phone">ফোন</string>
-    <string name="nav_location">লাইভ লোকেশন</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_phone -->
+    <string name="nav_add_device">ডিভাইস যোগ</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_location -->
+    <string name="nav_tracking">ট্র্যাকিং</string>
     <string name="nav_settings">সেটিংস</string>
 
     <string name="pres_online">অনলাইন</string>
@@ -164,14 +166,14 @@
     <string name="push_failed">Push setup failed: %1$s</string>
     <string name="assist_touch_hint">With touch on, Back · Home · Recents will work on their phone</string>
     <string name="cd_notifications">Notifications</string>
-    <string name="hint_requested">Permission requested for %1$s — details in the \'Phone\' tab.</string>
-    <string name="hint_active">Session running on %1$s\'s phone — video in the \'Phone\' tab.</string>
-    <string name="hint_helping">%1$s is helping on your phone — details in the \'Phone\' tab.</string>
+    <string name="hint_requested">Permission requested for %1$s — details in the \'Add Device\' tab.</string>
+    <string name="hint_active">Session running on %1$s\'s phone — video in the \'Add Device\' tab.</string>
+    <string name="hint_helping">%1$s is helping on your phone — details in the \'Add Device\' tab.</string>
     <string name="cons_label">Approval requested</string>
     <string name="cons_body">%1$s wants to help on this phone.</string>
     <string name="cons_guest_note">Guest (temporary) helper — this link removes itself 2 hours after sharing; the session also ends within that window.</string>
     <string name="cons_expiry">Only approve if you know the person. The request expires in %1$s.</string>
-    <string name="msg_allow_ok">Allowed ✓ — see the session in the \'Phone\' tab.</string>
+    <string name="msg_allow_ok">Allowed ✓ — see the session in the \'Add Device\' tab.</string>
     <string name="msg_allow_fail">Could not allow: %1$s</string>
     <string name="btn_allow">Allow</string>
     <string name="msg_deny_ok">Request denied.</string>
@@ -192,14 +194,14 @@
     <string name="feed_active_mine">%1$s is helping on your phone</string>
     <string name="feed_need_decision">Decide Allow/Deny on the Home tab · %1$s left</string>
     <string name="feed_awaiting">Awaiting approval · %1$s left</string>
-    <string name="feed_in_progress">Video &amp; controls in the \'Phone\' tab · ends at %1$s</string>
+    <string name="feed_in_progress">Video &amp; controls in the \'Add Device\' tab · ends at %1$s</string>
     <string name="feed_last_title">Last session</string>
     <string name="feed_last_sub">%1$s → %2$s</string>
     <string name="feed_ended_by"> · ended by %1$s</string>
     <string name="devices_title">Linked phones</string>
-    <string name="devices_info">Trusted phones linked to your account and their live online state. See the \'Phone\' tab to add or remove phones.</string>
+    <string name="devices_info">Trusted phones linked to your account and their live online state. See the \'Add Device\' tab to add or remove phones.</string>
     <string name="devices_empty_title">No phones linked yet</string>
-    <string name="devices_empty_hint">Create a code from the \'Phone\' tab to link a trusted phone.</string>
+    <string name="devices_empty_hint">Create a code from the \'Add Device\' tab to link a trusted phone.</string>
     <string name="rel_you_help">You are helping</string>
     <string name="rel_helping">Helping</string>
     <string name="rel_helps_you">Helping you</string>
@@ -395,4 +397,21 @@
     <string name="err_cancel_failed">Could not cancel: %1$s</string>
     <string name="err_revoke_failed">Could not revoke: %1$s</string>
     <string name="err_remove_failed">Could not remove: %1$s</string>
+
+    <!-- ═══ Phase 21/M2 (v0.30.0) — notifications surface (real events
+         only; see ui/notifications/NotificationsScreen.kt). ═══ -->
+    <string name="notif_title">নোটিফিকেশন</string>
+    <string name="notif_section_attention">আপনার মনোযোগ দরকার</string>
+    <string name="notif_section_live">চলমান সেশন</string>
+    <string name="notif_item_ask">একটি সহায়তার অনুরোধ আপনার উত্তরের অপেক্ষায়</string>
+    <string name="notif_item_perms">অনুমতি অসম্পূর্ণ — %2$d-এর মধ্যে %1$d চালু</string>
+    <string name="notif_item_setup">এই ফোনে একটি সেটআপ ধাপ ব্যর্থ হয়েছে</string>
+    <string name="notif_open_home">বিস্তারিত জানতে হোম ট্যাব খুলুন</string>
+    <string name="notif_open_wizard">অনুমতি-তালিকা দেখতে ট্যাপ করুন</string>
+    <string name="notif_sess_requested">%1$s-এর জন্য সহায়তার অনুরোধ অপেক্ষমাণ</string>
+    <string name="notif_sess_active_you">আপনি এখন %1$s-কে সহায়তা করছেন</string>
+    <string name="notif_sess_active_other">%1$s এখন আপনাকে সহায়তা করছেন</string>
+    <string name="notif_empty_title">এই মুহূর্তে আপনার কিছু দরকার নেই</string>
+    <string name="notif_empty_body">সহায়তার অনুরোধ, চলমান সেশন ও সেটআপ সতর্কতা ঘটনার মুহূর্তেই এখানে দেখা যাবে।</string>
+    <string name="notif_hint">শুধুমাত্র সত্যিকারের বর্তমান ঘটনা — কিছু বানানো হয় না, ইতিহাস হিসেবেও জমা রাখা হয় না।</string>
 </resources>
