@@ -1,9 +1,10 @@
 # IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **PLANNING checkpoint.** Reconciles the ORIGINAL phase history (Phase 0–20) with the
-> NEW master-plan phases (M0–M10). The stale §12 table inside `docs/PHASE-0.md` is superseded
-> by this file from now on (PHASE-0 remains the append-only narrative record).
-> Build at writing: **v0.29.0 (versionCode 48)** · HEAD `cf87601` · CI SUCCESS.
+> Status: **IMPLEMENTATION checkpoint — M2 shipped.** Reconciles the ORIGINAL phase history
+> (Phase 0–20) with the NEW master-plan phases (M0–M10). The stale §12 table inside
+> `docs/PHASE-0.md` is superseded by this file from now on (PHASE-0 remains the append-only
+> narrative record).
+> Build at writing: **v0.30.0 (versionCode 49)** · HEAD `e44817d` + this push · CI: this push's run.
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
@@ -27,9 +28,9 @@
 |---|---|---|
 | M0 | Repository audit (3 parallel agents: frontend / backend-infra / docs-tracker) + state verification | ✅ 2026-10-31 (this push) |
 | M1 | Architecture & design specification: 8 new docs + UI_UX §26 reconciliation + PROJECT_CONTEXT | ✅ 2026-10-31 (this push) |
-| **⛔ APPROVAL GATE** | **Owner reviews PROJECT_CONTEXT / FRONTEND_ARCHITECTURE / NAVIGATION_MAP / LIVE_LOCATION_ARCHITECTURE / FAMILY_GUEST_AUTHORIZATION / ANDROID_PERMISSION_MATRIX / TEST_PLAN / UI_UX §26 and replies with explicit approval** | **WAITING** |
-| M2 | Shared application shell: header polish, notifications surface, 4-tab rename (C1), theme foundation, nested navigation (C3 spike) | ⛔ blocked on approval |
-| M3 | Frontend redesign: Home, Add Device, Tracking, Settings + detail screens with real states | ⛔ |
+| **⛔ APPROVAL GATE** | Owner review of the M1 document set | ✅ **APPROVED 2026-10-31 — Owner's explicit "M2 শুরু করো" command** |
+| M2 | Shared application shell: header polish, notifications surface, 4-tab rename (C1), theme foundation, nested navigation (C3 spike) | ✅ **2026-10-31 (this push, v0.30.0/49)** — C3 spike: Navigation-Compose **ADOPTED** for the shell (routes+bars extracted to `ui/nav/AppNav.kt`; crossfade 120 ms; saveState/restoreState tab switching). C1 rename ×15 locales (+ the 7 tab-pointing copy keys per locale fixed). Dedicated notifications surface (real events, in-memory). Components promoted verbatim: SectionCard/AppListTile/EmptyState/WideOutlinedButton → `ui/components/Core.kt`. Theme foundation: tokens verified — already master-palette-exact (no delta needed). Version note: per NAVIGATION_MAP §6, v0.30.0/49 IS the first implementation release; later milestones increment from here (the earlier M5-row projection is superseded). |
+| M3 | Frontend redesign: Home, Add Device, Tracking, Settings + detail screens with real states; ViewModel layer (`lifecycle-viewmodel-compose`) + component-library completion | ⛔ |
 | M4 | Existing-feature integration checks (pairing, sessions, revocation) + drift fixes | ⛔ |
 | M5 | Live location implementation (engine, map, rules, probes) — v0.30.0/49 | ⛔ |
 | M6 | Family/Guest authorization verification + G1–G4 deltas | ⛔ |
@@ -55,8 +56,8 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | Sessions + signaling + zombie guards + quota errors | ✅ | `SessionRepo.kt`, `SignalingRepo.kt`, §63 |
 | 15-language i18n + theme persistence | ✅ (≈3 keys/locale parity gap; ~16 stray literals) | `ui/Lang.kt`, strings ×15 |
 | **Live location** | 🔜 **planned M5** (placeholder tab today) | `MainActivity.kt:3038-3046` |
-| Notifications screen (dedicated) | 🔜 M2/M8 (bell → Settings today) | `MainActivity.kt:1045-1047` |
-| ViewModels / Navigation-Compose / shared component library | 🔜 M2–M3 (Decision C3) | audit §1 |
+| Notifications screen (dedicated) | ✅ **M2** — bell → real-events surface (in-memory; persisted store = M8 decision) | `ui/notifications/NotificationsScreen.kt` |
+| Navigation-Compose shell | ✅ **M2** (Decision C3 ADOPTED — navigation 2.8.2; ViewModels + full component library = M3) | `ui/nav/AppNav.kt`, `ui/components/Core.kt` |
 | Tests (unit/UI) | ❌ none (probes + CI + Owner manual only) | TEST_PLAN §0 |
 
 ## 4. Known open issues (from audits — each mapped to a phase)
@@ -66,8 +67,12 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | Live-location placeholder promise | M5 |
 | ~16 hardcoded user-visible strings + parity gap | M4/M8 (Agent 19) |
 | Manifest assist-config doc drift | M4 |
-| Bell → Settings instead of notifications surface | M2 |
+| Bell → Settings instead of notifications surface | ✅ fixed M2 |
 | Swallowed listener errors / ad-hoc error states | M3 (States components) |
+| **NEW (M2 discovery):** default↔bn locale inversion — ~203 legacy keys carry Bengali text in
+  `values/` (whose declared design is default=English) while `values-bn/` carries their English;
+  both language settings see mixed language on legacy screens. Recorded untouched (scope
+  discipline) — full re-language sweep = M4/M8 i18n wave (Agent 19) | M4/M8 |
 | Per-second recomposition tick | M8 (perf pass) |
 | `isMinifyEnabled=false`, no tests, 40 MB APK | record-only; R8 = separate future decision |
 | Cloudflare `FIREBASE_SA_JSON` unset (permanent kill-push tier inactive) | **Owner action** (unchanged since §60) |
@@ -79,4 +84,7 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
    RESOURCE_EXHAUSTED screens captured in the 23:00–23:31 screenshots.
 2. Set Cloudflare secret `FIREBASE_SA_JSON` (dashboard → Worker → Variables and Secrets) —
    activates the permanent kill-push tier.
-3. **Review + approve the M1 document set → unlocks M2.**
+3. **Install v0.30.0 (code 49) on both phones and device-verify M2** — TEST_PLAN #7 (tab
+   switching), #8 (nested navigation + back; NOTE the documented delta: back from a non-start
+   tab now returns Home first, platform-standard) and #24 (state restoration).
+4. Set Cloudflare secret `FIREBASE_SA_JSON` (permanent kill-push tier still inactive).
