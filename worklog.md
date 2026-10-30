@@ -2019,3 +2019,69 @@ Phase-21 ব্লক · এই §64।
 **STOP:** M2+ (shell redesign, লাইভ-লোকেশন বাস্তবায়ন) শুরু হবে শুধুমাত্র Owner-এর স্পষ্ট
 অনুমোদনের পর। Owner-অ্যাকশন: (১) কোটা-রিসেটে দুই ফোনে v0.29.0 ইনস্টল; (২) Cloudflare
 `FIREBASE_SA_JSON` সিক্রেট; (৩) M1 ডক-সেট পর্যালোচনা করে অনুমোদন/সংশোধন-নির্দেশ।
+
+
+## §65 — Phase 21/M2 (v0.30.0, code 49): শেয়ার্ড অ্যাপ্লিকেশন শেল — Navigation-Compose শেল (C3 spike গৃহীত), C1 ট্যাব-রিনেম ×১৫, নোটিফিকেশন সারফেস, কম্পোনেন্ট-নিষ্কাশন (২০২৬-১০-৩১)
+
+**ট্রিগার:** Owner-এর **"M2 শুরু করো"** নির্দেশ = M1-এর অনুমোদন-গেট পাস (IMPLEMENTATION_STATUS §2)।
+তাই এই পুশ থেকে মাস্টার-প্ল্যানের কোড-বাস্তবায়ন শুরু — প্রথম ইমপ্লিমেন্টেশন রিলিজ **v0.30.0/49**
+(NAVIGATION_MAP §6 অনুযায়ী)।
+
+**পূর্ব-যাচাই:** repo `psfaruk/family-remote-support` (§64-এর rename-নোট অনুযায়ী); HEAD `e44817d`,
+M1-ডক-সেট ফেচ করে blob-SHA মিলিয়ে কাজ শুরু; লোকাল মিররে ৯টি stale ফাইল ফেচ করে সিঙ্ক। M2-স্কোপ
+শুধু IMPLEMENTATION_STATUS §2-এর M2-সারি: header polish · notifications surface · C1 rename ·
+theme foundation · C3 spike। **মাল্টি-এজেন্ট সততা:** এই মাইলস্টোনের কাজ এক ফাইলে (MainActivity)
+কেন্দ্রীভূত — ফাইল-মালিকানা নিয়মে (PROJECT_CONTEXT §18) parallel write সম্ভব নয়, তাই coordinator
+(Agent 1) সরাসরি সার্জারি করেছে; সাথে static verification passes (refs/parity/braces/anchor-checks)
+আলাদা ধাপে। ২৪-রোল মডেল M3-এর extraction waves-এ সত্যিক parallel agents নেবে — কোনো ভূত-এজেন্ট
+দাবি নয়।
+
+**যা বদলেছে (কোড):**
+1. **C3 spike — Navigation-Compose 2.8.2 গৃহীত:** `MainActivity`-এর `var tab` + `when(tab)` +
+   `tabScrollStates` → `NavHost` (home/add/tracking/settings/notifications রুট; crossfade 120ms;
+   `goTab` = popUpTo(start){saveState}+launchSingleTop+restoreState)। রুট-টেবিল + AppTopBar +
+   AppBottomNav নতুন **`ui/nav/AppNav.kt`**-এ; টপ-বার টাইটেল এখন স্থানীয়কৃত `app_title`
+   ("Remote Family Support" — মাস্টার-নির্দেশনার ব্র্যান্ড), presence chip slot প্যারামিটার।
+   W1-gate ৩ আইটেম কোড-পর্যালোচনায় নিশ্চিত: cold-start-from-FCM (আগেও/এখনও কোনো intent-লজিক নেই —
+   Firestore listener-ই সব চালায়), wizard overlay (app-level), fullscreen session (session-card-এর
+   ভেতরের Dialog — পুরোনো when(tab)-এর মতোই unmount semantics)। **ডিভাইস-যাচাই = Owner**
+   (TEST_PLAN #7/#8/#24)। lifecycle-viewmodel-compose ইচ্ছাকৃতভাবে M3-এ পিছিয়ে (minimal-deps C4)।
+2. **C1 রিনেম ×১৫:** `nav_phone`→`nav_add_device` (আইকন PersonAdd), `nav_location`→`nav_tracking`
+   — পুরোনো কী দুটি ১৫ ফাইল থেকেই বাদ; Home-এর ২টি quick-action লেবেলও একসঙ্গে বদলানো; এবং
+   পুরোনো "Phone" ট্যাব উল্লেখ করা **৭টি কপি-স্ট্রিং** (hint_requested/active/helping, msg_allow_ok,
+   feed_in_progress, devices_info, devices_empty_hint) প্রতি ভাষায় ট্যাব-নাম ঠিক করা।
+3. **নোটিফিকেশন সারফেস (নতুন `ui/notifications/NotificationsScreen.kt`):** ব্যাজ-বেল এখন Settings
+   নয় — ডেডিকেটেড স্ক্রিন। **শুধু বাস্তব ঘটনা:** consent-ask, পারমিশন-চেকলিস্ট ঘাটতি, সেটআপ-ব্যর্থতা
+   (নতুন deviceOk/presenceOk/pushOk ফ্ল্যাগ — স্ট্রিং-পার্স নয়), চলমান সেশন — সবই app আগে থেকেই
+   যেসব ডেটা listen করত তা থেকে; **নতুন Firestore read/লিসেনার শূন্য**। ইন-মেমরি — অ্যাপ-রিস্টার্টে
+   রিসেট (স্থায়ী ইভেন্ট-স্টোর = M8 সিদ্ধান্ত); ⓘ-পপআপে এই সততা ব্যাখ্যা ×১৫ ভাষায়।
+4. **কম্পোনেন্ট লাইব্রেরির সূচনা:** SectionCard / AppListTile / EmptyState / WideOutlinedButton
+   MainActivity থেকে **হুবহু একই কোডে** `ui/components/Core.kt`-এ (private→public; ভিজ্যুয়াল
+   পরিবর্তন শূন্য)। বাকি উইজেট M3 extraction wave।
+5. **থিম ফাউন্ডেশন:** Theme.kt যাচাই — মাস্টার-প্যালেট হুবহু আছে; ডেল্টা দরকার হয়নি (সৎ রিপোর্ট:
+   নতুন কিছু যোগ করিনি, কারণ দরকার ছিল না)।
+
+**স্ট্রিং-পরিসংখ্যান:** প্রতি লোকেলে +১৬ কী (nav ×২ + notif ×১৪), −২ লিগ্যাসি; মোট নতুন ইংরেজি
+কী-বডি ১৬ × ১৫ ভাষা = ২৪০ অনুবাদ; XML well-formed ×১৫ যাচাই; escaping যাচাই (raw apostrophe ০)।
+
+**নতুন আবিষ্কার (M2 audit):** `values/strings.xml`-এর ঘোষিত ডিজাইন "default = English" থাকলেও
+**~২০৩ লিগ্যাসি কী-তে বাংলা টেক্সট** আছে এবং `values-bn/`-এ সেগুলোর ইংরেজি — অর্থাৎ default↔bn
+ইনভার্সন; দুই ভাষাসেটেই লিগ্যাসি স্ক্রিনে মিশ্র ভাষা দেখা যায় (Agent 2-a/2-c অডিট এটা ধরেনি —
+তারা "~৩ কী/লোকেল ঘাটতি" বলেছিল)। **এই মাইলস্টোনে ধরা হয়নি** (স্কোপ-ডিসিপ্লিন; M2-র নতুন কীগুলো
+সঠিক ভাষায় আছে) — M4/M8 i18n-ওয়েভে (Agent 19) পূর্ণ re-language sweep করবো; IMPLEMENTATION_STATUS
+§4-এ রেকর্ড হয়েছে।
+
+**স্বচ্ছ ডেল্টা (Owner জানুক):** সিস্টেম-Back এখন non-start ট্যাব থেকে প্রথমে Home-এ ফেরে, তারপর
+অ্যাপ বন্ধ হয় (আগে সরাসরি বন্ধ হতো) — platform-standard ট্যাব-আচরণ; NAVIGATION_MAP §3 ও
+TEST_PLAN #8-এ ডকুমেন্টেড। নোটিফিকেশন স্ক্রিনে কোনো ট্যাব selected থাকে না — ইচ্ছাকৃত সৎ অবস্থা।
+
+**যাচাই-অবস্থা (সৎ):** স্যান্ডবক্সে Gradle/emulator নেই — এই রিলিজের প্রমাণ = (১) স্ট্যাটিক
+ভেরিফিকেশন পাস (string-ref ×N মিল, ১৫-লোকেল parity, XML parse, brace-balance, anchor-based
+edits), (২) CI assembleDebug+Release + AXML গেট (v0.30.0/49 আশা করা হয়েছে), (৩) Owner-এর
+ফোন-টেস্ট। "কাজ করছে" দাবি কেবল CI SUCCESS + Owner নিশ্চিতির পরেই।
+
+**Owner-অ্যাকশন:** (১) CI SUCCESS দেখে দুই ফোনে **v0.30.0 (code 49)** ইনস্টল (একই ভার্সন দুটোতেই);
+(২) ট্যাব-নাম/আইকন, বেল→নোটিফিকেশন স্ক্রিন, ট্যাব-সুইচে স্ক্রল-মনে থাকা, Back-আচরণ (নতুন ডেল্টা),
+ডার্ক/লাইট ×১৫ ভাষা চেক — TEST_PLAN #7/#8/#23/#24; (৩) Cloudflare `FIREBASE_SA_JSON` সিক্রেট
+(§60 থেকে বাকি)। **পরবর্তী:** M3 — স্ক্রিন-রিডিজাইন + ViewModel + নেস্টেড ডিটেইল রুট (সব M1-ডক
+অনুযায়ী); M5-এ লাইভ-লোকেশন।
