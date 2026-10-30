@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -88,12 +89,13 @@ data class PermChecklist(
 ) {
     val doneCount: Int get() = listOf(notifications, camera, assist, battery).count { it }
     val allDone: Boolean get() = doneCount == 4
-    fun missingNamesBn(): String {
+    // v0.27.0 (Phase 19.1): localized names via resources (was missingNamesBn()).
+    fun missingNames(context: Context): String {
         val out = mutableListOf<String>()
-        if (!notifications) out.add("নোটিফিকেশন")
-        if (!camera) out.add("ক্যামেরা")
-        if (!assist) out.add("Remote assist")
-        if (!battery) out.add("ব্যাটারি ছাড়")
+        if (!notifications) out.add(context.getString(R.string.pw_perm_notif))
+        if (!camera) out.add(context.getString(R.string.pw_perm_camera))
+        if (!assist) out.add(context.getString(R.string.pw_perm_assist))
+        if (!battery) out.add(context.getString(R.string.pw_perm_battery))
         return out.joinToString(" · ")
     }
 }
@@ -159,26 +161,25 @@ fun AssistSetupGuide(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Remote assist চালু করার নিয়ম",
+                    text = stringResource(R.string.pw_guide_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "নিচের ৩টা ধাপ হুবহু করুন — জীবনে একবারই লাগবে:",
+                    text = stringResource(R.string.pw_guide_intro),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 GuideStep(
-                    num = "১",
-                    text = "সেটিংস খুললে তালিকায় \"Family Remote Support assist\" লাইনটা খুঁজুন " +
-                        "(আমাদের অ্যাপেরটা — সাধারণত হাইলাইট করা থাকে)।"
+                    num = stringResource(R.string.pw_step_1),
+                    text = stringResource(R.string.pw_guide_step1_text)
                 )
                 GuideStep(
-                    num = "২",
-                    text = "লাইনটায় ট্যাপ করে সুইচটা চালু (ON) করুন।"
+                    num = stringResource(R.string.pw_step_2),
+                    text = stringResource(R.string.pw_guide_step2_text)
                 )
                 GuideStep(
-                    num = "৩",
-                    text = "Android-এর সতর্কবার্তা এলে Allow / অনুমতি দিন চাপুন।"
+                    num = stringResource(R.string.pw_step_3),
+                    text = stringResource(R.string.pw_guide_step3_text)
                 )
                 Card(
                     colors = CardDefaults.cardColors(
@@ -186,9 +187,7 @@ fun AssistSetupGuide(onDismiss: () -> Unit) {
                     )
                 ) {
                     Text(
-                        text = "⚠️ সাবধান: \"Accessibility menu shortcut\" বা অন্য কোনো সুইচ চালু " +
-                            "করলে কাজ হবে না — সেটা আমাদেরটা নয়! শুধু \"Family Remote " +
-                            "Support assist\" লাইনটাই সঠিক।",
+                        text = stringResource(R.string.pw_guide_warning),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onErrorContainer,
@@ -196,9 +195,7 @@ fun AssistSetupGuide(onDismiss: () -> Unit) {
                     )
                 }
                 Text(
-                    text = "টাইপ করার জন্য সার্ভিস ফোকাসড লেখার-ঘরটি খুঁজে পায় — কিন্তু অ্যাপ " +
-                        "স্ক্রিনের কোনো লেখা পড়ে না, জমা রাখে না, পাঠায় না; এর কাজ শুধু ট্যাপ ও " +
-                        "লেখা বসানো। যখন চান, একই জায়গা থেকে বন্ধ করে দিতে পারবেন।",
+                    text = stringResource(R.string.pw_guide_privacy),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -211,7 +208,7 @@ fun AssistSetupGuide(onDismiss: () -> Unit) {
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
                 ) {
-                    Text("সেটিংস খুলুন · Open settings", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.pw_open_settings), fontWeight = FontWeight.SemiBold)
                 }
                 OutlinedButton(
                     onClick = onDismiss,
@@ -219,7 +216,7 @@ fun AssistSetupGuide(onDismiss: () -> Unit) {
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
                 ) {
-                    Text("পরে করব · Later")
+                    Text(stringResource(R.string.pw_later))
                 }
             }
         }
@@ -286,7 +283,7 @@ fun PermissionWizard(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "পারমিশন চেক · Permission check",
+                    text = stringResource(R.string.pw_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -296,8 +293,7 @@ fun PermissionWizard(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    text = "এই অ্যাপ শুধু আপনার অনুমতি নিয়েই কাজ করে। নিচের ৪টা জিনিস " +
-                        "একবার চালু করলেই সব ফিচার মসৃণ চলবে।",
+                    text = stringResource(R.string.pw_intro),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -321,7 +317,7 @@ fun PermissionWizard(
                                 modifier = Modifier.size(22.dp)
                             )
                             Text(
-                                text = "সব প্রস্তুত! অ্যাপ পুরোপুরি চালু হওয়ার জন্য রেডি।",
+                                text = stringResource(R.string.pw_all_done),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -330,18 +326,18 @@ fun PermissionWizard(
                     }
                 } else {
                     Text(
-                        text = "চালু ${st.doneCount}/4 — বাকি: ${st.missingNamesBn()}",
+                        text = stringResource(R.string.pw_progress, st.doneCount, st.missingNames(ctx)),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 PermRow(
-                    step = "১",
-                    title = "নোটিফিকেশন · Notifications",
-                    desc = "সেশনের অনুরোধ এলে ফোন আপনাকে জানাবে।",
+                    step = stringResource(R.string.pw_step_1),
+                    title = stringResource(R.string.pw_perm_notif),
+                    desc = stringResource(R.string.pw_perm_notif_desc),
                     done = st.notifications,
-                    actionLabel = "অনুমতি দিন",
+                    actionLabel = stringResource(R.string.pw_allow_btn),
                     onAction = {
                         if (Build.VERSION.SDK_INT >= 33) {
                             notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -349,33 +345,32 @@ fun PermissionWizard(
                     }
                 )
                 PermRow(
-                    step = "২",
-                    title = "ক্যামেরা · Camera",
-                    desc = "পেয়ারিং QR কোড স্ক্যান করতে লাগে (কোড টাইপ করলে লাগে না)।",
+                    step = stringResource(R.string.pw_step_2),
+                    title = stringResource(R.string.pw_perm_camera),
+                    desc = stringResource(R.string.pw_perm_camera_desc),
                     done = st.camera,
-                    actionLabel = "অনুমতি দিন",
+                    actionLabel = stringResource(R.string.pw_allow_btn),
                     onAction = { camLauncher.launch(Manifest.permission.CAMERA) }
                 )
                 PermRow(
-                    step = "৩",
-                    title = "Remote assist · রিমোট টাচ",
-                    desc = "সাহায্যকারী আপনার স্ক্রিনে ট্যাপ করতে পারবেন। স্ক্রিনের কিছুই পড়ে না — শুধু ট্যাপ।",
+                    step = stringResource(R.string.pw_step_3),
+                    title = stringResource(R.string.pw_perm_assist_title),
+                    desc = stringResource(R.string.pw_perm_assist_desc),
                     done = st.assist,
-                    actionLabel = "সেটআপ খুলুন",
+                    actionLabel = stringResource(R.string.pw_setup_open_btn),
                     onAction = { showAssistGuide = true }
                 )
                 PermRow(
-                    step = "৪",
-                    title = "ব্যাটারি ছাড় · Battery",
-                    desc = "অ্যাপটা ব্যাকগ্রাউন্ডে থাকলেও বার্তা সময়মত পাবে।",
+                    step = stringResource(R.string.pw_step_4),
+                    title = stringResource(R.string.pw_perm_battery),
+                    desc = stringResource(R.string.pw_perm_battery_desc),
                     done = st.battery,
-                    actionLabel = "অনুমতি দিন",
+                    actionLabel = stringResource(R.string.pw_allow_btn),
                     onAction = { requestBatteryExemption(ctx) }
                 )
 
                 Text(
-                    text = "স্ক্রিন শেয়ারের অনুমতি প্রতিবার শেয়ার শুরুর সময় Android নিজেই জিজ্ঞেস করে — " +
-                        "নিরাপত্তার জন্য সেটা আগে থেকে দেওয়া যায় না।",
+                    text = stringResource(R.string.pw_screen_share_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -389,7 +384,7 @@ fun PermissionWizard(
                             .fillMaxWidth()
                             .heightIn(min = 52.dp)
                     ) {
-                        Text("শুরু করুন · Done", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.pw_done_btn), fontWeight = FontWeight.SemiBold)
                     }
                 } else {
                     OutlinedButton(
@@ -398,7 +393,7 @@ fun PermissionWizard(
                             .fillMaxWidth()
                             .heightIn(min = 48.dp)
                     ) {
-                        Text("পরে করব · Later")
+                        Text(stringResource(R.string.pw_later))
                     }
                 }
             }
@@ -471,7 +466,7 @@ private fun PermRow(
                         .weight(1f)
                 )
                 Text(
-                    text = if (done) "✓ চালু" else "⬜ বাকি",
+                    text = if (done) stringResource(R.string.pw_status_done) else stringResource(R.string.pw_status_pending),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = if (done) MaterialTheme.colorScheme.primary
