@@ -125,6 +125,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -135,10 +136,12 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
 import androidx.compose.ui.res.stringResource
@@ -4984,6 +4987,198 @@ private fun SessionKeyBar(touchOn: Boolean, inFullscreen: Boolean) {
     }
 }
 
+/** v0.23.0 (Phase 18.2) — the fullscreen key overlay folds after this idle time. */
+private const val FULLSCREEN_BAR_AUTOHIDE_MILLIS = 4_000L
+
+/**
+ * v0.23.0 (Phase 18.2 — Owner bug: "ফুলস্ক্রিনে নিচের অপশনগুলো ফিক্স হয়ে
+ * যায়… কিবোর্ডের স্পেস প্রেস করতে পারি না") — the fullscreen key bar used
+ * to sit FIXED at the bottom centre: exactly where a remote keyboard's
+ * space bar lives on the shared screen, so with touch on, taps meant for
+ * that space key hit this local bar instead. The overlay now:
+ *   1. AUTO-FOLDS to a small ⌃ pill 4 s after the last touch on it — the
+ *      pill docks bottom-END, clear of the space-bar zone;
+ *   2. UNFOLDS on a pill tap (the idle timer re-arms);
+ *   3. is DRAGGABLE in both states, so the bar/pill can be parked anywhere
+ *      on the video (clamped to stay fully on screen);
+ *   4. has a ⌄ handle above the bar to fold immediately.
+ * Every pointer down on the overlay (keys included) re-arms the idle timer;
+ * while the type or stop dialog is open the bar never folds mid-task. State
+ * is remembered per fullscreen-open: reopening starts visible, bottom-centre.
+ */
+@Composable
+private fun FullscreenKeyOverlay(touchOn: Boolean) {
+    var collapsed by remember { mutableStateOf(false) }
+    var lastInteract by remember { mutableStateOf(System.currentTimeMillis()) }
+    var barDrag by remember { mutableStateOf(IntOffset.Zero) }
+    var pillDrag by remember { mutableStateOf(IntOffset.Zero) }
+    var containerPx by remember { mutableStateOf(IntSize.Zero) }
+    var barPx by remember { mutableStateOf(IntSize.Zero) }
+    var pillPx by remember { mutableStateOf(IntSize.Zero) }
+
+    fun bump() {
+        lastInteract = System.currentTimeMillis()
+    }
+
+    // Bottom-anchored clamps: the bar (centre anchor) may move anywhere on
+    // screen; the pill (end anchor) any distance left/up. Sizes are unknown
+    // until first layout — the clamp then returns zero and simply no-ops.
+    fun clampBar(d: IntOffset): IntOffset {
+        if (containerPx.width <= 0 || containerPx.height <= 0) return IntOffset.Zero
+        val maxX = ((containerPx.width - barPx.width) / 2).coerceAtLeast(0)
+        val maxY = (containerPx.height - barPx.height).coerceAtLeast(0)
+        return IntOffset(
+            d.x.coerceIn(-maxX, maxX),
+            d.y.coerceIn(-maxY, 0)
+        )
+    }
+
+    fun clampPill(d: IntOffset): IntOffset {
+        if (containerPx.width <= 0 || containerPx.height <= 0) return IntOffset.Zero
+        val maxX = (containerPx.width - pillPx.width).coerceAtLeast(0)
+        val maxY = (containerPx.height - pillPx.height).coerceAtLeast(0)
+        return IntOffset(
+            d.x.coerceIn(-maxX, 0),
+            d.y.coerceIn(-maxY, 0)
+        )
+    }
+
+    // 1) auto-fold: 4 s without a touch on the overlay (never mid-dialog).
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500)
+            if (!collapsed &&
+                !SessionUiBus.typeDialog &&
+                !SessionUiBus.stopConfirm &&
+                System.currentTimeMillis() - lastInteract > FULLSCREEN_BAR_AUTOHIDE_MILLIS
+            ) {
+                collapsed = true
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { containerPx = it }
+    ) {
+        if (collapsed) {
+            // ── folded: a small ⌃ pill docked bottom-END — out of the
+            // space-bar zone. Tap brings the keys back; drag parks it.
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .offset { clampPill(pillDrag) }
+                    .onSizeChanged { pillPx = it }
+                    .semantics { contentDescription = "বাটন দেখাও · Show keys" }
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val ev = awaitPointerEvent()
+                                if (ev.changes.any { it.pressed }) bump()
+                            }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            bump()
+                            collapsed = false
+                        })
+                    }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { bump() },
+                            onDrag = { change, amount ->
+                                bump()
+                                pillDrag = clampPill(pillDrag + amount)
+                                change.consume()
+                            }
+                        )
+                    }
+            ) {
+                Text(
+                    text = "⌃",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+        } else {
+            // ── unfolded: the full bar — draggable, with a ⌄ fold handle.
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .offset { clampBar(barDrag) }
+                    .onSizeChanged { barPx = it }
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val ev = awaitPointerEvent()
+                                if (ev.changes.any { it.pressed }) bump()
+                            }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { bump() },
+                            onDrag = { change, amount ->
+                                bump()
+                                barDrag = clampBar(barDrag + amount)
+                                change.consume()
+                            }
+                        )
+                    }
+                    .padding(bottom = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // ⌄ fold handle — a bottom-sheet style chip above the keys;
+                // folding clears the whole video (and any remote keyboard).
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+                    shadowElevation = 4.dp,
+                    modifier = Modifier
+                        .padding(bottom = 6.dp)
+                        .clickable {
+                            bump()
+                            collapsed = true
+                        }
+                        .semantics { contentDescription = "বাটন লুকাও · Hide keys" }
+                ) {
+                    Text(
+                        text = "⌄",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+                }
+                SessionKeyBar(touchOn = touchOn, inFullscreen = true)
+                if (!touchOn) {
+                    Text(
+                        text = "টাচ চালু করলে Back · Home · Recents কাজ করবে",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.55f),
+                                RoundedCornerShape(999.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** Centered confirm before the helper stops watching (never a surprise). */
 @Composable
 private fun StopWatchConfirmDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
@@ -5181,29 +5376,12 @@ private fun ScreenSharePanel(
                             // never a dead end (Owner report). The keys are
                             // REAL: sendAssistNav → the recipient's assist
                             // service performs GLOBAL_ACTION_BACK/HOME/RECENTS.
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .windowInsetsPadding(WindowInsets.navigationBars)
-                                    .padding(bottom = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                SessionKeyBar(touchOn = assistMode, inFullscreen = true)
-                                if (!assistMode) {
-                                    Text(
-                                        text = "টাচ চালু করলে Back · Home · Recents কাজ করবে",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White.copy(alpha = 0.85f),
-                                        modifier = Modifier
-                                            .padding(top = 4.dp)
-                                            .background(
-                                                Color.Black.copy(alpha = 0.55f),
-                                                RoundedCornerShape(999.dp)
-                                            )
-                                            .padding(horizontal = 10.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
+                            // Phase 18.2 (v0.23.0) — no longer FIXED at the
+                            // bottom centre (that spot is exactly where a
+                            // remote keyboard's space bar lives): the overlay
+                            // auto-folds after 4 s, folds/unfolds via ⌄/⌃ and
+                            // is draggable anywhere (Owner bug fixed).
+                            FullscreenKeyOverlay(touchOn = assistMode)
                             if (SessionUiBus.typeDialog) {
                                 AssistTypeDialog(onDismiss = { SessionUiBus.typeDialog = false })
                             }
