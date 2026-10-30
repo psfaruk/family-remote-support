@@ -13,8 +13,8 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 43
-        versionName = "0.24.0"
+        versionCode = 44
+        versionName = "0.25.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
