@@ -84,9 +84,12 @@ fun describeFirestoreError(e: Exception): String = when (e) {
     is FirestoreUnreachableException -> e.message ?: "Could not reach Firestore."
     is FirebaseFirestoreException -> when (e.code) {
         FirebaseFirestoreException.Code.PERMISSION_DENIED ->
-            "Permission denied by the security rules — open the Firebase console → " +
-                "Firestore Database → Rules, replace everything with the newest " +
-                "firestore.rules file from the repo (Phase 6 version) and press Publish."
+            "Permission denied by the security rules — in practice this means one of " +
+                "the two phones is running an OLD app version (pairing is " +
+                "version-locked). Update BOTH phones to the newest app and pair " +
+                "again (দুটো ফোনেই নতুন অ্যাপ ইনস্টল করুন). If it still fails, " +
+                "publish the newest android-app/firestore.rules from the repo " +
+                "(Firebase console → Firestore Database → Rules)."
         FirebaseFirestoreException.Code.FAILED_PRECONDITION,
         FirebaseFirestoreException.Code.NOT_FOUND ->
             "Firestore database not found — in the Firebase console open " +
