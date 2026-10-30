@@ -10,6 +10,9 @@
     <string name="pres_online">En línea</string>
     <string name="pres_offline">Desconectado</string>
     <string name="pres_checking">Comprobando…</string>
+    <string name="pres_unavailable">presencia no disponible</string>
+    <string name="pres_never_seen">nunca visto</string>
+    <string name="pres_last_seen_min">visto hace %1$d min</string>
     <string name="cmn_ok">Aceptar</string>
     <string name="cmn_details">Detalles</string>
     <string name="home_tagline">Ayuda remota para los teléfonos de la familia — siempre con permiso claro.</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">Este par ya está vinculado como Family (permanente) — aquí no se necesita código de invitado.</string>
     <string name="err_pair_guest_exists">Este par está vinculado como invitado. Para convertirlo en Family, quite el vínculo de invitado del teléfono que recibe ayuda y emita un nuevo código Family.</string>
     <string name="err_generic">Error de Firestore %1$s: %2$s</string>
+    <string name="err_quota">Se agotó el límite diario gratuito de Firebase: todo volverá a funcionar tras el reinicio diario de la cuota (alrededor del mediodía). No se pierde ningún dato.</string>
     <string name="cd_details">Detalles</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
