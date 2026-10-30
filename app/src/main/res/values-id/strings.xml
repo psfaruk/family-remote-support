@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">Pasangan ini tertaut sebagai Guest. Untuk menjadikan Family, hapus tautan Guest dari ponsel penerima bantuan lalu buat kode Family baru.</string>
     <string name="err_generic">Kesalahan Firestore %1$s: %2$s</string>
     <string name="cd_details">Detail</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">Tidak bisa mengirim permintaan: %1$s</string>
+    <string name="err_answer_failed">Tidak bisa menjawab permintaan: %1$s</string>
+    <string name="err_end_failed">Tidak bisa mengakhiri sesi: %1$s</string>
+    <string name="err_create_failed">Tidak bisa membuat kode: %1$s</string>
+    <string name="err_cancel_failed">Tidak bisa membatalkan: %1$s</string>
+    <string name="err_revoke_failed">Tidak bisa mencabut: %1$s</string>
+    <string name="err_remove_failed">Tidak bisa menghapus: %1$s</string>
 </resources>
