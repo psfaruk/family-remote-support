@@ -159,7 +159,7 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
         }
         val now = System.currentTimeMillis()
         val stale = views.filter { it.isStaleOpen(now) }
-        if (stale.isEmpty) {
+        if (stale.isEmpty()) {
             // Genuinely open: a live ask is pending, or a live session runs.
             // Point the Owner at the escape hatch that always exists — the
             // session card's Cancel / End buttons.
