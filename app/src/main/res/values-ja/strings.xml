@@ -102,4 +102,45 @@
     <string name="privacy_body">Family Remote Support は、信頼し合う人どうしがスマートフォンを助け合うためのアプリです。このポリシーでは、アプリが使うデータを正確に説明します。\n\n収集するもの\n• アカウント: サインインに使う名前・メールアドレス・Google アカウント ID。\n• デバイス: モデル、メーカー、Android バージョン、アプリのバージョン。\n• お使いのスマホを一覧にするための、アプリ固有のランダムなデバイス ID。\n• プッシュトークン: 誰かが助けを求めたことをスマホに伝えるためだけに使います。\n• セッション記録: 誰が誰に依頼したか、開始/終了時刻、最終ステータス。アプリ内で見られる正直な履歴そのものです。\n\n決して収集しないもの\n• 画面の内容。ライブ画面映像はあなたが承認したセッション中だけ存在し、2 台のスマホ間で直接やり取りされ、保存されません。\n• パスワード、画面上のテキスト、キー入力、写真。\n• 位置情報。「ライブ位置情報」タブはプレースホルダーで、現時点では何も収集しません。\n\nデータの置き場所\nこのアプリ専用の Firebase プロジェクト内だけです。売却も、広告主との共有も、トラッキングへの利用もありません。\n\n誰が何を見られるか\nペアリング済みのヘルパーは、お使いのデバイスのオンライン状態を確認でき、各リクエストについてあなたが明示的に承認した後にのみセッションを開始できます。ペアリング済みのスマホはいつでも取り消せます。サインアウトすると、このスマホのプレゼンスとプッシュトークンは削除されます。\n\n主導権は常にあなたにあります: 各セッションにはリアルタイムの承認が必要で、実行中は明確なインジケーターが表示され、いつでも停止できます。</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">これらのルールは、Family Remote Support を全員にとって安全に保ちます。\n\n1. まず同意。支援セッションは毎回、助けを受けるスマホ上で新たな明示的な承認が必要です。ペアリングだけでアクセスは絶対に許可されません。\n\n2. ペアリングコードは 1 回限りで、約 5 分で期限切れになります。コードは 1 度だけ、時間内にスキャンまたは入力した本人だけが使えます。\n\n3. ゲスト支援は一時的です。ゲスト接続は 2 時間で自動的に終了し、それだけで永続的な家族ペアリングになることは決してありません。\n\n4. いつでも止められます。助けを受ける人は、リクエストを拒否することも、進行中のセッションをいつでも終了することも、ペアリング済みのスマホを完全に取り消すこともできます。\n\n5. ヘルパーは信頼できる人に限定。コードや QR は、本当に信頼できる人だけに共有してください。セッション中はヘルパーがあなたの画面を見ます — 不安があれば先に重要なアプリを閉じてください。\n\n6. 抜け道なし。このアプリはスマホのロック解除、パスワードの読み取り、黙って権限を与えること、セッション中であることを隠すことを決して試みません。Android が明示的に許す範囲内でのみ動作します。\n\n7. 公正な利用のみ。嫌がらせ、盗み見、強要のためにアプリを使わないでください。悪用はアクセス取り消しにつながります。\n\n8. 家族第一。このアプリは家族や親しい友人のスマホを助けるために作られています — それ以外のためではありません。</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">相手のスマホのQRコードをスキャン</string>
+    <string name="qr_scan_hint">コード中央のバッジが役割を示します — スキャン後に役割の確認画面が表示されます。</string>
+    <string name="qr_scan_permission_text">QRコードのスキャンにはカメラが必要です。入力したい場合は戻ってコードを入力できます。</string>
+    <string name="qr_scan_permission_btn">カメラを許可</string>
+    <string name="qr_scan_close_btn">カメラを閉じる</string>
+    <string name="qr_badge_family">家族 · 永続</string>
+    <string name="qr_badge_guest">ゲスト · 2時間</string>
+    <string name="pw_guide_title">Remote assist を有効にする方法</string>
+    <string name="pw_guide_intro">下の3つの手順を正確に行ってください — 人生で一度だけ必要です:</string>
+    <string name="pw_step_1">1</string>
+    <string name="pw_step_2">2</string>
+    <string name="pw_step_3">3</string>
+    <string name="pw_step_4">4</string>
+    <string name="pw_guide_step1_text">設定を開いて一覧から「Family Remote Support assist」の行を探します（当アプリの行です — 通常はハイライトされています）。</string>
+    <string name="pw_guide_step2_text">その行をタップしてスイッチをオン（ON）にします。</string>
+    <string name="pw_guide_step3_text">Android の警告が表示されたら「Allow（許可）」をタップします。</string>
+    <string name="pw_guide_warning">⚠️ 注意：「Accessibility menu shortcut」など別のスイッチをオンにしても動作しません — それは当アプリのものではありません！正しいのは「Family Remote Support assist」の行だけです。</string>
+    <string name="pw_guide_privacy">入力のためだけに、サービスはフォーカス中のテキストボックスを見つけます — しかしアプリは画面の文字を読み取らず、保存せず、送信もしません。役割はタップと文字の入力だけです。いつでも同じ場所でオフにできます。</string>
+    <string name="pw_open_settings">設定を開く</string>
+    <string name="pw_later">後で</string>
+    <string name="pw_title">権限チェック</string>
+    <string name="pw_intro">このアプリはあなたの許可があって初めて動作します。下の4つを一度オンにすれば、すべての機能がスムーズに動きます。</string>
+    <string name="pw_all_done">すべて完了！アプリはフル稼働の準備ができました。</string>
+    <string name="pw_progress">%1$d/4 オン — 残り: %2$s</string>
+    <string name="pw_perm_notif">通知</string>
+    <string name="pw_perm_camera">カメラ</string>
+    <string name="pw_perm_assist_title">Remote assist · リモートタッチ</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">バッテリー最適化の除外</string>
+    <string name="pw_perm_notif_desc">セッションのリクエストが届くと、スマホがお知らせします。</string>
+    <string name="pw_perm_camera_desc">ペアリング用QRコードのスキャンに必要です（コードを入力する場合は不要）。</string>
+    <string name="pw_perm_assist_desc">助ける人があなたの画面をタップできます。画面の内容は読み取りません — タップだけです。</string>
+    <string name="pw_perm_battery_desc">アプリがバックグラウンドでもメッセージは時間どおりに届きます。</string>
+    <string name="pw_allow_btn">許可</string>
+    <string name="pw_setup_open_btn">セットアップを開く</string>
+    <string name="pw_screen_share_note">画面共有の権限は、共有を開始するたびに Android 自身が尋ねます — セキュリティのため事前に許可できません。</string>
+    <string name="pw_done_btn">完了</string>
+    <string name="pw_status_done">✓ オン</string>
+    <string name="pw_status_pending">⬜ 未設定</string>
 </resources>
