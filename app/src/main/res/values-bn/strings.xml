@@ -10,6 +10,9 @@
     <string name="pres_online">অনলাইন</string>
     <string name="pres_offline">অফলাইন</string>
     <string name="pres_checking">দেখা হচ্ছে…</string>
+    <string name="pres_unavailable">উপস্থিতি জানা যাচ্ছে না</string>
+    <string name="pres_never_seen">কখনো দেখা যায়নি</string>
+    <string name="pres_last_seen_min">%1$d মিনিট আগে শেষ দেখা গেছে</string>
 
     <string name="cmn_ok">ঠিক আছে</string>
     <string name="cmn_details">বিস্তারিত</string>
@@ -381,6 +384,7 @@
     <string name="err_pair_family_exists">This pair is already linked as Family (permanent) — no guest code needed here.</string>
     <string name="err_pair_guest_exists">This pair is linked as a Guest. To make it Family, remove the Guest link from the help-receiving phone and issue a new Family code.</string>
     <string name="err_generic">Firestore error %1$s: %2$s</string>
+    <string name="err_quota">আজকের Firebase ফ্রি ব্যবহার-সীমা শেষ — প্রতিদিন দুপুরের দিকে কোটা রিসেট হলে সব আবার কাজ করবে। কোনো তথ্য হারায়নি।</string>
     <string name="cd_details">Details</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
