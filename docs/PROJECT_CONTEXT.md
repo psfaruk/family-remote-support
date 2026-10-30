@@ -1,8 +1,8 @@
 # PROJECT_CONTEXT — Remote Family Support & Device Assistance Platform
 
 > Master-plan shared-context document (required by the coordinated multi-agent workflow).
-> **Status: PLANNING (Phase 21 / master-plan M0–M1) — implementation (M2+) must NOT start before the Owner approves this document set.**
-> Created: 2026-10-31 (Asia/Dhaka) · HEAD at creation: `cf87601` · Build: **v0.29.0 (versionCode 48)** · CI: Android Build SUCCESS (run 41105504900)
+> **Status: IMPLEMENTATION (Phase 21 / master-plan M2 shipped 2026-10-31 — the Owner approved the M1 doc set with the "M2 শুরু করো" command).**
+> Created: 2026-10-31 (Asia/Dhaka) · HEAD at creation: `cf87601` · Build now: **v0.30.0 (versionCode 49)** — first master-plan implementation release (NAVIGATION_MAP §6)
 > Repo: `psfaruk/family-remote-support` (public, branch `main`, sole committer pipeline: Contents-API push + readback-verify)
 
 ---
@@ -56,9 +56,12 @@ is a hard design constraint.
   `Spacing` object, `ThemePrefBus` (system/light/dark, persisted). No dynamic color.
 - **i18n (`ui/Lang.kt`)**: `LangPrefBus`, 15 languages (bn/en/ar/de/es/fr/hi/id/ja/ne/pt/ru/tr/ur/zh),
   persisted `SharedPreferences`, `attachBaseContext` wrap, Activity recreate on change.
-  `strings.xml` ≈374–377 keys × 15. Residual user-visible hardcoded Bengali ≈ **16 lines**
-  (ScreenShareEngine assist-ack toasts, SessionRepo status lines, 2 AuthGate a11y labels);
-  ~3 keys missing translation per locale.
+  `strings.xml` ≈374–377 keys × 15 (M2: +16 — nav rename ×2 + notifications ×14; 2 legacy nav
+  keys removed). Residual user-visible hardcoded Bengali ≈ **15 lines**
+  (ScreenShareEngine assist-ack toasts, SessionRepo status lines, 2 AuthGate a11y labels;
+  the top-bar title hardcoded line is FIXED in M2); ~3 keys missing translation per locale;
+  **M2 discovery: ~203 legacy keys are default↔bn inverted** (Bengali in `values/`, English in
+  `values-bn/`) — recorded, fix = M4/M8 i18n wave.
 - Reusable composables (`SectionCard`, `AppListTile`, `SettingsTile`, `EmptyState`,
   `IconStatusTile`, `QuickActionTile`, `BigButton`, `StatusBadge`, …) are **file-private** in
   MainActivity — no cross-file component library yet.
@@ -142,10 +145,17 @@ viewer; consent modal + stop controls always visible. Remote interaction =
 must be corrected in M2 (Agent 2-a risk #9). Android re-consent behavior documented in
 ANDROID_PERMISSION_MATRIX.md; no bypass of system dialogs anywhere.
 
-## 10. Navigation structure (current) — see NAVIGATION_MAP.md for the target map
+## 10. Navigation structure (current, post-M2) — NAVIGATION_MAP.md is the target map
 
-Manual 4-tab shell + overlay stack (details in §3). Bell → Settings (temporary); a dedicated
-notifications surface is planned at M2/M8.
+**Navigation-Compose shell (Decision C3 adopted at the M2 spike):** `MainActivity` composes a
+`NavHost` with the 4 tab destinations (home / add / tracking / settings) + a `notifications`
+route; routes, `goTab` (saveState/restoreState) and the top/bottom bars live in
+`ui/nav/AppNav.kt`; per-destination scroll columns preserve Phase-11.6 behavior. Bell →
+notifications surface (`ui/notifications/NotificationsScreen.kt`, real events only, in-memory).
+Overlays (wizard, pair sheet, consent modal, session dialogs, fullscreen viewer) keep their
+pre-M2 composition sites. Deliberate delta: system back from a non-start tab returns Home
+before exiting (platform-standard). Remaining manual parts (session/assistant flows, screens)
+extract progressively M3+.
 
 ## 11. Design system (current)
 
@@ -167,20 +177,21 @@ ANDROID_PERMISSION_MATRIX.md.
 ## 13. Dependencies & versions (pinned)
 
 AGP 8.5.2 · Kotlin 2.0.20 (+compose plugin) · Compose BOM 2024.09.03 · Firebase BoM 33.4.0
-(auth/firestore/messaging only) · Credential Manager 1.3.0 + googleid 1.1.1 · CameraX 1.3.4 ·
+(auth/firestore/messaging only) · Credential Manager 1.3.0 + googleid 1.1.1 · **navigation-compose 2.8.2 (added M2)** · CameraX 1.3.4 ·
 ML Kit barcode 17.2.0 · zxing 3.5.3 · stream-webrtc-android 1.3.8 · work-runtime 2.9.1 ·
 minSdk 26 / targetSdk 34 / compileSdk 34 / JDK 17 · ABIs armv7+arm64 · `isMinifyEnabled=false`
-(no R8), **no test source set**. Planned additions (M2/M5, require approval):
-`androidx.navigation:navigation-compose`, `lifecycle-viewmodel-compose`,
-`play-services-location`, `org.osmdroid:osmdroid-android`.
+(no R8), **no test source set**. `androidx.navigation:navigation-compose:2.8.2` ADDED in M2
+(approved via the Owner's M2-start command; C4 minimal-deps note recorded in build.gradle).
+Remaining planned additions: `lifecycle-viewmodel-compose` (M3), `play-services-location`,
+`org.osmdroid:osmdroid-android` (M5, require approval).
 
 ## 14. Known bugs, debt & incomplete features (audit-verified)
 
 1. Live location tab = placeholder promise with permanent nav slot (`MainActivity.kt:3038-3046`).
-2. ~16 user-visible hardcoded Bengali/English string lines outside resources (assist-ack toasts,
-   session status lines, top-bar title `MainActivity.kt:1273`, service channel text, 2 a11y labels).
+2. ~15 user-visible hardcoded Bengali/English string lines outside resources (assist-ack toasts,
+   session status lines, service channel text, 2 a11y labels) — top-bar title fixed in M2.
 3. Manifest/assist-config documentation drift (`canRetrieveWindowContent`).
-4. Bell routes to Settings instead of a notifications surface.
+4. ~~Bell routes to Settings~~ FIXED M2: bell opens the dedicated notifications surface.
 5. Several listeners swallow errors (`onError = {}`); no uniform loading/error component.
 6. ~3 untranslated keys per locale; emoji-glyph session keys don't localize.
 7. `isMinifyEnabled=false`; zero tests; 2-ABI WebRTC APK ≈ 40 MB.
@@ -188,6 +199,7 @@ minSdk 26 / targetSdk 34 / compileSdk 34 / JDK 17 · ABIs armv7+arm64 · `isMini
 9. Docs: `docs/PHASE-0.md` §12 table stale; UI_UX doc frozen at Phase 11.7 (§26 reconciles).
 10. Ops: Cloudflare `FIREBASE_SA_JSON` unset → permanent kill-push tier inactive.
 11. No account-deletion flow (Play-policy consideration if ever published).
+12. **(M2 discovery)** default↔bn locale inversion, ~203 legacy keys (see §3 note) — M4/M8.
 
 ## 15. Security constraints (non-negotiable)
 
@@ -246,9 +258,9 @@ W3 live location (10–13) · W4 remote-support & compat (14, 15, 20) · W5 test
 
 | # | Conflict / decision | Architect resolution (Agent 1) | State |
 |---|---|---|---|
-| C1 | Master instruction tabs = Home/**Add Device**/**Tracking**/Settings vs current Home/Phone/**Live location**/Settings | Adopt instruction labels (strings-only rename; same 4 slots). No 5th tab; Devices/Sessions live under Home + Settings | Planned M2, pending Owner OK |
+| C1 | Master instruction tabs = Home/**Add Device**/**Tracking**/Settings vs current Home/Phone/**Live location**/Settings | Adopt instruction labels (strings-only rename; same 4 slots). No 5th tab; Devices/Sessions live under Home + Settings | ✅ **Implemented M2** (nav_add_device/nav_tracking ×15; PersonAdd icon; 7 tab-pointing copy keys fixed per locale) |
 | C2 | Master section 7 alternative nav (Home/Devices/Sessions/Settings) conflicts with PART 3's four tabs | PART 3 (explicit "exactly four") wins; Devices/Sessions become nested screens + Home sections | Resolved |
-| C3 | Navigation-Compose vs manual state machine | Recommend Navigation-Compose (type-safe routes, back-stack, restoration); fallback = structured manual nested state if migration risk proves high in W1 spike | Decision at M2 spike |
+| C3 | Navigation-Compose vs manual state machine | Recommend Navigation-Compose (type-safe routes, back-stack, restoration); fallback = structured manual nested state if migration risk proves high in W1 spike | ✅ **Resolved M2: ADOPTED** — the W1 spike gate items verified by code inspection (cold-start: no intent logic existed; wizard: app-level overlay; fullscreen: Dialog inside tab content, same unmount semantics as the old when(tab)); Owner device check = TEST_PLAN #7/#8/#24. `lifecycle-viewmodel-compose` deliberately deferred to M3 |
 | C4 | New dependencies (maps/location) vs minimal-deps discipline | Justified: no map/location library exists; osmdroid is Apache-2.0, quota-safe; documented in LIVE_LOCATION_ARCHITECTURE.md | Pending approval |
 | C5 | Read-quota discipline vs feature richness | Location = update-in-place single doc, ≥30 s cadence, excluded from sweeps; budget table in LIVE_LOCATION_ARCHITECTURE.md | Resolved |
 | C6 | UI_UX_DESIGN_SYSTEM.md staleness vs duplication ban | Update-in-place: appended §26 reconciliation; no duplicate design doc | Done (this push) |
