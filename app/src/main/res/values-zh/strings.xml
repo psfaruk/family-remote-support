@@ -102,4 +102,45 @@
     <string name="privacy_body">Family Remote Support 让信任的人之间互相帮忙处理手机问题。本政策准确说明应用会使用哪些数据。\n\n会收集的内容\n• 你的账号：登录时使用的姓名、邮箱和 Google 账号 ID。\n• 你的设备：型号、制造商、Android 版本和应用版本。\n• 一个随机且专属于本应用的设备 ID，用于列出你的手机。\n• 推送令牌：只用来通知你的手机“有人请求帮助你”。\n• 会话记录：谁向谁发起了请求、开始/结束时间以及最终状态。这就是你在应用里看到的真实活动历史。\n\n绝不收集的内容\n• 屏幕内容。实时屏幕画面只存在于你批准的会话期间，直接在两台手机之间传输，不会被保存。\n• 密码、屏幕文字、按键记录或照片。\n• 位置。“实时位置”标签页只是占位——目前不收集任何位置数据。\n\n数据存放在哪里\n只在本应用所属的 Firebase 项目里。不出售、不与广告商共享、不用于追踪。\n\n谁能看到什么\n已配对的帮手可以看到你设备的在线状态，并且必须在你明确批准每个请求之后才能发起会话。你可以随时撤销已配对的手机；退出登录会删除本手机的在线状态和推送令牌。\n\n控制权始终在你手里：每次会话都需要你的实时批准，运行期间会显示清晰的指示器，你可以随时停止。</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">这些规则让 Family Remote Support 对每个人都保持安全。\n\n1. 同意优先。每一次帮助会话都需要在接受帮助的手机上重新明确批准。仅配对本身绝不授予任何访问权限。\n\n2. 配对码只能使用一次，约 5 分钟后过期。每个码只能兑换一次，且只有及时扫描或输入该码的人才能使用。\n\n3. 访客帮助是临时的。访客连接 2 小时后自动失效，绝不会自行变成永久的家庭配对。\n\n4. 你随时可以停止。被帮助的人可以拒绝请求、随时结束进行中的会话，或彻底撤销已配对的手机。\n\n5. 帮手必须可信。只把你的配对码或二维码分享给你真正信任的人。会话进行时帮手能看到你的屏幕——如有疑虑，请先关闭敏感应用。\n\n6. 不做绕过。本应用绝不尝试解锁手机、读取密码、偷偷授予权限，或隐藏会话正在运行的事实。它只在 Android 明确允许的范围内工作。\n\n7. 仅限正当使用。不要用本应用骚扰、监视或胁迫任何人。滥用会导致访问被撤销。\n\n8. 家人优先。本应用只为帮助家人和亲密朋友使用手机而设计——别无其他用途。</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">扫描对方手机的二维码</string>
+    <string name="qr_scan_hint">代码中央的徽标表示角色 — 扫描后会显示角色确认。</string>
+    <string name="qr_scan_permission_text">扫描二维码需要使用相机。您也可以返回手动输入配对码。</string>
+    <string name="qr_scan_permission_btn">允许相机</string>
+    <string name="qr_scan_close_btn">关闭相机</string>
+    <string name="qr_badge_family">家庭 · 永久</string>
+    <string name="qr_badge_guest">访客 · 2小时</string>
+    <string name="pw_guide_title">如何开启远程协助（Remote assist）</string>
+    <string name="pw_guide_intro">严格按下面 3 步操作 — 一生只需做一次：</string>
+    <string name="pw_step_1">1</string>
+    <string name="pw_step_2">2</string>
+    <string name="pw_step_3">3</string>
+    <string name="pw_step_4">4</string>
+    <string name="pw_guide_step1_text">打开设置后在列表中找到「Family Remote Support assist」一行（我们应用的条目 — 通常是高亮的）。</string>
+    <string name="pw_guide_step2_text">点按该行并打开开关（ON）。</string>
+    <string name="pw_guide_step3_text">当 Android 弹出警告时，点按「Allow（允许）」。</string>
+    <string name="pw_guide_warning">⚠️ 注意：开启「Accessibility menu shortcut」或其他开关不会生效 — 那不是我们的！只有「Family Remote Support assist」这一行才是正确的。</string>
+    <string name="pw_guide_privacy">输入时，服务只能找到当前聚焦的文本框 — 应用不会读取、保存或发送屏幕上的任何文字；它只负责点按和插入文字。您随时可以在同一位置关闭它。</string>
+    <string name="pw_open_settings">打开设置</string>
+    <string name="pw_later">稍后</string>
+    <string name="pw_title">权限检查</string>
+    <string name="pw_intro">本应用仅在您授权后工作。只需开启下面 4 项，所有功能即可顺畅运行。</string>
+    <string name="pw_all_done">全部就绪！应用已可全力运行。</string>
+    <string name="pw_progress">已开启 %1$d/4 — 剩余：%2$s</string>
+    <string name="pw_perm_notif">通知</string>
+    <string name="pw_perm_camera">相机</string>
+    <string name="pw_perm_assist_title">Remote assist · 远程触控</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">电池优化豁免</string>
+    <string name="pw_perm_notif_desc">收到会话请求时，手机会通知您。</string>
+    <string name="pw_perm_camera_desc">扫描配对二维码时需要（手动输入配对码则不需要）。</string>
+    <string name="pw_perm_assist_desc">帮助者可以在您的屏幕上点按。不会读取屏幕内容 — 仅限点按。</string>
+    <string name="pw_perm_battery_desc">即使应用在后台运行，消息也会准时送达。</string>
+    <string name="pw_allow_btn">允许</string>
+    <string name="pw_setup_open_btn">打开设置向导</string>
+    <string name="pw_screen_share_note">每次开始共享时，Android 都会自行询问屏幕共享权限 — 出于安全考虑，无法预先授予。</string>
+    <string name="pw_done_btn">完成</string>
+    <string name="pw_status_done">✓ 已开启</string>
+    <string name="pw_status_pending">⬜ 待完成</string>
 </resources>
