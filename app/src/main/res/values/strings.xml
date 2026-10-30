@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Family Remote Support</string>
+    <string name="app_name" translatable="false">Family Remote Support</string>
     <!-- Phase 8 (v0.9.0) — Remote assist accessibility service.
          v0.12.0 (Phase 8.3 completion) — honest wording for the typing
          capability: the service looks at the screen ONLY to find the
          focused text field; the app never reads, stores or sends screen
          text (nothing in the code even could). -->
-    <string name="assist_service_label">Family Remote Support assist</string>
-    <string name="assist_service_description">During a support session a trusted family helper may tap, swipe, long-press and type text on this screen to guide you. The service looks at the screen only to find the focused text field; the app never reads, stores or sends your screen text.</string>
+    <string name="assist_service_label" translatable="false">Family Remote Support assist</string>
+    <string name="assist_service_description" translatable="false">During a support session a trusted family helper may tap, swipe, long-press and type text on this screen to guide you. The service looks at the screen only to find the focused text field; the app never reads, stores or sends your screen text.</string>
 
     <!-- ═══ Phase 16 (v0.20.0) — app language system (ui/Lang.kt) + shell
          strings. Default locale = ENGLISH (Owner: app opens in English);
@@ -123,4 +123,12 @@
     <!-- Usage rules (নীতিমালা) — EN canonical; Bengali in values-bn -->
     <string name="rules_title">Usage rules</string>
     <string name="rules_body">These rules keep Family Remote Support safe for everyone.\n\n1. Consent first. Every single help session needs a fresh, explicit approval on the phone that receives help. Pairing alone never grants access.\n\n2. Pairing codes are one-time and expire in about 5 minutes. A code can be redeemed only once and only by the person who scans or types it in time.\n\n3. Guest help is temporary. A guest connection expires by itself after 2 hours and can never become a permanent family pairing by itself.\n\n4. You can always stop. The person being helped can deny a request, end a running session at any second, or revoke a paired phone completely.\n\n5. The helper must be trusted. Only share your code or QR with people you actually trust. A helper sees your screen while a session runs — close sensitive apps first if you are unsure.\n\n6. No bypassing. The app never tries to unlock a phone, read passwords, silently grant permissions, or hide that a session is running. It only works inside what Android explicitly allows.\n\n7. Fair use only. Do not use the app to harass, spy on, or pressure anyone. Abuse leads to revoked access.\n\n8. Families first. This app is built for helping family members and close friends with their phones — nothing else.</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_channel_name">Support session requests</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_help_requested_title">Help requested</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_help_requested_body">%1$s wants to help with this phone — open to allow or deny.</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_fallback_helper">A family member</string>
 </resources>
