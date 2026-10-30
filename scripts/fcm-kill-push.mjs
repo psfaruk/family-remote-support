@@ -196,10 +196,18 @@ async function patchDoc(docPath, fields, maskPaths) {
  * precondition; true = this tier owns the doc, false = another tier won. */
 async function patchDocIfUnchanged(docPath, fields, maskPaths, expectedUpdateTime) {
   const mask = maskPaths.map((p) => `updateMask.fieldPaths=${encodeURIComponent(p)}`).join("&");
-  const res = await fetch(`${fsBase()}/${docPath}?${mask}`, {
+  // Phase 18.4 fix: on documents.patch the precondition `currentDocument` is a
+  // QUERY PARAMETER, not a body field. The old body placement returned
+  // 400 "Unknown name \"currentDocument\" at 'document'" on EVERY claim, and
+  // the 400-as-claim-lost branch swallowed it — so all three tiers silently
+  // stopped pushing (logs showed success: "N fresh, N claim-lost, 0 pushed").
+  // Proven live against production Firestore: query-param shape → 200 claim
+  // won; stale precondition → rejected (400/409 → false below).
+  const precond = `currentDocument.updateTime=${encodeURIComponent(expectedUpdateTime)}`;
+  const res = await fetch(`${fsBase()}/${docPath}?${mask}&${precond}`, {
     method: "PATCH",
     headers: await authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ fields, currentDocument: { updateTime: expectedUpdateTime } }),
+    body: JSON.stringify({ fields }),
   });
   if (res.ok) return true;
   if (res.status === 409 || res.status === 400) {
