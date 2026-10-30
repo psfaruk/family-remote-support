@@ -62,7 +62,10 @@ fun parsePairingPayload(raw: String): String? {
     Regex("inv=([A-Za-z0-9]+)&tok=([0-9a-fA-F]+)").find(text)?.let { match ->
         return "${match.groupValues[1]}-${match.groupValues[2]}"
     }
-    if (Regex("^[A-Za-z0-9]{4,10}-[0-9a-fA-F]{10,}$").matches(text)) {
+    // v0.25.0 (Phase 18.6): up to 16 id chars — current codes carry 12 (see
+    // INVITE_ID_LENGTH), legacy codes 6; strict length validation stays in
+    // parsePairingCode, this only extracts a typed/manual candidate.
+    if (Regex("^[A-Za-z0-9]{4,16}-[0-9a-fA-F]{10,}$").matches(text)) {
         return text
     }
     return null
