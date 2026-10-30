@@ -1696,3 +1696,36 @@ takeover করতে হলে লাইভ ৫-মিনিট উইন্ড
 **পুশ:** f9f8598 (firestore.rules) + rules-negative-probe.mjs (99ccc6c037) + rules-audit-probe.mjs
 নতুন (0e030a5415) — readback-verify ALL MATCH; লাইভ ruleset 56000301 == রিপো (verify-firebase-state)।
 APK অপরিবর্তিত (v0.24.0/code 43)। পরবর্তী: 18.6 (Android app-logic/state) — Owner-নির্দেশে।
+
+---
+
+## §57 — Phase 18.6 (v0.25.0/code 44): Android app-logic/state deep audit — pairing id ৬→১২ (২০২৬-১০-৩০)
+
+Owner "koro" → 18.6 (18.5 আগের session-এই সম্পূর্ণ: remote 5 commit f9f8598…c26b6c5 + §56)।
+পদ্ধতি: 20 Kotlin ফাইল (12.5K লাইন) — logic স্তর লাইন-বাই-লাইন (SessionRepo / SessionNotifier /
+SignalingRepo / PushTokenService / PresenceRepo / ConfigRepo / PairingRepo / ScreenShareEngine
+পুরোটা / ScreenShareService / AssistService / Fb / App / QrActions / QrScanner / Manifest)।
+
+**একটিই বাস্তব ফিক্স (F1 — §56-এর deferred finding-এর অ্যাপ-অর্ধেক):** পেয়ারিং-ইনভাইট doc-id ৬→১২
+অক্ষর। rules-এ `get: signedIn()` বলে যে-কোনো signed-in অ্যাকাউন্ট id ধরে GET করতে পারে — id-ই পুরো
+ব্রুট-ফোর্স স্পেস: ৩১⁶ ≈ ৮.৯×১০⁸ (~৩০ বিট) এনুমারেবল (৪০৪-GET-ও বিল; লাইভ-ইনভাইট হিট-সান্স ~১.৭%)।
+৩১¹² ≈ ৭.৯×১০¹⁷ (~৫৯.৫ বিট) — এনুমেরেশন গণিতসিদ্ধভাবে মৃত। ফিক্স তিন জায়গায়: PairingRepo
+(INVITE_ID_LENGTH=12 + LEGACY_INVITE_ID_LENGTH=6; parsePairingCode এখন ৩২-অক্ষর নতুন কোড
+*এবং* ২৬-অক্ষর legacy কোড দুটোই গ্রহণ করে — ট্রানজিশনে mixed-ভার্সন জোড়া ভাঙে না: পুরনো
+রেসিপিয়েন্টের ৬-অক্ষর কোড নতুন হেল্পার-ই রিডিম করতে পারে; উল্টো দিকে দুই ফোনেই আপডেট লাগবে —
+পেয়ারিং এমনিতেই version-locked), QrScanner (টাইপ-করা কোড extract-regex `{4,10}`→`{4,16}` —
+কঠোর যাচাই parsePairingCode-তেই আছে), build.gradle 0.24.0/43→0.25.0/44। QR-regex আগেই
+any-length; rules-এ id-দৈর্ঘ্য কনস্ট্রেইন্ট নেই (doc-id path, ফিল্ড নয়) — rules-বদল লাগেনি।
+
+**বাকি সব পর্যবেক্ষণ রেকর্ড-মাত্র (নো-ফিক্স, কারণ যুক্তিসহ):** (১) SessionNotifier-এর `doc.id.hashCode()`
+নোটিফিকেশন-আইডি কলিশন সম্ভব — দুর্লভ, ফল-শূন্য (দুটোই অ্যাপ খোলে); (২) watchSessions `.limit(10)`/সাইড —
+১১+ ওপেন সেশন অদৃশ্য হতে পারে, কিন্তু তার জন্য ১১+ পেয়ারে একসাথে ওপেন সেশন লাগবে (zombie-sweep-গুলো
+রাষ্ট্র স্বল্পস্থায়ী রাখে); (৩) SignalingRepo.clearAsync-vs-watch রেস — epoch+freshness গেট পুরনো
+ডক নিষ্ক্রিয় করে, same-round হারালে হেল্পারের ১২-সে রিট্রাই স্বয়ং-নিরাময় করে; (৪) FCM push-ডেটার
+helperEmail অবিশ্বস্ত ইনপুট — নোটিফিকেশন-টেক্সট plain-text, ইনজেকশন-ভেক্টর নেই; (৫) Manifest
+পরিষ্কার (allowBackup=false, সব non-launcher exported=false, PushTokenService রেজিস্টার্ড)।
+Engine/SessionNotifier/SessionRepo-র v0.21.0+v0.22.0+v0.24.0 হার্ডেনিং-স্তর নতুন কোনো ফাঁক দেখায়নি।
+
+**পুশ:** PairingRepo.kt (48f7d88) + QrScanner.kt (205e75c) + build.gradle.kts (5c9a13f) —
+readback-verify ALL MATCH। APK v0.25.0/code 44 (CI 41063484436)। পরবর্তী: 18.7 (UI/i18n) —
+Owner-নির্দেশে।
