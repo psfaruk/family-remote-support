@@ -5,6 +5,16 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
+- **Phase 18.1–18.8 ✅ (v0.22.0→v0.26.0, versionCode 41→45) — DEEP-AUDIT SERIES, 8 rounds:**
+  Owner-ordered audit chain: pairing/session lifecycle + reboot-reconnect hardening (18.1, v0.22.0/41),
+  fullscreen session-bar UX fix (18.2, v0.23.0/42), streaming touch-latency fix (18.3, v0.24.0/43),
+  notification-chain E2E + latent Firestore precondition bug fixed (18.4, infra), server-side rules
+  hardening + 23-case live probe (18.5, infra), Android app-logic/state audit + pairing-code widening
+  6→12 digits (18.6, v0.25.0/44), UI/i18n audit — notification localization + privacy/rules text in
+  13 more languages, 15-language system complete (18.7, v0.26.0/45), security/privacy audit —
+  free-text size-caps on remaining rules paths + secrets/manifest/logging/worker sweep clean
+  (18.8, infra). **Current build: v0.26.0 (versionCode 45)** — full records in `worklog.md` §55–§59.
+
 - **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
   audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
   the findings) surfaced 30+ real defects; all high/critical ones are fixed in this release.
@@ -385,4 +395,5 @@ and echoed into the run summary (exit 1 fails the build).
 - minSdk 26 / targetSdk 34
 - Every Firestore round-trip has a hard 30 s timeout (`awaitWithTimeout`) + actionable
   Bengali/English error mapping (`describeFirestoreError`)
-- UI language: বাংলা-first bilingual (Phase 9); technical/status strings remain English
+- UI language: 15-language system (bn/en/ar/de/es/fr/hi/id/ja/ne/pt/ru/tr/ur/zh) with an
+  in-app language preference; notifications localized too (Phase 9 → 18.7); default fallback English
