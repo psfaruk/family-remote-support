@@ -1650,3 +1650,49 @@ secret বসান (Firebase service-account JSON-এর পুরো টেক
 "FIREBASE_SA_JSON":true দেখা গেলেই ৬০-সেকেন্ড স্থায়ী টিয়ার যুক্ত হবে (GH-ব্যাকস্টপ আজ থেকে আবার
 সক্রিয়); (২) পুশ-স্মোক-টেস্ট চাইলে আমি sandbox থেকে আবার টেস্ট-সেশন বানিয়ে দিতে পারি। Phase 18.5+
 পরবর্তী Owner-নির্দেশের অপেক্ষায়।
+
+## §56 — Phase 18.5 (infra — APK অপরিবর্তিত): server-side deep audit — rules হার্ডেনিং + ২৩-কেস লাইভ প্রমাণ (২০২৬-১০-৩০)
+
+Owner "Next" → Phase 18.5। পদ্ধতি: rules লাইন-বাই-লাইন → লাইভ-মিল যাচাই → ক্লায়েন্ট-রাইট-পাথ
+ম্যাপিং (SessionRepo/PairingRepo/PresenceRepo-র প্রতিটি set/update-এর ফিল্ডম্যাপ rules-এর
+hasOnly-লিস্টের সাথে হুবহু তুলনা) → নতুন হোস্টাইল-প্রোব → ফিক্স → লাইভ-পুনঃপ্রমাণ।
+
+**বেসলাইন:** LIVE ruleset 2d39a14d == রিপো (drift শূন্য)। ডেটা-স্যানিটি: সেশন/টোকেন/প্রেজেন্স
+সব সুসংগত। ক্লায়েন্ট-রাইট-পাথ: create(১১ ফিল্ড)/grant(৫)/deny(৩)/cancel(৩)/end(৪)/expire(২) —
+সবগুলোই rules-এর অনুমোদিত-কী-তালিকার ভেতরে; killPush* ফিল্ড কোনো ক্লায়েন্ট-ব্রাঞ্চে নেই (marks
+admin-only — ভাল)।
+
+**ফাঁক পাওয়া গেল ও বন্ধ (৬ গ্রুপ, সবই অ্যাপ-আচরণ-সম্মত, শূন্য-ব্রেকেজ):**
+(১) signal-এর ফ্ল্যাট ১০০KB ক্যাপ → প্রতি-টাইপ: cmd/cmdack ≤ ৪০৯৬ (ইঞ্জিনের maxCmdChars=৪০৯৬-এর
+হুবহু প্রতিলিপি — <= ইনক্লুসিভ), watch/bye ≤ ২৫৬ (ইঞ্জিন watch ১৬..৬৪ আশা করে), ice ≤ ১৬৩৮৪,
+offer/answer ১০০KB (SDP-হেডরুম) — হোস্টাইল পার্টিসিপ্যান্ট এখন আর অ্যাস্ক-উইন্ডোতে মেগাবাইট-বাকেট
+ভরতে পারবে না; (২) users/{uid}-এ displayName<৩০০ / email<৩২০ / photoUrl<২০৪৮ (আগে ~১MB ব্লব
+লাগত); (৩) pairingInvitations-এ inviterEmail/recipientDeviceId/recipientDeviceModel টাইপ+সাইজ-বাউন্ড
+(এই ডক যে-কোনো signed-in ব্যবহারকারীর কাছে পঠনযোগ্য — ব্লব-ক্যারিয়ার হতে পারে না); (৪)
+devicePresence-এ heartbeatAt/updatedAt is timestamp (ভুল-টাইপ হার্টবিটে ব্যাজ-গণিত চুপচাপ ভুল বয়স
+দেখাত); (৫) fcmTokens-এ updatedAt is timestamp; (৬) supportSessions create-এ
+requestedAt/createdAt/updatedAt is timestamp (সুইপের freshness-গণিত ভুল-টাইপ requestedAt-এ
+ডক-স্কিপ করত)।
+
+**নতুন প্রোব (scripts/rules-audit-probe.mjs, ২৩ কেস):** সিন্থেটিক family-pair ফিক্সচারে আসল
+atomic-redeem → নিজেদের সেশনে ব্যাটারি। ফল **২৩/২৩ PASS, শূন্য-অবশিষ্ট (SA-ক্লিনআপ ১১/১১ ডক +
+২/২ Auth ইউজার)**। প্রমাণ-সারি: killPushSentAt/killPushStatus/killPushClaimAt জালিয়াতি (পুশ-দমন
+আক্রমণ) = ৪০৩; ভুল-পাশের grant = ৪০৩; sessionEndsAt +২১মিনিট = ৪০৩; deadline +৬মিনিট = ৪০৩;
+cmd ৫০০০/ice ১৭০০০/watch ৩০০ ক্যারেক্টার = ৪০৩; টাইপ 'evil'/ep ৭০/self-aud = ৪০৩;
+EXPIRED-ট্রানজিশনে অতিরিক্ত ফিল্ড = ৪০৩; ৯০০KB displayName/model-int/string-heartbeatAt/string-
+token-updatedAt = ৪০৩; ENDED-সেশনে signal = ৪০৩ (সার্ভার-সাইড উইন্ডো বন্ধ)। পজিটিভ-কন্ট্রোল
+(A0/A1/A7/A9/A17/A20) সব ২০০ — হার্ডেনিং কোনো সৎ-পথ ভাঙেনি। **রিগ্রেশন: পুরনো ২৫-কেস
+negative-probe ২৫/২৫ PASS** (G2-ফিক্সচার-বাগ ঠিক: fixed doc-id নিজেরই CANCELLED অবশিষ্টের সাথে
+৪০৯ করত — এখন প্রতি-রানে ইউনিক id + SA-ক্লিনআপ)।
+
+**তথ্য-স্তরের ফাইন্ডিং (এখনই কোনো বদল নয়, 18.6-প্রার্থী):** (ক) পেয়ারিং-ইনভাইটেশনে RAW টোকেন
+সংরক্ষণ (rules হ্যাশ করতে পারে না বলে v0.21.0-এর ডিজাইন) + ৬-অক্ষর doc-id (৩১⁶ ≈ ৮৮৭M ≈ ৩০-বিট):
+takeover করতে হলে লাইভ ৫-মিনিট উইন্ডোতে আইডি-জাল দিতে হয় — বাস্তবে অসম্ভব-প্রায় (৫০K রিড/সেকেন্ডেও
+পূর্ণ-স্প্যান ≈ ৫ ঘণ্টা; লাইভ-ইনভাইট হিট ≈ ১.৭%), কিন্তু বিলিং-বোমা (৪০৪-GET-ও বিল হয়) সম্ভব —
+আসল প্রতিষেধক: APK-তে id দৈর্ঘ্য ৬→১২ (৩১¹²) + App Check — 18.6-এর Android-অডিটে করার
+সুপারিশ; (খ) config/turn-এর TURN-ক্রেডেনশিয়াল সব signed-in-ই পড়তে পারে (ডিজাইন-অনুযায়ী — গেস্টও
+সেশনে TURN লাগে); (গ) Worker-টিয়ার এখনো FIREBASE_SA_JSON-অপেক্ষায় (Owner অ্যাকশন)।
+
+**পুশ:** f9f8598 (firestore.rules) + rules-negative-probe.mjs (99ccc6c037) + rules-audit-probe.mjs
+নতুন (0e030a5415) — readback-verify ALL MATCH; লাইভ ruleset 56000301 == রিপো (verify-firebase-state)।
+APK অপরিবর্তিত (v0.24.0/code 43)। পরবর্তী: 18.6 (Android app-logic/state) — Owner-নির্দেশে।
