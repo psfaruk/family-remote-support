@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">Este par está vinculado como convidado. Para torná-lo Family, remova o vínculo de convidado no telefone que recebe ajuda e emita um novo código Family.</string>
     <string name="err_generic">Erro do Firestore %1$s: %2$s</string>
     <string name="cd_details">Detalhes</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">Não foi possível enviar o pedido: %1$s</string>
+    <string name="err_answer_failed">Não foi possível responder ao pedido: %1$s</string>
+    <string name="err_end_failed">Não foi possível encerrar a sessão: %1$s</string>
+    <string name="err_create_failed">Não foi possível criar um código: %1$s</string>
+    <string name="err_cancel_failed">Não foi possível cancelar: %1$s</string>
+    <string name="err_revoke_failed">Não foi possível revogar: %1$s</string>
+    <string name="err_remove_failed">Não foi possível remover: %1$s</string>
 </resources>
