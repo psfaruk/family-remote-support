@@ -2097,7 +2097,7 @@ private fun ActivityFeed(user: FirebaseUser) {
         val stop = watchSessions(
             user,
             onUpdate = { sessionSyncError = null; sessions = it },
-            onError = { sessionSyncError = describeFirestoreError(it) }
+            onError = { sessionSyncError = describeFirestoreError(context, it) }
         )
         onDispose { stop() }
     }
@@ -2105,7 +2105,7 @@ private fun ActivityFeed(user: FirebaseUser) {
         val stop = watchRelationships(
             user,
             onUpdate = { relSyncError = null; relationships = it },
-            onError = { relSyncError = describeFirestoreError(it) }
+            onError = { relSyncError = describeFirestoreError(context, it) }
         )
         onDispose { stop() }
     }
@@ -5422,7 +5422,7 @@ private fun ScreenSharePanel(
                     }
                     Text(
                         text = if (assistLive)
-                                stringResource(R.string.ss_touch_hint),
+                                stringResource(R.string.ss_touch_hint)
                         else
                                 stringResource(R.string.ss_tap_fullscreen),
                         style = MaterialTheme.typography.bodySmall
@@ -5458,7 +5458,7 @@ private fun ScreenSharePanel(
             }
             Text(
                 text = if (dataSaver)
-                        stringResource(R.string.ss_ds_on),
+                        stringResource(R.string.ss_ds_on)
                 else
                         stringResource(R.string.ss_ds_off),
                 style = MaterialTheme.typography.bodySmall,
@@ -5485,7 +5485,7 @@ private fun ScreenSharePanel(
             }
             Text(
                 text = if (assistMode)
-                        stringResource(R.string.ss_touch_on_desc),
+                        stringResource(R.string.ss_touch_on_desc)
                 else
                         stringResource(R.string.ss_touch_off_desc),
                 style = MaterialTheme.typography.bodySmall,
