@@ -346,6 +346,8 @@ async function sweepOnce(env, log = () => {}) {
     alreadyPushed: 0,
     claimLost: 0,
     expiredStale: 0,
+    activeDocs: 0,
+    activeExpired: 0,
     errors: [],
   };
 
@@ -523,6 +525,47 @@ async function sweepOnce(env, log = () => {}) {
         `${doc.id}: sweep error — ${String(e && e.message ? e.message : e).slice(0, 160)}`
       );
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // v0.22.0 (Phase 18.1): zombie ACTIVE sessions — a phone rebooted (or both
+  // apps killed) mid-session leaves the doc ACTIVE past its sessionEndsAt;
+  // only a client's lazy expiry used to clear it, and if NO client ever
+  // reopened on that pair, the doc stayed ACTIVE forever (it also kept
+  // filling the apps' capped open-session watch windows — the Owner's
+  // "reboot → family can't reconnect" server-side half). Admin-path
+  // ENDED("timeout") — the identical transition the security rules allow
+  // either participant; oldest zombie first, hard-capped per sweep.
+  // -----------------------------------------------------------------------
+  try {
+    const actives = await queryWhere(env, "supportSessions", "status", "ACTIVE");
+    summary.activeDocs = actives.length;
+    const staleActives = actives
+      .map((doc) => ({ doc, endsAt: fieldGet(doc.fields, "sessionEndsAt") ?? 0 }))
+      .filter((x) => x.endsAt > 0 && now - x.endsAt > EXPIRE_GRACE_MILLIS)
+      .sort((a, b) => a.endsAt - b.endsAt); // oldest zombie first
+    for (const { doc } of staleActives.slice(0, 50)) {
+      try {
+        await patchDoc(
+          env,
+          `supportSessions/${doc.id}`,
+          {
+            status: { stringValue: "ENDED" },
+            endedBy: { stringValue: "timeout" },
+            endedAt: { timestampValue: new Date().toISOString() },
+            updatedAt: { timestampValue: new Date().toISOString() },
+          },
+          ["status", "endedBy", "endedAt", "updatedAt"]
+        );
+        summary.activeExpired += 1;
+      } catch {
+        /* best effort — the client sweeps also perform this transition */
+      }
+    }
+  } catch (e) {
+    summary.errors.push(
+      `active-sweep failed — ${String(e && e.message ? e.message : e).slice(0, 120)}`
+    );
   }
 
   return summary;
