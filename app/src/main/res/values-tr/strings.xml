@@ -4,8 +4,10 @@
          doc bodies intentionally live only in values/ (EN) and values-bn/
          (BN); this locale falls back to the English doc text by design. -->
     <string name="nav_home">Ana sayfa</string>
-    <string name="nav_phone">Telefon</string>
-    <string name="nav_location">Canlı konum</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_phone -->
+    <string name="nav_add_device">Cihaz Ekle</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_location -->
+    <string name="nav_tracking">Takip</string>
     <string name="nav_settings">Ayarlar</string>
     <string name="pres_online">Çevrim içi</string>
     <string name="pres_offline">Çevrim dışı</string>
@@ -158,14 +160,14 @@
     <string name="push_failed">Push kurulumu başarısız: %1$s</string>
     <string name="assist_touch_hint">Dokunma açıkken Back · Home · Recents onların telefonunda çalışır</string>
     <string name="cd_notifications">Bildirimler</string>
-    <string name="hint_requested">%1$s kişisine izin isteği gönderildi — ayrıntılar \'Telefon\' sekmesinde.</string>
-    <string name="hint_active">%1$s telefonunda oturum sürüyor — video \'Telefon\' sekmesinde.</string>
-    <string name="hint_helping">%1$s telefonunuzda yardımcı oluyor — ayrıntılar \'Telefon\' sekmesinde.</string>
+    <string name="hint_requested">%1$s kişisine izin isteği gönderildi — ayrıntılar \'Cihaz Ekle\' sekmesinde.</string>
+    <string name="hint_active">%1$s telefonunda oturum sürüyor — video \'Cihaz Ekle\' sekmesinde.</string>
+    <string name="hint_helping">%1$s telefonunuzda yardımcı oluyor — ayrıntılar \'Cihaz Ekle\' sekmesinde.</string>
     <string name="cons_label">Onay istendi</string>
     <string name="cons_body">%1$s bu telefonda yardımcı olmak istiyor.</string>
     <string name="cons_guest_note">Misafir (geçici) yardımcı — bu bağlantı paylaşımdan 2 saat sonra kendiliğinden silinir; oturum da bu sürede biter.</string>
     <string name="cons_expiry">Yalnızca kişiyi tanıyorsanız onaylayın. İstek %1$s içinde sona erecek.</string>
-    <string name="msg_allow_ok">İzin verildi ✓ — oturumu \'Telefon\' sekmesinde görün.</string>
+    <string name="msg_allow_ok">İzin verildi ✓ — oturumu \'Cihaz Ekle\' sekmesinde görün.</string>
     <string name="msg_allow_fail">İzin verilemedi: %1$s</string>
     <string name="btn_allow">İzin ver</string>
     <string name="msg_deny_ok">İstek reddedildi.</string>
@@ -186,14 +188,14 @@
     <string name="feed_active_mine">%1$s telefonunuzda yardımcı oluyor</string>
     <string name="feed_need_decision">Ana sekmesinde İzin ver/Reddet kararını verin · kalan %1$s</string>
     <string name="feed_awaiting">Onay bekleniyor · kalan %1$s</string>
-    <string name="feed_in_progress">\'Telefon\' sekmesinde video ve kontrol · %1$s\'de bitecek</string>
+    <string name="feed_in_progress">\'Cihaz Ekle\' sekmesinde video ve kontrol · %1$s\'de bitecek</string>
     <string name="feed_last_title">Son oturum</string>
     <string name="feed_last_sub">%1$s → %2$s</string>
     <string name="feed_ended_by"> · bitiren: %1$s</string>
     <string name="devices_title">Bağlı telefonlar</string>
-    <string name="devices_info">Hesabınıza bağlı güvenilir telefonlar ve çevrimiçi durumları. Eklemek/kaldırmak için \'Telefon\' sekmesine bakın.</string>
+    <string name="devices_info">Hesabınıza bağlı güvenilir telefonlar ve çevrimiçi durumları. Eklemek/kaldırmak için \'Cihaz Ekle\' sekmesine bakın.</string>
     <string name="devices_empty_title">Henüz telefon bağlı değil</string>
-    <string name="devices_empty_hint">Güvenilir bir telefon bağlamak için \'Telefon\' sekmesinden kod oluşturun.</string>
+    <string name="devices_empty_hint">Güvenilir bir telefon bağlamak için \'Cihaz Ekle\' sekmesinden kod oluşturun.</string>
     <string name="rel_you_help">Siz yardım ediyorsunuz</string>
     <string name="rel_helping">Yardım ediyor</string>
     <string name="rel_helps_you">Size yardım ediyor</string>
@@ -389,4 +391,21 @@
     <string name="err_cancel_failed">İptal edilemedi: %1$s</string>
     <string name="err_revoke_failed">Geri alınamadı: %1$s</string>
     <string name="err_remove_failed">Kaldırılamadı: %1$s</string>
+
+    <!-- ═══ Phase 21/M2 (v0.30.0) — notifications surface (real events
+         only; see ui/notifications/NotificationsScreen.kt). ═══ -->
+    <string name="notif_title">Bildirimler</string>
+    <string name="notif_section_attention">İlginizi bekliyor</string>
+    <string name="notif_section_live">Aktif oturumlar</string>
+    <string name="notif_item_ask">Bir destek isteği yanıtınızı bekliyor</string>
+    <string name="notif_item_perms">İzinler eksik — %2$d izinden %1$d açık</string>
+    <string name="notif_item_setup">Bu cihazda bir kurulum adımı başarısız oldu</string>
+    <string name="notif_open_home">Ayrıntılar için Giriş sekmesini açın</string>
+    <string name="notif_open_wizard">İzin listesini gözden geçirmek için dokunun</string>
+    <string name="notif_sess_requested">%1$s için destek isteği bekliyor</string>
+    <string name="notif_sess_active_you">Şu anda %1$s kişisine yardım ediyorsunuz</string>
+    <string name="notif_sess_active_other">%1$s şu anda size yardım ediyor</string>
+    <string name="notif_empty_title">Şu anda sizi bekleyen bir şey yok</string>
+    <string name="notif_empty_body">Destek istekleri, aktif oturumlar ve kurulum uyarıları oluşur oluşmaz burada görünür.</string>
+    <string name="notif_hint">Yalnızca gerçek, güncel olaylar — uydurma yok, geçmiş kaydı yok.</string>
 </resources>
