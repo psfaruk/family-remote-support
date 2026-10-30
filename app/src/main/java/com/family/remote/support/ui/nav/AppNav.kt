@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -111,8 +111,8 @@ fun AppTopBar(
 
 /**
  * Phase 21/M2 (v0.30.0) — bottom navigation after the C1 rename
- * (NAVIGATION_MAP §1/§6): Home · **Add Device** (icon PersonAdd) ·
- * **Tracking** · Settings. Strings-only rename in the same 4 slots —
+ * (NAVIGATION_MAP §1/§6): Home · **Add Device** · **Tracking** · Settings.
+ * Strings-only rename in the same 4 slots —
  * no 5th tab; the labels come from `nav_home / nav_add_device /
  * nav_tracking / nav_settings` in all 15 languages. Selection follows
  * the NavHost's current route, so the Notifications surface shows with
@@ -130,7 +130,12 @@ fun AppBottomNav(currentRoute: String?, onSelect: (String) -> Unit) {
         NavigationBarItem(
             selected = currentRoute == AppRoutes.ADD,
             onClick = { onSelect(AppRoutes.ADD) },
-            icon = { Icon(Icons.Filled.PersonAdd, contentDescription = null) },
+            // Icons.Filled.Add (core set): NAVIGATION_MAP §1 said PersonAdd,
+            // but PersonAdd lives in material-icons-extended — unacceptable
+            // here (isMinifyEnabled=false, no R8: extended icons would bloat
+            // the APK). Add is the core-set equivalent for an "add device"
+            // affordance; deviation recorded in the worklog §65 + map.
+            icon = { Icon(Icons.Filled.Add, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_add_device)) }
         )
         NavigationBarItem(
