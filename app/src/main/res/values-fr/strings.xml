@@ -4,8 +4,10 @@
          doc bodies intentionally live only in values/ (EN) and values-bn/
          (BN); this locale falls back to the English doc text by design. -->
     <string name="nav_home">Accueil</string>
-    <string name="nav_phone">Téléphone</string>
-    <string name="nav_location">Position en direct</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_phone -->
+    <string name="nav_add_device">Ajouter un appareil</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_location -->
+    <string name="nav_tracking">Suivi</string>
     <string name="nav_settings">Réglages</string>
     <string name="pres_online">En ligne</string>
     <string name="pres_offline">Hors ligne</string>
@@ -158,14 +160,14 @@
     <string name="push_failed">Échec de la configuration push : %1$s</string>
     <string name="assist_touch_hint">Avec le tactile activé, Back · Home · Recents fonctionnera sur leur téléphone</string>
     <string name="cd_notifications">Notifications</string>
-    <string name="hint_requested">Demande de permission envoyée à %1$s — détails dans l\'onglet « Téléphone ».</string>
-    <string name="hint_active">Session en cours sur le téléphone de %1$s — vidéo dans l\'onglet « Téléphone ».</string>
-    <string name="hint_helping">%1$s vous aide sur votre téléphone — détails dans l\'onglet « Téléphone ».</string>
+    <string name="hint_requested">Demande de permission envoyée à %1$s — détails dans l\'onglet « Ajouter un appareil ».</string>
+    <string name="hint_active">Session en cours sur le téléphone de %1$s — vidéo dans l\'onglet « Ajouter un appareil ».</string>
+    <string name="hint_helping">%1$s vous aide sur votre téléphone — détails dans l\'onglet « Ajouter un appareil ».</string>
     <string name="cons_label">Approbation demandée</string>
     <string name="cons_body">%1$s souhaite aider sur ce téléphone.</string>
     <string name="cons_guest_note">Aide invité (temporaire) — ce lien s\'efface tout seul 2 heures après le partage ; la session se termine aussi dans ce délai.</string>
     <string name="cons_expiry">N\'approuvez que si vous connaissez la personne. La demande expire dans %1$s.</string>
-    <string name="msg_allow_ok">Autorisé ✓ — voyez la session dans l\'onglet « Téléphone ».</string>
+    <string name="msg_allow_ok">Autorisé ✓ — voyez la session dans l\'onglet « Ajouter un appareil ».</string>
     <string name="msg_allow_fail">Impossible d\'autoriser : %1$s</string>
     <string name="btn_allow">Autoriser</string>
     <string name="msg_deny_ok">Demande refusée.</string>
@@ -186,14 +188,14 @@
     <string name="feed_active_mine">%1$s vous aide sur votre téléphone</string>
     <string name="feed_need_decision">Décidez Autoriser/Refuser dans l\'onglet « Accueil » · reste %1$s</string>
     <string name="feed_awaiting">En attente d\'approbation · reste %1$s</string>
-    <string name="feed_in_progress">Vidéo et contrôles dans l\'onglet « Téléphone » · finit à %1$s</string>
+    <string name="feed_in_progress">Vidéo et contrôles dans l\'onglet « Ajouter un appareil » · finit à %1$s</string>
     <string name="feed_last_title">Dernière session</string>
     <string name="feed_last_sub">%1$s → %2$s</string>
     <string name="feed_ended_by"> · terminée par %1$s</string>
     <string name="devices_title">Téléphones liés</string>
-    <string name="devices_info">Téléphones de confiance liés à votre compte et leur état en ligne. Voyez l\'onglet « Téléphone » pour ajouter ou retirer.</string>
+    <string name="devices_info">Téléphones de confiance liés à votre compte et leur état en ligne. Voyez l\'onglet « Ajouter un appareil » pour ajouter ou retirer.</string>
     <string name="devices_empty_title">Aucun téléphone lié pour l\'instant</string>
-    <string name="devices_empty_hint">Créez un code depuis l\'onglet « Téléphone » pour lier un téléphone de confiance.</string>
+    <string name="devices_empty_hint">Créez un code depuis l\'onglet « Ajouter un appareil » pour lier un téléphone de confiance.</string>
     <string name="rel_you_help">Vous aidez</string>
     <string name="rel_helping">Aide</string>
     <string name="rel_helps_you">Vous aide</string>
@@ -389,4 +391,21 @@
     <string name="err_cancel_failed">Impossible d\'annuler : %1$s</string>
     <string name="err_revoke_failed">Impossible de révoquer : %1$s</string>
     <string name="err_remove_failed">Impossible de retirer : %1$s</string>
+
+    <!-- ═══ Phase 21/M2 (v0.30.0) — notifications surface (real events
+         only; see ui/notifications/NotificationsScreen.kt). ═══ -->
+    <string name="notif_title">Notifications</string>
+    <string name="notif_section_attention">Nécessite votre attention</string>
+    <string name="notif_section_live">Sessions en cours</string>
+    <string name="notif_item_ask">Une demande d\'assistance attend votre réponse</string>
+    <string name="notif_item_perms">Autorisations incomplètes — %1$d sur %2$d activées</string>
+    <string name="notif_item_setup">Une étape de configuration a échoué sur cet appareil</string>
+    <string name="notif_open_home">Ouvrez l\'onglet « Accueil » pour les détails</string>
+    <string name="notif_open_wizard">Touchez pour consulter la liste des autorisations</string>
+    <string name="notif_sess_requested">Demande d\'assistance en attente pour %1$s</string>
+    <string name="notif_sess_active_you">Vous aidez actuellement %1$s</string>
+    <string name="notif_sess_active_other">%1$s vous aide actuellement</string>
+    <string name="notif_empty_title">Rien n\'attend votre attention</string>
+    <string name="notif_empty_body">Les demandes d\'assistance, sessions en cours et alertes de configuration apparaissent ici dès qu\'elles surviennent.</string>
+    <string name="notif_hint">Uniquement des événements réels et actuels — rien d\'inventé, aucun historique.</string>
 </resources>
