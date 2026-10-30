@@ -10,6 +10,9 @@
     <string name="pres_online">В сети</string>
     <string name="pres_offline">Не в сети</string>
     <string name="pres_checking">Проверяем…</string>
+    <string name="pres_unavailable">статус недоступен</string>
+    <string name="pres_never_seen">ни разу не выходил</string>
+    <string name="pres_last_seen_min">был онлайн %1$d мин назад</string>
     <string name="cmn_ok">ОК</string>
     <string name="cmn_details">Подробнее</string>
     <string name="home_tagline">Удалённая помощь для телефонов семьи — всегда с ясного разрешения.</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">Эта пара уже связана как Family (постоянно) — гостевой код здесь не нужен.</string>
     <string name="err_pair_guest_exists">Эта пара связана как гость. Чтобы сделать её семейной, удалите гостевую связь на принимающем помощь телефоне и выдайте новый код Family.</string>
     <string name="err_generic">Ошибка Firestore %1$s: %2$s</string>
+    <string name="err_quota">Бесплатный дневной лимит Firebase исчерпан — всё снова заработает после ежедневного сброса квоты (около полудня). Данные не потеряны.</string>
     <string name="cd_details">Подробности</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
