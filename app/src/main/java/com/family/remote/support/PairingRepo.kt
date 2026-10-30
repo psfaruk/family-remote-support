@@ -246,7 +246,7 @@ fun generateInviteCode(): InviteCode {
  * code (6+20, minted by older APKs) — both redeem; anything else is rejected
  * with an honest message that names both formats.
  */
-fun parsePairingCode(raw: String): InviteCode {
+fun parsePairingCode(context: Context, raw: String): InviteCode {
     val cleaned = raw.replace(" ", "").replace("-", "").trim().uppercase()
     val tokenChars = TOKEN_BYTES * 2
     val idLen = when (cleaned.length) {
@@ -378,7 +378,7 @@ suspend fun cancelInvitation(invId: String) {
  * documents first, run every validation, and only then write.
  */
 suspend fun redeemCode(context: Context, user: FirebaseUser, rawCode: String): RelationshipView {
-    val code = parsePairingCode(rawCode)
+    val code = parsePairingCode(context, rawCode)
     val tokenHash = sha256Hex(code.token)
     val db = Fb.db
     return db.runTransaction { tx ->
