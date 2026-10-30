@@ -10,6 +10,9 @@
     <string name="pres_online">متصل</string>
     <string name="pres_offline">غير متصل</string>
     <string name="pres_checking">جارٍ التحقق…</string>
+    <string name="pres_unavailable">حالة التواجد غير متاحة</string>
+    <string name="pres_never_seen">لم يُرَ قط</string>
+    <string name="pres_last_seen_min">آخر ظهور قبل %1$d دقيقة</string>
     <string name="cmn_ok">حسنًا</string>
     <string name="cmn_details">التفاصيل</string>
     <string name="home_tagline">مساعدة عن بُعد لهواتف العائلة — دائمًا بإذن واضح.</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">هذا الزوج مرتبط بالفعل كـ Family (دائم) — لا حاجة لرمز ضيف هنا.</string>
     <string name="err_pair_guest_exists">هذا الزوج مرتبط كضيف. لتحويله إلى Family، أزل ربط الضيف من هاتف المتلقي وأصدر رمز Family جديدًا.</string>
     <string name="err_generic">خطأ Firestore %1$s: %2$s</string>
+    <string name="err_quota">تم استهلاك حد الاستخدام اليومي المجاني لـ Firebase — سيعود كل شيء للعمل بعد إعادة تعيين الحصة اليومية (حوالي منتصف النهار). لم تُفقد أي بيانات.</string>
     <string name="cd_details">التفاصيل</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
