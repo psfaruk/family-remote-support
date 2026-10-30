@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">Bu çift Misafir olarak bağlandı. Family yapmak için yardımı alan telefondan Misafir bağlantısını kaldırın ve yeni bir Family kodu oluşturun.</string>
     <string name="err_generic">Firestore hatası %1$s: %2$s</string>
     <string name="cd_details">Ayrıntılar</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">İstek gönderilemedi: %1$s</string>
+    <string name="err_answer_failed">İsteğe yanıt verilemedi: %1$s</string>
+    <string name="err_end_failed">Oturum bitirilemedi: %1$s</string>
+    <string name="err_create_failed">Kod oluşturulamadı: %1$s</string>
+    <string name="err_cancel_failed">İptal edilemedi: %1$s</string>
+    <string name="err_revoke_failed">Geri alınamadı: %1$s</string>
+    <string name="err_remove_failed">Kaldırılamadı: %1$s</string>
 </resources>
