@@ -11,7 +11,7 @@
 | # | Instruction name | Current label | Change | Icon |
 |---|---|---|---|---|
 | 1 | **Home** | Home | keep | `Icons.Filled.Home` |
-| 2 | **Add Device** | Phone | strings-only rename (all 15 locales) | `Icons.Filled.PersonAdd` (icon swap) |
+| 2 | **Add Device** | Phone | strings-only rename (all 15 locales) | `Icons.Filled.Add` — M2 note: §1 originally said PersonAdd, but that icon lives in material-icons-extended (unacceptable: no R8, APK bloat); core-set `Add` shipped instead |
 | 3 | **Tracking** | Live location | strings-only rename | `Icons.Filled.LocationOn` |
 | 4 | **Settings** | Settings | keep | `Icons.Filled.Settings` |
 
