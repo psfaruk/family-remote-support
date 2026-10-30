@@ -278,6 +278,8 @@ export async function sweepOnce(log = console.log) {
     alreadyPushed: 0,
     claimLost: 0,
     expiredStale: 0,
+    activeDocs: 0,
+    activeExpired: 0,
     errors: [],
   };
 
@@ -443,6 +445,44 @@ export async function sweepOnce(log = console.log) {
     }
   }
 
+  // -----------------------------------------------------------------------
+  // v0.22.0 (Phase 18.1): zombie ACTIVE sessions (port of the Worker's
+  // identical sweep) — a phone rebooted (or both apps killed) mid-session
+  // leaves the doc ACTIVE past its sessionEndsAt forever when no client
+  // ever reopens; they filled the apps' capped open-session watch windows
+  // (Owner: "reboot → family can't reconnect"). Admin-path ENDED("timeout")
+  // — the identical transition the rules allow either participant.
+  // -----------------------------------------------------------------------
+  try {
+    const actives = await queryWhere("supportSessions", "status", "ACTIVE");
+    summary.activeDocs = actives.length;
+    const staleActives = actives
+      .map((doc) => ({ doc, endsAt: fieldGet(doc.fields, "sessionEndsAt") ?? 0 }))
+      .filter((x) => x.endsAt > 0 && now - x.endsAt > EXPIRE_GRACE_MILLIS)
+      .sort((a, b) => a.endsAt - b.endsAt); // oldest zombie first
+    for (const { doc } of staleActives.slice(0, 50)) {
+      try {
+        await patchDoc(
+          `supportSessions/${doc.id}`,
+          {
+            status: { stringValue: "ENDED" },
+            endedBy: { stringValue: "timeout" },
+            endedAt: { timestampValue: new Date().toISOString() },
+            updatedAt: { timestampValue: new Date().toISOString() },
+          },
+          ["status", "endedBy", "endedAt", "updatedAt"]
+        );
+        summary.activeExpired += 1;
+      } catch {
+        /* best effort — the client sweeps also perform this transition */
+      }
+    }
+  } catch (e) {
+    summary.errors.push(
+      `active-sweep failed — ${String(e && e.message ? e.message : e).slice(0, 120)}`
+    );
+  }
+
   return summary;
 }
 
@@ -455,6 +495,7 @@ export function formatSummary(s) {
     `sweep: ${s.requestedDocs} REQUESTED doc(s), ${s.fresh} fresh, ` +
     `${s.pushed} pushed, ${s.noTokens} no-tokens, ${s.alreadyPushed} already-pushed, ` +
     `${s.claimLost ?? 0} claim-lost, ${s.expiredStale ?? 0} expired-stale, ` +
+    `${s.activeDocs ?? 0} ACTIVE doc(s), ${s.activeExpired ?? 0} active-expired, ` +
     `${s.tokenErrors} send-failed, ${s.deadTokensDeleted} dead-token(s) cleaned` +
     (s.errors.length ? ` | errors: ${s.errors.join(" ; ")}` : "")
   );
