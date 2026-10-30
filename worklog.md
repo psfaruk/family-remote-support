@@ -1510,8 +1510,14 @@ session পরীক্ষা, শুধু নতুনতম নয়। (৪
 
 যাচাই: node --check worker+script OK; Kotlin static — SessionRepo/MainActivity brace/paren/bracket
 {0,0,0}; isStaleOpen ১-সংজ্ঞা ২-ব্যবহার(+১ কমেন্ট); old limit(1) অপসৃত; ROOT+full sweep উপস্থিত;
-push N কমিট, readback-verify ALL MATCH (Contents API fresh sha256)। [CI + APK ফলাফল push-পরবর্তী
-যোগ হবে]
+push ৭ কমিট (৩dab758→e812227), readback-verify ALL MATCH (Contents API fresh sha256);
+CI: run 41014941966 FAIL — SessionRepo.kt:162 Kotlin-List-এ `stale.isEmpty` প্রপার্টি-সিনট্যাক্স
+(Java-QuerySnapshot-এর synthetic-property প্যাটার্ন Kotlin stdlib-এ নেই) → `isEmpty()` ফাংশন-কল
+ফিক্স e812227 → **run 41015231895 SUCCESS**; APK artifact পুনঃযাচাই verify-apk-axml → PASS
+(code=41 INT_DEC, name=0.22.0, v2-sig, version-স্ট্রিং শুধু [0.22.0]) →
+download/family-remote-support-v0.22.0-code41.apk (39.7 MB); sandbox kill-push mini-service
+(:3020) নতুন sweep-কোডে রিস্টার্ট — health summary-তে activeDocs/activeExpired কাউন্টার লাইভ;
+Cloudflare Worker নতুন কোড Workers-Builds-এ অটো-ডিপ্লয় হবে।
 
 ফেইল/বাকি: (১) Owner-করণীয় — দুই ফোনে v0.22.0 (দুটোতেই! পেয়ারিং ভার্সন-লকড) ইনস্টল করে পরীক্ষা:
 শেয়ার চালু অবস্থায় এক ফোন রিবুট → আবার খুলে সরাসরি নতুন সেশন চাওয়া (নতুন পেয়ারিং লাগবে না);
