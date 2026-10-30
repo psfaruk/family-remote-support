@@ -13,8 +13,12 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        versionCode = 48
-        versionName = "0.29.0"
+        // v0.30.0 (Phase 21/M2 — first master-plan implementation release:
+        // shared shell on Navigation-Compose, C1 tab rename, notifications
+        // surface). NAVIGATION_MAP §6: v0.30.0/49 is the first-implementation
+        // version; each later M-milestone increments from here.
+        versionCode = 49
+        versionName = "0.30.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
@@ -97,6 +101,13 @@ dependencies {
     // Notifications/Settings…). Version comes from the Compose BOM.
     implementation("androidx.compose.material:material-icons-core")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Phase 21/M2 (v0.30.0, Decision C3 spike) — Navigation-Compose shell:
+    // 4 tabs + notifications route with saveState/restoreState. 2.8.x is
+    // the release-line matching Compose BOM 2024.09.03 (compose 1.7.x).
+    // lifecycle-viewmodel-compose deliberately NOT added yet — ViewModels
+    // arrive with M3 screen extraction; minimal-deps discipline (C4).
+    implementation("androidx.navigation:navigation-compose:2.8.2")
 
     // Firebase (Phase 2) — BoM keeps all Firebase versions in sync
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
