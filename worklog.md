@@ -1729,3 +1729,41 @@ Engine/SessionNotifier/SessionRepo-র v0.21.0+v0.22.0+v0.24.0 হার্ড�
 **পুশ:** PairingRepo.kt (48f7d88) + QrScanner.kt (205e75c) + build.gradle.kts (5c9a13f) —
 readback-verify ALL MATCH। APK v0.25.0/code 44 (CI 41063484436)। পরবর্তী: 18.7 (UI/i18n) —
 Owner-নির্দেশে।
+
+## §58 — Phase 18.7 (v0.26.0/code 45): UI/i18n deep audit — notification localization + privacy/rules ১৩-ভাষা পূর্ণ (২০২৬-১০-৩০)
+
+Owner "koro" → 18.7 (18.5/18.6 আগের session-এই সম্পূর্ণ: remote HEAD a447e85 + §56–§57)।
+পদ্ধতি: ২৮ ফাইল remote থেকে blob-SHA-ভেরিফাইড ডাউনলোড — ১৫×strings.xml (en + ১৪ লোকেল) + ২০
+Kotlin UI/logic ফাইল + PushTokenService; স্ক্যান: কী-প্যারিটি, প্লেসহোল্ডার-ম্যাচ, aapt2-এস্কেপিং,
+হার্ডকোড-লিটারাল, RTL-প্যাটার্ন, ডার্ক-থিম ওয়্যারিং, নোটিফিকেশন-টেক্সট-উৎস।
+
+**F1 — SessionNotifier পুরোটাই English-হার্ডকোড (ফিক্স):** চ্যানেল-নাম "Support session requests" +
+টাইটেল "Help requested" + বডি "…wants to help…" + ফলব্যাক "A family member", raw context —
+LangPrefBus-এর ১৫-ভাষা ইঞ্জিন সম্পূর্ণ বাইপাস (জাপানি/আরবি ইউজারও English ask-নোটিফিকেশন পেত)।
+ফিক্স: ৪ নতুন কী (notif_channel_name / notif_help_requested_title / notif_help_requested_body
+[%1$s] / notif_fallback_helper) ×১৫ ভাষা; SessionNotifier এখন LangPrefBus.wrap() দিয়ে resolve;
+ফলব্যাক এখন blank-email-ও ধরে (takeIf isNotBlank)। চ্যানেল-নাম ভাষা-বদলের পর পরবর্তী
+প্রসেস-স্টার্টে createNotificationChannel নিজেই আপডেট করে।
+
+**F2 — privacy_body/rules_body ১৩ ভাষায় অনুপস্থিত (ফিক্স):** শুধু en+bn-এ ছিল — hi/ur/ar/de/…
+ইউজার প্রাইভেসি/নীতিমালা ডায়ালগে English দেখত। ১৩ লোকেলে পূর্ণ অনুবাদ যোগ (ar/hi/ne/ur-এ নেটিভ
+অঙ্ক ৫/২; \n/• স্ট্রাকচার en-সোর্সের হুবহু; \' এস্কেপ-ব্যাটারি ০ অবশিষ্ট; ET-parse + কী-প্যারিটি
+রি-অডিট PASS: ৯৬ কী, ০ প্লেসহোল্ডার-মিসম্যাচ, ০ extra)।
+
+**F3 — translatable="false" ডেক্লারেশন:** app_name / assist_service_label / assist_service_description
+সব লোকেলে ইচ্ছাকৃত-অনুপস্থিত কিন্তু ঘোষণাবিহীন ছিল → ডিফল্ট ফাইলে translatable="false" — lint-পরিষ্কার।
+
+**রেকর্ড-মাত্র (নো-ফিক্স):** (১) হার্ডকোড-বাংলা স্ট্রিং-স্টক ~৩০৫ লাইন (MainActivity ২৫৩ /
+PermissionWizard ৪৬ / QrScanner ৬) — i18n ইঞ্জিন বাইপাস; AuthGate সম্পূর্ণ লোকালাইজড (২১
+stringResource); পূর্ণ-নিষ্কাশন = আলাদা ফেজ (Phase 19-প্রার্থী; ডিভাইসে ভিজ্যুয়াল QA দরকার);
+(২) ডার্ক-থিম সঠিক (isSystemInDarkTheme ×২ + darkColorScheme + values-night window_background);
+(৩) RTL ঝুঁকিমুক্ত (AbsoluteAlignment/TextAlign.Left-Right নেই — Compose start/end অটো-মিরর;
+তবে ar/ur ইউজার (১)-এর বাংলা টেক্সট দেখবে — debt-আওতা); (৪) kill-push ডেড-প্রসেস
+নোটিফিকেশন-টেক্সট সার্ভার-পেলোড (fcm-kill-push.mjs) থেকে আসে, English — সার্ভার-সাইড i18n আলাদা
+সিদ্ধান্ত; (৫) PushTokenService ৪৭ লাইন, নোটিফিকেশন-টেক্সট নেই (onMessageReceived লগ-মাত্র)।
+
+**পুশ:** ১৭ ফাইল — ১৫×strings.xml (af9c95c 3e8e563 af6a20d 773e473 78ec32b 1cfaec4 124bb58
+8606867 843e405 12ce51b 3b9becf 73d51ad 9bdf3d3 635731a 1b0b756) + SessionNotifier.kt (e9c60eb) +
+build.gradle.kts 0.25.0/44→0.26.0/45 (4ceae79) — readback-verify ALL MATCH। APK v0.26.0/code 45
+(CI 41067945483 SUCCESS)। Owner-কর্ম: দুই ফোনেই v0.26.0 (code 45) ইনস্টল — একই বিল্ড দুই প্রান্তে।
+পরবর্তী: 18.8 (security/privacy) — Owner-নির্দেশে।
