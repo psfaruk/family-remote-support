@@ -4,8 +4,10 @@
          doc bodies intentionally live only in values/ (EN) and values-bn/
          (BN); this locale falls back to the English doc text by design. -->
     <string name="nav_home">Start</string>
-    <string name="nav_phone">Telefon</string>
-    <string name="nav_location">Live-Standort</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_phone -->
+    <string name="nav_add_device">Gerät hinzufügen</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_location -->
+    <string name="nav_tracking">Tracking</string>
     <string name="nav_settings">Einstellungen</string>
     <string name="pres_online">Online</string>
     <string name="pres_offline">Offline</string>
@@ -158,14 +160,14 @@
     <string name="push_failed">Push-Einrichtung fehlgeschlagen: %1$s</string>
     <string name="assist_touch_hint">Bei aktiviertem Touch funktionieren Back · Home · Recents auf ihrem Telefon</string>
     <string name="cd_notifications">Benachrichtigungen</string>
-    <string name="hint_requested">%1$s wurde um Erlaubnis gebeten — Details im Tab «Telefon».</string>
-    <string name="hint_active">Sitzung läuft auf %1$s\'s Telefon — Video im Tab «Telefon».</string>
-    <string name="hint_helping">%1$s hilft auf Ihrem Telefon — Details im Tab «Telefon».</string>
+    <string name="hint_requested">%1$s wurde um Erlaubnis gebeten — Details im Tab «Gerät hinzufügen».</string>
+    <string name="hint_active">Sitzung läuft auf %1$s\'s Telefon — Video im Tab «Gerät hinzufügen».</string>
+    <string name="hint_helping">%1$s hilft auf Ihrem Telefon — Details im Tab «Gerät hinzufügen».</string>
     <string name="cons_label">Freigabe angefragt</string>
     <string name="cons_body">%1$s möchte auf diesem Telefon helfen.</string>
     <string name="cons_guest_note">Gast-Helfer (temporär) — dieser Link löscht sich 2 Stunden nach dem Teilen selbst; die Sitzung endet ebenfalls innerhalb dieser Frist.</string>
     <string name="cons_expiry">Nur freigeben, wenn Sie die Person kennen. Die Anfrage läuft in %1$s ab.</string>
-    <string name="msg_allow_ok">Erlaubt ✓ — Sitzung im Tab «Telefon» ansehen.</string>
+    <string name="msg_allow_ok">Erlaubt ✓ — Sitzung im Tab «Gerät hinzufügen» ansehen.</string>
     <string name="msg_allow_fail">Erlauben nicht möglich: %1$s</string>
     <string name="btn_allow">Zulassen</string>
     <string name="msg_deny_ok">Anfrage abgelehnt.</string>
@@ -186,14 +188,14 @@
     <string name="feed_active_mine">%1$s hilft auf Ihrem Telefon</string>
     <string name="feed_need_decision">Allow/Deny im Home-Tab entscheiden · noch %1$s</string>
     <string name="feed_awaiting">Warte auf Freigabe · noch %1$s</string>
-    <string name="feed_in_progress">Video &amp; Steuerung im Tab «Telefon» · endet um %1$s</string>
+    <string name="feed_in_progress">Video &amp; Steuerung im Tab «Gerät hinzufügen» · endet um %1$s</string>
     <string name="feed_last_title">Letzte Sitzung</string>
     <string name="feed_last_sub">%1$s → %2$s</string>
     <string name="feed_ended_by"> · beendet von %1$s</string>
     <string name="devices_title">Gekoppelte Telefone</string>
-    <string name="devices_info">Vertraute Telefone Ihres Kontos und ihr Live-Onlinestatus. Zum Hinzufügen/Entfernen den Tab «Telefon» ansehen.</string>
+    <string name="devices_info">Vertraute Telefone Ihres Kontos und ihr Live-Onlinestatus. Zum Hinzufügen/Entfernen den Tab «Gerät hinzufügen» ansehen.</string>
     <string name="devices_empty_title">Noch keine Telefone gekoppelt</string>
-    <string name="devices_empty_hint">Erstellen Sie im Tab «Telefon» einen Code, um ein vertrautes Telefon zu koppeln.</string>
+    <string name="devices_empty_hint">Erstellen Sie im Tab «Gerät hinzufügen» einen Code, um ein vertrautes Telefon zu koppeln.</string>
     <string name="rel_you_help">Sie helfen</string>
     <string name="rel_helping">Hilft</string>
     <string name="rel_helps_you">Hilft Ihnen</string>
@@ -389,4 +391,21 @@
     <string name="err_cancel_failed">Abbrechen nicht möglich: %1$s</string>
     <string name="err_revoke_failed">Widerrufen nicht möglich: %1$s</string>
     <string name="err_remove_failed">Entfernen nicht möglich: %1$s</string>
+
+    <!-- ═══ Phase 21/M2 (v0.30.0) — notifications surface (real events
+         only; see ui/notifications/NotificationsScreen.kt). ═══ -->
+    <string name="notif_title">Benachrichtigungen</string>
+    <string name="notif_section_attention">Braucht Aufmerksamkeit</string>
+    <string name="notif_section_live">Aktive Sitzungen</string>
+    <string name="notif_item_ask">Eine Support-Anfrage wartet auf Ihre Antwort</string>
+    <string name="notif_item_perms">Berechtigungen unvollständig — %1$d von %2$d aktiv</string>
+    <string name="notif_item_setup">Ein Einrichtungsschritt ist auf diesem Gerät fehlgeschlagen</string>
+    <string name="notif_open_home">Details im Tab «Start»</string>
+    <string name="notif_open_wizard">Tippen, um die Berechtigungsliste zu prüfen</string>
+    <string name="notif_sess_requested">Support-Anfrage für %1$s ausstehend</string>
+    <string name="notif_sess_active_you">Sie unterstützen gerade %1$s</string>
+    <string name="notif_sess_active_other">%1$s unterstützt Sie gerade</string>
+    <string name="notif_empty_title">Im Moment nichts für Sie</string>
+    <string name="notif_empty_body">Support-Anfragen, aktive Sitzungen und Einrichtungshinweise erscheinen hier, sobald sie passieren.</string>
+    <string name="notif_hint">Nur echte, aktuelle Ereignisse — nichts Erfundenes, kein Verlauf.</string>
 </resources>
