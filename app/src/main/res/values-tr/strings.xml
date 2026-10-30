@@ -102,4 +102,45 @@
     <string name="privacy_body">Family Remote Support, güvenilir kişilerin telefonlarda birbirine yardım etmesini sağlar. Bu politika, uygulamanın hangi verileri kullandığını tam olarak açıklar.\n\nToplanan veriler\n• Hesabınız: oturum açtığınız ad, e-posta ve Google hesap kimliği.\n• Cihazınız: model, üretici, Android sürümü ve uygulama sürümü.\n• Telefonlarınızın listelenebilmesi için uygulamaya özel rastgele bir cihaz kimliği.\n• Push token: yalnızca telefonunuza birinin yardım istediğini bildirmek için kullanılır.\n• Oturum kayıtları: kim kime istek gönderdi, başlangıç/bitiş zamanı ve son durum. Uygulamada gördüğünüz dürüst etkinlik geçmişi budur.\n\nAsla toplanmayanlar\n• Ekran içeriği. Canlı ekran görüntüsü yalnızca onayladığınız bir oturum sırasında var olur; iki telefon arasında doğrudan aktarılır ve saklanmaz.\n• Şifreler, ekran metni, tuş vuruşları veya fotoğraflar.\n• Konum. Canlı konum sekmesi bir yer tutucudur — bugün hiçbir konum verisi toplanmaz.\n\nVerileriniz nerede yaşıyor\nYalnızca bu uygulamaya ait Firebase projesinde. Satılmaz, reklamverenlerle paylaşılmaz ve izleme için kullanılmaz.\n\nKim neyi görebilir\nEşleştirilmiş bir yardımcı, cihazınızın çevrimiçi durumunu görebilir ve bir oturumu yalnızca her isteği açıkça onayladıktan sonra açabilir. Eşleştirilmiş bir telefonu her zaman iptal edebilirsiniz; oturumu kapatmak bu telefonun varlık ve push token kaydını siler.\n\nKontrol sizde kalır: her oturum canlı onayınızı gerektirir, çalışırken net bir gösterge görüntüler ve dilediğiniz an durdurulabilir.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Bu kurallar Family Remote Support\'u herkes için güvende tutar.\n\n1. Önce izin. Her yardım oturumu, yardımı alan telefonda taze ve açık bir onay gerektirir. Yalnızca eşleştirme asla erişim sağlamaz.\n\n2. Eşleştirme kodları tek kullanımlıktır ve yaklaşık 5 dakika içinde geçersiz olur. Bir kod yalnızca bir kez ve yalnızca onu zamanında tarayan veya yazan kişi tarafından kullanılabilir.\n\n3. Konuk yardımı geçicidir. Konuk bağlantısı 2 saat sonra kendiliğinden sona erer ve asla kendiliğinden kalıcı bir aile eşleştirmesine dönüşemez.\n\n4. Her zaman durdurabilirsiniz. Yardım alan kişi bir isteği reddedebilir, devam eden bir oturumu her an bitirebilir veya eşleştirilmiş bir telefonu tamamen iptal edebilir.\n\n5. Yardımcı güvenilir olmalıdır. Kodunuzu veya QR\'ınızı yalnızca gerçekten güvendiğiniz kişilerle paylaşın. Oturum sürerken yardımcı ekranınızı görür — emin değilseniz önce hassas uygulamaları kapatın.\n\n6. Atlatma yok. Uygulama asla bir telefonun kilidini açmaya, şifre okumaya, sessizce izin vermeye veya oturumun sürdüğünü gizlemeye çalışmaz. Yalnızca Android\'in açıkça izin verdiği çerçevede çalışır.\n\n7. Yalnızca adil kullanım. Uygulamayı kimseyi rahatsız etmek, casusluk yapmak veya baskı kurmak için kullanmayın. Kötüye kullanım erişimin iptaline yol açar.\n\n8. Önce aile. Bu uygulama, aile üyelerine ve yakın arkadaşlara telefonlarında yardım etmek için yapılmıştır — başka hiçbir şey için değil.</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">Diğer telefonun QR kodunu tarayın</string>
+    <string name="qr_scan_hint">Kodun ortasındaki simge rolü gösterir — taramadan sonra rol onayı görünecektir.</string>
+    <string name="qr_scan_permission_text">QR kod taramak için kamera gerekir. İsterseniz geri dönüp kodu yazarak da bağlanabilirsiniz.</string>
+    <string name="qr_scan_permission_btn">Kameraya izin ver</string>
+    <string name="qr_scan_close_btn">Kamerayı kapat</string>
+    <string name="qr_badge_family">Aile · kalıcı</string>
+    <string name="qr_badge_guest">Misafir · 2 saat</string>
+    <string name="pw_guide_title">Remote assist nasıl açılır</string>
+    <string name="pw_guide_intro">Aşağıdaki 3 adımı birebir uygulayın — hayatta yalnızca bir kez gerekecek:</string>
+    <string name="pw_step_1">1</string>
+    <string name="pw_step_2">2</string>
+    <string name="pw_step_3">3</string>
+    <string name="pw_step_4">4</string>
+    <string name="pw_guide_step1_text">Ayarları açın ve listede \"Family Remote Support assist\" satırını bulun (bizim uygulamanınki — genellikle vurgulanır).</string>
+    <string name="pw_guide_step2_text">Satıra dokunun ve düğmeyi açın (ON).</string>
+    <string name="pw_guide_step3_text">Android uyarısı çıktığında Allow (İzin ver) düğmesine dokunun.</string>
+    <string name="pw_guide_warning">⚠️ Dikkat: \"Accessibility menu shortcut\" veya başka bir düğmeyi açmak işe yaramaz — o bizimki değil! Doğru olan yalnızca \"Family Remote Support assist\" satırıdır.</string>
+    <string name="pw_guide_privacy">Yazmak için hizmet yalnızca odaktaki metin kutusunu bulur — ancak uygulama ekranınızdaki hiçbir metni okumaz, kaydetmez, göndermez; görevi yalnızca dokunmak ve metin yerleştirmektir. İstediğiniz zaman aynı yerden kapatabilirsiniz.</string>
+    <string name="pw_open_settings">Ayarları aç</string>
+    <string name="pw_later">Sonra</string>
+    <string name="pw_title">İzin kontrolü</string>
+    <string name="pw_intro">Bu uygulama yalnızca sizin izninizle çalışır. Aşağıdaki 4 şeyi bir kez açın, tüm özellikler sorunsuz çalışır.</string>
+    <string name="pw_all_done">Her şey hazır! Uygulama tam güçle çalışmaya hazır.</string>
+    <string name="pw_progress">%1$d/4 açık — kalan: %2$s</string>
+    <string name="pw_perm_notif">Bildirimler</string>
+    <string name="pw_perm_camera">Kamera</string>
+    <string name="pw_perm_assist_title">Remote assist · uzaktan dokunma</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">Pil muafiyeti</string>
+    <string name="pw_perm_notif_desc">Oturum isteği geldiğinde telefon sizi bilgilendirecek.</string>
+    <string name="pw_perm_camera_desc">Eşleştirme QR kodunu taramak için gerekir (kodu yazarsanız gerekmez).</string>
+    <string name="pw_perm_assist_desc">Yardım eden kişi ekranınıza dokunabilir. Ekrandaki hiçbir şey okunmaz — sadece dokunuş.</string>
+    <string name="pw_perm_battery_desc">Uygulama arka planda olsa bile mesajlar zamanında ulaşır.</string>
+    <string name="pw_allow_btn">İzin ver</string>
+    <string name="pw_setup_open_btn">Kurulumu aç</string>
+    <string name="pw_screen_share_note">Ekran paylaşma iznini her paylaşım başında Android kendisi sorar — güvenlik nedeniyle önceden verilemez.</string>
+    <string name="pw_done_btn">Tamam</string>
+    <string name="pw_status_done">✓ Açık</string>
+    <string name="pw_status_pending">⬜ Bekliyor</string>
 </resources>
