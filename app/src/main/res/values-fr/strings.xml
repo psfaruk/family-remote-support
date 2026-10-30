@@ -102,4 +102,45 @@
     <string name="privacy_body">Family Remote Support aide des personnes de confiance à s\'entraider avec leurs téléphones. Cette politique explique exactement quelles données l\'application utilise.\n\nCe qui est collecté\n• Votre compte : nom, e-mail et identifiant du compte Google avec lequel vous vous connectez.\n• Votre appareil : modèle, fabricant, version d\'Android et version de l\'application.\n• Un identifiant d\'appareil aléatoire propre à l\'app, pour que vos téléphones puissent être listés.\n• Jeton push : sert uniquement à prévenir votre téléphone que quelqu\'un a demandé à vous aider.\n• Journaux de session : qui a demandé quoi à qui, heures de début/fin et statut final. C\'est l\'historique d\'activité honnête que vous voyez dans l\'app.\n\nCe qui n\'est JAMAIS collecté\n• Le contenu de l\'écran. La vidéo d\'écran en direct n\'existe que pendant une session que vous avez approuvée ; elle est transmise directement entre les deux téléphones et n\'est pas stockée.\n• Mots de passe, texte affiché, frappes clavier ou photos.\n• Localisation. L\'onglet Localisation en direct est un simple emplacement réservé — rien n\'est collecté aujourd\'hui.\n\nOù résident vos données\nUniquement dans le projet Firebase qui appartient à cette app. Elles ne sont ni vendues, ni partagées avec des annonceurs, ni utilisées pour du pistage.\n\nQui voit quoi\nUn assistant appairé peut voir le statut en ligne de votre appareil et ne peut ouvrir une session qu\'après votre approbation explicite de chaque demande. Vous pouvez révoquer un téléphone appairé à tout moment, et la déconnexion efface la présence et le jeton push de ce téléphone.\n\nVous gardez le contrôle : chaque session exige votre approbation en direct, affiche un indicateur clair pendant son exécution et peut être arrêtée à tout moment.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Ces règles maintiennent Family Remote Support sûr pour tous.\n\n1. Le consentement d\'abord. Chaque session d\'aide exige une approbation fraîche et explicite sur le téléphone qui reçoit l\'aide. L\'appairage seul ne donne jamais d\'accès.\n\n2. Les codes d\'appairage sont à usage unique et expirent au bout d\'environ 5 minutes. Un code ne peut être utilisé qu\'une seule fois et seulement par la personne qui le scanne ou le saisit à temps.\n\n3. L\'aide invité est temporaire. Une connexion invité expire d\'elle-même après 2 heures et ne peut jamais devenir seule un appairage familial permanent.\n\n4. Vous pouvez toujours arrêter. La personne aidée peut refuser une demande, mettre fin à une session en cours à tout moment ou révoquer complètement un téléphone appairé.\n\n5. L\'assistant doit être digne de confiance. Ne partagez votre code ou QR qu\'avec des personnes en qui vous avez réellement confiance. Un assistant voit votre écran pendant la session — fermez d\'abord les applications sensibles en cas de doute.\n\n6. Aucune dérobade. L\'app ne tente jamais de déverrouiller un téléphone, de lire des mots de passe, d\'accorder des autorisations en silence ni de masquer qu\'une session est en cours. Elle ne fonctionne que dans ce qu\'Android autorise explicitement.\n\n7. Usage équitable uniquement. N\'utilisez pas l\'app pour harceler, espionner ou faire pression sur qui que ce soit. L\'abus entraîne la révocation de l\'accès.\n\n8. Les familles d\'abord. Cette app est conçue pour aider les membres de la famille et les amis proches avec leurs téléphones — rien d\'autre.</string>
+
+    <!-- Phase 19.1 (v0.27.0): QrScanner + PermissionWizard extraction -->
+    <string name="qr_scan_title">Scannez le code QR de l\'autre téléphone</string>
+    <string name="qr_scan_hint">Le badge au centre du code indique le rôle — une confirmation du rôle s\'affichera après le scan.</string>
+    <string name="qr_scan_permission_text">La caméra est nécessaire pour scanner un code QR. Si vous préférez, revenez en arrière et tapez le code.</string>
+    <string name="qr_scan_permission_btn">Autoriser la caméra</string>
+    <string name="qr_scan_close_btn">Fermer la caméra</string>
+    <string name="qr_badge_family">Famille · permanent</string>
+    <string name="qr_badge_guest">Invité · 2 heures</string>
+    <string name="pw_guide_title">Comment activer Remote assist</string>
+    <string name="pw_guide_intro">Suivez exactement les 3 étapes ci-dessous — cela ne sera nécessaire qu\'une seule fois :</string>
+    <string name="pw_step_1">1</string>
+    <string name="pw_step_2">2</string>
+    <string name="pw_step_3">3</string>
+    <string name="pw_step_4">4</string>
+    <string name="pw_guide_step1_text">Dans les paramètres, trouvez la ligne \"Family Remote Support assist\" dans la liste (celle de notre application — elle est généralement surlignée).</string>
+    <string name="pw_guide_step2_text">Touchez la ligne et activez l\'interrupteur (ON).</string>
+    <string name="pw_guide_step3_text">Lorsque l\'avertissement Android apparaît, touchez Allow (Autoriser).</string>
+    <string name="pw_guide_warning">⚠️ Attention : activer \"Accessibility menu shortcut\" ou un autre interrupteur ne fonctionnera pas — ce n\'est pas le nôtre ! Seule la ligne \"Family Remote Support assist\" est correcte.</string>
+    <string name="pw_guide_privacy">Pour taper, le service ne trouve que le champ de texte ciblé — mais l\'application ne lit, ne stocke et n\'envoie rien de votre écran ; son seul rôle est de toucher et d\'insérer du texte. Vous pouvez la désactiver à tout moment au même endroit.</string>
+    <string name="pw_open_settings">Ouvrir les paramètres</string>
+    <string name="pw_later">Plus tard</string>
+    <string name="pw_title">Vérification des autorisations</string>
+    <string name="pw_intro">Cette application ne fonctionne qu\'avec votre permission. Activez une fois les 4 éléments ci-dessous et tout fonctionnera sans accroc.</string>
+    <string name="pw_all_done">Tout est prêt ! L\'application est prête à fonctionner pleinement.</string>
+    <string name="pw_progress">%1$d sur 4 activés — restant : %2$s</string>
+    <string name="pw_perm_notif">Notifications</string>
+    <string name="pw_perm_camera">Caméra</string>
+    <string name="pw_perm_assist_title">Remote assist · contrôle à distance</string>
+    <string name="pw_perm_assist">Remote assist</string>
+    <string name="pw_perm_battery">Exemption de batterie</string>
+    <string name="pw_perm_notif_desc">Quand une demande de session arrive, le téléphone vous préviendra.</string>
+    <string name="pw_perm_camera_desc">Nécessaire pour scanner le code QR d\'appairage (inutile si vous tapez le code).</string>
+    <string name="pw_perm_assist_desc">La personne qui aide peut toucher votre écran. Rien à l\'écran n\'est lu — seulement des touches.</string>
+    <string name="pw_perm_battery_desc">Les messages arrivent à l\'heure même quand l\'application est en arrière-plan.</string>
+    <string name="pw_allow_btn">Autoriser</string>
+    <string name="pw_setup_open_btn">Ouvrir la configuration</string>
+    <string name="pw_screen_share_note">Android demande lui-même l\'autorisation de partage d\'écran à chaque démarrage d\'un partage — pour la sécurité, elle ne peut pas être accordée à l\'avance.</string>
+    <string name="pw_done_btn">Terminé</string>
+    <string name="pw_status_done">✓ Activé</string>
+    <string name="pw_status_pending">⬜ En attente</string>
 </resources>
