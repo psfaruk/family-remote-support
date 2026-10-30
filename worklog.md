@@ -1981,3 +1981,41 @@ download/family-remote-support-v0.29.0-code48.apk, manifest-যাচিত)।
 এখন পরিষ্কার নিজ-ভাষায় দেখাবে, আর সার্ভার-পাশ আর কোটা খাবে না; (২) Cloudflare-এ
 FIREBASE_SA_JSON secret (§60-র অপেক্ষিত ধাপ) — Worker-চালু হলে kill-push স্যান্ডবক্স-নির্ভরতা শেষ।
 পরবর্তী: Owner-নির্দেশ (ডিপেন্ডেন্সি-পাস বা অন্য)।
+
+## §64 — Phase 21 (docs only — APK অপরিবর্তিত v0.29.0/48): মাস্টার-প্ল্যান অডিট + ৯-ডক পরিকল্পনা-সেট, অনুমোদন-গেট (২০২৬-১০-৩১)
+
+**ট্রিগার:** Owner-এর মাস্টার-প্রজেক্ট নির্দেশ — সম্পূর্ণ frontend redesign + Live Location
+Tracking + ২০–২৪ এজেন্ট সমন্বয়; কিন্তু শর্ত: আগে পূর্ণ অডিট + পরিকল্পনা-ডক, তারপর **স্পষ্ট
+অনুমোদনের অপেক্ষা** (STOP-condition)। কোনো সোর্স-কোড পরিবর্তন হয়নি।
+
+**পূর্ব-যাচাই (সারসংক্ষেপ-বিলম্ব ধরা):** GitHub অ্যাকাউন্ট rename `psfarfarfaruk` → **`psfaruk`**
+(টোকেন বৈধ; repo = `psfaruk/family-remote-support`)। HEAD `cf87601`, CI run 41105504900
+SUCCESS, বিল্ড **v0.29.0/code 48** (Phase 19.1–19.2 + 20 ইতিমধ্যে সম্পন্ন — worklog §61–§63)।
+লোকাল মিররে ১০ ফাইল অনুপস্থিত ছিল → contents API থেকে ফেচ → blob-SHA **১১/১১ MATCH**।
+
+**Owner-এর ৩ স্ক্রিনশট-প্রশ্নের উত্তর:** ২৩:০০–২৩:৩১-এর লাল `RESOURCE_EXHAUSTED` ব্যানার +
+"presence unavailable" = §63-এর Firestore ফ্রি-কোটা ঘটনা (reads ৫০K/দিন শেষ); স্ক্রিনশটের
+সময় ফোনে v0.26.0 ছিল; ফিক্স v0.29.0-এ (30s+backoff) — কোটা-রিসেটের পর দুই ফোনে v0.29.0
+ইনস্টল করলেই চলবে; নতুন কোনো বাগ নয়।
+
+**অডিট (৩টি সত্যিক parallel agent, READ-ONLY):** 2-a frontend — ২০ .kt / ১২,৫২৬ লাইন;
+MainActivity ৫,৮৮৪-লাইন মনোলিথ; Navigation-Compose/ViewModel নেই (manual 4-tab state
+machine); Theme.kt = মাস্টার-প্যালেটই; ১৫-ভাষা i18n; লাইভ-লোকেশন = প্লেসহোল্ডার, কোনো location
+কোড/পারমিশন/ম্যাপ-লাইব্রেরি নেই; ~১৬ লাইন অবশিষ্ট হার্ডকোড স্ট্রিং; 2-b infra — নিরাপত্তা-স্ক্যান
+পরিষ্কার (কোনো secret নেই), rules ম্যাট্রিক্স যাচাই, kill-push ৩-স্তর (Worker SA-secret এখনো
+unset), কোটা-গণিত; 2-c docs — PHASE-0.md §১২ টেবিল stale, UI_UX ডক Phase-11.7-এ ফ্রোজন,
+৮টি প্রয়োজনীয় ডক অনুপস্থিত।
+
+**এই পুশে যা গেল (১১ কমিট, সব readback-verify):** docs/PROJECT_CONTEXT.md (শেয়ার্ড-কনটেক্সট +
+২৪-রোল মালিকানা + সিদ্ধান্ত C1–C6) · FRONTEND_ARCHITECTURE.md · NAVIGATION_MAP.md (৪-ট্যাব নতুন
+নাম: Home / **Add Device** / **Tracking** / Settings — শুধু-স্ট্রিং; নেস্টেড রুট-ট্রি) ·
+LIVE_LOCATION_ARCHITECTURE.md (consent-ভিত্তিক, update-in-place single doc, ≥30–60s cadence,
+osmdroid+OSM attribution, FGS-location, background-location ছাড়া, কোটা-বাজেট টেবিল) ·
+FAMILY_GUEST_AUTHORIZATION.md (state-diagram + ফিচার-ম্যাট্রিক্স) · ANDROID_PERMISSION_MATRIX.md ·
+TEST_PLAN.md (২৪-সিনারিও → পদ্ধতি) · IMPLEMENTATION_STATUS.md (Phase 0–20 ✅ + M0–M10 ট্র্যাকার;
+PHASE-0 §১২-এর উত্তরাধিকারী) · UI_UX_DESIGN_SYSTEM.md **§26 সমন্বয়-পরিশিষ্ট** · README
+Phase-21 ব্লক · এই §64।
+
+**STOP:** M2+ (shell redesign, লাইভ-লোকেশন বাস্তবায়ন) শুরু হবে শুধুমাত্র Owner-এর স্পষ্ট
+অনুমোদনের পর। Owner-অ্যাকশন: (১) কোটা-রিসেটে দুই ফোনে v0.29.0 ইনস্টল; (২) Cloudflare
+`FIREBASE_SA_JSON` সিক্রেট; (৩) M1 ডক-সেট পর্যালোচনা করে অনুমোদন/সংশোধন-নির্দেশ।
