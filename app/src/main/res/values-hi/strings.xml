@@ -10,6 +10,9 @@
     <string name="pres_online">ऑनलाइन</string>
     <string name="pres_offline">ऑफ़लाइन</string>
     <string name="pres_checking">जाँच हो रही है…</string>
+    <string name="pres_unavailable">उपस्थिति उपलब्ध नहीं</string>
+    <string name="pres_never_seen">कभी नहीं देखा गया</string>
+    <string name="pres_last_seen_min">%1$d मिनट पहले देखा गया</string>
     <string name="cmn_ok">ठीक है</string>
     <string name="cmn_details">विवरण</string>
     <string name="home_tagline">परिवार के फ़ोन पर दूर से मदद — हमेशा साफ़ अनुमति के साथ।</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">यह जोड़ा पहले से Family (स्थायी) के रूप में जुड़ा है — यहाँ Guest कोड की ज़रूरत नहीं।</string>
     <string name="err_pair_guest_exists">यह जोड़ा Guest के रूप में जुड़ा है। Family बनाने के लिए मदद-लेने वाले फ़ोन से Guest लिंक हटाकर (Remove) नया Family कोड दें।</string>
     <string name="err_generic">Firestore त्रुटि %1$s: %2$s</string>
+    <string name="err_quota">Firebase की आज की मुफ़्त उपयोग-सीमा पूरी हो गई है — रोज़ाना कोटा रीसेट (दोपहर के आसपास) होने पर सब फिर काम करेगा। कोई डेटा नहीं खोया।</string>
     <string name="cd_details">विवरण</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
