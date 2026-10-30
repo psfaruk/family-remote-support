@@ -10,6 +10,9 @@
     <string name="pres_online">オンライン</string>
     <string name="pres_offline">オフライン</string>
     <string name="pres_checking">確認中…</string>
+    <string name="pres_unavailable">状態を取得できません</string>
+    <string name="pres_never_seen">未検出</string>
+    <string name="pres_last_seen_min">%1$d分前に最終オンライン</string>
     <string name="cmn_ok">OK</string>
     <string name="cmn_details">詳細</string>
     <string name="home_tagline">家族の電話へのリモート支援 — いつも明確な同意のもとで。</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">このペアは既にFamily（永続）としてリンク済みです — ここでGuestコードは不要です।</string>
     <string name="err_pair_guest_exists">このペアはGuestとしてリンクされています。Familyにするには、助けを受ける側のスマホでGuestリンクを削除し、新しいFamilyコードを発行してください。</string>
     <string name="err_generic">Firestoreエラー %1$s: %2$s</string>
+    <string name="err_quota">Firebaseの無料の1日の利用上限を使い切りました。毎日お昼ごろのリセット後、またすべて動くようになります。データは失われません。</string>
     <string name="cd_details">詳細</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
