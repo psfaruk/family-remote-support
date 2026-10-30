@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">このペアはGuestとしてリンクされています。Familyにするには、助けを受ける側のスマホでGuestリンクを削除し、新しいFamilyコードを発行してください。</string>
     <string name="err_generic">Firestoreエラー %1$s: %2$s</string>
     <string name="cd_details">詳細</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">リクエストを送信できませんでした: %1$s</string>
+    <string name="err_answer_failed">リクエストに応答できませんでした: %1$s</string>
+    <string name="err_end_failed">セッションを終了できませんでした: %1$s</string>
+    <string name="err_create_failed">コードを作成できませんでした: %1$s</string>
+    <string name="err_cancel_failed">キャンセルできませんでした: %1$s</string>
+    <string name="err_revoke_failed">取り消せませんでした: %1$s</string>
+    <string name="err_remove_failed">削除できませんでした: %1$s</string>
 </resources>
