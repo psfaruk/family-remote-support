@@ -1368,7 +1368,7 @@ private fun PresenceChip(uid: String?, deviceId: String) {
         age >= 0 && age < PRESENCE_ONLINE_MILLIS
     val label = when {
         uid == null || deviceId.isBlank() -> "…"
-        unavailable -> stringResource(R.string.pres_checking)
+        unavailable -> stringResource(R.string.pres_unavailable)
         online -> stringResource(R.string.pres_online)
         heartbeatAt == null || heartbeatAt == 0L -> "…"
         else -> stringResource(R.string.pres_offline)
@@ -5856,18 +5856,18 @@ fun PresenceBadge(uid: String, deviceId: String) {
         onDispose { stopWatching() }
     }
 
+    // Phase 20 (v0.29.0): localized badge labels — the hardcoded English
+    // strings shipped to every locale; the color check below now keys off
+    // a boolean instead of comparing the rendered text to "Online".
+    val age = heartbeatAt?.let { nowMillis - it } ?: -1L
+    val online = !unavailable && heartbeatAt != null && heartbeatAt != 0L &&
+        age < PRESENCE_ONLINE_MILLIS
     val label = when {
-        unavailable -> "presence unavailable"
-        heartbeatAt == null || heartbeatAt == 0L -> "never seen"
-        else -> {
-            val age = nowMillis - heartbeatAt!!
-            when {
-                age < 0 -> "Online"
-                age < PRESENCE_ONLINE_MILLIS -> "Online"
-                age < PRESENCE_STALE_MILLIS -> "last seen ${age / 60000} min ago"
-                else -> "offline"
-            }
-        }
+        unavailable -> stringResource(R.string.pres_unavailable)
+        heartbeatAt == null || heartbeatAt == 0L -> stringResource(R.string.pres_never_seen)
+        online -> stringResource(R.string.pres_online)
+        age < PRESENCE_STALE_MILLIS -> stringResource(R.string.pres_last_seen_min, (age / 60000).toInt())
+        else -> stringResource(R.string.pres_offline)
     }
     // Phase 11 — no leading " · ": the badge now always sits on its own
     // line (relationship rows and the activity feed), not appended inline.
@@ -5875,7 +5875,7 @@ fun PresenceBadge(uid: String, deviceId: String) {
         text = label,
         style = MaterialTheme.typography.bodySmall,
         color = when {
-            label == "Online" -> MaterialTheme.colorScheme.primary
+            online -> MaterialTheme.colorScheme.primary
             unavailable -> MaterialTheme.colorScheme.error
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
