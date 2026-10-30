@@ -73,8 +73,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -89,16 +87,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -133,7 +127,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
@@ -146,6 +139,27 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import android.widget.Toast
 import androidx.compose.ui.res.stringResource
+import com.family.remote.support.ui.components.AppListTile
+import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.components.SectionCard
+import com.family.remote.support.ui.components.WideOutlinedButton
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.family.remote.support.ui.components.AppListTile
+import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.components.SectionCard
+import com.family.remote.support.ui.components.WideOutlinedButton
+import com.family.remote.support.ui.nav.AppBottomNav
+import com.family.remote.support.ui.nav.AppRoutes
+import com.family.remote.support.ui.nav.AppTopBar
+import com.family.remote.support.ui.nav.goTab
+import com.family.remote.support.ui.notifications.NotificationsScreen
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.FamilyRemoteSupportTheme
@@ -203,166 +217,6 @@ import kotlinx.coroutines.withContext
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * Section card: icon-marked title row + optional ⓘ button that opens the
- * LONG explanation in a popup dialog — the card body itself stays short.
- */
-@Composable
-private fun SectionCard(
-    title: String,
-    icon: ImageVector? = null,
-    infoText: String? = null,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    var showInfo by remember { mutableStateOf(false) }
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                if (infoText != null) {
-                    IconButton(
-                        onClick = { showInfo = true },
-                        // Phase 11.6 — 48dp touch target (was 36dp).
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                                contentDescription = stringResource(R.string.cd_details),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-            content()
-        }
-    }
-    if (showInfo && infoText != null) {
-        AlertDialog(
-            onDismissRequest = { showInfo = false },
-            confirmButton = {
-                TextButton(onClick = { showInfo = false }) {
-                    Text(stringResource(R.string.cmn_ok))
-                }
-            },
-            title = {
-                Text(text = title, fontWeight = FontWeight.Bold)
-            },
-            text = { Text(text = infoText) }
-        )
-    }
-}
-
-/**
- * v0.14.0 — chat-style list tile: avatar circle (initials or icon) + title
- * + one-line description + trailing chip/chevron. The single row shape used
- * by paired phones, devices, activity feed and account.
- */
-@Composable
-private fun AppListTile(
-    title: String,
-    subtitle: String,
-    initials: String? = null,
-    icon: ImageVector? = null,
-    avatarContainer: Color = MaterialTheme.colorScheme.primaryContainer,
-    avatarContent: Color = MaterialTheme.colorScheme.onPrimaryContainer,
-    chip: String? = null,
-    chipContainer: Color = MaterialTheme.colorScheme.secondaryContainer,
-    chipContent: Color = MaterialTheme.colorScheme.onSecondaryContainer,
-    onClick: (() -> Unit)? = null,
-    trailingIcon: ImageVector? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(avatarContainer, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            when {
-                initials != null -> Text(
-                    text = initials.take(2).uppercase(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = avatarContent
-                )
-                icon != null -> Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = avatarContent,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        if (chip != null) {
-            Text(
-                text = chip,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = chipContent,
-                maxLines = 1,
-                modifier = Modifier
-                    .background(chipContainer, RoundedCornerShape(999.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            )
-        }
-        if (trailingIcon != null) {
-            Icon(
-                imageVector = trailingIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-/**
  * v0.14.0 — settings row: leading icon + title + DESCRIPTION sub-text +
  * trailing control (Switch / button / chevron). Clicking the row itself
  * fires onClick (when provided).
@@ -406,56 +260,6 @@ private fun SettingsTile(
             )
         }
         trailing?.invoke()
-    }
-}
-
-/** v0.14.0 — friendly empty state: big icon + one line + optional action. */
-@Composable
-private fun EmptyState(
-    icon: ImageVector,
-    title: String,
-    hint: String,
-    actionLabel: String? = null,
-    onAction: (() -> Unit)? = null,
-    illustrationRes: Int? = null
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (illustrationRes != null) {
-            // Phase 11.6 — friendly on-device vector illustration (docs
-            // §13); no remote images anywhere.
-            Image(
-                painter = painterResource(illustrationRes),
-                contentDescription = null,
-                modifier = Modifier.size(96.dp)
-            )
-        } else {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(44.dp)
-            )
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = hint,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        if (actionLabel != null && onAction != null) {
-            WideOutlinedButton(onClick = onAction) { Text(actionLabel) }
-        }
     }
 }
 
@@ -590,23 +394,6 @@ private fun BigButton(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp),
-        content = content
-    )
-}
-
-/** Phase 9 (T1) — secondary action: full-width, ≥48dp tall. */
-@Composable
-private fun WideOutlinedButton(
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-    content: @Composable RowScope.() -> Unit
-) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp),
         content = content
     )
 }
@@ -759,8 +546,18 @@ fun HomeScreen() {
     // Phase 11 — this device's id, for the top-bar presence chip.
     var ownDeviceId by remember { mutableStateOf("") }
 
-    // Phase 11 — bottom navigation: 0 হোম · 1 ফোন · 2 একটিভিটি · 3 সেটিংস.
-    var tab by rememberSaveable { mutableStateOf(0) }
+    // Phase 21/M2 (v0.30.0, Decision C3 spike) — the manual `var tab` int
+    // machine is GONE: the shell below runs on a NavHost now. Tab selection,
+    // per-tab scroll and process-death restoration all moved to navigation
+    // state (saveState/restoreState — NAVIGATION_MAP §3), and the bell opens
+    // the new NOTIFICATIONS route instead of Settings (audit finding #4).
+
+    // v0.30.0 (M2) — REAL registration outcomes (null = not attempted yet).
+    // The notifications surface derives its "setup failed" row from these
+    // flags — never from parsing localized display strings.
+    var deviceOk by remember { mutableStateOf<Boolean?>(null) }
+    var presenceOk by remember { mutableStateOf<Boolean?>(null) }
+    var pushOk by remember { mutableStateOf<Boolean?>(null) }
 
     // v0.14.0 — the ফোন tab's FAB opens the pairing bottom sheet; the sheet
     // itself lives inside PairingSections (it needs the create/redeem state).
@@ -901,9 +698,11 @@ fun HomeScreen() {
         try {
             registeredDeviceId = registerDevice(context, user)
             deviceStatus = "Registered ✓ (id ${registeredDeviceId.take(8)}…)"
+            deviceOk = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+                deviceOk = false
                 deviceStatus = context.getString(R.string.reg_failed, friendlyError(context, e))
         }
         // Phase 5 — presence heartbeat + push token registration. The token
@@ -914,17 +713,21 @@ fun HomeScreen() {
         try {
             sendHeartbeat(user.uid, deviceId, Build.MODEL)
             presenceStatus = "Online ✓ — heartbeat sent just now"
+            presenceOk = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+                presenceOk = false
                 presenceStatus = context.getString(R.string.presence_failed, friendlyError(context, e))
         }
         try {
             registerFcmToken(user.uid, deviceId)
             pushStatus = "Push notifications ready ✓"
+            pushOk = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+                pushOk = false
                 pushStatus = context.getString(R.string.push_failed, friendlyError(context, e))
         }
         try {
@@ -1035,21 +838,41 @@ fun HomeScreen() {
     // tab bar (the old code only respected the system inset and drew the key
     // bar on top of the navigation items).
     var bottomNavHeightPx by remember { mutableStateOf(0) }
+    // v0.30.0 (Phase 21/M2, Decision C3 spike) — the shell runs on
+    // Navigation-Compose: the 4 tab destinations + the notifications route,
+    // with saveState/restoreState tab switching (ui/nav/AppNav.goTab).
+    // The overlays (permission wizard, pair sheet, consent modal, session
+    // dialogs, pinned session bar) keep their EXACT composition sites —
+    // app-level or inside tab content — so the W1 gate items behave
+    // identically: cold start from a session notification (no intent logic
+    // existed before or now — the Firestore listeners drive everything),
+    // the wizard overlay, and the fullscreen session dialog (it lives
+    // inside the session card, same unmount semantics as the old when(tab)).
+    // Crossfade ≤150 ms between destinations per NAVIGATION_MAP §4.
+    val navController = rememberNavController()
     Scaffold(
         topBar = {
             AppTopBar(
-                showPresence = signedInUser != null && ownDeviceId.isNotBlank(),
-                presenceUid = signedInUser?.uid,
-                presenceDeviceId = ownDeviceId,
                 pendingAsk = pendingAsk,
-                // Phase 16 — the bell opens Settings, where the merged
-                // Activity section (sessions + paired phones) now lives.
-                onBellClick = { tab = 3 }
+                // v0.30.0 — the bell opens the DEDICATED notifications
+                // surface (real events only — see NotificationsScreen).
+                onBellClick = {
+                    navController.navigate(AppRoutes.NOTIFICATIONS) { launchSingleTop = true }
+                },
+                presence = {
+                    if (signedInUser != null && ownDeviceId.isNotBlank()) {
+                        PresenceChip(uid = signedInUser?.uid, deviceId = ownDeviceId)
+                    }
+                }
             )
         },
         bottomBar = {
             Box(modifier = Modifier.onSizeChanged { bottomNavHeightPx = it.height }) {
-                AppBottomNav(tab = tab, onSelect = { tab = it })
+                val navEntry by navController.currentBackStackEntryAsState()
+                AppBottomNav(
+                    currentRoute = navEntry?.destination?.route,
+                    onSelect = { route -> navController.goTab(route) }
+                )
             }
         }
         // Phase 16 — the right-side "যুক্ত করুন" FAB is GONE (Owner: the
@@ -1057,44 +880,53 @@ fun HomeScreen() {
         // on the phone tab already covers both directions, and the FAB even
         // covered the Full-screen button mid-scroll). One place, one truth.
     ) { innerPadding ->
-        // Phase 11.6 — per-tab scroll positions: switching tabs keeps each
-        // tab's place instead of resetting everything back to the top.
-        val tabScrollStates = remember { List(4) { ScrollState(0) } }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(tabScrollStates[tab])
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        NavHost(
+            navController = navController,
+            startDestination = AppRoutes.HOME,
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(tween(120)) },
+            exitTransition = { fadeOut(tween(120)) },
+            popEnterTransition = { fadeIn(tween(120)) },
+            popExitTransition = { fadeOut(tween(120)) }
         ) {
-            when (tab) {
-                0 -> HomeTab(
-                    signedInUser = signedInUser,
-                    deviceStatus = deviceStatus,
-                    presenceStatus = presenceStatus,
-                    pushStatus = pushStatus,
-                    permSummary = permSummary,
-                    openSession = openSession,
-                    onOpenWizard = { showWizard = true },
-                    onRetryRegistration = { registerRetryKey++ },
-                    onGoPairing = { tab = 1 },
-                    busy = busy,
-                    onSignIn = startSignIn
-                )
-                1 -> PairingCard(
-                    signedInUser = signedInUser,
-                    showPairSheet = showPairSheet,
-                    onDismissPairSheet = { showPairSheet = false },
-                    onOpenPairSheet = { showPairSheet = true }
-                )
-                // Phase 16 — the old একটিভিটি tab became the LIVE LOCATION
-                // tab (Owner: "একটিভিটি ট্যাব টি মোছে দিয়ে live location নামে
-                // একটা ট্যাব ওপেন করেন; এটার কাজ ভবিষ্যতে করবো") — an honest
-                // placeholder, nothing collected. The Activity content moved
-                // INTO Settings (tab 3), as requested.
-                2 -> LiveLocationTab()
-                else -> SettingsTab(
+            composable(AppRoutes.HOME) {
+                ShellTabColumn {
+                    HomeTab(
+                        signedInUser = signedInUser,
+                        deviceStatus = deviceStatus,
+                        presenceStatus = presenceStatus,
+                        pushStatus = pushStatus,
+                        permSummary = permSummary,
+                        openSession = openSession,
+                        onOpenWizard = { showWizard = true },
+                        onRetryRegistration = { registerRetryKey++ },
+                        onGoPairing = { navController.goTab(AppRoutes.ADD) },
+                        busy = busy,
+                        onSignIn = startSignIn
+                    )
+                }
+            }
+            composable(AppRoutes.ADD) {
+                ShellTabColumn {
+                    PairingCard(
+                        signedInUser = signedInUser,
+                        showPairSheet = showPairSheet,
+                        onDismissPairSheet = { showPairSheet = false },
+                        onOpenPairSheet = { showPairSheet = true }
+                    )
+                }
+            }
+            // Phase 16 — the old একটিভিটি tab became the LIVE LOCATION tab
+            // (Owner's order then; an honest placeholder, nothing collected).
+            // The Activity content stays merged INTO Settings as requested.
+            // The real Tracking implementation lands in M5
+            // (LIVE_LOCATION_ARCHITECTURE.md) at this same route.
+            composable(AppRoutes.TRACKING) {
+                ShellTabColumn { LiveLocationTab() }
+            }
+            composable(AppRoutes.SETTINGS) {
+                ShellTabColumn {
+                    SettingsTab(
                     signedInUser = signedInUser,
                     busy = busy,
                     statusMessage = statusMessage,
@@ -1161,6 +993,9 @@ fun HomeScreen() {
                                 deviceList = emptyList()
                                 presenceStatus = "Signed out"
                                 pushStatus = "Signed out"
+                                deviceOk = null
+                                presenceOk = null
+                                pushOk = null
                                 statusMessage = null
                                 authMessage = null
                                 authNotice = cleanupNote
@@ -1173,7 +1008,25 @@ fun HomeScreen() {
                         }
                     },
                     onOpenWizard = { showWizard = true }
-                )
+                    )
+                }
+            }
+            composable(AppRoutes.NOTIFICATIONS) {
+                ShellTabColumn {
+                    NotificationsScreen(
+                        liveSessions = homeSessions,
+                        meUid = signedInUser?.uid,
+                        hasPendingAsk = pendingAsk,
+                        // 4 = PermChecklist.allDone's denominator (notifications,
+                        // camera, assist, battery) — a real on-device checklist.
+                        permissionDoneCount = permSummary.doneCount,
+                        permissionTotal = 4,
+                        setupProblemCount = listOf(deviceOk, presenceOk, pushOk)
+                            .count { it == false },
+                        onOpenHome = { navController.goTab(AppRoutes.HOME) },
+                        onOpenWizard = { showWizard = true }
+                    )
+                }
             }
         }
     }
@@ -1257,77 +1110,23 @@ fun HomeScreen() {
     )
 }
 
-/** Phase 11 — top bar: app name + live presence chip + notification bell. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AppTopBar(
-    showPresence: Boolean,
-    presenceUid: String?,
-    presenceDeviceId: String,
-    pendingAsk: Boolean,
-    onBellClick: () -> Unit
-) {
-    TopAppBar(
-        title = {
-            Text(
-                text = "Family Remote Support",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        actions = {
-            if (showPresence) {
-                PresenceChip(uid = presenceUid, deviceId = presenceDeviceId)
-            }
-            IconButton(onClick = onBellClick) {
-                BadgedBox(badge = { if (pendingAsk) Badge() }) {
-                    Icon(
-                        imageVector = Icons.Filled.Notifications,
-                            contentDescription = stringResource(R.string.cd_notifications)
-                    )
-                }
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background
-        )
-    )
-}
-
 /**
- * Phase 11 — bottom navigation. Phase 16 (v0.20.0) — the tabs are now
- * হোম · ফোন · লাইভ লোকেশন · সেটিংস (Owner: the একটিভিটি tab is gone —
- * its content merged into Settings; the Live-location placeholder takes
- * the slot). Labels come from the language resources (15 languages).
+ * v0.30.0 (Phase 21/M2) — the shared per-destination scroll column. The old
+ * shell wrapped ALL tabs in one Column with `tabScrollStates[tab]`; under
+ * the NavHost every destination owns its scroll state instead
+ * (rememberScrollState is saveable — NavHost saveState/restoreState brings
+ * it back on tab return, same user-visible behavior as Phase 11.6).
  */
 @Composable
-private fun AppBottomNav(tab: Int, onSelect: (Int) -> Unit) {
-    NavigationBar {
-        NavigationBarItem(
-            selected = tab == 0,
-            onClick = { onSelect(0) },
-            icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-            label = { Text(stringResource(R.string.nav_home)) }
-        )
-        NavigationBarItem(
-            selected = tab == 1,
-            onClick = { onSelect(1) },
-            icon = { Icon(Icons.Filled.Phone, contentDescription = null) },
-            label = { Text(stringResource(R.string.nav_phone)) }
-        )
-        NavigationBarItem(
-            selected = tab == 2,
-            onClick = { onSelect(2) },
-            icon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
-            label = { Text(stringResource(R.string.nav_location)) }
-        )
-        NavigationBarItem(
-            selected = tab == 3,
-            onClick = { onSelect(3) },
-            icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-            label = { Text(stringResource(R.string.nav_settings)) }
-        )
-    }
+private fun ShellTabColumn(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        content = content
+    )
 }
 
 /**
@@ -1556,7 +1355,7 @@ private fun HomeTab(
                 icon = Icons.Filled.Favorite,
                 title = stringResource(R.string.feat_family_t),
                 desc = stringResource(R.string.feat_family_d),
-                actionLabel = stringResource(R.string.nav_phone),
+                actionLabel = stringResource(R.string.nav_add_device),
                 onAction = onGoPairing
             )
         }
@@ -1565,7 +1364,7 @@ private fun HomeTab(
                 icon = Icons.Filled.Person,
                 title = stringResource(R.string.feat_guest_t),
                 desc = stringResource(R.string.feat_guest_d),
-                actionLabel = stringResource(R.string.nav_phone),
+                actionLabel = stringResource(R.string.nav_add_device),
                 onAction = onGoPairing
             )
         }
