@@ -828,6 +828,28 @@ fun HomeScreen() {
         }
     }
 
+    // v0.22.0 (Phase 18.1) — ROOT-level zombie-session sweep: a stale ask
+    // (past its 2-min window) or an over-time session (past its 15-min life)
+    // is cleaned the moment this app is alive, on ANY tab — the old cleanup
+    // only ran while the Phones tab composed, so a phone rebooted mid-session
+    // stayed blocked ("family আর কানেক্ট হয় না") until someone reopened it.
+    // Same rules-checked transitions the request-side self-heal performs.
+    LaunchedEffect(homeSessions, signedInUser?.uid) {
+        val user = signedInUser ?: return@LaunchedEffect
+        val now = System.currentTimeMillis()
+        homeSessions.filter { it.isStaleOpen(now) }.forEach { s ->
+            try {
+                if (s.status == "REQUESTED") expireSession(s.id)
+                else endSession(s.id, user.uid, byTimeout = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // best effort — PairingSections' per-second sweep and the
+                // server sweep perform exactly these transitions too
+            }
+        }
+    }
+
     // Phase 15 — fresh viewer state per session id (moved from the Phones
     // tab section to the ROOT in v0.21.0: the old placement only reset when
     // that tab was composed). A new session must never inherit a stale
@@ -3357,28 +3379,21 @@ private fun PairingSections(
 
     // Lazy server-less expiry: a stale ask turns EXPIRED, an over-time active
     // session turns ENDED("timeout"). Whichever app notices first does it.
-    LaunchedEffect(openSession?.id, openSession?.status, sessionNow) {
-        val s = openSession ?: return@LaunchedEffect
-        when (s.status) {
-            "REQUESTED" -> if (sessionNow > s.respondDeadlineMillis + 4000) {
-                try {
-                    expireSession(s.id)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // best effort — the other side will clean it up
-                }
-            }
-            "ACTIVE" -> if (s.sessionEndsAtMillis > 0 &&
-                sessionNow > s.sessionEndsAtMillis + 4000
-            ) {
-                try {
-                    endSession(s.id, user.uid, byTimeout = true)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // best effort
-                }
+    // v0.22.0 (Phase 18.1): sweeps EVERY open session, not just the newest —
+    // repeated reboots used to leave older zombies behind forever (they filled
+    // the capped watch window and could push a fresh ask out of it). The same
+    // isStaleOpen(+4 s grace) rule the request-side self-heal applies.
+    LaunchedEffect(sessions.size, openSession?.id, openSession?.status, sessionNow) {
+        if (sessions.isEmpty()) return@LaunchedEffect
+        sessions.filter { it.isStaleOpen(sessionNow) }.forEach { s ->
+            try {
+                if (s.status == "REQUESTED") expireSession(s.id)
+                else endSession(s.id, user.uid, byTimeout = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // best effort — the ROOT sweep and the server sweep also
+                // perform exactly these transitions
             }
         }
     }
