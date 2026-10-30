@@ -378,7 +378,7 @@
     <string name="err_pair_family_exists">Bu çift zaten Family (kalıcı) olarak bağlandı — burada misafir kodu gerekmez.</string>
     <string name="err_pair_guest_exists">Bu çift Misafir olarak bağlandı. Family yapmak için yardımı alan telefondan Misafir bağlantısını kaldırın ve yeni bir Family kodu oluşturun.</string>
     <string name="err_generic">Firestore hatası %1$s: %2$s</string>
-    <string name="err_quota">Firebase&#39;in ücretsiz günlük kullanım limiti doldu — günlük kota sıfırlandığında (öğle civarı) her şey yeniden çalışacak. Veri kaybı yok.</string>
+    <string name="err_quota">Firebase\'in ücretsiz günlük kullanım limiti doldu — günlük kota sıfırlandığında (öğle civarı) her şey yeniden çalışacak. Veri kaybı yok.</string>
     <string name="cd_details">Ayrıntılar</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
