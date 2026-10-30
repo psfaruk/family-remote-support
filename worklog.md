@@ -1813,3 +1813,44 @@ crypto নেই বলে অনিবার্য ট্রেড-অফ; one-
 
 **পুশ:** firestore.rules (e340d4b, readback MATCH) — APK v0.26.0/code 45 অপরিবর্তিত (rules-only)।
 পরবর্তী: 18.9 (CI/CD + docs) — Owner-নির্দেশে।
+
+## §60 — Phase 18.9 (infra — APK অপরিবর্তিত v0.26.0/45): CI/CD + docs অডিট — README 18.x-গ্যাপ পূরণ, Cloudflare লাইভ-স্টেট প্রমাণ, workflow-হাইজিন (২০২৬-১০-৩০)
+
+Owner "শুরু কর" → 18.9। পদ্ধতি: ১৬ ফাইল remote থেকে blob-SHA-ভেরিফাইড (workflows ×২ / README /
+docs ×৩ / scripts ×৮ / wrangler.toml / app build.gradle.kts / worklog) + README টেক-নোট বনাম root
+gradle ক্রস-চেক + দুটি লাইভ প্রোব (RTDB নাম-প্রোব, Worker /health) + kill-push Actions রান-ইতিহাস।
+
+**F1 (ফিক্স, README):** Status-টপ Phase 17-এ থেমে ছিল — 18.x সিরিজ (v0.22.0→0.26.0, code 41→45,
+৮ রাউন্ড) সম্পূর্ণ অনুপস্থিত → কমপ্যাক্ট ১৮.১–১৮.৮ ব্লক যোগ (worklog §55–§59 রেফারেন্স সহ)।
+Tech-note "technical/status strings remain English" — 18.7-পরবর্তী মিথ্যা (১৫-ভাষা + নোটিফিকেশন
+লোকালাইজড) → হালনাগাদ। বাকি সব দাবি যাচাই-সত্য: Kotlin 2.0.20 / AGP 8.5.2 / BoM 33.4.0 /
+minSdk 26 / targetSdk 34 / verify-apk-axml গেট / rules publish-path — হুবহু মিল।
+
+**F2 (ফিক্স, docs/CLOUDFLARE_SETUP.md):** "পরবর্তী" সেকশনে Phase 14b "v0.19.0-প্রার্থী" লেখা —
+শিপ হয়ে গেছে বহু আগে → ডেলিভার-চিহ্নিত। নতুন "লাইভ-স্টেট যাচাই" সেকশন: ২০২৬-১০-৩০ /health প্রোব
+→ `KILL_TOKEN:true` কিন্তু **`FIREBASE_SA_JSON:false` + last:"not run yet"** — স্থায়ী স্তর
+এখনো নিষ্ক্রিয় (cron নিবন্ধিত, SA ছাড়া sweep Firestore-এ পৌঁছায় না)। Owner-একমাত্র-বাকি-ধাপ:
+dashboard → Settings → Variables and Secrets → FIREBASE_SA_JSON (SA JSON পুরো টেক্সট) → /health-এ
+true। ততদিন কভারেজ: sandbox mini-service (~৫সে) + GH Actions ব্যাকস্টপ (best-effort)।
+
+**F3 (ফিক্স, android-build.yml):** build-job-এ `timeout-minutes: 30` (৩৬০-মিনিট ডিফল্ট ঝুলন্ত
+বিল্ড-বাউন্ড) + `concurrency: android-build, cancel-in-progress: true` (ধারাবাহিক push-এ পুরনো
+বিল্ড বাতিল — runner-মিনিট স্ট্যাক নয়)। permissions/retention/AXML-গেট অবিকল — ছোঁয়া হয়নি।
+kill-push.yml পূর্ণ-পরিষ্কার: `permissions: {}` + concurrency + timeout 4 + idempotent ডিজাইন।
+
+**লাইভ-প্রমাণ:** (১) RTDB deny-all — README-দাবি সরাসরি প্রমাণিত: অ্যানোন GET/PUT দুটোই **401
+"Permission denied"** (region URL asia-southeast1; নাম-প্রোব 404 correctUrl-এ আসল instance ধরা);
+(২) kill-push schedule sporadic-নিশ্চিত: ১০-২৮→৩০ মাত্র ৫টি schedule-রান (প্রত্যাশা ২৮৮/দিনে
+~২৮৮ — বাস্তবে ~২.৫/দিন) — ডকুমেন্টেড GitHub আচরণ, Worker-স্তরই সমাধান।
+
+**রেকর্ড-মাত্র (নো-ফিক্স):** (১) rules-প্রোব CI-তে ওয়্যার করা হয়নি — সচেতন ডিজাইন (লাইভ
+Firestore-এ রাইট/ডিলিট সাইড-ইফেক্ট; ম্যানুয়াল-রান-ই সঠিক); (২) ডিপেন্ডেন্সি-ফ্রেশনেস (AGP 8.5.2 /
+Kotlin 2.0.20 / Compose BoM 2024.09.03 / Firebase BoM 33.4.0 — ২০২৪-যুগ) — ভবিষ্যৎ
+মেইনটেনেন্স-পাস, নিরাপত্তা-ঝুঁকি নয়; (৩) isMinifyEnabled=false — 18.8-তেই রেকর্ডেড; (৪)
+PHASE-0.md / UI_UX_DESIGN_SYSTEM.md — ঐতিহাসিক/স্পেক-ডক, কোনো মিথ্যা-দাবি নেই।
+
+**পুশ:** ৩ ফাইল — README.md (c137567) + docs/CLOUDFLARE_SETUP.md (b0694e4) +
+.github/workflows/android-build.yml (fbb065e) — readback-verify ALL MATCH। APK v0.26.0/code 45
+অপরিবর্তিত (docs+CI-only)। **Owner-করণীয় (উচ্চ-অগ্রাধিকার):** Cloudflare-এ FIREBASE_SA_JSON
+secret — এটিই স্থায়ী kill-push স্তর জীবিত করার একমাত্র বাকি ধাপ। পরবর্তী: Phase 19-প্রার্থী
+(i18n-ডেট ~৩০৫ লাইন বাংলা হার্ডকোড) / ডিপেন্ডেন্সি-পাস — Owner-নির্দেশে।
