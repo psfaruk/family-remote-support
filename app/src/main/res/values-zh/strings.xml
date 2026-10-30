@@ -90,4 +90,16 @@
     <string name="auth_footer">您的账户和设备数据仅存于您自己的 Firebase 项目。配对绝不等于永久授权 — 每次会话都会再次询问。</string>
     <string name="privacy_title">隐私政策</string>
     <string name="rules_title">使用规则</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_channel_name">帮助会话请求</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_help_requested_title">求助请求</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_help_requested_body">%1$s 想在这台手机上帮忙——打开以允许或拒绝。</string>
+    <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
+    <string name="notif_fallback_helper">一位家人</string>
+    <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
+    <string name="privacy_body">Family Remote Support 让信任的人之间互相帮忙处理手机问题。本政策准确说明应用会使用哪些数据。\n\n会收集的内容\n• 你的账号：登录时使用的姓名、邮箱和 Google 账号 ID。\n• 你的设备：型号、制造商、Android 版本和应用版本。\n• 一个随机且专属于本应用的设备 ID，用于列出你的手机。\n• 推送令牌：只用来通知你的手机“有人请求帮助你”。\n• 会话记录：谁向谁发起了请求、开始/结束时间以及最终状态。这就是你在应用里看到的真实活动历史。\n\n绝不收集的内容\n• 屏幕内容。实时屏幕画面只存在于你批准的会话期间，直接在两台手机之间传输，不会被保存。\n• 密码、屏幕文字、按键记录或照片。\n• 位置。“实时位置”标签页只是占位——目前不收集任何位置数据。\n\n数据存放在哪里\n只在本应用所属的 Firebase 项目里。不出售、不与广告商共享、不用于追踪。\n\n谁能看到什么\n已配对的帮手可以看到你设备的在线状态，并且必须在你明确批准每个请求之后才能发起会话。你可以随时撤销已配对的手机；退出登录会删除本手机的在线状态和推送令牌。\n\n控制权始终在你手里：每次会话都需要你的实时批准，运行期间会显示清晰的指示器，你可以随时停止。</string>
+    <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
+    <string name="rules_body">这些规则让 Family Remote Support 对每个人都保持安全。\n\n1. 同意优先。每一次帮助会话都需要在接受帮助的手机上重新明确批准。仅配对本身绝不授予任何访问权限。\n\n2. 配对码只能使用一次，约 5 分钟后过期。每个码只能兑换一次，且只有及时扫描或输入该码的人才能使用。\n\n3. 访客帮助是临时的。访客连接 2 小时后自动失效，绝不会自行变成永久的家庭配对。\n\n4. 你随时可以停止。被帮助的人可以拒绝请求、随时结束进行中的会话，或彻底撤销已配对的手机。\n\n5. 帮手必须可信。只把你的配对码或二维码分享给你真正信任的人。会话进行时帮手能看到你的屏幕——如有疑虑，请先关闭敏感应用。\n\n6. 不做绕过。本应用绝不尝试解锁手机、读取密码、偷偷授予权限，或隐藏会话正在运行的事实。它只在 Android 明确允许的范围内工作。\n\n7. 仅限正当使用。不要用本应用骚扰、监视或胁迫任何人。滥用会导致访问被撤销。\n\n8. 家人优先。本应用只为帮助家人和亲密朋友使用手机而设计——别无其他用途。</string>
 </resources>
