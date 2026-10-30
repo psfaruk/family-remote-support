@@ -132,9 +132,18 @@ internal object ConfigRepo {
             val fps = (snap.getLong("fps") ?: 30L).toInt().coerceIn(10, 60)
             val minK = (snap.getLong("minKbps") ?: 1_200L).toInt().coerceIn(100, 50_000)
             val maxK = (snap.getLong("maxKbps") ?: 4_000L).toInt().coerceIn(minK, 100_000)
-            qCache = QualityCfg(codec, fps, minK, maxK)
+            // v0.24.0 (Phase 18.3 — Bug C: "ভিডিও দেরিতে আসে") — the Owner can
+            // flip the degradation preference live: "framerate" (default now,
+            // freshness over sharpness), "balanced", "resolution" (the old
+            // pre-0.24 behaviour). Anything else = framerate.
+            val pref = when (snap.getString("degradationPreference")?.trim()?.lowercase()) {
+                "balanced" -> "balanced"
+                "resolution" -> "resolution"
+                else -> "framerate"
+            }
+            qCache = QualityCfg(codec, fps, minK, maxK, pref)
             qCachedAt = now
-            lastQualityNote = "quality: ${codec.uppercase()} · ${fps}fps · $minK–${maxK}kbps"
+            lastQualityNote = "quality: ${codec.uppercase()} · ${fps}fps · $minK–${maxK}kbps · $pref"
             qCache
         } catch (e: Exception) {
             // Missing doc / offline / rules hiccup ⇒ the proven defaults.
@@ -155,5 +164,10 @@ internal data class QualityCfg(
     val codec: String = "vp8", // "vp8" (proven everywhere) | "h264" (hardware)
     val fps: Int = 30,         // capture/encode ceiling, clamped 10..60
     val minKbps: Int = 1_200,
-    val maxKbps: Int = 4_000
+    val maxKbps: Int = 4_000,
+    // v0.24.0 (Phase 18.3) — what suffers first under bandwidth pressure.
+    // "framerate" keeps the picture FRESH (drops resolution instead of
+    // stalling frames) — the anti-latency default; "resolution" was the
+    // old keep-sharp-but-stall behaviour, still selectable live.
+    val pref: String = "framerate" // framerate | balanced | resolution
 )
