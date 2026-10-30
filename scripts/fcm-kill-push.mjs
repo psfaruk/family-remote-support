@@ -323,7 +323,14 @@ export async function sweepOnce(log = console.log) {
         // v0.21.0 (audit): stale REQUESTED docs are expired here (same
         // transition as the lazy client cleanup) instead of being re-fetched
         // by every future sweep forever.
-        if (deadline && now - deadline > EXPIRE_GRACE_MILLIS) {
+        // v0.29.0 (Phase 20): a REQUESTED doc with NO respondDeadline used
+        // to be skipped forever — every future sweep re-read it (one billed
+        // read per query tick across all three sweep tiers). Expire it once
+        // it ages past the fresh window, exactly like the deadline path.
+        if (
+          (deadline && now - deadline > EXPIRE_GRACE_MILLIS) ||
+          (!deadline && now - (requestedAt || 0) > FRESH_WINDOW_MILLIS)
+        ) {
           try {
             await patchDoc(
               `supportSessions/${doc.id}`,
