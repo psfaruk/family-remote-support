@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">यो जोडी Guest रूपमा जोडिएको छ। Family बनाउन सहयोग-लिने फोनबाट Guest लिंक हटाएर (Remove) नयाँ Family कोड दिनुपर्छ।</string>
     <string name="err_generic">Firestore त्रुटि %1$s: %2$s</string>
     <string name="cd_details">विवरण</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">अनुरोध पठाउन सकिएन: %1$s</string>
+    <string name="err_answer_failed">अनुरोधको जवाफ दिन सकिएन: %1$s</string>
+    <string name="err_end_failed">सेसन सकाउन सकिएन: %1$s</string>
+    <string name="err_create_failed">कोड बनाउन सकिएन: %1$s</string>
+    <string name="err_cancel_failed">रद्द गर्न सकिएन: %1$s</string>
+    <string name="err_revoke_failed">खारेज गर्न सकिएन: %1$s</string>
+    <string name="err_remove_failed">हटाउन सकिएन: %1$s</string>
 </resources>
