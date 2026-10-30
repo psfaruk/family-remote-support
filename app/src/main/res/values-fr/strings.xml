@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">Cette paire est liée en invité. Pour la passer en Family, retirez le lien invité du téléphone qui reçoit l\'aide et émettez un nouveau code Family.</string>
     <string name="err_generic">Erreur Firestore %1$s : %2$s</string>
     <string name="cd_details">Détails</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">Impossible d\'envoyer la demande : %1$s</string>
+    <string name="err_answer_failed">Impossible de répondre à la demande : %1$s</string>
+    <string name="err_end_failed">Impossible de terminer la session : %1$s</string>
+    <string name="err_create_failed">Impossible de créer un code : %1$s</string>
+    <string name="err_cancel_failed">Impossible d\'annuler : %1$s</string>
+    <string name="err_revoke_failed">Impossible de révoquer : %1$s</string>
+    <string name="err_remove_failed">Impossible de retirer : %1$s</string>
 </resources>
