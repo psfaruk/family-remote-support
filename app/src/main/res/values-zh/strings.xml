@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">此配对以访客方式关联。要改为家庭，请在接收帮助的手机上移除访客关联，然后签发新的家庭配对码。</string>
     <string name="err_generic">Firestore 错误 %1$s：%2$s</string>
     <string name="cd_details">详情</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">无法发送请求：%1$s</string>
+    <string name="err_answer_failed">无法响应请求：%1$s</string>
+    <string name="err_end_failed">无法结束会话：%1$s</string>
+    <string name="err_create_failed">无法创建配对码：%1$s</string>
+    <string name="err_cancel_failed">无法取消：%1$s</string>
+    <string name="err_revoke_failed">无法撤销授权：%1$s</string>
+    <string name="err_remove_failed">无法移除：%1$s</string>
 </resources>
