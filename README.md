@@ -28,6 +28,14 @@ A trusted family member helps fix another family phone — always with the recei
   are localized too. **Current build: v0.29.0 (versionCode 48)** — full records in
   `worklog.md` §63.
 
+- **Phase 21 — MASTER-PLAN PLANNING (docs only, APK unchanged v0.29.0/48):**
+  full repository audit by 3 parallel agents + 9-doc planning set in `docs/` (PROJECT_CONTEXT,
+  FRONTEND_ARCHITECTURE, NAVIGATION_MAP, LIVE_LOCATION_ARCHITECTURE, FAMILY_GUEST_AUTHORIZATION,
+  ANDROID_PERMISSION_MATRIX, TEST_PLAN, IMPLEMENTATION_STATUS + UI_UX §26 reconciliation).
+  Tabs will become Home · Add Device · Tracking · Settings (strings-only) and Live location
+  graduates from placeholder to a consent-based, quota-bounded Firestore design — **all
+  implementation (M2+) waits for the Owner's explicit approval.**
+
 - **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
   audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
   the findings) surfaced 30+ real defects; all high/critical ones are fixed in this release.
