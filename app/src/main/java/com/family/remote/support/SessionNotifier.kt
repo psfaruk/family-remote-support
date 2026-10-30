@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.family.remote.support.ui.LangPrefBus
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.ListenerRegistration
@@ -35,6 +36,12 @@ import com.google.firebase.firestore.ListenerRegistration
  *  - app killed           -> FCM kill-push notification (outside this process)
  *  - no POST_NOTIFICATIONS permission (Android 13+) -> silently nothing;
  *    the UI shows an "Enable notifications" button in the session section
+ *
+ * v0.26.0 (Phase 18.7, UI/i18n audit): channel name + notification title/body
+ * were hardcoded ENGLISH and used the raw context — they bypassed the app's
+ * 15-language system (LangPrefBus) entirely. All user-facing text now resolves
+ * through LangPrefBus.wrap() from values-XX/strings.xml, so a Japanese/Arabic
+ * user gets the ask notification in their chosen app language.
  */
 object SessionNotifier {
 
@@ -53,7 +60,7 @@ object SessionNotifier {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Support session requests",
+                LangPrefBus.wrap(appContext).getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             )
             val manager =
@@ -112,7 +119,10 @@ object SessionNotifier {
         ) {
             return
         }
-        val helperEmail = doc.getString("helperEmail") ?: "A family member"
+        // v0.26.0 (Phase 18.7): resolve text from the app-language context.
+        val lc = LangPrefBus.wrap(context)
+        val helperEmail = doc.getString("helperEmail")?.takeIf { it.isNotBlank() }
+            ?: lc.getString(R.string.notif_fallback_helper)
         val openIntent = Intent(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(
             context,
@@ -120,10 +130,10 @@ object SessionNotifier {
             openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(lc, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notify)
-            .setContentTitle("Help requested")
-            .setContentText("$helperEmail wants to help with this phone — open to allow or deny.")
+            .setContentTitle(lc.getString(R.string.notif_help_requested_title))
+            .setContentText(lc.getString(R.string.notif_help_requested_body, helperEmail))
             .setAutoCancel(true)
             .setOnlyAlertOnce(true) // v0.21.0 (audit): never re-sound the same ask
             .setContentIntent(pending)
