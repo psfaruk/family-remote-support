@@ -2080,6 +2080,12 @@ TEST_PLAN #8-এ ডকুমেন্টেড। নোটিফিকেশ�
 edits), (২) CI assembleDebug+Release + AXML গেট (v0.30.0/49 আশা করা হয়েছে), (৩) Owner-এর
 ফোন-টেস্ট। "কাজ করছে" দাবি কেবল CI SUCCESS + Owner নিশ্চিতির পরেই।
 
+**CI রেকর্ড (সৎ):** প্রথম রান **FAILED** — আমার ভুল: `Icons.Filled.PersonAdd` material-icons-core
+সেটে নেই (ওটা icons-extended-এ; R8 বন্ধ থাকায় extended ডিপ দিলে APK-ব্লোট — বাতিল)। ফিক্স:
+core-set-এর `Icons.Filled.Add` (NAVIGATION_MAP §1-এ ডিভিয়েশন-নোট)। ফাইনাল HEAD `9bdc8a0`:
+Android Build **SUCCESS** — run **41122154745**, AXML গেটসহ (versionCode 49 + versionName
+0.30.0 + v2-signature), debug+release আর্টিফ্যাক্ট আপলোডেড।
+
 **Owner-অ্যাকশন:** (১) CI SUCCESS দেখে দুই ফোনে **v0.30.0 (code 49)** ইনস্টল (একই ভার্সন দুটোতেই);
 (২) ট্যাব-নাম/আইকন, বেল→নোটিফিকেশন স্ক্রিন, ট্যাব-সুইচে স্ক্রল-মনে থাকা, Back-আচরণ (নতুন ডেল্টা),
 ডার্ক/লাইট ×১৫ ভাষা চেক — TEST_PLAN #7/#8/#23/#24; (৩) Cloudflare `FIREBASE_SA_JSON` সিক্রেট
