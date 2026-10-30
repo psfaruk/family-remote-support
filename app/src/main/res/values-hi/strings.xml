@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">यह जोड़ा Guest के रूप में जुड़ा है। Family बनाने के लिए मदद-लेने वाले फ़ोन से Guest लिंक हटाकर (Remove) नया Family कोड दें।</string>
     <string name="err_generic">Firestore त्रुटि %1$s: %2$s</string>
     <string name="cd_details">विवरण</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">अनुरोध नहीं भेजा जा सका: %1$s</string>
+    <string name="err_answer_failed">अनुरोध का उत्तर नहीं दिया जा सका: %1$s</string>
+    <string name="err_end_failed">सेशन समाप्त नहीं किया जा सका: %1$s</string>
+    <string name="err_create_failed">कोड नहीं बनाया जा सका: %1$s</string>
+    <string name="err_cancel_failed">रद्द नहीं किया जा सका: %1$s</string>
+    <string name="err_revoke_failed">निरस्त नहीं किया जा सका: %1$s</string>
+    <string name="err_remove_failed">हटाया नहीं जा सका: %1$s</string>
 </resources>
