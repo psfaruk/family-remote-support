@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">Dieses Paar ist als Gast gekoppelt. Für Familie: die Gast-Kopplung am Empfänger-Telefon entfernen und einen neuen Family-Code ausstellen.</string>
     <string name="err_generic">Firestore-Fehler %1$s: %2$s</string>
     <string name="cd_details">Details</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">Anfrage konnte nicht gesendet werden: %1$s</string>
+    <string name="err_answer_failed">Anfrage konnte nicht beantwortet werden: %1$s</string>
+    <string name="err_end_failed">Sitzung konnte nicht beendet werden: %1$s</string>
+    <string name="err_create_failed">Code konnte nicht erstellt werden: %1$s</string>
+    <string name="err_cancel_failed">Abbrechen nicht möglich: %1$s</string>
+    <string name="err_revoke_failed">Widerrufen nicht möglich: %1$s</string>
+    <string name="err_remove_failed">Entfernen nicht möglich: %1$s</string>
 </resources>
