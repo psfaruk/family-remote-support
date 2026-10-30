@@ -1561,3 +1561,50 @@ download/family-remote-support-v0.23.0-code42.apk (39.7 MB); readback-verify ALL
 লুকাবে, ⌃ পিল ডান-কোণে, টেনে যেকোনো জায়গায় রাখা যায়; (২) Phase 18.3 (streaming latency —
 MAINTAIN_RESOLUTION→FRAMERATE + adaptive ceiling) পরবর্তী Owner-নির্দেশের অপেক্ষায়; (৩)
 18.1-এর mixed-version নোট প্রযোজ্য।
+
+---
+Task ID: 54
+Agent: Z.ai Code (main)
+Task: Phase 18.3 (v0.24.0, versionCode 43) — Streaming Latency ফিক্স (Owner-বাগ C: "টাচ রিয়েল
+টাইমে কাজ করে, কিন্তু owner এর মোবাইল এ আসতে দেরি হয়") + Owner-স্ক্রিনশটের Pairing
+PERMISSION_DENIED নির্ণয় ও নির্দেশনা-সংশোধন
+
+পদ্ধতি: ScreenShareEngine ফুল-ট্রেস → বাগ C রুট-কজ — degradationPreference=MAINTAIN_
+RESOLUTION দুর্বল নেটে রেজোলিউশন ধরে রাখতে গিয়ে ফ্রেম স্টার্ভ করত (touch data-channel-এ
+রিয়েল-টাইম, ভিডিও সেকেন্ড-পিছিয়ে)। ফিক্স: (১) MAINTAIN_FRAMERATE ডিফল্ট — চাপে ছবি
+নামে, ফ্রেম থামে না; (২) ৫-সেকেন্ড RTT watchdog (getStats currentRoundTripTime) —
+>120ms→1600k, >200ms→1000k, >300ms→700k, খারাপে সোজা টায়ারে নামে, সুস্থে ধাপে ওঠে
+(hysteresis); relay/data-saver caps-এর সাথে min-কম্পোজ; (৩) config/quality.
+degradationPreference লাইভ-নব (framerate|balanced|resolution — নতুন APK ছাড়াই টিউন);
+set-quality-config.mjs-এ ৬ষ্ঠ আর্গ। Owner-এর পেয়ারিং-স্ক্রিনশট নির্ণয়: runtime POSITIVE
+probe (নতুন scripts/rules-pairing-probe.mjs — দুটি synthetic identity, সঠিক client-writes
+replay) → P1 create+redeem(WITH claimToken)=200 PASS, N1 without-claimToken=403, N2
+wrong-token=403, negative-probe 12/12 PASS → লাইভ rules ও remote client (v0.21+ claimToken-
+সমর্থিত, কমিট 7d295afa) উভয়ই সঠিক; DENIED-এর একমাত্র ব্যাখ্যা = একটি ফোনে পুরনো বিল্ড
+(v0.20.0-) → version-lock। PairingRepo-র বিভ্রান্তিকর "Phase 6 rules পাবলিশ করুন" বার্তা
+সংশোধিত — এখন সঠিক নির্দেশ: "দুটো ফোনেই নতুন অ্যাপ ইনস্টল করুন"।
+
+স্যান্ডবক্স-ঘটনা (গুরুত্বপূর্ণ): কাজের মাঝে sandbox-এর 55/67 ফাইল পুরনো checkpoint-এ
+রোল-ব্যাক হয়েছিল (MainActivity/build.gradle আজকের push-এর পরেও, cloudflare/wrangler.toml
+restore-এর পরেও) — remote অক্ষত ছিল; সম্পূর্ণ tree-diff + remote-থেকে bulk-restore করে
+fresh base-এ সব এডিট re-apply করা হয়েছে। শিক্ষা: sandbox কপি কখনো truth নয় — push-এর
+আগে-পরে remote-sha যাচাইই বাধ্যতামূলক।
+
+ফাইল: ScreenShareEngine.kt (MAINTAIN_FRAMERATE ডিফল্ট + scheduleRttWatchdog/onRttSample +
+rttTiers + teardown-resets), ConfigRepo.kt (QualityCfg.pref + fetchQuality parse),
+PairingRepo.kt (PERMISSION_DENIED বার্তা), app/build.gradle.kts (43/0.24.0), scripts/
+rules-pairing-probe.mjs (নতুন), scripts/set-quality-config.mjs (pref আর্গ; remote-এ
+প্রথমবার push — আগে sandbox-only ছিল)। firestore.rules: remote ইতিমধ্যেই live-strict
+সমান ছিল → SKIP (identical)। LIVE config/quality সেট: vp8·30·1200–4000·framerate।
+
+যাচাই: node probes 3টি PASS; Kotlin সম্পাদন fresh remote-base-এ; push 7 ফাইল (79f8399→
+adce5d5), readback-verify ALL MATCH; CI: run 41023422525 (adce5d5) SUCCESS; APK verify →
+PASS (code=43 INT_DEC, name=0.24.0, v2-sig, version-স্ট্রিং শুধু [0.24.0]) →
+download/family-remote-support-v0.24.0-code43.apk (39.7 MB)।
+
+ফেইল/বাকি: (১) Owner-করণীয় — দুই ফোনেই v0.24.0 ইনস্টল (স্ক্রিনশটের DENIED-এর কারণ পুরনো
+বিল্ড; পেয়ারিং ভার্সন-লকড), তারপর নতুন কোড দিয়ে পেয়ার + স্ক্রিন-শেয়ার লেটেন্সি টেস্ট
+(এখন চাপে ছবি ঝাপসা হলেও সময়মতো আসবে); (২) লাইভ-টিউন: node scripts/set-quality-config.mjs
+vp8 30 1200 4000 balanced|resolution — প্রয়োজনে; (৩) Phase 18.4 (notification chain E2E —
+Worker /health URL লাগবে) / 18.5+ পরবর্তী Owner-নির্দেশের অপেক্ষায়; (৪) sandbox-রোল-ব্যাক
+সমস্যা পরিবেশগত — remote/GitHub-ই একমাত্র truth।
