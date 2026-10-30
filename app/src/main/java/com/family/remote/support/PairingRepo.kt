@@ -1,5 +1,6 @@
 package com.family.remote.support
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -82,27 +83,20 @@ suspend fun <T> Task<T>.awaitWithTimeout(
  * Distinguishes the three realistic root causes: rules, missing database,
  * unreachable network.
  */
-fun describeFirestoreError(e: Exception): String = when (e) {
+fun describeFirestoreError(context: Context, e: Exception): String = when (e) {
     is FirestoreUnreachableException -> e.message ?: "Could not reach Firestore."
     is FirebaseFirestoreException -> when (e.code) {
         FirebaseFirestoreException.Code.PERMISSION_DENIED ->
-            "Permission denied by the security rules — in practice this means one of " +
-                "the two phones is running an OLD app version (pairing is " +
-                "version-locked). Update BOTH phones to the newest app and pair " +
-                "again (দুটো ফোনেই নতুন অ্যাপ ইনস্টল করুন). If it still fails, " +
-                "publish the newest android-app/firestore.rules from the repo " +
-                "(Firebase console → Firestore Database → Rules)."
+            context.getString(R.string.err_perm_denied)
         FirebaseFirestoreException.Code.FAILED_PRECONDITION,
         FirebaseFirestoreException.Code.NOT_FOUND ->
-            "Firestore database not found — in the Firebase console open " +
-                "Build → Firestore Database and finish creating the database."
+            context.getString(R.string.err_db_missing)
         FirebaseFirestoreException.Code.UNAVAILABLE,
         FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
         FirebaseFirestoreException.Code.INTERNAL,
         FirebaseFirestoreException.Code.UNKNOWN ->
-            "Cannot reach Firestore right now (network hiccup). Check the internet " +
-                "connection and try again."
-        else -> "Firestore error ${e.code}: ${e.message ?: "unknown"}"
+            context.getString(R.string.err_unreachable)
+        else -> context.getString(R.string.err_generic, e.code, e.message ?: "unknown")
     }
     else -> e.message ?: "Unknown error"
 }
@@ -259,9 +253,9 @@ fun parsePairingCode(raw: String): InviteCode {
         INVITE_ID_LENGTH + tokenChars -> INVITE_ID_LENGTH
         LEGACY_INVITE_ID_LENGTH + tokenChars -> LEGACY_INVITE_ID_LENGTH
         else -> throw RedemptionException(
-            "A pairing code has ${INVITE_ID_LENGTH + tokenChars} characters " +
-                "($INVITE_ID_LENGTH + $tokenChars; older app versions use " +
-                "${LEGACY_INVITE_ID_LENGTH + tokenChars}). This one has ${cleaned.length}."
+            context.getString(R.string.err_code_length,
+                INVITE_ID_LENGTH + tokenChars, INVITE_ID_LENGTH, tokenChars,
+                LEGACY_INVITE_ID_LENGTH + tokenChars, cleaned.length)
         )
     }
     return InviteCode(
@@ -383,7 +377,7 @@ suspend fun cancelInvitation(invId: String) {
  * which made every redemption fail with INVALID_ARGUMENT). So: read both
  * documents first, run every validation, and only then write.
  */
-suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
+suspend fun redeemCode(context: Context, user: FirebaseUser, rawCode: String): RelationshipView {
     val code = parsePairingCode(rawCode)
     val tokenHash = sha256Hex(code.token)
     val db = Fb.db
@@ -393,14 +387,13 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         val snap = tx.get(invRef)
         if (!snap.exists()) {
             throw RedemptionException(
-                "Code not found — check the first ${code.invitationId.length} characters."
+                context.getString(R.string.err_code_not_found, code.invitationId.length)
             )
         }
         val inviterUid = snap.getString("inviterUid") ?: ""
         if (inviterUid == user.uid) {
             throw RedemptionException(
-                "This is your own code — the helper must type it on THEIR phone while " +
-                    "signed in with their own Google account."
+                context.getString(R.string.err_own_code)
             )
         }
         // v0.21.0 (audit): RESUME path — if THIS user already claimed the
@@ -411,14 +404,14 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
             snap.getString("claimedBy") == user.uid
         if (!alreadyMine) {
             if (snap.getString("status") != "PENDING") {
-                throw RedemptionException("This code was already used or cancelled. Ask for a new one.")
+                throw RedemptionException(context.getString(R.string.err_already_used))
             }
             val expiresAt = snap.getTimestamp("expiresAt")
             if (expiresAt != null && expiresAt.toDate().before(Date())) {
-                throw RedemptionException("This code has expired. Ask for a fresh 5-minute code.")
+                throw RedemptionException(context.getString(R.string.err_expired))
             }
             if (snap.getString("tokenHash") != tokenHash) {
-                throw RedemptionException("Wrong code — compare every character with the other phone.")
+                throw RedemptionException(context.getString(R.string.err_wrong_code))
             }
         }
 
@@ -434,16 +427,12 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         // ---------- Phase 10: guest != family (client-side fence) ----------
         if (existing.exists() && inviteKind == REL_KIND_GUEST && existingKind != REL_KIND_GUEST) {
             throw RedemptionException(
-                "এই জোড়াটি ইতিমধ্যে Family (স্থায়ী) হিসেবে যুক্ত — Guest কোড এখানে লাগবে না। " +
-                    "(This pair already has a permanent Family link — no guest code needed.)"
+                context.getString(R.string.err_pair_family_exists)
             )
         }
         if (existing.exists() && inviteKind != REL_KIND_GUEST && existingKind == REL_KIND_GUEST) {
             throw RedemptionException(
-                "এই জোড়াটি Guest হিসেবে যুক্ত। Family করতে হলে সাহায্য-পাওয়ার ফোন থেকে " +
-                    "Guest লিংকটি সরিয়ে (Remove) নতুন Family কোড দিতে হবে। " +
-                    "(A guest link can never become family automatically — remove it first, " +
-                    "then pair again with a fresh Family code.)"
+                context.getString(R.string.err_pair_guest_exists)
             )
         }
         val guestEndsMillis = System.currentTimeMillis() + GUEST_RELATIONSHIP_TTL_MILLIS
