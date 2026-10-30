@@ -31,7 +31,9 @@ import kotlinx.coroutines.withTimeout
  * Phase 4 — Pairing data layer.
  *
  * A pairing code is split into two parts:
- *  - invitationId : 6 characters, acts as the public lookup key (Firestore doc id)
+ *  - invitationId : 12 characters since v0.25.0 (was 6), acts as the public
+ *    lookup key (Firestore doc id). Legacy 6-char ids are still ACCEPTED at
+ *    redemption so mixed-version pairs keep working during the transition.
  *  - token        : 20 hex chars (80 bits of SecureRandom), shared out-of-band
  *
  * Firestore stores ONLY the SHA-256 hash of the token — never the raw token —
@@ -198,7 +200,29 @@ enum class QrBadge(val glyph: String, val fallback: String, val labelBn: String)
 
 // No I, L, O, 0 or 1 — characters that are easy to misread over a phone call.
 private const val INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-private const val INVITE_ID_LENGTH = 6
+
+/**
+ * v0.25.0 (Phase 18.6 audit — the §56 deferred finding, app-side half): the
+ * invitation doc id is fetchable by ANY signed-in account (rules: get if
+ * signedIn), so the id IS the entire brute-force space. 31^6 ≈ 8.9×10^8
+ * (~30 bits) was enumerable — a hostile signed-in account hammering fresh
+ * 5-char-format guesses would burn Firestore reads (404 GETs still bill) and
+ * had a small but real chance to land a live PENDING invite before its 5-min
+ * expiry. 31^12 ≈ 7.9×10^17 (~59.5 bits) makes id enumeration computationally
+ * dead while staying typeable/readable-aloud (no ambiguous glyphs, same
+ * alphabet). QR payloads carry any length already; only the manual-typed
+ * extraction regex in QrScanner.kt needed widening.
+ *
+ * Pairing stays version-locked like every past APK bump: a NEW recipient's
+ * 12-char code needs a NEW helper app to redeem (an old helper's length check
+ * rejects it with an honest message), while a NEW helper can still redeem an
+ * OLD recipient's 6-char code (legacy acceptance below). Existing
+ * relationships are untouched — pairing codes only matter at pair time.
+ */
+private const val INVITE_ID_LENGTH = 12
+
+/** v0.25.0 (Phase 18.6): ids minted by older APKs — still redeemable. */
+private const val LEGACY_INVITE_ID_LENGTH = 6
 private const val TOKEN_BYTES = 10 // -> 20 hex chars (80-bit one-time token)
 
 fun sha256Hex(value: String): String =
@@ -220,19 +244,26 @@ fun generateInviteCode(): InviteCode {
 
 /**
  * Accepts the code with or without dashes/spaces and in any letter case:
- * "ABC123-1a2b…", "abc123 1a2b…", "ABC1231a2b…" are all the same code.
+ * "ABCD2345XY67-1a2b…", "abcd2345xy67 1a2b…", "ABCD2345XY671a2b…" are the same
+ * code. v0.25.0 (Phase 18.6): a 32-char NEW code (12+20) or a 26-char legacy
+ * code (6+20, minted by older APKs) — both redeem; anything else is rejected
+ * with an honest message that names both formats.
  */
 fun parsePairingCode(raw: String): InviteCode {
     val cleaned = raw.replace(" ", "").replace("-", "").trim().uppercase()
-    val expected = INVITE_ID_LENGTH + TOKEN_BYTES * 2
-    if (cleaned.length != expected) {
-        throw RedemptionException(
-            "A pairing code has $expected characters (6 + 20). This one has ${cleaned.length}."
+    val tokenChars = TOKEN_BYTES * 2
+    val idLen = when (cleaned.length) {
+        INVITE_ID_LENGTH + tokenChars -> INVITE_ID_LENGTH
+        LEGACY_INVITE_ID_LENGTH + tokenChars -> LEGACY_INVITE_ID_LENGTH
+        else -> throw RedemptionException(
+            "A pairing code has ${INVITE_ID_LENGTH + tokenChars} characters " +
+                "($INVITE_ID_LENGTH + $tokenChars; older app versions use " +
+                "${LEGACY_INVITE_ID_LENGTH + tokenChars}). This one has ${cleaned.length}."
         )
     }
     return InviteCode(
-        invitationId = cleaned.substring(0, INVITE_ID_LENGTH),
-        token = cleaned.substring(INVITE_ID_LENGTH).lowercase()
+        invitationId = cleaned.substring(0, idLen),
+        token = cleaned.substring(idLen).lowercase()
     )
 }
 
@@ -358,7 +389,9 @@ suspend fun redeemCode(user: FirebaseUser, rawCode: String): RelationshipView {
         val invRef = db.collection(INVITATION_COLLECTION).document(code.invitationId)
         val snap = tx.get(invRef)
         if (!snap.exists()) {
-            throw RedemptionException("Code not found — check the first 6 characters.")
+            throw RedemptionException(
+                "Code not found — check the first ${code.invitationId.length} characters."
+            )
         }
         val inviterUid = snap.getString("inviterUid") ?: ""
         if (inviterUid == user.uid) {
