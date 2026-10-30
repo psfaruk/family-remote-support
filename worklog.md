@@ -1472,3 +1472,50 @@ Deployments ট্যাবে "v0.21.0 (Phase 17" ডিপ্লয় কন�
 release-keystore SHA-1 Firebase কনসোলে যোগ (Owner), গভীর-স্ক্রিন i18n (Phase 16b ব্যাকলগ),
 সার্ভার-সাইড ওপেন-সেশন-ক্যাপ, worker এন্ডপয়েন্ট রেট-লিমিট। (৪) Uptodown-প্রকাশ Owner-সংকেতের
 অপেক্ষায়।
+
+---
+Task ID: 52
+Agent: Z.ai Code (main)
+Task: Phase 18.1 (v0.22.0, versionCode 41) — Pairing & Session Lifecycle অডিট + রিবুট-পুনঃসংযোগ
+ফিক্স (Owner: "18.1 দিয়ে শুরু করো" — Phase 18 পূর্ণ-অডিট প্ল্যানের প্রথম ফেজ; Owner-বাগ:
+"ফ্যামেলি কানেক্ট হওয়ার পর যদি রিবুট করে, তখন ওই ফ্যামেলির যোগ করা যায় না")
+
+পদ্ধতি: রিমোট ট্রুথ-সোর্স সিঙ্ক (HEAD f48b883, 54 ফাইল রিফ্রেশ) → session-লাইফসাইকেল ফুল-ট্রেস
+(SessionRepo 414 লাইন + MainActivity session-কার্ড/cleanup ব্লক + rules supportSessions ব্লক +
+worker/script sweep + রিবুট-রিরেজিস্ট্রেশন চেইন) → ৫ ফাইন্ডিং → ৩ ফিক্স।
+
+ফাইন্ডিং: (F1-ক্রিটিক্যাল) requestSession-এর duplicate-check যেকোনো খোলা REQUESTED/ACTIVE doc-এ
+থ্রো করত — রিবুটের পর zombie doc ব্লক করত, self-heal নেই, UI-তে "already waiting/active" ছাড়া
+কোনো পথ নেই = Owner-র রিবুট-ব্লক। (F2-উচ্চ) PairingSections-এর lazy-expiry শুধু openSession
+(নতুনতম) পরিষ্কার করত — পুরনো zombie জমত ও watchSessions-এর limit(10) উইন্ডো ভরে fresh ask
+বাইরে চলে যেতে পারত। (F3-উচ্চ) Worker + sandbox-script sweep শুধু status==REQUESTED দেখত —
+বাসি ACTIVE (sessionEndsAt পেরোনো) সার্ভার-সাইডে কখনো পরিষ্কার হত না। (F4-তথ্য) rules আগে থেকেই
+REQUESTED→EXPIRED (উভয় participant) + ACTIVE→ENDED (উভয়, endedBy=uid|timeout) অনুমোদন করে —
+rules-পরিবর্তন অপ্রয়োজনীয়। (F5-তথ্য) রিবুট-রিরেজিস্ট্রেশন চেইন সুস্থ — app-open-এ registerDevice +
+heartbeat + registerFcmToken স্বাধীন error-path-এ পুনঃরান, PushTokenService.onNewToken কভার।
+
+বাস্তবায়ন: (১) SessionRepo.requestSession SELF-HEAL — বাসি doc পেলে নিজেই পরিষ্কার করে আগায়:
+নতুন isStaleOpen(now) হেল্পার (REQUESTED: respondDeadline+4s পেরোলে; ACTIVE: sessionEndsAt+4s
+পেরোলে — UI-lazy-expiry-র একই grace), ≤৪ রাউন্ড লুপ, প্রতি ব্যাচে সব বাসি doc → expireSession/
+endSession(byTimeout=true) — rules-যাচাইকৃত একই ট্রানজিশন; genuine grant/deny রেসে পরের রাউন্ডে
+সত্য দেখে honest error; malformed-doc guard + ৪-রাউন্ড-exhaust guard (duplicate-write কখনো নয়);
+fresh-ব্লকের বার্তায় escape-hatch (কার্ডের Cancel/End) নির্দেশ EN+BN। (২) ROOT-level zombie-sweep
+(MainActivity HomeScreen) — যেকোনো ট্যাবে অ্যাপ জীবন্ত হলেই সব বাসি open-session পরিষ্কার (আগে শুধু
+ফোন-ট্যাব খোলা থাকলে চলত)। (৩) PairingSections sweep-all — per-second টিকে এখন প্রতিটি open
+session পরীক্ষা, শুধু নতুনতম নয়। (৪) Worker sweepOnce-এ ACTIVE-সেশন expiry — status==ACTIVE
+কুয়েরি, sessionEndsAt+60s পেরোলে admin-path ENDED("timeout") (নিয়ম-অনুরূপ ট্রানজিশন), oldest-first,
+প্রতি-সুইপ ৫০-ক্যাপ, per-doc try/catch; summary-তে activeDocs/activeExpired (health-এ স্বয়ং
+প্রবাহিত)। (৫) scripts/fcm-kill-push.mjs-এ একই পোর্ট + formatSummary-তে নতুন কাউন্টার।
+ভার্সন: 0.22.0 / 41।
+
+যাচাই: node --check worker+script OK; Kotlin static — SessionRepo/MainActivity brace/paren/bracket
+{0,0,0}; isStaleOpen ১-সংজ্ঞা ২-ব্যবহার(+১ কমেন্ট); old limit(1) অপসৃত; ROOT+full sweep উপস্থিত;
+push N কমিট, readback-verify ALL MATCH (Contents API fresh sha256)। [CI + APK ফলাফল push-পরবর্তী
+যোগ হবে]
+
+ফেইল/বাকি: (১) Owner-করণীয় — দুই ফোনে v0.22.0 (দুটোতেই! পেয়ারিং ভার্সন-লকড) ইনস্টল করে পরীক্ষা:
+শেয়ার চালু অবস্থায় এক ফোন রিবুট → আবার খুলে সরাসরি নতুন সেশন চাওয়া (নতুন পেয়ারিং লাগবে না);
+(২) mixed-version পেয়ারিং (v0.20↔v0.21+) এখনও ব্যর্থ হবে — security-first সিদ্ধান্ত, উভয় ফোনে
+একই বিল্ড বাধ্যতামূলক; (৩) Phase 18.2 (fullscreen bar) / 18.3 (streaming latency) পরবর্তী
+Owner-নির্দেশের অপেক্ষায়; (৪) Worker-এর নতুন কোড Workers-Builds-এ অটো-ডিপ্লয় হবে (Deployments
+ট্যাবে "v0.22.0 (Phase 18.1" রো)।
