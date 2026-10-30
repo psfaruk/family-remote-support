@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -130,13 +131,13 @@ fun QrScanDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "অন্য ফোনের QR কোড স্ক্যান করুন",
+                text = stringResource(R.string.qr_scan_title),
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "কোডের মাঝখানের প্রতীকটি রোল বলে দেয় — স্ক্যানের পরে রোল-নিশ্চিতকরণ দেখাবে।",
+                text = stringResource(R.string.qr_scan_hint),
                 color = Color.White.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.bodySmall
             )
@@ -154,12 +155,11 @@ fun QrScanDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "QR স্ক্যান করতে ক্যামেরা লাগবে। না চাইলে পেছনে গিয়ে " +
-                                "কোডটি টাইপ করেও যুক্ত হওয়া যায়।",
+                            text = stringResource(R.string.qr_scan_permission_text),
                             color = Color.White
                         )
                         Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                            Text("ক্যামেরার অনুমতি দিন")
+                            Text(stringResource(R.string.qr_scan_permission_btn))
                         }
                     }
                 }
@@ -171,7 +171,7 @@ fun QrScanDialog(
                 QrBadgeLegendChip(badge = QrBadge.GUEST)
             }
             Button(onClick = onDismiss) {
-                Text("ক্যামেরা বন্ধ করুন")
+                Text(stringResource(R.string.qr_scan_close_btn))
             }
         }
     }
@@ -180,8 +180,12 @@ fun QrScanDialog(
 /** One legend chip under the viewfinder: glyph + role + duration, in words. */
 @Composable
 private fun QrBadgeLegendChip(badge: QrBadge) {
+    // v0.27.0 (Phase 19.1): label from localized resources (was labelBn).
+    val label = stringResource(
+        if (badge == QrBadge.FAMILY) R.string.qr_badge_family else R.string.qr_badge_guest
+    )
     Text(
-        text = "${badge.glyph} ${badge.labelBn}",
+        text = "${badge.glyph} $label",
         color = Color.White,
         fontSize = 13.sp,
         modifier = Modifier
