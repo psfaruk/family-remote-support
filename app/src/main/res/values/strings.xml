@@ -405,4 +405,13 @@
     <string name="err_pair_guest_exists">এই জোড়াটি Guest হিসেবে যুক্ত। Family করতে হলে সাহায্য-পাওয়ার ফোন থেকে Guest লিংকটি সরিয়ে (Remove) নতুন Family কোড দিতে হবে।</string>
     <string name="err_generic">Firestore error %1$s: %2$s</string>
     <string name="cd_details">বিস্তারিত</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">Could not send the request: %1$s</string>
+    <string name="err_answer_failed">Could not answer the request: %1$s</string>
+    <string name="err_end_failed">Could not end the session: %1$s</string>
+    <string name="err_create_failed">Could not create a code: %1$s</string>
+    <string name="err_cancel_failed">Could not cancel: %1$s</string>
+    <string name="err_revoke_failed">Could not revoke: %1$s</string>
+    <string name="err_remove_failed">Could not remove: %1$s</string>
 </resources>
