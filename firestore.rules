@@ -53,10 +53,23 @@ service cloud.firestore {
     // ---------- Phase 3: profiles + registered devices ----------
     match /users/{uid} {
       allow get, list: if isSelf(uid);
+      // v0.24.0 (Phase 18.5 audit): every profile field is now type- and
+      // size-bounded — the old rule allowed a ~1 MB displayName/email blob
+      // (Firestore's own per-doc ceiling) inside an otherwise least-privilege
+      // rule. Optional-field aware (fields the app has not written yet pass).
       allow create, update: if isSelf(uid)
         && request.resource.data.keys().hasOnly(
           ['displayName', 'email', 'photoUrl', 'createdAt', 'updatedAt']
-        );
+        )
+        && (!('displayName' in request.resource.data)
+            || (request.resource.data.displayName is string
+                && request.resource.data.displayName.size() < 300))
+        && (!('email' in request.resource.data)
+            || (request.resource.data.email is string
+                && request.resource.data.email.size() < 320))
+        && (!('photoUrl' in request.resource.data)
+            || (request.resource.data.photoUrl is string
+                && request.resource.data.photoUrl.size() < 2048));
       allow delete: if false;
 
       match /devices/{deviceId} {
@@ -92,6 +105,15 @@ service cloud.firestore {
         )
         && request.resource.data.inviterUid == request.auth.uid
         && request.resource.data.status == 'PENDING'
+        // v0.24.0 (Phase 18.5 audit): the free-text invitation fields are now
+        // type- and size-bounded (they end up readable to any signed-in user
+        // who holds the doc id — never a blob carrier).
+        && request.resource.data.inviterEmail is string
+        && request.resource.data.inviterEmail.size() < 320
+        && request.resource.data.recipientDeviceId is string
+        && request.resource.data.recipientDeviceId.size() < 128
+        && request.resource.data.recipientDeviceModel is string
+        && request.resource.data.recipientDeviceModel.size() < 120
         // Phase 10: kind is optional (legacy family invites) but, when
         // present, must be one of the two pairing modes. It is frozen
         // afterwards — the update rule below never lists it.
@@ -215,7 +237,7 @@ service cloud.firestore {
             && !('guestExpiresAt' in request.resource.data)
             && familyInvite(inviteAfter(request.resource.data)) )
           ||
-          // guest pairing — bounded 2 h window (client-claimed, server-bounded)
+          // guest pairing — bounded window (client-claimed, server-bounded ≤ 3 h)
           ( isGuestRel(request.resource.data)
             && 'kind' in inviteAfter(request.resource.data)
             && inviteAfter(request.resource.data).kind == 'guest'
@@ -309,7 +331,11 @@ service cloud.firestore {
         )
         && request.resource.data.uid is string
         && request.resource.data.deviceId is string
-        && request.resource.data.model is string;
+        && request.resource.data.model is string
+        // v0.24.0 (Phase 18.5 audit): timestamps type-checked — the badge
+        // math silently mis-aged a hostile non-timestamp heartbeatAt.
+        && request.resource.data.heartbeatAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
 
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
@@ -329,7 +355,9 @@ service cloud.firestore {
         && request.resource.data.deviceId is string
         && request.resource.data.token is string
         && request.resource.data.token.size() >= 32
-        && request.resource.data.token.size() <= 4096;
+        && request.resource.data.token.size() <= 4096
+        // v0.24.0 (Phase 18.5 audit): registry hygiene is timestamp-typed.
+        && request.resource.data.updatedAt is timestamp;
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
@@ -394,7 +422,13 @@ service cloud.firestore {
         )
         && request.resource.data.respondDeadline is timestamp
         && request.resource.data.respondDeadline > request.time
-        && request.resource.data.respondDeadline < request.time + duration.value(5, 'm');
+        && request.resource.data.respondDeadline < request.time + duration.value(5, 'm')
+        // v0.24.0 (Phase 18.5 audit): the remaining client-set timestamps are
+        // type-checked (the sweep's freshness math silently skipped a doc
+        // whose requestedAt a hostile helper could re-type).
+        && request.resource.data.requestedAt is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
 
       allow update: if signedIn() && isSessionParticipant()
         && request.resource.data.status in ['ACTIVE', 'DENIED', 'CANCELLED', 'EXPIRED', 'ENDED']
@@ -482,7 +516,22 @@ service cloud.firestore {
           && request.resource.data.type in
             ['offer', 'answer', 'ice', 'watch', 'bye', 'cmd', 'cmdack']
           && request.resource.data.payload is string
-          && request.resource.data.payload.size() < 100000
+          // v0.24.0 (Phase 18.5 audit): the flat 100 kB cap let a hostile
+          // participant park megabytes per ask window in cmd/ice buckets the
+          // app itself bounds far tighter. Per-type caps mirror the engine:
+          // cmd/cmdack ≤ maxCmdChars (4 096, inclusive — the app refuses
+          // strictly-greater), watch ≤ the 64-char epoch check (headroom),
+          // bye tiny, ice candidates small JSON, offer/answer keep SDP headroom.
+          && (
+            (request.resource.data.type in ['cmd', 'cmdack']
+              && request.resource.data.payload.size() <= 4096)
+            || (request.resource.data.type in ['watch', 'bye']
+              && request.resource.data.payload.size() <= 256)
+            || (request.resource.data.type == 'ice'
+              && request.resource.data.payload.size() <= 16384)
+            || (request.resource.data.type in ['offer', 'answer']
+              && request.resource.data.payload.size() < 100000)
+          )
           && request.resource.data.ep is string
           && request.resource.data.ep.size() <= 64;
 
