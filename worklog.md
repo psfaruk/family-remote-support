@@ -1854,3 +1854,42 @@ PHASE-0.md / UI_UX_DESIGN_SYSTEM.md — ঐতিহাসিক/স্পেক
 অপরিবর্তিত (docs+CI-only)। **Owner-করণীয় (উচ্চ-অগ্রাধিকার):** Cloudflare-এ FIREBASE_SA_JSON
 secret — এটিই স্থায়ী kill-push স্তর জীবিত করার একমাত্র বাকি ধাপ। পরবর্তী: Phase 19-প্রার্থী
 (i18n-ডেট ~৩০৫ লাইন বাংলা হার্ডকোড) / ডিপেন্ডেন্সি-পাস — Owner-নির্দেশে।
+
+## §61 — Phase 19.1 (v0.27.0/code 46): i18n-নিষ্কাশন ধারা শুরু — QrScanner + PermissionWizard সম্পূর্ণ (২০২৬-১০-৩০)
+
+Owner "Phase 19" → §58-র record-only ডেট (হার্ডকোড-বাংলা ~৩০৫ লাইন) নিষ্কাশন শুরু। স্কেল যাচাই:
+৩ ফাইলে ৩২৩ অবস্থান (MainActivity ২৭০ / PW ৪৭ / QrScanner ৬) — ৩০-এ ইন্টারপোলেশন (placeh-
+older-প্রয়োজন)। এক-শট ঝুঁকি এড়িয়ে দুই-কিস্তি: **19.1 = QrScanner + PermissionWizard**, 19.2 =
+MainActivity (+error-pipeline)। পদ্ধতি: ২০ ফাইল remote blob-SHA-ভেরিফাইড → লিটারাল স্ক্যান
+(Bengali-ইউনিকোড রেঞ্জ) → ৩৯ নতুন কী × ১৫ ভাষা অনুবাদ-জেনারেটর → XML ইনজেকশন (ET-parse +
+প্লেসহোল্ডার-প্যারিটি) → Kotlin-প্রতিস্থাপন (exact-anchor + ব্রেস-ব্যালেন্স) → পুশ (readback) → CI।
+
+**নতুন কী (৩৯):** qr_scan_title/hint/permission_text/permission_btn/close_btn + qr_badge_family/
+guest (৭) · pw_guide_title/intro/step1-3_text/warning/privacy + pw_step_১-৪ + pw_open_settings/
+later (১২) · pw_title/intro/all_done/progress(%1$d+%2$s)/perm_notif/camera/assist_title/assist/
+battery + ৪ desc + allow/setup_open/screen_share_note/done_btn/status_done/status_pending (২০)।
+বাংলা সংখ্যা bn/hi/ne/ar/ur-এ নেটিভ (১-৪, ২ ঘণ্টা, ৪টা) — 18.7-কনভেনশন ধরে।
+
+**কোড-পরিবর্তন:** (১) QrScanner ৪ লিটারাল → stringResource; QrBadgeLegendChip এখন stringResource
+(qr_badge_*) ব্যবহার করে; (২) PermissionWizard ৪৬ লিটারাল → stringResource, বহু-লাইন কনক্যাট ৫টি
+এক-কীতে মার্জ (অনুবাদ-মানের জন্য), actionLabel ×৩ অনুমতি-দিন + ১ সেটআপ-খুলুন;
+**missingNamesBn() → missingNames(context)** — localized নাম-তালিকা (Context প্যারামিটার);
+(৩) PairingRepo QrBadge enum থেকে labelBn সরানো (glyph+fallback অবিকল — QR-বিটম্যাপ ভাষা-নিরপেক্ষ);
+(৪) MainActivity ন্যূনতম-স্পর্শ: শুধু :2604-প্রগ্রেস-লাইন stringResource(pw_progress)+
+missingNames(context) — ২৭০→২৬৯; (৫) build.gradle.kts 0.26.0/45→0.27.0/46।
+
+**যাচাই:** ১৫×strings.xml ET-parse PASS + ৩৯-কী parity PASS + প্লেসহোল্ডার-মিল PASS;
+QrScanner=0, PW=0 বাংলা-লিটারাল; ব্রেস/প্যারেন-ব্যালেন্স সব OK; Kotlin-রেফারেন্স ৭+৩১+১ সামঞ্জস্যপূর্ণ।
+CI run 41086668596 **SUCCESS** — নিষ্কাশন রিয়েল-কম্পাইল-প্রমাণিত। APK v0.27.0/code 46
+(39.8MB) download/-এ।
+
+**নতুন-আবিষ্কৃত ডেট (18.7-তালিকায় ছিল না):** PairingRepo-র ৪টি ইউজার-ফেসিং বাংলা এরর-টেক্সট
+(:92 describeFirestoreError-বাংলা-parenthetical, :437/:443 RedemptionException guest/family-
+fence) — redeemCode()-এ Context নেই, describeFirestoreError-ও নেই; এগুলো MainActivity-এর
+error-display-পাইপলাইনেই দেখায় → **19.2-এর error-plumbing-কিস্তিতে** (MainActivity ২৬৯ লিটারাল
++ PairingRepo-এরর + Context-প্লাম্বিং একসাথে)।
+
+**পুশ:** ২০ ফাইল — QrScanner/PermissionWizard/PairingRepo/MainActivity/১৫×strings.xml/
+build.gradle.kts — readback ALL MATCH (b60660f→4a5aeed; মাঝের রান cancel = 18.9-concurrency
+কাজ করছে)। Owner-করণীয়: দুই ফোনে v0.27.0 (code 46) ইনস্টল — PermissionWizard/QrScanner
+পছন্দের ভাষায় দেখুন। পরবর্তী: 19.2 (MainActivity ~২৬৯ লিটারাল + error-plumbing) — Owner-নির্দেশে।
