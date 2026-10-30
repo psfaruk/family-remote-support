@@ -1893,3 +1893,43 @@ error-display-পাইপলাইনেই দেখায় → **19.2-এ�
 build.gradle.kts — readback ALL MATCH (b60660f→4a5aeed; মাঝের রান cancel = 18.9-concurrency
 কাজ করছে)। Owner-করণীয়: দুই ফোনে v0.27.0 (code 46) ইনস্টল — PermissionWizard/QrScanner
 পছন্দের ভাষায় দেখুন। পরবর্তী: 19.2 (MainActivity ~২৬৯ লিটারাল + error-plumbing) — Owner-নির্দেশে।
+
+## §62 — Phase 19.2 (v0.28.0/code 47): i18n-নিষ্কাশন সম্পন্ন — MainActivity + error-pipeline পূর্ণ (২০২৬-১০-৩০)
+
+Owner "19.2 শুরু কর" → §58-ডেটের বাকি অংশ। স্কোপ: MainActivity ২৬৯ লিটারাল + PairingRepo-এর
+৪ বাংলা এরর + describeFirestoreError/redeemCode Context-plumbing। পদ্ধতি: ২২৩ স্টেটমেন্ট-গ্রুপ
+হাতে-শ্রেণিবিন্যাস (কম্পোজেবল/callback/ইন্টারপোলেশন/try-catch) → ২৩১ নতুন কী × ১৫ ভাষা (৪ ব্যাচ
+অনুবাদ-জেনারেটর, প্লেসহোল্ডার-প্যারিটি অ্যাসার্ট) → লাইন-অ্যাংকরড প্রতিস্থাপন (desc, {IND}-ইনডেন্ট,
+braces-NET যাচাই) → পুশ → CI।
+
+**কী-ইনভেন্টরি (২৩১):** auth/presence/push/signout (৮) · home-hints/consent/dialog (১১) ·
+activity/feed/devices (২২) · status ×৬ + friendlyError ×৭ (context-সংস্করণ) · settings/theme/lang/
+version/test-notif/tiles (২০) · phone-tab/pairing/invite (২৮) · role-sheet (১৮) · pair-tile (৫) ·
+session-keybar/semantics (৯) · screen-share/typing/stop-dialog (২৩) · pairing-error-pipeline
+err_* ×১৩ (redeemCode+parsePairingCode+describeFirestoreError-এ Context প্যারামিটার) ·
+error-prefix ×৭ (Could not send/answer/end/create/cancel/revoke/remove)। পুনঃব্যবহার: pw_title,
+pw_perm_notif, pw_perm_assist_title (19.1)। sessionStatusBn→sessionStatus(context,·),
+friendlyErrorBn→friendlyError(context,·)। **L4449-লজিক-ফিক্স:** startsWith("Guest যুক্ত")-
+ব্রেকেবল প্রিফিক্স-চেক → message.contains("✓") (i18n-প্রমাণ)।
+
+**CI-পুনরাবৃত্তি (৩ রাউন্ড — প্রতিটি লগ-চালিত):** R1 ১২৬ ত্রুটি: (ক) ১৪টি বর্ণিত-বাদ-পড়া
+describeFirestoreError(e)-কলসাইট (grep-প্যাটার্ন 'e' ছিল, কিছু সাইটে 'it') → সব (context,e);
+(খ) stringResource try/catch+semantics-lambda-এ নিষিদ্ধ (Compose নিয়ম) — ৫টি catch-সাইট
+context.getString-এ + ২টি semantics-এ hoisted val; (গ) ইংরেজি এরর-প্রিফিক্স ৭টি নতুন কী-তে।
+R2 ৫৪→৫ ত্রুটি: watch-callback-এ it-প্যারাম ×২ + if/else-শাখায় ভুল কমা ×৩। R3: parsePairingCode-
+এ Context-প্যারাম। **R4: SUCCESS (run 41097218406)** — APK v0.28.0/code 47 (40.2MB)।
+
+**চূড়ান্ত-অবস্থা:** MainActivity ইউজার-ফেসিং বাংলা-লিটারাল **শূন্য** (১২টি অবশিষ্ট সবই কমেন্ট-বাস্তু —
+Owner-উদ্ধৃতি); PairingRepo **শূন্য**; PermissionWizard/QrScanner 19.1-এই শূন্য। strings.xml এখন
+৩৭০টি ট্রান্সলেটেবল কী × ১৫ ভাষা (+en-এ ৩টি translatable=false)। §58-র record-only ডেট (৩০৫ লাইন)
+সম্পূর্ণ নিষ্কাশিত — Phase 19-এর মূল লক্ষ্য পূর্ণ।
+
+**সেশন-লেসন:** বড়-স্কেল লিটারাল-প্রতিস্থাপনে লাইন-অ্যাংকরিং + নেট-ব্রেস-যাচাই শক্তিশালী, কিন্তু
+Compose-এর কনটেক্সট-নিয়ম (stringResource শুধু কম্পোজিশনে) প্রতিটি সাইটের জন্য আলাদা যাচাই
+দাবি করে — try/catch/semantics/callback-lambda-ই ফাঁদ; CI-লগ-চালিত ৩-রাউন্ড পুনরাবৃত্তিই
+বাস্তব-সমাপ্তি। grep-প্যাটার্নে প্যারাম-নাম ('e' বনাম 'it') ধরা না-পড়া ২টি সাইটই হারানো-কারণ।
+
+**পুশ:** ১৮+১৬+১+১ = ৩৬ কমিট (মূল ১৮ + fix ১৬ + fix2/fix3) — সব readback MATCH।
+**Owner-করণীয়:** দুই ফোনে v0.28.0 (code 47) ইনস্টল — একই বিল্ড দুই প্রান্তে (version-locked)।
+এখন সম্পূর্ণ অ্যাপ-UI ১৫ ভাষায় (ব্যতিক্রম: সার্ভার-পেলোড নোটিফিকেশন-টেক্সট — §58-রেকর্ডেড)।
+পরবর্তী: 19.3-প্রার্থী নেই — Phase 19 সম্পন্ন; ডিপেন্ডেন্সি-পাস/Phase 20 Owner-নির্দেশে।
