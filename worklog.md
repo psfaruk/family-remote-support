@@ -1525,3 +1525,39 @@ Cloudflare Worker নতুন কোড Workers-Builds-এ অটো-ডিপ�
 একই বিল্ড বাধ্যতামূলক; (৩) Phase 18.2 (fullscreen bar) / 18.3 (streaming latency) পরবর্তী
 Owner-নির্দেশের অপেক্ষায়; (৪) Worker-এর নতুন কোড Workers-Builds-এ অটো-ডিপ্লয় হবে (Deployments
 ট্যাবে "v0.22.0 (Phase 18.1" রো)।
+
+---
+Task ID: 53
+Agent: Z.ai Code (main)
+Task: Phase 18.2 (v0.23.0, versionCode 42) — Fullscreen Session Bar UX ফিক্স (Owner-বাগ B:
+"ফুলস্ক্রিনে নিচের অপশনগুলো ফিক্স হয়ে যায়… কিবোর্ডের স্পেস প্রেস করতে পারি না")
+
+পদ্ধতি: fullscreen Dialog-এর overlay-ট্রেস → রুট-কজ নিশ্চিত — SessionKeyBar আগে Alignment.
+BottomCenter-এ হার্ড-পিন ছিল (Column + navigationBars padding), আর রিমোট ফোনের কিবোর্ডের
+স্পেস-বার ঠিক শেয়ার্ড-স্ক্রিনের নিচ-মাঝেই থাকে → touch চালু অবস্থায় স্পেস-কি-র ট্যাপ লোকাল
+বারে আটকে যেত (রিমোটে যেত না)। ফিক্স: নতুন FullscreenKeyOverlay composable — (১) ৪-সেকেন্ড
+idle-এ AUTO-FOLD (500ms-টিক LaunchedEffect; type/stop dialog খোলা থাকলে কখনো ফোল্ড নয়);
+(২) ফোল্ড হলে ছোট ⌃ পিল — dock bottom-END (স্পেস-বার-জোনের বাইরে), ট্যাপ করলে বার ফেরে ও
+টাইমার re-arm; (৩) বার ও পিল দুটোই DRAGGABLE (clampBar/clampPill — স্ক্রিনের বাইরে যেতে
+পারে না; pill end-anchor, bar center-anchor); (৪) বারের উপরে ⌄ ফোল্ড-হ্যান্ডেল চিপ —
+অপেক্ষা না করে সঙ্গে সঙ্গে লুকানো যায়। প্রতিটি pointer-down-এ টাইমার re-arm (keys-সহ —
+awaitPointerEventScope initial-loop); fullscreen প্রতি-ওপেনে state fresh (বার দৃশ্যমান,
+নিচ-মাঝে শুরু)। ইনলাইন (non-fullscreen) বার অপরিবর্তিত — বাগ শুধু fullscreen-এ।
+
+ফাইল: MainActivity.kt (FullscreenKeyOverlay + FULLSCREEN_BAR_AUTOHIDE_MILLIS=4000 + imports:
+layout.offset/ui.unit.IntOffset/ui.unit.round/semantics.contentDescription; fullscreen-Column
+ব্লক → FullscreenKeyOverlay(touchOn=assistMode) কল), app/build.gradle.kts (42 / 0.23.0)।
+
+যাচাই: brace/paren/bracket balance OK; প্রথম push (bfbeeaa+e6457af) → CI FAIL — Kotlin:
+detectDragGestures-এর `amount` হলো geometry.Offset, IntOffset-এর সাথে + অপারেটর মেলে না
+(MainActivity.kt:5097/5132) → `amount.round()` ফিক্স (import ui.unit.round) → 79e3c88 →
+**run 41018191824 SUCCESS**; APK artifact verify-apk-axml → PASS (code=42 INT_DEC,
+name=0.23.0, v2-sig, version-স্ট্রিং শুধু [0.23.0]) →
+download/family-remote-support-v0.23.0-code42.apk (39.7 MB); readback-verify ALL MATCH
+(Contents API fresh sha256)।
+
+ফেইল/বাকি: (১) Owner-করণীয় — দুই ফোনে v0.23.0 ইনস্টল (পেয়ারিং ভার্সন-লকড — দুটোতেই একই
+বিল্ড) → ফুলস্ক্রিনে টাচ চালু করে রিমোট কিবোর্ডের স্পেস-প্রেস টেস্ট: ৪ সেকেন্ডে বার নিজেই
+লুকাবে, ⌃ পিল ডান-কোণে, টেনে যেকোনো জায়গায় রাখা যায়; (২) Phase 18.3 (streaming latency —
+MAINTAIN_RESOLUTION→FRAMERATE + adaptive ceiling) পরবর্তী Owner-নির্দেশের অপেক্ষায়; (৩)
+18.1-এর mixed-version নোট প্রযোজ্য।
