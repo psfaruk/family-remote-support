@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">هذا الزوج مرتبط كضيف. لتحويله إلى Family، أزل ربط الضيف من هاتف المتلقي وأصدر رمز Family جديدًا.</string>
     <string name="err_generic">خطأ Firestore %1$s: %2$s</string>
     <string name="cd_details">التفاصيل</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">تعذّر إرسال الطلب: %1$s</string>
+    <string name="err_answer_failed">تعذّر الرد على الطلب: %1$s</string>
+    <string name="err_end_failed">تعذّر إنهاء الجلسة: %1$s</string>
+    <string name="err_create_failed">تعذّر إنشاء رمز: %1$s</string>
+    <string name="err_cancel_failed">تعذّر الإلغاء: %1$s</string>
+    <string name="err_revoke_failed">تعذّر الإبطال: %1$s</string>
+    <string name="err_remove_failed">تعذّر الإزالة: %1$s</string>
 </resources>
