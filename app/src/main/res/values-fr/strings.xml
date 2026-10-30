@@ -378,7 +378,7 @@
     <string name="err_pair_family_exists">Cette paire est déjà liée en Family (permanent) — pas besoin de code invité ici.</string>
     <string name="err_pair_guest_exists">Cette paire est liée en invité. Pour la passer en Family, retirez le lien invité du téléphone qui reçoit l\'aide et émettez un nouveau code Family.</string>
     <string name="err_generic">Erreur Firestore %1$s : %2$s</string>
-    <string name="err_quota">La limite d&#39;utilisation quotidienne gratuite de Firebase est atteinte — tout remarchera après la réinitialisation quotidienne du quota (vers midi). Aucune donnée n&#39;est perdue.</string>
+    <string name="err_quota">La limite d\'utilisation quotidienne gratuite de Firebase est atteinte — tout remarchera après la réinitialisation quotidienne du quota (vers midi). Aucune donnée n\'est perdue.</string>
     <string name="cd_details">Détails</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
