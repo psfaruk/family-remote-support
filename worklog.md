@@ -1608,3 +1608,45 @@ download/family-remote-support-v0.24.0-code43.apk (39.7 MB)।
 vp8 30 1200 4000 balanced|resolution — প্রয়োজনে; (৩) Phase 18.4 (notification chain E2E —
 Worker /health URL লাগবে) / 18.5+ পরবর্তী Owner-নির্দেশের অপেক্ষায়; (৪) sandbox-রোল-ব্যাক
 সমস্যা পরিবেশগত — remote/GitHub-ই একমাত্র truth।
+
+## §55 — Phase 18.4 (infra — APK অপরিবর্তিত): notification-chain E2E + গুরুতর ল্যাটেন্ট বাগ-ফিক্স (২০২৬-১০-৩০)
+
+Owner দিলেন Worker URL (https://family-remote-support.www-farukkhan-fk885.workers.dev/) + "হ্যাঁ করো" →
+Phase 18.4 শুরু। /health প্রথমেই দেখাল: Worker লাইভ, KILL_TOKEN=true, কিন্তু **FIREBASE_SA_JSON=false** ও
+cron "not run yet" (SA ছাড়া cron প্রতি মিনিটে fail করছে বলে last ফাঁকা — isolate restart-এ state মোছায় পুরনো
+error-ও দেখা যায় না)।
+
+**প্রধান আবিষ্কার — v0.21.0 থেকে তিন টিয়ারই চুপচাপ ভাঙা:** লাইভ E2E-র প্রথম রানে sweep-লগ ধরল
+"1 REQUESTED doc(s), 1 fresh, 0 pushed, **1 claim-lost**" — নতুন ডকেও claim হারাচ্ছে। লোকাল রিপ্রোডিউসে
+আসল কারণ: Firestore REST `documents.patch`-এ precondition `currentDocument` **body-ফিল্ড নয়,
+query-parameter** — পুরনো কোড body-তে পাঠাত → প্রতিটি claim-এ 400 "Unknown name \"currentDocument\" at
+'document'" → কোডের 400-as-claim-lost শাখা চুপ করে সেটাকে "অন্য টিয়ার জিতেছে" ভেবে পাশ কাটাত →
+**v0.21.0-এর claim-লজিক শিপের দিন থেকে kill-push আসলে কোনো পুশই পাঠায়নি** (লগ "success" দেখাত, কেউ
+লক্ষও করেনি — এই ধরনের নীরব-ব্যর্থতাই E2E-টেস্ট ছাড়া ধরা পড়ে না)। একই বাগ ছিল Node টিয়ারে
+(scripts/fcm-kill-push.mjs) ও Worker-এ (cloudflare/killpush-worker.js) — দুটোই এক-লাইন-ধাঁচের ফিক্সে ঠিক।
+
+**ফিক্স প্রমাণ (লাইভ production Firestore, পড়া-লেখা-মোছা সব টেস্ট-ডক, শূন্য অবশিষ্ট):** নতুন shape
+`?updateMask.fieldPaths=…&currentDocument.updateTime=…` → **200 claim won**; পুরনো updateTime-এ
+stale-প্রিকন্ডিশন → রিজেক্ট (400/409 → false) — অর্থাৎ cross-tier এক্সক্লুসিভিটি অক্ষত।
+
+**স্টেট-ডাম্প (read-only):** fcmTokens=৩ (দুটি আজ ০৬:৫৭-৫৮-এ রিফ্রেশ — দুই ফোনেই অ্যাপ জীবিত ও
+রেজিস্টার্ড: supportplybit…/FoOKzvShqT…, bangladeshtiktok15…/RPUWy46dzx…), users=৪, supportSessions=২৬।
+**ডায়াগ:** REQUESTED ডক ৪৫ সেকেন্ড ওয়াচ করে প্রমাণ করা হল ফোন-অ্যাপ নিজে ডকে লেখে না (claim-ব্রেকার
+থিওরি বাদ)।
+
+**লাইভ E2E PASS:** টেস্ট-সেশন supportSessions/e2e184-1793362788707 (recipient=freshest-token uid
+FoOKzvShqT…, helperEmail="18.4-e2e-test…", deadline +৬ মিনিট) → workflow_dispatch দিয়ে kill-push চালানো →
+**৬ সেকেন্ডে** claim won → FCM send → `killPushSentAt=12:19:54.247Z`, `killPushStatus=sent:1/1` →
+রিসিপিয়েন্ট ফোনে HIGH-priority "Help requested" নোটিফিকেশন এসেছে (সার্ভার-প্রমাণ ডক-মার্ক) → টেস্ট-ডক
+মুছে শূন্য-অবশিষ্ট। রান 41054516514 success।
+
+**ফিক্স-কভারেজ:** তিন টিয়ারই এক ফিক্সে ঠিক — (১) GH Actions/sandbox mini-service দুজনেই
+scripts/fcm-kill-push.mjs import করে; (২) Worker push-এর সাথে সাথেই Workers Builds নতুন কোড deploy করে।
+Push: 2b5eb19 + 621094f (দুই ফাইল), SHA256 readback-verify ALL MATCH (4eccd1f14e…/47ecc4249f…)। APK
+অপরিবর্তিত — versionCode 43/v0.24.0-ই চলতে থাকবে, নতুন ইনস্টল লাগবে না।
+
+**বাকি (Owner-করণীয়):** (১) Worker dashboard → Settings → Variables and Secrets → **FIREBASE_SA_JSON**
+secret বসান (Firebase service-account JSON-এর পুরো টেক্সট; KILL_TOKEN আগেই আছে) → /health-এ
+"FIREBASE_SA_JSON":true দেখা গেলেই ৬০-সেকেন্ড স্থায়ী টিয়ার যুক্ত হবে (GH-ব্যাকস্টপ আজ থেকে আবার
+সক্রিয়); (২) পুশ-স্মোক-টেস্ট চাইলে আমি sandbox থেকে আবার টেস্ট-সেশন বানিয়ে দিতে পারি। Phase 18.5+
+পরবর্তী Owner-নির্দেশের অপেক্ষায়।
