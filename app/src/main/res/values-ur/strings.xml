@@ -4,8 +4,10 @@
          doc bodies intentionally live only in values/ (EN) and values-bn/
          (BN); this locale falls back to the English doc text by design. -->
     <string name="nav_home">ہوم</string>
-    <string name="nav_phone">فون</string>
-    <string name="nav_location">لائیو لوکیشن</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_phone -->
+    <string name="nav_add_device">ڈیوائس شامل کریں</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_location -->
+    <string name="nav_tracking">ٹریکنگ</string>
     <string name="nav_settings">ترتیبات</string>
     <string name="pres_online">آن لائن</string>
     <string name="pres_offline">آف لائن</string>
@@ -158,14 +160,14 @@
     <string name="push_failed">پش سیٹ اپ ناکام: %1$s</string>
     <string name="assist_touch_hint">ٹچ آن ہونے پر Back · Home · Recents ان کے فون پر کام کریں گے</string>
     <string name="cd_notifications">نوٹیفکیشن</string>
-    <string name="hint_requested">%1$s کو اجازت کی درخواست بھیجی گئی — \'فون\' ٹیب میں تفصیل。</string>
-    <string name="hint_active">%1$s کے فون پر سیشن جاری ہے — \'فون\' ٹیب میں ویڈیو۔</string>
-    <string name="hint_helping">%1$s آپ کے فون پر مدد کر رہے ہیں — \'فون\' ٹیب میں تفصیل۔</string>
+    <string name="hint_requested">%1$s کو اجازت کی درخواست بھیجی گئی — \'ڈیوائس شامل کریں\' ٹیب میں تفصیل。</string>
+    <string name="hint_active">%1$s کے فون پر سیشن جاری ہے — \'ڈیوائس شامل کریں\' ٹیب میں ویڈیو۔</string>
+    <string name="hint_helping">%1$s آپ کے فون پر مدد کر رہے ہیں — \'ڈیوائس شامل کریں\' ٹیب میں تفصیل۔</string>
     <string name="cons_label">اجازت کی درخواست</string>
     <string name="cons_body">%1$s اس فون پر مدد کرنا چاہتے ہیں۔</string>
     <string name="cons_guest_note">مہمان (عارضی) مددگار — شیئر کرنے کے ۲ گھنٹے بعد یہ لنک خود ہی حذف ہو جائے گا؛ سیشن بھی اسی مدت میں ختم ہوگا۔</string>
     <string name="cons_expiry">صرف اُس وقت اجازت دیں جب آپ شخص کو جانیں۔ درخواست %1$s میں ختم ہوگی۔</string>
-    <string name="msg_allow_ok">اجازت دی گئی ✓ — \'فون\' ٹیب میں سیشن دیکھیں۔</string>
+    <string name="msg_allow_ok">اجازت دی گئی ✓ — \'ڈیوائس شامل کریں\' ٹیب میں سیشن دیکھیں۔</string>
     <string name="msg_allow_fail">اجازت نہیں دی جا سکی: %1$s</string>
     <string name="btn_allow">اجازت دیں</string>
     <string name="msg_deny_ok">درخواست مسترد کر دی گئی۔</string>
@@ -186,14 +188,14 @@
     <string name="feed_active_mine">%1$s آپ کے فون پر مدد کر رہے ہیں</string>
     <string name="feed_need_decision">ہوم ٹیب میں Allow/Deny دیں · باقی %1$s</string>
     <string name="feed_awaiting">اجازت کا انتظار · باقی %1$s</string>
-    <string name="feed_in_progress">\'فون\' ٹیب میں ویڈیو اور کنٹرول · ختم ہوگا %1$s پر</string>
+    <string name="feed_in_progress">\'ڈیوائس شامل کریں\' ٹیب میں ویڈیو اور کنٹرول · ختم ہوگا %1$s پر</string>
     <string name="feed_last_title">آخری سیشن</string>
     <string name="feed_last_sub">%1$s → %2$s</string>
     <string name="feed_ended_by"> · ختم کیا: %1$s</string>
     <string name="devices_title">منسلک فونز</string>
-    <string name="devices_info">آپ کے اکاؤنٹ سے منسلک قابلِ اعتماد فونز اور ان کی براہِ راست آن لائن حالت۔ شامل یا ہٹانے کے لیے \'فون\' ٹیب دیکھیں۔</string>
+    <string name="devices_info">آپ کے اکاؤنٹ سے منسلک قابلِ اعتماد فونز اور ان کی براہِ راست آن لائن حالت۔ شامل یا ہٹانے کے لیے \'ڈیوائس شامل کریں\' ٹیب دیکھیں۔</string>
     <string name="devices_empty_title">ابھی کوئی فون منسلک نہیں</string>
-    <string name="devices_empty_hint">\'فون\' ٹیب سے کوڈ بنا کر قابلِ اعتماد فون منسلک کریں۔</string>
+    <string name="devices_empty_hint">\'ڈیوائس شامل کریں\' ٹیب سے کوڈ بنا کر قابلِ اعتماد فون منسلک کریں۔</string>
     <string name="rel_you_help">آپ مدد کر رہے ہیں</string>
     <string name="rel_helping">مدد کر رہا ہے</string>
     <string name="rel_helps_you">آپ کی مدد کر رہا ہے</string>
@@ -389,4 +391,21 @@
     <string name="err_cancel_failed">منسوخ نہیں ہو سکا: %1$s</string>
     <string name="err_revoke_failed">واپس نہیں لی جا سکی: %1$s</string>
     <string name="err_remove_failed">ہٹایا نہیں جا سکا: %1$s</string>
+
+    <!-- ═══ Phase 21/M2 (v0.30.0) — notifications surface (real events
+         only; see ui/notifications/NotificationsScreen.kt). ═══ -->
+    <string name="notif_title">نوٹیفکیشنز</string>
+    <string name="notif_section_attention">آپ کی توجہ درکار ہے</string>
+    <string name="notif_section_live">جاری سیشن</string>
+    <string name="notif_item_ask">ایک مدد کی درخواست آپ کے جواب کا انتظار کر رہی ہے</string>
+    <string name="notif_item_perms">اجازات نامکمل — %2$d میں سے %1$d آن ہیں</string>
+    <string name="notif_item_setup">اس ڈیوائس پر ایک سیٹ اپ مرحلہ ناکام رہا</string>
+    <string name="notif_open_home">تفصیل کے لیے ہوم ٹیب کھولیں</string>
+    <string name="notif_open_wizard">اجازات کی فہرست دیکھنے کے لیے ٹیپ کریں</string>
+    <string name="notif_sess_requested">%1$s کے لیے مدد کی درخواست زیرِ التوا ہے</string>
+    <string name="notif_sess_active_you">آپ اس وقت %1$s کی مدد کر رہے ہیں</string>
+    <string name="notif_sess_active_other">%1$s اس وقت آپ کی مدد کر رہا ہے</string>
+    <string name="notif_empty_title">ابھی آپ سے کچھ نہیں کہا جا رہا</string>
+    <string name="notif_empty_body">مدد کی درخواستیں، جاری سیشن اور سیٹ اپ وارننگ یہاں فوراً نظر آتی ہیں۔</string>
+    <string name="notif_hint">صرف حقیقی، موجودہ واقعات — کچھ بھی گھڑا نہیں جاتا، تاریخ میں محفوظ نہیں ہوتا۔</string>
 </resources>
