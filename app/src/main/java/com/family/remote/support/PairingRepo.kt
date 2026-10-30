@@ -80,8 +80,9 @@ suspend fun <T> Task<T>.awaitWithTimeout(
 
 /**
  * Translate a Firestore failure into a short, actionable user-facing message.
- * Distinguishes the three realistic root causes: rules, missing database,
- * unreachable network.
+ * Distinguishes the four realistic root causes: rules, missing database,
+ * unreachable network, exhausted free quota (Phase 20 — RESOURCE_EXHAUSTED
+ * gets an honest localized message instead of the raw English dump).
  */
 fun describeFirestoreError(context: Context, e: Exception): String = when (e) {
     is FirestoreUnreachableException -> e.message ?: "Could not reach Firestore."
@@ -96,6 +97,8 @@ fun describeFirestoreError(context: Context, e: Exception): String = when (e) {
         FirebaseFirestoreException.Code.INTERNAL,
         FirebaseFirestoreException.Code.UNKNOWN ->
             context.getString(R.string.err_unreachable)
+        FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED ->
+            context.getString(R.string.err_quota)
         else -> context.getString(R.string.err_generic, e.code, e.message ?: "unknown")
     }
     else -> e.message ?: "Unknown error"
