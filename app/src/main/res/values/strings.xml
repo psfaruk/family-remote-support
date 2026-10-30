@@ -24,6 +24,9 @@
     <string name="pres_online">Online</string>
     <string name="pres_offline">Offline</string>
     <string name="pres_checking">Checking…</string>
+    <string name="pres_unavailable">presence unavailable</string>
+    <string name="pres_never_seen">never seen</string>
+    <string name="pres_last_seen_min">last seen %1$d min ago</string>
 
     <!-- Common -->
     <string name="cmn_ok">OK</string>
@@ -404,6 +407,7 @@
     <string name="err_pair_family_exists">এই জোড়াটি ইতিমধ্যে Family (স্থায়ী) হিসেবে যুক্ত — Guest কোড এখানে লাগবে না।</string>
     <string name="err_pair_guest_exists">এই জোড়াটি Guest হিসেবে যুক্ত। Family করতে হলে সাহায্য-পাওয়ার ফোন থেকে Guest লিংকটি সরিয়ে (Remove) নতুন Family কোড দিতে হবে।</string>
     <string name="err_generic">Firestore error %1$s: %2$s</string>
+    <string name="err_quota">Firebase&#39;s free daily usage limit is used up — everything will work again after the daily quota reset (around midday). No data is lost.</string>
     <string name="cd_details">বিস্তারিত</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
