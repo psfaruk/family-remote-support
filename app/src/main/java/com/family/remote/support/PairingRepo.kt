@@ -187,9 +187,12 @@ const val REL_KIND_GUEST = "guest"
  * error-correction level H (~30% damage recovery) so the covered modules
  * stay decodable on every camera.
  */
-enum class QrBadge(val glyph: String, val fallback: String, val labelBn: String) {
-    FAMILY("\uD83D\uDC6A", "F", "Family · স্থায়ী"),
-    GUEST("⏳", "G", "Guest · ২ ঘণ্টা");
+// v0.27.0 (Phase 19.1): labelBn removed — legend labels now come from the
+// localized string resources (qr_badge_family / qr_badge_guest) in QrScanner;
+// glyph + fallback stay language-neutral (drawn inside the QR bitmap).
+enum class QrBadge(val glyph: String, val fallback: String) {
+    FAMILY("\uD83D\uDC6A", "F"),
+    GUEST("⏳", "G");
 
     companion object {
         /** Maps a relationship/invitation kind string to its badge. */
