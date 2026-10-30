@@ -28,13 +28,32 @@ A trusted family member helps fix another family phone — always with the recei
   are localized too. **Current build: v0.29.0 (versionCode 48)** — full records in
   `worklog.md` §63.
 
-- **Phase 21 — MASTER-PLAN PLANNING (docs only, APK unchanged v0.29.0/48):**
-  full repository audit by 3 parallel agents + 9-doc planning set in `docs/` (PROJECT_CONTEXT,
-  FRONTEND_ARCHITECTURE, NAVIGATION_MAP, LIVE_LOCATION_ARCHITECTURE, FAMILY_GUEST_AUTHORIZATION,
-  ANDROID_PERMISSION_MATRIX, TEST_PLAN, IMPLEMENTATION_STATUS + UI_UX §26 reconciliation).
-  Tabs will become Home · Add Device · Tracking · Settings (strings-only) and Live location
-  graduates from placeholder to a consent-based, quota-bounded Firestore design — **all
-  implementation (M2+) waits for the Owner's explicit approval.**
+- **Phase 21 / M1 ✅ (docs only, APK unchanged v0.29.0/48):** full repository audit by 3 parallel
+  agents + 9-doc planning set in `docs/` (PROJECT_CONTEXT, FRONTEND_ARCHITECTURE, NAVIGATION_MAP,
+  LIVE_LOCATION_ARCHITECTURE, FAMILY_GUEST_AUTHORIZATION, ANDROID_PERMISSION_MATRIX, TEST_PLAN,
+  IMPLEMENTATION_STATUS + UI_UX §26 reconciliation). Live location graduates from placeholder to
+  a consent-based, quota-bounded Firestore design at M5.
+- **Phase 21 / M2 ✅ (v0.30.0, versionCode 49) — SHARED APPLICATION SHELL (Owner approved the M1
+  doc set with the "M2 শুরু করো" command):**
+  • Decision C3 spike ADOPTED — the shell now runs on **Navigation-Compose 2.8.2**: 4 tab
+    destinations + a `notifications` route, `saveState/restoreState` tab switching, crossfade
+    ≤150 ms; routes + top/bottom bars extracted to `ui/nav/AppNav.kt` (AppRoutes/goTab/AppTopBar/
+    AppBottomNav). Overlays (wizard, pair sheet, consent modal, fullscreen session) keep their
+    exact composition sites — cold-start-from-notification / wizard / fullscreen behavior
+    unchanged by construction (W1 gate; device confirmation = Owner, TEST_PLAN #7/#8/#24).
+  • **C1 tab rename shipped in all 15 languages:** Home · **Add Device** (icon PersonAdd) ·
+    **Tracking** · Settings — plus the tab-name fixed inside 7 copy strings per locale that
+    pointed users to the old "Phone" tab.
+  • **Dedicated notifications surface** (`ui/notifications/NotificationsScreen.kt`): the bell now
+    opens REAL events only — pending consent ask, permission-checklist gaps, failed setup steps,
+    live sessions — all derived from data the app already listens to (zero extra Firestore
+    reads); in-memory only, no fabricated history (persisted events store = M8 decision).
+  • Design-system start: SectionCard/AppListTile/EmptyState/WideOutlinedButton promoted VERBATIM
+    to `ui/components/Core.kt`; header title now the localized brand `app_title`
+    ("Remote Family Support") — closes the hardcoded-top-bar-title audit finding.
+  • Honest notes: back from a non-start tab now returns Home before exiting (platform-standard
+    tab behavior — documented delta); pre-existing default↔bn locale inversion of ~203 legacy
+    keys DISCOVERED and recorded (fix = M4/M8 i18n wave, untouched here).
 
 - **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
   audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
