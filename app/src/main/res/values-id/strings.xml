@@ -10,6 +10,9 @@
     <string name="pres_online">Daring</string>
     <string name="pres_offline">Luring</string>
     <string name="pres_checking">Memeriksa…</string>
+    <string name="pres_unavailable">kehadiran tidak tersedia</string>
+    <string name="pres_never_seen">belum pernah terlihat</string>
+    <string name="pres_last_seen_min">terakhir terlihat %1$d menit lalu</string>
     <string name="cmn_ok">OK</string>
     <string name="cmn_details">Detail</string>
     <string name="home_tagline">Bantuan jarak jauh untuk telepon keluarga — selalu dengan izin yang jelas.</string>
@@ -375,6 +378,7 @@
     <string name="err_pair_family_exists">Pasangan ini sudah tertaut sebagai Family (permanen) — kode tamu tidak diperlukan di sini.</string>
     <string name="err_pair_guest_exists">Pasangan ini tertaut sebagai Guest. Untuk menjadikan Family, hapus tautan Guest dari ponsel penerima bantuan lalu buat kode Family baru.</string>
     <string name="err_generic">Kesalahan Firestore %1$s: %2$s</string>
+    <string name="err_quota">Batas penggunaan harian gratis Firebase sudah habis — semuanya akan berfungsi lagi setelah kuota harian direset (sekitar tengah hari). Tidak ada data yang hilang.</string>
     <string name="cd_details">Detail</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
