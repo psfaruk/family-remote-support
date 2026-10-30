@@ -14,6 +14,14 @@ jobs:
   build:
     name: Build APKs
     runs-on: ubuntu-latest
+    # 18.9 (audit): bound a stuck build instead of burning the 360-min default.
+    timeout-minutes: 30
+
+    # 18.9 (audit): rapid successive pushes supersede an in-flight build —
+    # cancel the older one rather than stacking runner minutes.
+    concurrency:
+      group: android-build
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
