@@ -376,4 +376,13 @@
     <string name="err_pair_guest_exists">Эта пара связана как гость. Чтобы сделать её семейной, удалите гостевую связь на принимающем помощь телефоне и выдайте новый код Family.</string>
     <string name="err_generic">Ошибка Firestore %1$s: %2$s</string>
     <string name="cd_details">Подробности</string>
+
+    <!-- Phase 19.2 fixup: error-prefix keys -->
+    <string name="err_send_failed">Не удалось отправить запрос: %1$s</string>
+    <string name="err_answer_failed">Не удалось ответить на запрос: %1$s</string>
+    <string name="err_end_failed">Не удалось завершить сессию: %1$s</string>
+    <string name="err_create_failed">Не удалось создать код: %1$s</string>
+    <string name="err_cancel_failed">Не удалось отменить: %1$s</string>
+    <string name="err_revoke_failed">Не удалось отозвать: %1$s</string>
+    <string name="err_remove_failed">Не удалось удалить: %1$s</string>
 </resources>
