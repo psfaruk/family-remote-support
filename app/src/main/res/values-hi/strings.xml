@@ -4,8 +4,10 @@
          doc bodies intentionally live only in values/ (EN) and values-bn/
          (BN); this locale falls back to the English doc text by design. -->
     <string name="nav_home">होम</string>
-    <string name="nav_phone">फ़ोन</string>
-    <string name="nav_location">लाइव लोकेशन</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_phone -->
+    <string name="nav_add_device">डिवाइस जोड़ें</string>
+    <!-- v0.30.0 (M2): C1 tab rename, was nav_location -->
+    <string name="nav_tracking">ट्रैकिंग</string>
     <string name="nav_settings">सेटिंग्स</string>
     <string name="pres_online">ऑनलाइन</string>
     <string name="pres_offline">ऑफ़लाइन</string>
@@ -158,14 +160,14 @@
     <string name="push_failed">पुश सेटअप विफल: %1$s</string>
     <string name="assist_touch_hint">टच चालू करने पर Back · Home · Recents उनके फ़ोन पर काम करेगा</string>
     <string name="cd_notifications">सूचनाएँ</string>
-    <string name="hint_requested">%1$s को अनुमति का अनुरोध गया — \'फ़ोन\' टैब में विवरण।</string>
-    <string name="hint_active">%1$s के फ़ोन पर सेशन चल रहा है — \'फ़ोन\' टैब में वीडियो।</string>
-    <string name="hint_helping">%1$s आपके फ़ोन पर मदद कर रहे हैं — \'फ़ोन\' टैब में विवरण।</string>
+    <string name="hint_requested">%1$s को अनुमति का अनुरोध गया — \'डिवाइस जोड़ें\' टैब में विवरण।</string>
+    <string name="hint_active">%1$s के फ़ोन पर सेशन चल रहा है — \'डिवाइस जोड़ें\' टैब में वीडियो।</string>
+    <string name="hint_helping">%1$s आपके फ़ोन पर मदद कर रहे हैं — \'डिवाइस जोड़ें\' टैब में विवरण।</string>
     <string name="cons_label">अनुमति का अनुरोध</string>
     <string name="cons_body">%1$s इस फ़ोन पर मदद करना चाहते हैं।</string>
     <string name="cons_guest_note">अतिथि (अस्थायी) सहायक — लिंक साझा करने के २ घंटे बाद अपने आप मिट जाएगा; सेशन भी उसी अवधि में समाप्त होगा।</string>
     <string name="cons_expiry">चिनने वाले व्यक्ति को ही अनुमति दें। अनुरोध %1$s में समाप्त होगा।</string>
-    <string name="msg_allow_ok">अनुमति दी गई ✓ — \'फ़ोन\' टैब में सेशन देखें।</string>
+    <string name="msg_allow_ok">अनुमति दी गई ✓ — \'डिवाइस जोड़ें\' टैब में सेशन देखें।</string>
     <string name="msg_allow_fail">अनुमति नहीं दी जा सकी: %1$s</string>
     <string name="btn_allow">अनुमति दें</string>
     <string name="msg_deny_ok">अनुरोध अस्वीकृत हुआ।</string>
@@ -186,14 +188,14 @@
     <string name="feed_active_mine">%1$s आपके फ़ोन पर मदद कर रहे हैं</string>
     <string name="feed_need_decision">होम टैब पर Allow/Deny दें · शेष %1$s</string>
     <string name="feed_awaiting">अनुमति की प्रतीक्षा में · शेष %1$s</string>
-    <string name="feed_in_progress">\'फ़ोन\' टैब में वीडियो व नियंत्रण · समाप्त होगा %1$s पर</string>
+    <string name="feed_in_progress">\'डिवाइस जोड़ें\' टैब में वीडियो व नियंत्रण · समाप्त होगा %1$s पर</string>
     <string name="feed_last_title">अंतिम सेशन</string>
     <string name="feed_last_sub">%1$s → %2$s</string>
     <string name="feed_ended_by"> · समाप्त किया: %1$s</string>
     <string name="devices_title">जुड़े फ़ोन</string>
-    <string name="devices_info">आपके खाते से जुड़े भरोसेमंद फ़ोन और उनकी लाइव ऑनलाइन-स्थिति। जोड़ने या हटाने के लिए \'फ़ोन\' टैब देखें।</string>
+    <string name="devices_info">आपके खाते से जुड़े भरोसेमंद फ़ोन और उनकी लाइव ऑनलाइन-स्थिति। जोड़ने या हटाने के लिए \'डिवाइस जोड़ें\' टैब देखें।</string>
     <string name="devices_empty_title">अभी कोई फ़ोन जुड़ा नहीं</string>
-    <string name="devices_empty_hint">\'फ़ोन\' टैब से कोड बनाकर भरोसेमंद फ़ोन जोड़ें।</string>
+    <string name="devices_empty_hint">\'डिवाइस जोड़ें\' टैब से कोड बनाकर भरोसेमंद फ़ोन जोड़ें।</string>
     <string name="rel_you_help">आप मदद कर रहे हैं</string>
     <string name="rel_helping">मदद कर रहा है</string>
     <string name="rel_helps_you">आपकी मदद कर रहा है</string>
@@ -389,4 +391,21 @@
     <string name="err_cancel_failed">रद्द नहीं किया जा सका: %1$s</string>
     <string name="err_revoke_failed">निरस्त नहीं किया जा सका: %1$s</string>
     <string name="err_remove_failed">हटाया नहीं जा सका: %1$s</string>
+
+    <!-- ═══ Phase 21/M2 (v0.30.0) — notifications surface (real events
+         only; see ui/notifications/NotificationsScreen.kt). ═══ -->
+    <string name="notif_title">नोटिफिकेशन</string>
+    <string name="notif_section_attention">आपका ध्यान चाहिए</string>
+    <string name="notif_section_live">चालू सेशन</string>
+    <string name="notif_item_ask">एक सहायता अनुरोध आपके जवाब की प्रतीक्षा में है</string>
+    <string name="notif_item_perms">अनुमतियाँ अधूरी — %2$d में से %1$d चालू</string>
+    <string name="notif_item_setup">इस डिवाइस पर एक सेटअप चरण विफल हुआ</string>
+    <string name="notif_open_home">विवरण के लिए होम टैब खोलें</string>
+    <string name="notif_open_wizard">अनुमति सूची देखने के लिए टैप करें</string>
+    <string name="notif_sess_requested">%1$s के लिए सहायता अनुरोध लंबित है</string>
+    <string name="notif_sess_active_you">आप अभी %1$s की मदद कर रहे हैं</string>
+    <string name="notif_sess_active_other">%1$s अभी आपकी मदद कर रहे हैं</string>
+    <string name="notif_empty_title">अभी आपको कुछ नहीं करना है</string>
+    <string name="notif_empty_body">सहायता अनुरोध, चालू सेशन और सेटअप चेतावनियाँ होते ही यहाँ दिखेंगे।</string>
+    <string name="notif_hint">केवल वास्तविक, मौजूदा घटनाएँ — कुछ भी बनाया या इतिहास में रखा नहीं जाता।</string>
 </resources>
