@@ -2176,7 +2176,7 @@ private fun ActivityFeed(user: FirebaseUser) {
                 } else {
                     MaterialTheme.colorScheme.onTertiaryContainer
                 },
-                chip = if (s.kind == "guest") "Guest" else sessionStatusBn(s.status),
+                chip = if (s.kind == "guest") "Guest" else sessionStatus(context, s.status),
                 chipContainer = if (s.kind == "guest") {
                     MaterialTheme.colorScheme.tertiaryContainer
                 } else {
@@ -2863,7 +2863,7 @@ private fun EditNameDialog(
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            error = describeFirestoreError(e)
+                            error = context.getString(R.string.err_generic, "sync", describeFirestoreError(context, e))
                         } finally {
                             saving = false
                         }
@@ -3273,7 +3273,7 @@ private fun PairingSections(
                     inviteStatus = view?.status
                     claimerEmail = view?.claimedEmail
                 },
-                onError = { e -> inviteSyncError = describeFirestoreError(e) }
+                onError = { e -> inviteSyncError = describeFirestoreError(context, e) }
             )
         }
         onDispose { registration?.remove() }
@@ -3284,7 +3284,7 @@ private fun PairingSections(
         val stopWatching = watchRelationships(
             user,
             onUpdate = { relationshipsSyncError = null; relationships = it },
-            onError = { e -> relationshipsSyncError = describeFirestoreError(e) }
+            onError = { e -> relationshipsSyncError = describeFirestoreError(context, e) }
         )
         onDispose { stopWatching() }
     }
@@ -3326,7 +3326,7 @@ private fun PairingSections(
         val stopWatching = watchSessions(
             user,
             onUpdate = { sessionSyncError = null; sessions = it },
-            onError = { e -> sessionSyncError = describeFirestoreError(e) }
+            onError = { e -> sessionSyncError = describeFirestoreError(context, e) }
         )
         onDispose { stopWatching() }
     }
@@ -3414,14 +3414,14 @@ private fun PairingSections(
             try {
                 requestSession(user, rel)
                 sessionMessage =
-                        stringResource(R.string.ph_req_sent, rel.recipientEmail)
+                        context.getString(R.string.ph_req_sent, rel.recipientEmail)
                 selectedRelId = null
             } catch (e: SessionException) {
                 sessionMessage = e.message
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                sessionMessage = "Could not send the request: ${describeFirestoreError(e)}"
+                sessionMessage = context.getString(R.string.err_send_failed, describeFirestoreError(context, e))
             } finally {
                 sessionBusy = false
             }
@@ -3436,17 +3436,17 @@ private fun PairingSections(
                 if (allow) {
                     grantSession(s.id, user.uid)
                     sessionMessage =
-                            stringResource(R.string.ph_allowed_15m)
+                            context.getString(R.string.ph_allowed_15m)
                 } else {
                     denySession(s.id, user.uid)
-                        sessionMessage = stringResource(R.string.ph_denied_short)
+                        sessionMessage = context.getString(R.string.ph_denied_short)
                 }
             } catch (e: SessionException) {
                 sessionMessage = e.message
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                sessionMessage = "Could not answer the request: ${describeFirestoreError(e)}"
+                sessionMessage = context.getString(R.string.err_answer_failed, describeFirestoreError(context, e))
             } finally {
                 sessionBusy = false
             }
@@ -3458,13 +3458,13 @@ private fun PairingSections(
             sessionBusy = true
             try {
                 endSession(s.id, user.uid)
-                    sessionMessage = stringResource(R.string.ph_session_ended)
+                    sessionMessage = context.getString(R.string.ph_session_ended)
             } catch (e: SessionException) {
                 sessionMessage = e.message
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                sessionMessage = "Could not end the session: ${describeFirestoreError(e)}"
+                sessionMessage = context.getString(R.string.err_end_failed, describeFirestoreError(context, e))
             } finally {
                 sessionBusy = false
             }
@@ -3519,7 +3519,7 @@ private fun PairingSections(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                pairingError = "Could not create a code: ${describeFirestoreError(e)}"
+                pairingError = context.getString(R.string.err_create_failed, describeFirestoreError(context, e))
             } finally {
                 creatingKind = null
             }
@@ -3586,14 +3586,14 @@ private fun PairingSections(
                                 sessionBusy = true
                                 try {
                                     cancelSession(currentSession.id, user.uid)
-                                        sessionMessage = stringResource(R.string.ph_cancelled_msg)
+                                        sessionMessage = context.getString(R.string.ph_cancelled_msg)
                                 } catch (e: SessionException) {
                                     sessionMessage = e.message
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (e: Exception) {
                                     sessionMessage =
-                                        "Could not cancel: ${describeFirestoreError(e)}"
+                                        context.getString(R.string.err_cancel_failed, describeFirestoreError(context, e))
                                 } finally {
                                     sessionBusy = false
                                 }
@@ -4060,7 +4060,7 @@ private fun PairingSections(
                                     throw e
                                 } catch (e: Exception) {
                                     pairingError =
-                                        "Could not cancel: ${describeFirestoreError(e)}"
+                                        context.getString(R.string.err_cancel_failed, describeFirestoreError(context, e))
                                 }
                             }
                         }
@@ -4260,7 +4260,7 @@ private fun PairingSections(
                                     throw e
                                 } catch (e: Exception) {
                                     pairingError =
-                                        "Could not revoke: ${describeFirestoreError(e)}"
+                                        context.getString(R.string.err_revoke_failed, describeFirestoreError(context, e))
                                 } finally {
                                     revokingId = null
                                 }
@@ -4289,7 +4289,7 @@ private fun PairingSections(
                                     throw e
                                 } catch (e: Exception) {
                                     pairingError =
-                                        "Could not remove: ${describeFirestoreError(e)}"
+                                        context.getString(R.string.err_remove_failed, describeFirestoreError(context, e))
                                 } finally {
                                     revokingId = null
                                 }
@@ -5040,6 +5040,7 @@ private fun FullscreenKeyOverlay(touchOn: Boolean) {
         if (collapsed) {
             // ── folded: a small ⌃ pill docked bottom-END — out of the
             // space-bar zone. Tap brings the keys back; drag parks it.
+            val cdShowKeys = stringResource(R.string.cd_show_keys)
             Surface(
                 shape = RoundedCornerShape(999.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
@@ -5049,7 +5050,7 @@ private fun FullscreenKeyOverlay(touchOn: Boolean) {
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .offset { clampPill(pillDrag) }
                     .onSizeChanged { pillPx = it }
-                        .semantics { contentDescription = stringResource(R.string.cd_show_keys) }
+                        .semantics { contentDescription = cdShowKeys }
                     .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (true) {
@@ -5114,6 +5115,7 @@ private fun FullscreenKeyOverlay(touchOn: Boolean) {
             ) {
                 // ⌄ fold handle — a bottom-sheet style chip above the keys;
                 // folding clears the whole video (and any remote keyboard).
+                val cdHideKeys = stringResource(R.string.cd_hide_keys)
                 Surface(
                     shape = RoundedCornerShape(999.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
@@ -5124,7 +5126,7 @@ private fun FullscreenKeyOverlay(touchOn: Boolean) {
                             bump()
                             collapsed = true
                         }
-                            .semantics { contentDescription = stringResource(R.string.cd_hide_keys) }
+                            .semantics { contentDescription = cdHideKeys }
                 ) {
                     Text(
                         text = "⌄",
