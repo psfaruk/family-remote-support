@@ -2601,7 +2601,7 @@ private fun SettingsTab(
             description = if (permSummary.allDone) {
                 "সব ৪টি পারমিশন চালু ✓ — অ্যাপ পুরোপুরি প্রস্তুত।"
             } else {
-                "চালু ${permSummary.doneCount}/4 — বাকি: ${permSummary.missingNamesBn()}"
+                stringResource(R.string.pw_progress, permSummary.doneCount, permSummary.missingNames(context))
             },
             onClick = onOpenWizard,
             trailing = {
