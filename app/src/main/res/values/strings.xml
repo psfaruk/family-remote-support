@@ -407,7 +407,7 @@
     <string name="err_pair_family_exists">এই জোড়াটি ইতিমধ্যে Family (স্থায়ী) হিসেবে যুক্ত — Guest কোড এখানে লাগবে না।</string>
     <string name="err_pair_guest_exists">এই জোড়াটি Guest হিসেবে যুক্ত। Family করতে হলে সাহায্য-পাওয়ার ফোন থেকে Guest লিংকটি সরিয়ে (Remove) নতুন Family কোড দিতে হবে।</string>
     <string name="err_generic">Firestore error %1$s: %2$s</string>
-    <string name="err_quota">Firebase&#39;s free daily usage limit is used up — everything will work again after the daily quota reset (around midday). No data is lost.</string>
+    <string name="err_quota">Firebase\'s free daily usage limit is used up — everything will work again after the daily quota reset (around midday). No data is lost.</string>
     <string name="cd_details">বিস্তারিত</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
