@@ -1,12 +1,29 @@
-# Family Remote Support — kill-push permanent tier (Phase 14, infra only).
+# Family Remote Support — kill-push tier (Phase 14, infra only).
 # Deployed automatically by Cloudflare Workers Builds on every push to main
 # (deploy command: npx wrangler deploy).
 #
 # Worker code: cloudflare/killpush-worker.js — zero-dependency, exact port of
 # scripts/fcm-kill-push.mjs (the proven Node sweep). Single file, no bundling.
 #
-# Secrets (dashboard → Worker → Settings → Variables and Secrets, set ONCE —
-# they survive deploys):
+# ⛔ POSTURE CHANGE (2026-10-31, Owner quota directive): the cron trigger is
+# REMOVED — no automatic Firestore polling from any server tier. The Owner
+# ordered: read/write only when the user acts; requests only from the app;
+# zero requests from the sandbox. The auto tiers (sandbox 5 s poll ≈ 34,560
+# reads/day — observed running as TWO instances — plus this Worker's 1,440
+# queries/day and GH Actions' 288/day) together far exceeded the 50,000/day
+# free read quota → the evening RESOURCE_EXHAUSTED errors. The Worker stays
+# deployed as an ON-DEMAND sweeper only: POST /sweep (KILL_TOKEN bearer) for
+# manual/diagnostic runs, GET /health for liveness. `crons = []` is EXPLICIT
+# so every deploy re-syncs to zero triggers (a missing [triggers] key would
+# leave any existing trigger untouched).
+#
+# RE-ARM (if dead-app ask alerts are ever wanted again): set
+#   crons = ["* * * * *"]
+# and push to main — the next Workers Builds deploy restores the every-minute
+# sweep within ~a minute. No other change needed (secrets survive deploys).
+#
+# Secrets (runtime Secrets — set once via the REST secrets API; they survive
+# deploys):
 #   FIREBASE_SA_JSON  — full Firebase service-account JSON
 #   KILL_TOKEN        — shared bearer token for POST /sweep
 #
@@ -17,7 +34,7 @@ main = "cloudflare/killpush-worker.js"
 compatibility_date = "2025-10-01"
 
 [triggers]
-crons = ["* * * * *"]
+crons = []
 
 [observability]
 enabled = true
