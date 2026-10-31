@@ -25,7 +25,7 @@ A trusted family member helps fix another family phone — always with the recei
   quota-aware backoff (≈ 11.5%), the shared sweep EXPIRES deadline-less zombie REQUESTED docs
   instead of re-reading them forever, RESOURCE_EXHAUSTED now shows an honest localized message
   (err_quota × 15 locales) instead of a raw English dump, and the presence badge/chip labels
-  are localized too. **Current build: v0.29.0 (versionCode 48)** — full records in
+  are localized too. **Current build: v0.32.0 (versionCode 51)** — full records in
   `worklog.md` §63.
 
 - **Phase 21 / M1 ✅ (docs only, APK unchanged v0.29.0/48):** full repository audit by 3 parallel
@@ -82,6 +82,41 @@ A trusted family member helps fix another family phone — always with the recei
     wave (M4). Error collection uses `collectAsState` (shell-always-composed scope) — the
     `repeatOnLifecycle` wording of FRONTEND_ARCHITECTURE §4 is satisfied in effect; no extra
     runtime-compose dependency (C4 minimal-deps discipline).
+
+- **Phase 21 / M4 ✅ (v0.32.0, versionCode 51) — NESTED NAVIGATION WAVE 1 + SETTINGS 8
+  PARTITIONS + INTEGRATION CHECKS (Owner's "M4" command):**
+  • **The Home subtree of NAVIGATION_MAP §2 is real now:** `home/family` (Family Overview —
+    the trusted-device list with live presence + guest countdowns), `home/family/{relId}`
+    (Member Details — the old paired-phone action bottom-sheet promoted to a route: role,
+    guest window, request-session, family revoke, guest remove, all via the SAME
+    PairingRepo/SessionRepo calls), `home/sessions` (Recent Activity — open sessions + the
+    last-finished line, each row a route link) and `home/sessions/{id}` (Session Details —
+    status/type/helper/recipient/duration/ended-by; LIVE while the root watch holds the
+    session, otherwise the SAME one-shot `getSession` read the last-finished line already
+    performs). Two warm `QuickActionTile` entries on Home lead into the subtree; nested
+    routes slide in ≈200 ms and honor the system Animator duration scale (reduced motion =
+    instant); the Home tab stays selected on its nested routes (`AppRoutes.tabForRoute`);
+    system back pops them (TEST_PLAN #8 now covers REAL nested navigation).
+  • **Settings restructured into the master instruction's EIGHT partitions** (Account ·
+    Appearance (theme+language) · Device Management · Location & Privacy · Remote Support ·
+    Guest Access · Security · About — real features only): the paired-phones entry and the
+    Guest Access note point into `home/family`; the devices registry moved from Account into
+    Device Management; the honest "live location = coming release, nothing collected today"
+    note lives in Location & Privacy; sign-out stays LAST (the Owner's standing Phase-16
+    order — recorded deviation). The old Settings Activity section graduated to the
+    `home/sessions` route (ActivityTab/ActivityFeed deleted).
+  • **add/* flow stays modal ON PURPOSE** (NAVIGATION_MAP §3: QR scanner, role preview and
+    permission wizard remain dialogs/sheets so Back dismisses them without leaving the
+    flow); `tracking/{relId}` waits for M5. The Add Device tab keeps the pairing flow + the
+    relationship listener/guest-expiry sweep only.
+  • **Manifest assist-config doc drift FIXED** (the comment claimed
+    `canRetrieveWindowContent=false` while the config has been `true` since Phase 8.3 for
+    ACTION_SET_TEXT typing — the comment now tells the truth and points at the config).
+  • 2 real parallel extraction agents (M4-A family screens / M4-B activity screens, strict
+    file ownership) + coordinator surgery; 30 new string keys × 15 locales (450 entries,
+    XML-verified); zero new dependencies, zero new Firestore listeners/queries, zero
+    rules/database changes. Static verification suite green (459 R.string refs resolve,
+    parity, brace balance, deleted-symbol sweep, symbol matrix).
 
 - **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
   audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
