@@ -3,6 +3,7 @@ package com.family.remote.support
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import org.osmdroid.config.Configuration
 
 /**
  * Application class (registered in AndroidManifest.xml).
@@ -10,6 +11,13 @@ import android.os.Bundle
  * Its only job: track whether any activity is currently visible, so the
  * session-request notifier (SessionNotifier) can stay quiet while the in-app
  * permission card is on screen and only speak up while the app is backgrounded.
+ *
+ * Phase 22/M5 — one more job: osmdroid's global configuration. The OSMF tile
+ * policy requires a proper User-Agent that identifies the app (never the
+ * library default); the tile cache stays on osmdroid's conservative defaults
+ * and is user-clearable via the system "clear storage" path. Family-scale
+ * traffic (2–4 devices) is well within the OSM usage policy (architecture
+ * doc §2).
  */
 class App : Application() {
 
@@ -19,6 +27,11 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Phase 22/M5 — osmdroid must identify itself to the OSM tile servers
+        // with this app's own package id (tile policy compliance).
+        Configuration.getInstance().apply {
+            userAgentValue = packageName
+        }
         registerActivityLifecycleCallbacks(
             object : ActivityLifecycleCallbacks {
                 override fun onActivityStarted(activity: Activity) {
