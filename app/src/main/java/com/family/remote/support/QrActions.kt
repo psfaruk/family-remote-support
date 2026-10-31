@@ -74,6 +74,9 @@ fun saveQrToDownloads(context: Context, bitmap: Bitmap, fileName: String): Strin
  * Build a share-sheet intent carrying the QR PNG (via FileProvider, because a
  * raw file URI is forbidden on API 24+) plus the readable pairing code as text.
  * Returns null when the image cannot be staged in the cache.
+ *
+ * M8 (v0.34.0) — the chooser title and the shared message body resolve from
+ * values/strings.xml (app language) instead of hardcoded English.
  */
 fun buildQrShareIntent(context: Context, bitmap: Bitmap, code: String): Intent? =
     try {
@@ -92,13 +95,11 @@ fun buildQrShareIntent(context: Context, bitmap: Bitmap, code: String): Intent? 
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(
                 Intent.EXTRA_TEXT,
-                "Family Remote Support pairing code: $code\n" +
-                    "Open the Family Remote Support app on the other phone, tap Scan QR, " +
-                    "or type this code. Valid for 5 minutes."
+                context.getString(R.string.qr_share_text, code)
             )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        Intent.createChooser(send, "Share pairing code")
+        Intent.createChooser(send, context.getString(R.string.qr_share_chooser_title))
     } catch (_: Exception) {
         null
     }
