@@ -5,7 +5,7 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **🟢 RELEASE-READY — M10 closed (2026-10-31, docs-only; release build = v0.35.0, versionCode 54):**
+- **🟢 RELEASE-READY — QA & dedupe wave closed (2026-10-31, v0.37.0, versionCode 56):**
   All master-plan milestones **M0–M10 ✅** + the Owner's Pre-M10 polish pass. The final
   report lives in **`docs/RELEASE_NOTES.md`** (features, install, build-from-source,
   known-limits ledger, maintenance runbook, milestone ledger). Highlights of the
@@ -61,8 +61,37 @@ A trusted family member helps fix another family phone — always with the recei
     **Net: both phones' apps closed → project Firestore traffic = exactly zero.**
     Honest trade-off + 30-second re-arm runbook: RELEASE_NOTES §9a +
     CLOUDFLARE_SETUP (কোটা-নির্দেশ). Worklog §75.
+  - **QA & dedupe wave ✅ (v0.37.0/56 — code, current release): Owner's full
+    back-end test order ("test login/logout latency, every feature, crash,
+    family/guest add + revoke→reconnect, screen-share quality/latency, map zoom,
+    roadmap/sitemap, dedupe duplicate functions, verify secrets, delete dead code
+    & sandbox data, refresh preview").** Six parallel deep audits (auth, pairing/
+    revoke, screen-share engine, map/tracking, navigation/duplicates, crash-risk)
+    + secrets scan + VLM screenshot verification. Results: revoke→family reconnect
+    works by design (fresh code required — single-use invitations); touch control
+    rides the WebRTC data channel (~50–150 ms) with Firestore fallback; zoom works
+    and never fights live updates; 429 windows degrade honestly (no crash, no retry
+    storm). Fixes shipped: **2 edge-crash paths closed** (LocationShareService
+    no-permission startForeground 5-s contract → type-0 fallback; unguarded
+    createPeer() in helperRestartRound), **latency** (TURN+quality config fetches
+    parallel on both roles ≈10 s faster time-to-first-frame; the 3 registration
+    writes now concurrent; every auth call timeout-bounded at 20 s), **auth
+    hardening** (AuthStateListener wires server-side sign-out/revocation into the
+    UI; CancellationException rethrow convention completed; signed-out blank
+    `home/family/{relId}` fixed), **14 of 15 duplicate clusters single-sourced**
+    (answerSession ×3 → SessionActions.kt; relationship watcher ×3 →
+    rememberRelationshipWatch; 30 s/10 s clock loops ×7 → TickingBlock
+    intervalMillis; BackTitleRow ×3 → Core.kt; endedBy ×2 → Badges.kt;
+    friendlyError now delegates Firestore mapping to describeFirestoreError; the
+    Add tab's duplicate watchSessions listener removed — it consumes the root
+    SessionWatchViewModel state; POST_NOTIFICATIONS ×5 → isNotifGranted;
+    fine/coarse ×3 → hasAnyLocationPermission; trackable-counterpart predicate ×2;
+    PresenceBadge/Chip share rememberPresenceState; chevron ×8 → SettingsChevron;
+    radio rows unified; redundant sharing-pref writes removed), dead
+    cancelNotification deleted, sandbox stripped of 315+ MB stale data and the
+    kill-push service folder removed (can never auto-start again). Worklog §76.
   - **Owner's remaining actions are device-side only:** reinstall both phones on
-    v0.36.0/55 and run the device checklists (TEST_PLAN device rows + §71/§73 quick
+    v0.37.0/56 and run the device checklists (TEST_PLAN device rows + §71/§73 quick
     regressions). Everything automatable is verified green.
 
 - **Phase 18.1–18.8 ✅ (v0.22.0→v0.26.0, versionCode 41→45) — DEEP-AUDIT SERIES, 8 rounds:**
