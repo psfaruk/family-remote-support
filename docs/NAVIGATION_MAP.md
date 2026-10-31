@@ -1,10 +1,14 @@
 # NAVIGATION_MAP — Target Hierarchy (Master-Plan PART 3)
 
-> Status: **M2 SHELL IMPLEMENTED (2026-10-31, v0.30.0/49).** The 4 tabs + notifications route
-> now run on Navigation-Compose (Decision C3 ADOPTED — `ui/nav/AppNav.kt` routes + bars,
-> crossfade 120 ms, saveState/restoreState). The nested detail routes below (home/family/{relId},
-> add/*, settings/*, tracking/{relId}) remain the M3+ target; today's tab content is unchanged
-> except the C1 rename and the notifications surface.
+> Status: **M2 SHELL IMPLEMENTED (2026-10-31, v0.30.0/49); M3 SCREENS EXTRACTED (2026-10-31,
+> v0.31.0/50).** The 4 tabs + notifications route run on Navigation-Compose (Decision C3 ADOPTED —
+> `ui/nav/AppNav.kt` routes + bars, crossfade 120 ms, saveState/restoreState). In M3 the tab
+> CONTENT moved verbatim to its own files (`ui/home/HomeTab.kt`, `ui/pairing/AddDeviceTab.kt`,
+> `ui/settings/SettingsTab.kt`, `ui/tracking/TrackingTab.kt`) with the ViewModel layer
+> (`ui/home/SessionWatchViewModel.kt`) and the canonical state components (`ui/components/States.kt`).
+> The nested detail routes below (home/family/{relId}, add/*, settings/*, tracking/{relId})
+> remain the **M4+ target** — honestly NOT built in M3 (see IMPLEMENTATION_STATUS M3 row,
+> honest deltas).
 
 ## 1. Decision C1/C2 — primary tabs (exactly four, per master instruction)
 
