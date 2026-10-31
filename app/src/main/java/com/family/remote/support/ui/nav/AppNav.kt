@@ -44,9 +44,9 @@ import com.family.remote.support.R
  * M4 (v0.32.0) — the first NESTED detail routes under Home: the Family
  * Overview list, the Member Details screen (the old paired-phone action
  * bottom-sheet promoted to a route), the Recent Activity list and the
- * Session Detail screen (NAVIGATION_MAP §2 home-subtree). The add/* flow
- * stays modal on purpose (map §3: QR scanner, role preview, permission
- * wizard remain dialogs/sheets); tracking/{relId} waits for M5.
+ * Session Detail screen (NAVIGATION_MAP §2 home-subtree). The ADD-flow
+ * steps stay modal on purpose (map §3: QR scanner, role preview, permission
+ * wizard remain dialogs/sheets); tracking detail waits for M5.
  */
 object AppRoutes {
     const val HOME = "home"
