@@ -13,15 +13,17 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        // v0.32.0 (Phase 21/M4 — nested navigation wave: home/family +
-        // home/family/{relId} + home/sessions + home/sessions/{id} routes;
-        // Settings restructured into the 8 master-instruction partitions;
-        // paired-phone list + action sheet promoted to routes; manifest
-        // assist-config doc-drift fixed). NAVIGATION_MAP §6: v0.30.0/49 was
-        // the first-implementation version; each later M-milestone
-        // increments from there.
-        versionCode = 51
-        versionName = "0.32.0"
+        // v0.33.0 (Phase 22/M5 — Live Location: consent-based sharing engine
+        // (LiveLocationRepo + location-type FGS LocationShareService), the
+        // real Tracking tab (osmdroid OSM map, authorized markers, freshness
+        // LIVE/STALE/OFFLINE, device selector sheet, consent sheet), the
+        // tracking/{relId} Location Details route, the Settings Location
+        // partition made real (toggle + interval), liveLocations rules block
+        // + runtime probe — docs/LIVE_LOCATION_ARCHITECTURE.md).
+        // NAVIGATION_MAP §6: v0.30.0/49 was the first-implementation version;
+        // each later M-milestone increments from there.
+        versionCode = 52
+        versionName = "0.33.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
@@ -152,4 +154,15 @@ dependencies {
     // Maven-Central build of libwebrtc (org.webrtc.* API, same as the old
     // google-webrtc artifact that was dropped from JCenter).
     implementation("io.getstream:stream-webrtc-android:1.3.8")
+
+    // Phase 22/M5 (v0.33.0) — Live Location (LIVE_LOCATION_ARCHITECTURE §2):
+    // position fixes via the Google Play services fused provider (with a
+    // LocationManager fallback path when GMS is unavailable), map via
+    // osmdroid (Apache-2.0; OSM tiles with mandatory on-map attribution; the
+    // osmdroid User-Agent is set in App.onCreate — OSMF tile policy).
+    // C4 decision record (PROJECT_CONTEXT §19): both additions were approved
+    // with the Owner's M5 start command, same precedent as navigation-compose
+    // with M2 — no map/location library existed in the app before this.
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 }
