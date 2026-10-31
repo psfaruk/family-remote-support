@@ -179,3 +179,57 @@ GitHub Actions যেটি চালায়) দিয়ে সিঙ্ক 
 | স্যান্ডবক্স mini-service (~৫সে) | ✅ চলমান — M7-এ স্ক্রিপ্ট সিঙ্ক+রিস্টার্ট |
 | Cloudflare Worker স্থায়ী (~৬০সে) | ⛔ `FIREBASE_SA_JSON` এখনো false (Owner-ধাপ) |
 | GitHub Actions (~৫মি) | ✅ শেষ run SUCCESS (429-failure জানা-সীমা) |
+
+---
+
+## M9 সনাক্তকরণ — API টোকেনটি IP-filtered (২০২৬-১০-৩১)
+
+M9-এ Owner একটি Cloudflare API টোকেন পাঠিয়েছেন যাতে সহকারী নিজেই Secret-টি বসাতে
+পারে। টোকেনটি sandbox-এ `.secrets/cloudflare-token.txt`-এ সংরক্ষিত (অ্যাপের কাজ
+শেষ হওয়া পর্যন্ত) — **রিপোতে কখনোই নয়** (সম্পূর্ণ git ইতিহাস স্ক্যানে `cfat_`
+০ হিট)। লাইভ পরীক্ষার ফল:
+
+| পরীক্ষা | ফল |
+|---|---|
+| `GET /user/tokens/verify` | **401 "Invalid API Token"** — অনুমোদিত-নয় IP থেকে verify ঠিক এইরকমই উত্তর দেয় |
+| `GET /accounts` | **403 কোড 9109** — `"Cannot use the access token from location: 47.57.242.119"` |
+| IPv6 পথ | নেই (sandbox-এ IPv6 egress নেই) |
+| egress IP | **drift করে** — এক ঘণ্টার মধ্যে `47.57.242.119` → `47.57.232.232` |
+
+**অর্থ:** টোকেনটি সঠিক ও সক্রিয়, কিন্তু তাতে **Client IP Address Filtering** চালু
+(সম্ভবত তৈরির সময় Owner-এর নিজের IP বসানো ছিল) — অন্য যেকোনো IP থেকে (sandbox বা
+GitHub Actions) ব্যবহার করা যায় না। এই কারণেই dashboard-এর বাইরে কোনো পথ খোলা
+ছিল না।
+
+### আনলক ধাপ — দুই ভাবে (একটিই যথেষ্ট)
+
+1. **(সুপারিশকৃত — একবারই, ~৩০ সেকেন্ড):** dash.cloudflare.com → ডান-উপরের আইকন →
+   **My Profile → API Tokens** → টোকেনটির ডানে **⋯ → Edit** → **Client IP Address
+   Filtering** ঘরের IP-গুলো **মুছে খালি** করুন → Continue to Summary → **Save**।
+   এরপর চ্যাটে শুধু বলুন **"done"** — সহকারী তখন API দিয়েই `FIREBASE_SA_JSON`
+   Secret বসাবে, `/health`-এ `FIREBASE_SA_JSON:true` প্রমাণ দেখবে, এবং একটি লাইভ
+   sweep-টেস্ট চালিয়ে স্থায়ী স্তর চালু নিশ্চিত করবে। (টোকেনটি scoped — এই কাজেই
+   যথেষ্ট।)
+2. (বিকল্প — আগের ধাপই): Workers & Pages → **family-remote-support** → Settings →
+   **Variables and Secrets** → Add → ধরন অবশ্যই **Secret** (Build variable নয়) →
+   `FIREBASE_SA_JSON` = SA JSON-এর পুরো টেক্সট (`{` দিয়ে শুরু `}` দিয়ে শেষ) →
+   সেভ। তারপর
+   `https://family-remote-support.www-farukkhan-fk885.workers.dev/health`-এ
+   `FIREBASE_SA_JSON:true` দেখলেই স্থায়ী স্তর জীবন্ত।
+
+### "সেটাপ করার পরেও মোছে যায়" — M9 ব্যাখ্যা
+
+Secret runtime-এ একবার বসলে deploy দিয়ে মুছে যায় না। "মোছা"-র মতো আচরণের সবচেয়ে
+সম্ভাব্য কারণ আগের বিশ্লেষণই: মানটি **Build variable** অংশে (Workers Builds-এর
+আলাদা সেটিংস পেজ) বসেছিল — সেখানে বসলে Worker-এর runtime-এ পৌঁছায় না,
+`/health`-এ false দেখায়, আর পরে Variables-অংশে খুঁজলে আর পাওয়া যায় না ("মুছে
+গেছে" মনে হয়)। KILL_TOKEN একবার ঠিক জায়গায় (runtime Secret) বসেছিল বলেই সেটি
+টিকে আছে (`/health`-এ `true`)।
+
+### তিন-স্তরের M9-অবস্থা (২০২৬-১০-৩১)
+
+| স্তর | অবস্থা (M9) |
+|------|--------|
+| স্যান্ডবক্স instant (~৫সে) | ✅ ৫ সেকেন্ড পর পর sweep, ০ ত্রুটি; স্ক্রিপ্ট repo-র সাথে md5-সম |
+| Cloudflare স্থায়ী (~৬০সে) | ⛔ টোকেনের IP-filter খোলা পর্যন্ত অপেক্ষমাণ (উপরের ধাপ ১/২) |
+| GitHub Actions (~৫মি) | ✅ ম্যানুয়াল dispatch run **41203101630 SUCCESS**; schedule পুনঃনিবন্ধিত (workflow কমেন্ট touch) |
