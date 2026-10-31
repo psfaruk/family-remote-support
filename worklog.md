@@ -2277,3 +2277,98 @@ Session Details→Back; nested-এ Home ট্যাব selected) + #24 + Settin
 - **দাবির সীমা (সৎ):** "কাজ করছে" = CI-সফল + Owner-এর ফোন-টেস্টের পরেই — স্যান্ডবক্সে
   Gradle/emulator নেই। দুটি ফিক্স-রাউন্ডই এই সেশনের ভুল (ট্রান্সলেশন-এস্কেপিং স্ক্যানের
   ফাঁক + নেস্টেড-কমেন্ট অজান্তে), ডকুমেন্টে লুকানো নয়।
+
+
+## §68 — Phase 22/M5 (v0.33.0, code 52): লাইভ লোকেশন — ইঞ্জিন + ম্যাপ + রুলস + প্রোব (২০২৬-১০-৩১)
+
+**ট্রিগার:** Owner-এর **"M5"** নির্দেশ (worklog §67-এর প্রতিশ্রুতি অনুযায়ী: "পরবর্তী = M5 —
+লাইভ-লোকেশন, LIVE_LOCATION_ARCHITECTURE অনুযায়ী")।
+
+**পূর্ব-যাচাই (সৎ সংশোধনসহ):** রিমোট `psfaruk/family-remote-support`, HEAD `7162e3c`
+(M4-এর CI-রেকর্ড পুশ; run 41170479983 SUCCESS)। লোকাল মিররের ৮৯টি ট্র্যাকড ফাইলের blob-SHA
+রিমোটের সাথে **পূর্ণ MATCH** (zero drift)। **নোট (সৎ):** এই সেশনের উত্তরাধিকার-সারাংশ
+ভুলভাবে দাবি করছিল "M-সিরিজ অস্তিত্বহীন, M2/M3/M4 অনির্বাহিত" — রিমোট প্রমাণ
+(IMPLEMENTATION_STATUS + কমিট-মেসেজ + CI রান) তা **নাকচ করেছে**; এছাড়া সারাংশে owner-নাম
+`psfarfarfaruk` লেখা ছিল (বানান-ড্রিফট) — প্রকৃত অ্যাকাউন্ট `psfaruk`। সব সিদ্ধান্ত রিমোট
+প্রমাণের ভিত্তিতে।
+
+**মাল্টি-এজেন্ট সততা (§17-মডেল):** ৪টি সত্যিকারের সমান্তরাল agent — **M5-A** (engine:
+LiveLocationRepo.kt + LocationShareService.kt, 261+472 লাইন, কন্ট্র্যাক্ট API হুবহু)
+· **M5-B** (firestore.rules-এ 56-লাইনের liveLocations ব্লক + 526-লাইনের
+rules-liveLocations-probe.mjs; diff-প্রমাণিত শুধু-ইনসার্ট) · **M5-C** (TrackingTab.kt 702 +
+TrackingViewModel.kt 183 + LocationDetailScreen.kt 389 লাইন — agent টাইম-আউটে পড়লেও তিন
+ফাইলই ডিস্কে সম্পূর্ণ ছিল; কোঅর্ডিনেটর লাইন-বাই-লাইন যাচাই করে গ্রহণ করেছে) · **M5-D**
+(i18n: 14/15 লোকেলের পরে turn-limit — values-zh কোঅর্ডিনেটর পূরণ করেছে, এখানেই রেকর্ড)।
+কোঅর্ডিনেটর (Agent 1) = manifest/gradle/App.kt/AppNav/MainActivity/SettingsTab সার্জারি +
+স্ট্যাটিক ভেরিফিকেশন + রুল-পাবলিশ + প্রোব + পুশ।
+
+**যা বদলেছে (কোড):**
+1. **ইঞ্জিন (M5.a/b):** `LiveLocationRepo.kt` — কন্ট্র্যাক্ট API (LiveLocationView,
+   watchLiveLocation, writeLocationFix, deleteOwnLocation, LocationSharingPrefs,
+   start/stopLocationSharing, isLocationSharingRunning); `liveLocations/{uid}_{devId}`
+   সিঙ্গেল-ডক in-place (hasOnly ৮-ফিল্ড, ইতিহাস নেই — PART 6)। `LocationShareService.kt`
+   — FGS type location, low-importance চ্যানেল, **স্থায়ী নোটিফিকেশনে কোঅর্ডিনেট নেই**
+   (R.string.loc_notif_* ×১৫), FusedLocation PRIORITY_BALANCED + LocationManager ফলব্যাক,
+   গেট: Δt≥interval ∧ Δd≥25 m ∧ accuracy≤100 m, স্থির-অবস্থায় ব্যাক-অফ ×2 (ক্যাপ ৫ মিনিট),
+   পারমিশন-হারা/সাইন-আউট/কনসেন্ট-বন্ধ হলে ডিফেন্সিভ স্টপ। reboot অটো-রিস্টার্ট **ইচ্ছাকৃত নেই**।
+2. **রুলস (M5.a):** liveLocations ব্লক (myPairing মিরর + sharingEnabled + docId-প্যাটার্ন +
+   রেঞ্জ/টাইপ/±৫-মিনিট freshness) — **LIVE পাবলিশড: ruleset d1a38d5e** (পাবলিশ-ই-প্রমাণ:
+   ruleset তৈরি = সিনট্যাক্স বৈধ)।
+3. **ম্যাপ (M5.c):** TrackingTab সত্যিকারের osmdroid MAPNIK ম্যাপ (CopyrightOverlay রাখা
+   হয়েছে — OSM অ্যাট্রিবিউশন বাধ্যতামূলক; App.onCreate-এ userAgentValue=packageName —
+   OSMF পলিসি), প্রতি অনুমোদিত কাউন্টারপার্টে একটি মার্কার (যে সত্যিই পাবলিশ করেছে তবেই),
+   LIVE<২মি/STALE<৫মি/OFFLINE ফ্রেশনেস + সর্বদা-দৃশ্যমান "Last known — HH:mm ±N m" (পুরনো
+   কোঅর্ডিনেট কখনো live লেবেল পায় না), canonical Loading/Error/Empty/PermissionDenied,
+   consent শীট → FINE/COARSE লঞ্চার → start; ডিভাইস-সিলেক্টর শীট; `TrackingViewModel`
+   (routed errors, keep-last)।
+4. **tracking/{relId} (M5.c):** LocationDetailScreen — ফ্রেশনেস/updated/accuracy সারি,
+   কাউন্টারপার্টের sharing অবস্থা **রিড-ওনলি** (শুধু মালিক টগল করতে পারেন), open-in-maps
+   (geo: intent, try/catch), সৎ not-found + নিজ-ডিভাইস ডিফেন্সিভ ব্রাঞ্চ।
+5. **Settings (M5.d):** Location পার্টিশন সত্যিকারের (set_loc_status প্লেসহোল্ডারের জায়গায়
+   sharing টগল + পারমিশন-গেট + ৩০সে/১মি/৫মি ইন্টারভাল ডায়ালগ; চলমান শেয়ারিংয়ে ইন্টারভাল
+   বদলালে সার্ভিস রিস্টার্ট — সাথে সাথে কার্যকর)।
+6. **Shell সার্জারি:** AppNav-এ TRACKING_ARG + tabForRoute("tracking/") ; MainActivity-র
+   NavHost-এ ট্যাব-প্যারামিটার + নেস্টেড রুট (nested ট্রানজিশন মানির M4-নিয়ম);
+   **sign-out হাইজিনে M5:** stopLocationSharing + deleteOwnLocation Phase-13 ক্লিনআপে যুক্ত।
+7. **build.gradle:** versionCode 52 / versionName 0.33.0; **+2 ডিপেন্ডেন্সি (C4 — Owner-এর
+   M5 নির্দেশেই অনুমোদিত, M2-নজির অনুযায়ী):** play-services-location 21.3.0 +
+   osmdroid-android 6.1.18।
+
+**প্রোব (LIVE, সেল্ফ-ক্লিনিং):** `scripts/rules-liveLocations-probe.mjs` — **12/12 PASS**:
+P0 owner create+read+delete ✓, P1 ACTIVE-counterpart পড়া ALLOW ✓, N1..N9 সব 403 (অপরিচিত,
+sharing-off, REVOKED, গেস্ট-উইন্ডো-পার, বাড়তি-ফিল্ড, lat 91, ১০-মিনিট-পুরনো updatedAt,
+অন্যের docId-তে লেখা, stranger LIST), P2 লাইভ-গেস্ট-উইন্ডো ALLOW ✓। ক্লিনআপ: 2/2 doc +
+3/3 synthetic auth user ডিলিট।
+
+**স্ট্যাটিক গেট:** ৯টি Kotlin ফাইলে brace/paren ব্যালান্স + block-comment nesting
+(সংশোধিত চেকার — // লাইন-কমেন্ট inert, ব্লক-নেস্টিং সত্যিকার গভীরতা-সিমুলেশন) +
+R.string/R.drawable রেফ রেজোলভ + 15-লোকেল key-parity + apostrophe স্ক্যান (সব লোকেল ×
+সব নতুন কী) + XML well-formed ×১৫ + পুরনো কী-অপরিবর্তিত (0 diff) + build.gradle/manifest
+যাচাই।
+
+**স্ট্রিং-পরিসংখ্যান:** +৩২ কী (loc_* ×31 + set_loc_now) ×১৫ = ৪৮০ এন্ট্রি;
+bn/hi/ne/ar/ur-এ দেশীয় অঙ্ক (৩০/১/৫); ফরাসি/তুর্কি অ্যাপোস্ট্রোফি escaped
+(§67-এর শিক্ষা প্রয়োগ — স্ক্যানার সব লোকেলে চালানো); %1$s/%1$d সর্বত্র সংরক্ষিত।
+
+**সৎ ডেল্টা (Owner জানুক):** (১) v1-এ ACCESS_BACKGROUND_LOCATION **নেই** — শেয়ারিং চলে
+শুধু দৃশ্যমান FGS হিসেবে; আক্রমণাত্মক OEM-এ swipe-away করলে শেয়ারিং থামতে পারে (battery-
+optimization ছাড়ের পথ আগেরই আছে)। (২) ম্যাপ টাইল OSMF পলিসি-অনুযায়ী family-scale
+(২–৪ ডিভাইস) ব্যবহারে সীমিত — বড় স্কেলে টাইল-প্রোভাইডার বদলানোর পথ ডকুমেন্টেড।
+(৩) অফলাইন ম্যাপ-প্যাকেজিং নেই (নেটওয়ার্ক লাগবে টাইলের জন্য)। (৪) সেশন-হিস্ট্রির মতো
+লোকেশন-হিস্ট্রিও **ইচ্ছাকৃতভাবে নেই** — শুধু সর্বশেষ পজিশন, stop/sign-out-এ ডিলিট।
+(৫) M5-C/M5-D agent সীমা ছাড়িয়েছিল (টাইম/টার্ন) — কিন্তু আউটপুট সম্পূর্ণ ছিল, ম্যানুয়ালি
+যাচাই-কৃত; এই সীমাবদ্ধতা রেকর্ড থাকল। (৬) ইন্টারভাল বদলালে চলমান শেয়ারিং একবার
+রিস্টার্ট হয় (doc একবার ডিলিট+পুনঃপাবলিশ — কয়েক সেকেন্ডের ফাঁক, ফ্রেশনেস সৎ থাকে)।
+
+**যাচাই-অবস্থা (সৎ):** স্যান্ডবক্সে Gradle/emulator নেই। প্রমাণ = (১) উপরের স্ট্যাটিক
+স্যুট; (২) **রুলস LIVE + প্রোব 12/12** (সত্যিকারের রানটাইম); (৩) CI assembleDebug+Release
++ AXML গেট (v0.33.0/52 প্রত্যাশিত); (৪) Owner-এর ফোন-টেস্ট (TEST_PLAN #10–#15)।
+
+**পুশ:** readback-verify পাইপলাইনে (GET sha → PUT → GET download → SHA256 তুলনা)। CI রেকর্ড
+পুশ-পরে এই সেকশনে যোগ হবে (সৎ: রান সফল হলে তবেই "কাজ করছে" দাবি)।
+
+**Owner-অ্যাকশন:** (১) CI SUCCESS দেখে দুই ফোনে **v0.33.0 (code 52)** — TEST_PLAN
+#১০–#১৫: Tracking-এ consent শীট → পারমিশন → ম্যাপে অন্য ফোনের মার্কার + LIVE/STALE ব্যাজ;
+নোটিফিকেশনে কোঅর্ডিনেট নেই-ওয়ালা স্থায়ী নোটিশ; ৩ জায়গা থেকে stop; Settings-এ টগল+ইন্টারভাল;
+revoke করলে লোকেশন-অ্যাক্সেস তাৎক্ষণিক বন্ধ। (২) Cloudflare `FIREBASE_SA_JSON` (§60 থেকে
+ঝুলে আছে); (৩) **পরবর্তী = M6** — Family/Guest authorization verification + G1–G4 deltas।
