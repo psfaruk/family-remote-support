@@ -43,7 +43,18 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Pre-M10 (v0.35.0) — adjustResize (Owner: "Keybord চাপলে যেনো
+                 অ্যাপ এর ফাংশন গুলো লুকিয়ে না থাকে"): with enableEdgeToEdge
+                 the default unspecified mode let the system PAN the window
+                 over the keyboard — the bottom tab bar and the lower content
+                 ended up hidden behind it while typing. adjustResize hands
+                 the IME to the insets system instead: the shell's
+                 ime∪navigationBars-padded bottom bar rides above the
+                 keyboard (API 30+ insets dispatch; API 26–29 classic
+                 window resize). Text fields stay visible, functions stay
+                 reachable. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
