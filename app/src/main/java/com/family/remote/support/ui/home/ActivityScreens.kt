@@ -7,16 +7,12 @@ package com.family.remote.support.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,11 +31,13 @@ import com.family.remote.support.StatusRow
 import com.family.remote.support.getSession
 import com.family.remote.support.mmss
 import com.family.remote.support.ui.components.AppListTile
+import com.family.remote.support.ui.components.BackTitleRow
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.ErrorPanel
 import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
+import com.family.remote.support.ui.components.endedByLabel
 import com.family.remote.support.ui.components.sessionBadgeKind
 import com.family.remote.support.ui.components.sessionStatus
 import com.family.remote.support.ui.components.statusChipColors
@@ -243,19 +240,9 @@ internal fun SessionDetailScreen(
     val context = LocalContext.current
 
     // Back row — the nested route's affordance back to the list.
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.cd_back)
-            )
-        }
-        Text(
-            text = stringResource(R.string.sess_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-    }
+    // v0.37.0 (dedupe wave) — the design-system BackTitleRow (was an inline
+    // copy of LocationDetailScreen's private row).
+    BackTitleRow(title = stringResource(R.string.sess_title), onBack = onBack)
 
     // LIVE while the root watch still holds the session; otherwise the
     // same one-shot getSession read the last-finished line performs — no
@@ -312,16 +299,11 @@ internal fun SessionDetailScreen(
                 s.sessionEndsAtMillis
             }
 
-            // Ended-by — the working mapping from the pairing card
-            // (endedBy is the ender's uid, or "timeout"); a blank result
-            // skips the row entirely.
-            val endedByLabel = when (s.endedBy) {
-                null, "" -> ""
-                "timeout" -> context.getString(R.string.ended_auto)
-                s.helperUid -> context.getString(R.string.ended_by_helper)
-                s.recipientUid -> context.getString(R.string.ended_by_recipient)
-                else -> ""
-            }
+            // Ended-by — the shared "who ended" mapping (v0.37.0 dedupe
+            // wave: was a local when-mapping, one of the drifting copies
+            // the audit's cluster #4 flagged); a blank result skips the row
+            // entirely.
+            val endedBy = endedByLabel(context, s)
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatusRow(stringResource(R.string.sess_state), sessionStatus(context, s.status))
@@ -345,8 +327,8 @@ internal fun SessionDetailScreen(
                         mmss(((endRef - s.requestedAtMillis) / 1000).coerceAtLeast(0))
                     )
                 }
-                if (endedByLabel.isNotBlank()) {
-                    StatusRow(stringResource(R.string.sess_endedby), endedByLabel)
+                if (endedBy.isNotBlank()) {
+                    StatusRow(stringResource(R.string.sess_endedby), endedBy)
                 }
             }
         }
