@@ -513,6 +513,9 @@
     <string name="set_section_remote">Remote Support</string>
     <string name="set_section_guest">Guest Access</string>
     <string name="set_section_security">Security</string>
+    <string name="set_section_privacysec">Privacy &amp; Security</string>
+    <string name="set_section_prefs">Preferences</string>
+    <string name="set_section_about_session">About &amp; session</string>
     <string name="set_dev_entry_t">Paired phones</string>
     <string name="set_dev_entry_d">Live status, support actions and revocation</string>
     <string name="set_loc_status">Live location is planned for a coming release. No location is collected or stored today.</string>
