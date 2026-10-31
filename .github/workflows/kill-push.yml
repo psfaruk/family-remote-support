@@ -1,36 +1,33 @@
 # Phase 8.2 — FCM kill-push BACKSTOP (v0.9.8).
 #
-# Primary tier: the sandbox mini-service (kill-push-service) polls Firestore
-# every 5 s and is the tier that actually meets a request's 2-minute answer
-# window. THIS workflow is the backstop that keeps the push flowing while
-# that sandbox is recycled or rebuilt.
+# ⛔ POSTURE CHANGE (2026-10-31, post-M10 Owner quota directive): the schedule
+# is DISABLED — no automatic Firestore polling from any server tier. The Owner
+# ordered: read/write only when the user acts; requests only from the app; zero
+# requests from the sandbox. The auto tiers (sandbox 5 s poll — observed
+# running as TWO instances ≈ 69k read attempts/day — the Worker's every-minute
+# cron and this 5-min backstop) together far exceeded the 50,000/day free read
+# quota → the recurring evening RESOURCE_EXHAUSTED errors. This workflow stays
+# manually dispatchable (Actions → kill-push → Run workflow) for on-demand /
+# diagnostic sweeps only.
 #
-# Reality of GitHub schedules: they are best-effort and can be delayed by
-# several minutes under load — so a run often lands after a specific ask's
-# deadline. That is safe by design: scripts/fcm-kill-push.mjs only pushes
-# FRESH asks (deadline still in the future) and is fully idempotent
-# (killPushSentAt mark + dead-token cleanup), so a late run does nothing
-# rather than confusing anyone with a push for an expired request.
+# RE-ARM (if dead-app ask alerts are ever wanted again): uncomment the
+# `schedule:` block below and push — the 5-min backstop resumes (and see
+# wrangler.toml to re-arm the Worker's every-minute cron).
 #
-# Note: GitHub disables scheduled workflows after 60 days of repository
-# inactivity — the repo is actively developed, but keep it in mind.
-#
-# 2026-10-29 observed reality: after landing on main (04:03 UTC) the schedule
-# fired only ONCE (10:50 UTC) and then went silent for hours — the known
-# GitHub "scheduled workflow runs sporadically" behavior. Touching this file
-# (this comment) re-registers the schedule. This tier is a best-effort
-# backstop only; PERMANENT every-minute coverage is the Cloudflare Worker
-# tier (cloudflare/killpush-worker.js + wrangler.toml cron trigger).
-#
-# 2026-10-31 (M9): manual dispatch run 41203101630 SUCCESS (0-error sweep);
-# the 3 earlier schedule failures (17:57 / 22:13 / 01:39 UTC) were Firestore
-# 429 free-quota, self-healing after the daily 07:00 UTC reset (logs verified
-# in M7). Touching this comment re-registers the schedule again.
+# History (pre-park): the sandbox mini-service was the tier that met a
+# request's 2-minute answer window; this workflow backstopped it while the
+# sandbox was recycled. GitHub schedules are best-effort (2026-10-29: fired
+# once then went silent for hours; touching the file re-registers it). The
+# sweep only pushes FRESH asks and is fully idempotent (killPushSentAt mark +
+# dead-token cleanup). 2026-10-31 (M9): manual dispatch run 41203101630
+# SUCCESS; the 3 earlier schedule failures were Firestore 429 free-quota,
+# self-healing after the daily 07:00 UTC reset.
 name: kill-push
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # ⛔ Quota directive 2026-10-31 — schedule disabled (see header). Re-arm:
+  # # schedule:
+  # #   - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions: {}
