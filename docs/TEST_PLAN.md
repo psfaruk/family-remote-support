@@ -27,7 +27,8 @@
   (12/12)**: deny-before-pairing / deny-sharing-off / deny-revoked / deny-guest-after-window /
   allow-ACTIVE-counterpart / deny-forged-fields-or-stale-updatedAt; sweep-exclusion verified
   by code inspection (worker queries only supportSessions); quota-budget probe (documented
-  reads during a scripted day) remains an M9 discipline.
+  reads during a scripted day) — **delivered in M9 as §1a** (estimate-by-source table +
+  observed 429 signature; the metering APIs are denied to the SA, honestly recorded).
 - **M6 (2026-10-31): FULL battery re-run LIVE — 4/4 green** (pairing · audit A0–A21 ·
   negative 16-hostile Family/Guest · liveLocations 12/12) — the Family/Guest authorization
   verification milestone; recorded in worklog §69. APK unchanged (v0.33.0/52).
@@ -48,6 +49,55 @@
   Owner: (a) language বাংলা across the UI; (b) bell → "Recent events" section shows real
   events and survives app restart; (c) sign-out clears the events list; (d) session/share
   flows unchanged otherwise. Recorded in worklog §71.
+- **M9 (2026-10-31): TEST_PLAN execution + security review — every AUTO row re-run LIVE,
+  4/4 suites green** (pairing P1a/P1b + N1/N2 · audit A0–A21 · negative P0–N18 + G1/G2 ·
+  liveLocations 12/12 — the same battery as M6; zero drift; synthetic fixtures
+  self-cleaned). Ops checks: instant tier sweeping every 5 s with 0 errors (script-sync
+  verified by md5); GH Actions backstop verified by MANUAL DISPATCH — run **41203101630
+  SUCCESS** (its 3 prior schedule failures = Firestore 429 free-quota, self-healing after
+  the daily 07:00 UTC reset, logs verified in M7; schedule re-registered by touching the
+  workflow comment); Worker `/health` still `FIREBASE_SA_JSON:false` — **new M9 finding:**
+  the Owner's Cloudflare API token is **IP-filtered** (HTTP 9109 from the sandbox egress,
+  which itself drifts IPs), so the runtime Secret cannot be set programmatically yet;
+  unlock = remove the token's Client IP Address Filtering (exact steps in
+  CLOUDFLARE_SETUP.md M9) — the last open infra item. Firebase verified END-TO-END:
+  SA → Firestore REST read 200 (fcmTokens registry, 3 real device tokens, newest
+  2026-10-31T10:31Z) → FCM HTTP v1 send **200 + message_id** (one labeled test push to
+  the live token). Security review (full 615-commit history scan): zero secrets — the only
+  pattern hits are the Worker's PEM-parsing code string (`pemPkcs8ToDer`) and
+  google-services.json's API key (Android identifier-class, by design; console
+  key-restriction remains an Owner console check — the SA cannot read the Keys API, 403,
+  honestly recorded). Workflows least-privilege re-checked (`contents: read` /
+  `permissions: {}`), APK artifacts 7-day retention, manifest posture re-checked (services
+  `exported="false"`, `allowBackup="false"`, scoped FileProvider, gated accessibility
+  service). Quota budget documented in §1a (metering APIs denied to the SA — estimate
+  table + observed 429 signature). **No app code changed (one workflow comment touch +
+  docs); APK unchanged (v0.34.0/53).** Owner device rows remain the Owner's (§4
+  quick-script stands; M8's reinstall instructions unchanged). Recorded in worklog §72.
+
+### 1a. Quota budget (M9 discipline — documented estimate, not metered)
+
+Honest limit: the SA's IAM roles deny `monitoring.metricDescriptors.list` (403) and the
+Keys API is disabled in the project — billed reads cannot be metered from the sandbox.
+Budget by source instead (Firestore free tier: 50 k reads / 20 k writes / 20 k deletes /
+20 k updates per day; resets 07:00 UTC = 13:00 Dhaka):
+
+| Source | Cadence (steady state) | Reads/day | Writes/day |
+|---|---|---|---|
+| Instant tier sweep (sandbox :3020) | every 5 s → 2 runQuery (REQUESTED + ACTIVE) | ≈0 idle (Firestore bills only returned docs); +~1 read per live ask/token lookup | idempotent marks only on fresh asks |
+| Worker tier (once the Secret is set) | every 60 s → same 2 queries | ≈0 idle (same billing rule) | same marks (idempotent) |
+| GH Actions backstop | sporadic (0–5 scheduled runs/day observed) | ≈ same per run | — |
+| Session watch (per signed-in phone) | 1 onSnapshot listener | 1 read per session doc delivered (event-driven) | — |
+| Presence heartbeat (per phone) | WorkManager 15-min floor (Doze may defer) | 1 read on the counterpart's presence listener per beat | ≤ 96/day/phone |
+| Live location (while sharing) | ≥ 30 s–5 min AND ≥ 25 m movement (acceptance gates) | 1 read per fix on the counterpart's listener | bounded by the gates |
+| Probe hygiene (M9 battery) | self-cleaning | ~50 synthetic docs created + deleted today | included |
+
+Observed failure signature (matches the table): the 429s land in the Dhaka evening
+(17:57 / 22:13 / 01:39 UTC runs) as listener/heartbeat traffic accumulates through the
+day, and self-heal after the 07:00 UTC reset (the first run after reset: SUCCESS 07:31
+UTC). Phase 20's 30 s sweep + backoff keeps the SERVER sweep cost near zero when idle;
+the dominant daily cost is the app's own listener/heartbeat traffic — bounded by the
+two-phone reality of this family.
 
 ## 2. Scenario matrix (master list → method)
 
