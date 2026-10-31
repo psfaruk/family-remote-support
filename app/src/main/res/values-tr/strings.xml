@@ -408,4 +408,8 @@
     <string name="notif_empty_title">Şu anda sizi bekleyen bir şey yok</string>
     <string name="notif_empty_body">Destek istekleri, aktif oturumlar ve kurulum uyarıları oluşur oluşmaz burada görünür.</string>
     <string name="notif_hint">Yalnızca gerçek, güncel olaylar — uydurma yok, geçmiş kaydı yok.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">Tekrar dene</string>
+    <string name="states_open_settings">Sistem ayarlarını aç</string>
 </resources>
