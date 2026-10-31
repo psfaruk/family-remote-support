@@ -2803,3 +2803,77 @@ docs/IMPLEMENTATION_STATUS.md（Pre-M10 行）、本 §73。
   resources.arsc 含 `set_section_privacysec` 键与 bn 值"প্রাইভেসি ও সিকিউরিটি"。
 - 本 CI-record 补记提交自身的 run 结果由下一里程碑（M10）的“推送前校验”承接记录
   （§72 先例同）。
+
+## §74 — Phase 22/M10：发布就绪 — 最终报告 + Cloudflare 稳定层收口（2026-10-31，纯文档）
+
+**触发：** Owner 指令 "Cloud flare এ টোকেন এডিট করে সব পারমিশন এলাও করে দিয়েছি। M9 M10
+complete করে দাও"——上一会话交付的 CF token 被 Owner 改为全权限。M9 主体（§72）与 Pre-M10
+（§73）此前已收口；本轮 = 关闭 M9 唯一遗留（Worker secret）+ 执行 M10（发布就绪）。
+
+**推送前校验（诚实）：** 远端 main HEAD `5f1b32cd`（§73 CI-record 提交）；本地镜像 99
+blob-SHA 零漂移（`tmp/m10-drift.mjs` 全量比对，与 M9 同法）。
+
+**Cloudflare 稳定层收口（M9 遗留的最后一项，本轮核心基础设施动作）：**
+1. **Token 解锁验证：** `GET /accounts` **HTTP 200**（账号 `0ad9f9d4…7e600`）——注意
+   `/user/tokens/verify` 仍 401、`/user/accounts` 404：这两条是路由自身限制（verify 需
+   User-Details 读权限/legacy 路由），**`/accounts` 200 + 此前被封的同一 egress IP
+   `47.57.242.119` 才是 "IP-filter 已移除" 的判据**（M9 时同 IP 得 403/9109）。
+2. **Secret 编程置入：** REST secrets API `PUT …/scripts/family-remote-support/secrets`
+   （`{"name":"FIREBASE_SA_JSON","type":"secret_text"}`，值=沙盒 `.secrets/firebase-sa.json`
+   全文，python 构造 JSON-in-JSON）→ **HTTP 201**。runtime Secret 语义：跨 deploy 存活——
+   与 KILL_TOKEN 自 Phase 14 起历次 wrangler deploy 存活同机制，即 Owner "设置后又被抹掉"
+   症状（值落入 Build variable 区）的根治。
+3. **绑定级证据：** script settings API 显示 `FIREBASE_SA_JSON`+`KILL_TOKEN` 双双
+   `secret_text`；该 PUT 自身形成一个 deployment（source=api, triggered_by=secret,
+   15:10:04Z）。
+4. **`/health` → `FIREBASE_SA_JSON:true`**（15:10:12Z 起多次）。
+5. **Cron 活体证明（关键，因 `/health` 的 `last` 为 per-isolate global、不可作跨实例证据）：
+   GraphQL `workersInvocationsAdaptive`：**每分钟整点偏移固定秒位一条 success 行
+   （15:10:11→15:16:11 连续），且自 secret 置入后每条 cron invocation `subreq=2`** =
+   OAuth 取 token 调用 + Firestore runQuery——OAuth 若失败则第二个子请求根本不会发出，
+   故 SA JSON 已被正确解析/签名/接受。作为对照，同窗口内我的 `/health` 请求 `subreq=0`。
+   Workers observability telemetry 查询 API（logs）返回 0 事件（摄取/查询不可用，如实
+   记录），GraphQL 分析 API 为本项目的权威证据路径。
+6. **当前 429 窗口（诚实）：** Firestore 免费日配额于达卡晚间耗尽——即时层（沙盒 :3020）
+   与 Worker cron 同报 429；每日 07:00 UTC（13:00 达卡）重置后自愈（M7/M9 日志亲证的
+   既有行为，非本轮回归）。此窗口不影响上述结论：subreq=2 已证明 secret 工作。
+7. **Deploy-存活复核：** 本 M10 push 触发 Workers Builds 自动 deploy——推送后经 settings
+   API + `/health` 复核 secret 仍在（结果记于下方 CI-record 段）。
+
+**M10 交付物（发布就绪四件套）：**
+- **`docs/RELEASE_NOTES.md`（新建，最终报告）：** §1 定位 · §2 Owner বাংলা 快速开始
+  （装 v0.35.0/54 + 五分钟回归）· §3 安装表（CI artifact/CI-keystore 覆盖安装/AXML
+  验证门/7 天保留/版本史 49→54）· §4 功能清单（按域，含三层层级）· §5 源码构建
+  （CI 与本地两条路 + 技术栈）· §6 架构一览 · §7 已知限制诚实台账（7.1 Firestore
+  免费配额日窗口与 13:00-达卡重置；7.2 结构性/设计内：无 Play Store、app 侧即时
+  /sweep 刻意未实现、/health last 为 per-isolate、设备行属 Owner；7.3 记录在案的
+  follow-ups 四条）· §8 验证摘要（4/4 探针/CI 门/安全审查/端到端）· §9 CF 稳定层
+  收口五步 · §10 维护 runbook（症状→查哪→健康长啥样 表格）· §11 M0–M10 里程碑台账。
+- **`README.md`：** Status 顶部新增 🟢 RELEASE-READY 总条目 + M6/M7/M8/M9/Pre-M10/M10
+  六个子条目（此前 README 状态停在 M4/M5 时代——补齐缺口）；明确 Owner 仅剩设备侧动作。
+- **`docs/IMPLEMENTATION_STATUS.md`：** 头部状态改 M10 CLOSED/RELEASE-READY；§2 M10 行
+  ✅（含 CF 收口证据链）；§5 重写为 M10/FINAL 版——重装目标更正为 **v0.35.0/54**（原
+  M9 版仍写 53，系 §73 推送后未同步的诚实修正）、CF 标记 DONE 无剩余动作、follow-ups
+  指向 RELEASE_NOTES §7.3。
+- **`docs/CLOUDFLARE_SETUP.md`：** 追加 M10 节（孟加拉语，Owner 面向）——解锁验证/Secret
+  置入/绑定/cron+subreq 证据/429 窗口说明/deploy-存活复核，附三层的 M10 状态表。
+
+**变更范围（5 个文件，零 app 代码）：** `docs/RELEASE_NOTES.md`（新）、`README.md`、
+`docs/IMPLEMENTATION_STATUS.md`、`docs/CLOUDFLARE_SETUP.md`、本 §74。**APK 不变
+v0.35.0/54——M10 为纯文档里程碑，两机无需因 M10 重装（Pre-M10 的 v0.35.0/54 重装指引
+仍待 Owner 执行）。**
+
+**验证边界（诚实）：** 沙盒无 Gradle/设备——设备行为行（TEST_PLAN #1–#3/#7–#15/#18–#24
++ §71/§73 检查单）仍属 Owner 实测；Worker cron 的行为级证据为 GraphQL 调用计数与
+subrequest 计数（非 sweep 内部日志——telemetry 查询 API 返回 0 事件已如实记录）；
+Firestore 429 窗口内 "sweep 全绿" 不可演示，将在 13:00 达卡重置后由定时 cron 自然兑现
+（与三层自愈机制一致）。
+
+**CI 记录（按 §72/§73 先例补记，诚实——0 修复轮）：**
+- 本波 5 个推送（RELEASE_NOTES 新建 / README / IMPLEMENTATION_STATUS /
+  CLOUDFLARE_SETUP / 本 §74）中前 4 个 run 被工作流并发设置自动取消（正常，以最终
+  HEAD 为准）。
+- 最终 HEAD `（待补）` run **（待补）**。
+- M10 为项目收官里程碑：本 CI-record 补记提交自身的 run 结果由协调者在最终报告中向
+  Owner 口头核销（无后续里程碑承接，§73 先例的末端处理）；推送后 Workers Builds 自动
+  deploy 触发，secret 存活复核结果一并记于该报告。
