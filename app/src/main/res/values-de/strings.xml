@@ -408,4 +408,8 @@
     <string name="notif_empty_title">Im Moment nichts für Sie</string>
     <string name="notif_empty_body">Support-Anfragen, aktive Sitzungen und Einrichtungshinweise erscheinen hier, sobald sie passieren.</string>
     <string name="notif_hint">Nur echte, aktuelle Ereignisse — nichts Erfundenes, kein Verlauf.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">Erneut versuchen</string>
+    <string name="states_open_settings">Systemeinstellungen öffnen</string>
 </resources>
