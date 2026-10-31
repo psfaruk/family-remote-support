@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Réessayer</string>
     <string name="states_open_settings">Ouvrir les paramètres système</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">Appareils familiaux</string>
+    <string name="fam_empty_t">Aucun téléphone apparié pour le moment</string>
+    <string name="fam_empty_h">Appariez un téléphone depuis Ajouter un appareil — il apparaîtra ici avec son statut en direct.</string>
+    <string name="fam_not_found">Cet appariement est introuvable.</string>
+    <string name="fam_not_found_h">Il a peut-être été révoqué ou retiré de ce compte.</string>
+    <string name="actv_title">Activité récente</string>
+    <string name="actv_tile_d">Sessions de support en cours et récemment terminées</string>
+    <string name="actv_empty_t">Aucune session pour le moment</string>
+    <string name="actv_empty_h">Les sessions de support apparaissent ici pendant leur exécution et juste après leur fin.</string>
+    <string name="sess_title">Détails de la session</string>
+    <string name="sess_not_found">Cette session est introuvable.</string>
+    <string name="sess_not_found_h">Ouvrez Activité récente pour voir les dernières sessions.</string>
+    <string name="sess_state">Statut</string>
+    <string name="sess_kind">Type</string>
+    <string name="sess_helper">Assistant</string>
+    <string name="sess_recipient">Destinataire</string>
+    <string name="sess_duration">Durée</string>
+    <string name="sess_endedby">Terminée par</string>
+    <string name="sess_family">Famille</string>
+    <string name="sess_guest">Invité</string>
+    <string name="cd_back">Retour</string>
+    <string name="set_section_devices">Gestion des appareils</string>
+    <string name="set_section_location">Localisation et confidentialité</string>
+    <string name="set_section_remote">Assistance à distance</string>
+    <string name="set_section_guest">Accès invité</string>
+    <string name="set_section_security">Sécurité</string>
+    <string name="set_dev_entry_t">Téléphones appariés</string>
+    <string name="set_dev_entry_d">Statut en direct, actions de support et révocation</string>
+    <string name="set_loc_status">La localisation en direct est prévue pour une prochaine version. Aucune localisation n\'est collectée ni stockée aujourd\'hui.</string>
+    <string name="set_guest_note">Les liens invité sont temporaires (jusqu\'à 3 heures) et ne deviennent jamais des appariements familiaux permanents.</string>
 </resources>
