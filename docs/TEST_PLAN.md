@@ -17,13 +17,17 @@
 
 - CI gates: build + `scripts/verify-apk-axml.mjs` (version assert, stale-version probe, v2 signing).
 - Rules probes (live-project, self-cleaning): `rules-negative-probe.mjs` (16 hostile cases),
-  `rules-audit-probe.mjs`, `rules-pairing-probe.mjs` (positive round-trip).
+  `rules-audit-probe.mjs`, `rules-pairing-probe.mjs` (positive round-trip),
+  **`rules-liveLocations-probe.mjs` (M5, 12 cases — RUN LIVE 2026-10-31: 12/12 PASS:
+  deny stranger/sharing-off/revoked/post-window-guest/forged-fields/out-of-range/
+  stale-timestamp/impersonated-write/list; allow ACTIVE counterpart + live guest)**.
 - Ops checks: Worker `/health`, sweep timing, quota-aware backoff state.
 
-**New probes (M5/M9):** `rules-liveLocations-probe.mjs` — matrix: deny-before-pairing /
-deny-sharing-off / deny-revoked / deny-guest-after-window / allow-ACTIVE-counterpart /
-deny-forged-fields-or-stale-updatedAt; sweep-exclusion test (worker queries only
-supportSessions); quota-budget probe (documented reads during a scripted day).
+**New probes (M5/M9):** `rules-liveLocations-probe.mjs` — **✅ shipped AND run live in M5
+  (12/12)**: deny-before-pairing / deny-sharing-off / deny-revoked / deny-guest-after-window /
+  allow-ACTIVE-counterpart / deny-forged-fields-or-stale-updatedAt; sweep-exclusion verified
+  by code inspection (worker queries only supportSessions); quota-budget probe (documented
+  reads during a scripted day) remains an M9 discipline.
 
 ## 2. Scenario matrix (master list → method)
 
