@@ -34,8 +34,17 @@ android {
         // (adjustResize + ime-padded bottom bar: nothing hides
         // behind the keyboard), SettingsTile survives large font scales
         // and the signed-out Family route shows an honest empty state.
-        versionCode = 54
-        versionName = "0.35.0"
+        // v0.36.0 (post-M10 quota directive — "read/write only when the
+        // user acts; auto-updates off; requests only from the app"):
+        // presence heartbeat became FOREGROUND-ONLY (open + every 5 min
+        // while RESUMED + one final write on ON_STOP; the 15-min
+        // WorkManager worker is retired and old installs' persisted
+        // work is cancelled at first open — the app now does ZERO
+        // Firebase traffic while closed), and SessionNotifier's listener
+        // query got a .limit(10) cap. Server sweep tiers parked (see
+        // wrangler.toml / kill-push.yml / docs).
+        versionCode = 55
+        versionName = "0.36.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
