@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s अभी आपकी मदद कर रहे हैं</string>
     <string name="notif_empty_title">अभी आपको कुछ नहीं करना है</string>
     <string name="notif_empty_body">सहायता अनुरोध, चालू सेशन और सेटअप चेतावनियाँ होते ही यहाँ दिखेंगे।</string>
-    <string name="notif_hint">केवल वास्तविक, मौजूदा घटनाएँ — कुछ भी बनाया या इतिहास में रखा नहीं जाता।</string>
+    <string name="notif_hint">केवल वास्तविक घटनाएँ — केवल इसी डिवाइस पर स्थानीय रूप से रखी जाती हैं (सबसे हाल की १००), कभी अपलोड नहीं की जातीं, और साइन-आउट करने पर साफ़ हो जाती हैं।</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">फिर से कोशिश करें</string>
@@ -479,4 +479,85 @@
     <string name="set_loc_status">लाइव स्थान एक आगामी रिलीज़ के लिए योजित है। आज कोई स्थान एकत्र या संग्रहीत नहीं किया जाता।</string>
     <string name="set_loc_now">जुड़े हुए परिवारिक डिवाइसों के साथ इस फ़ोन की लाइव लोकेशन शेयर करें। सिर्फ़ आख़िरी स्थिति रखी जाती है — कभी पूरा इतिहास नहीं।</string>
     <string name="set_guest_note">अतिथि लिंक अस्थायी होते हैं (अधिकतम ३ घंटे)। ये कभी भी स्थायी फ़ैमिली पेयरिंग नहीं बनते।</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">हाल की घटनाएँ</string>
+    <string name="notif_ev_asked">%1$s की ओर से सहायता अनुरोध</string>
+    <string name="notif_ev_started">%1$s के साथ सहायता सेशन शुरू हुआ</string>
+    <string name="notif_ev_ended">%1$s के साथ सहायता सेशन समाप्त हुआ</string>
+    <string name="notif_ev_sharing_on">लोकेशन शेयरिंग चालू हुई</string>
+    <string name="notif_ev_sharing_off">लोकेशन शेयरिंग बंद हुई</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">यह अनुरोध अब मौजूद नहीं है।</string>
+    <string name="err_session_unreadable">यह अनुरोध पढ़ा नहीं जा सकता।</string>
+    <string name="err_session_unreadable_resend">यह अनुरोध पढ़ा नहीं जा सकता — सहायक से इसे दोबारा भेजने के लिए कहें।</string>
+    <string name="err_only_recipient_allow">सिर्फ़ वही फ़ोन जिससे पूछा गया था, इस सेशन की अनुमति दे सकता है।</string>
+    <string name="err_only_recipient_deny">सिर्फ़ वही फ़ोन जिससे पूछा गया था, इस अनुरोध को अस्वीकार कर सकता है।</string>
+    <string name="err_only_helper_cancel">अपना अनुरोध सिर्फ़ सहायक ही रद्द कर सकता है।</string>
+    <string name="err_already_answered">इस अनुरोध का जवाब पहले ही दिया जा चुका है।</string>
+    <string name="err_already_answered_status">इस अनुरोध का जवाब पहले ही दिया जा चुका है (%1$s)।</string>
+    <string name="err_session_expired_resend">यह अनुरोध पहले ही समाप्त हो चुका है — सहायक से नया अनुरोध भेजने के लिए कहें।</string>
+    <string name="setup_not_checked">अभी जाँचा नहीं गया</string>
+    <string name="setup_not_sent">अभी नहीं भेजा गया</string>
+    <string name="setup_not_setup">अभी सेटअप नहीं हुआ</string>
+    <string name="share_channel_name">स्क्रीन शेयरिंग</string>
+    <string name="share_channel_desc">आपकी स्क्रीन किसी सहायक के साथ साझा होने के दौरान दिखाया जाता है।</string>
+    <string name="share_notif_title">स्क्रीन शेयरिंग सक्रिय</string>
+    <string name="share_notif_body">एक सहायक इस फ़ोन की स्क्रीन देख रहा है। खोलने के लिए टैप करें।</string>
+    <string name="qr_share_chooser_title">पेयरिंग कोड साझा करें</string>
+    <string name="qr_share_text">Family Remote Support पेयरिंग कोड: %1$s\nदूसरे फ़ोन पर Family Remote Support ऐप खोलें, QR स्कैन पर टैप करें या यह कोड टाइप करें। ५ मिनट के लिए मान्य है।</string>
+    <string name="ss_info_live_receiving">लाइव — स्क्रीन प्राप्त हो रही है ✓</string>
+    <string name="ss_info_preparing_share">स्क्रीन शेयर की तैयारी…</string>
+    <string name="ss_info_capture_ready">स्क्रीन कैप्चर तैयार — सहायक के \"स्क्रीन देखें\" टैप करने का इंतज़ार।</string>
+    <string name="ss_info_preparing_viewer">व्यूअर की तैयारी…</string>
+    <string name="ss_info_asked">स्क्रीन के लिए प्राप्तकर्ता के फ़ोन से पूछा गया — कनेक्ट हो रहे हैं…</string>
+    <string name="ss_info_video_ready">वीडियो चैनल तैयार — कनेक्शन का इंतज़ार…</string>
+    <string name="ss_info_connected">कनेक्शन हो गया — वीडियो शुरू हो रहा है…</string>
+    <string name="ss_info_live_share">लाइव — सहायक यह स्क्रीन देख सकता है।</string>
+    <string name="ss_info_interrupted">कनेक्शन टूट गया — दोबारा जुड़ने की कोशिश जारी है…</string>
+    <string name="ss_info_watch_received">सहायक ने देखने का अनुरोध किया — स्क्रीन भेजी जा रही है…</string>
+    <string name="ss_info_share_stopped">प्राप्तकर्ता ने शेयरिंग रोक दी।</string>
+    <string name="ss_info_view_closed">सहायक ने व्यू बंद कर दिया।</string>
+    <string name="ss_info_offer_sent">ऑफ़र भेजा गया — सहायक के जवाब का इंतज़ार…</string>
+    <string name="ss_info_offer_failed">स्क्रीन ऑफ़र तैयार नहीं हो सका — सहायक अपने आप दोबारा कोशिश करेगा।</string>
+    <string name="ss_info_answer_sent">जवाब भेज दिया गया — वीडियो कनेक्ट हो रहा है…</string>
+    <string name="ss_info_negotiation_done">नेगोशिएशन पूरा — सहायक से कनेक्ट हो रहे हैं…</string>
+    <string name="ss_retry_no_response">प्राप्तकर्ता के फ़ोन से कोई जवाब नहीं — पक्का करें कि वहाँ \"स्क्रीन शेयर करें\" चालू हो।</string>
+    <string name="ss_retry_no_answer">प्राप्तकर्ता का जवाब कभी नहीं पहुँचा।</string>
+    <string name="ss_retry_link_failed">दोनों फ़ोन आपस में जुड़ नहीं पाए।</string>
+    <string name="ss_retry_conn_failed">कनेक्शन की कोशिश विफल रही</string>
+    <string name="ss_retry_answer_failed">प्राप्तकर्ता के ऑफ़र का जवाब नहीं दे पाए</string>
+    <string name="ss_retry_apply_failed">प्राप्तकर्ता का ऑफ़र लागू नहीं कर पाए</string>
+    <string name="ss_retrying_auto">%1$s — अपने आप दोबारा कोशिश की जा रही है…</string>
+    <string name="ss_retried_watch">%1$s — प्राप्तकर्ता के फ़ोन से दोबारा पूछा गया…</string>
+    <string name="ss_recover_conn_failed">सहायक से कनेक्शन विफल रहा — शेयर तैयार हालत में है। सहायक से दोबारा \"स्क्रीन देखें\" टैप करने के लिए कहें।</string>
+    <string name="ss_recover_answer_failed">जवाब नहीं दे पाए — सहायक अपने आप दोबारा कोशिश करेगा।</string>
+    <string name="ss_recover_apply_failed">सहायक का जवाब लागू नहीं कर पाए — सहायक दोबारा कोशिश करेगा।</string>
+    <string name="ss_fail_projection_stopped">सिस्टम ने स्क्रीन प्रोजेक्शन रोक दिया — दोबारा \"स्क्रीन शेयर करें\" टैप करें।</string>
+    <string name="ss_fail_capture">स्क्रीन कैप्चर विफल: %1$s</string>
+    <string name="ss_fail_watch">देखने का अनुरोध नहीं भेज पाए: %1$s</string>
+    <string name="ss_fail_viewer">व्यूअर शुरू नहीं कर पाए: %1$s</string>
+    <string name="ss_fail_conn_stopped">कनेक्शन विफल — \"शेयर बंद करें\" टैप करें, फिर दोबारा शेयर करें।</string>
+    <string name="ss_fail_no_engine">इस फ़ोन पर WebRTC इंजन नहीं बनाया जा सका।</string>
+    <string name="ss_fail_signal">सिग्नल चैनल की त्रुटि: %1$s</string>
+    <string name="ss_fail_conn_retry">कनेक्शन विफल — दोनों फ़ोन आपस में जुड़ नहीं पाए। दोबारा \"स्क्रीन देखें\" टैप करें; बार-बार विफल हो तो दोनों फ़ोन एक ही Wi-Fi नेटवर्क पर रखें (या किसी एक फ़ोन के हॉटस्पॉट पर)।</string>
+    <string name="ss_fail_offer">ऑफ़र नहीं भेज पाए: %1$s</string>
+    <string name="ss_fail_answer">जवाब नहीं भेज पाए: %1$s</string>
+    <string name="ss_fail_apply">सहायक का जवाब लागू नहीं कर पाए।</string>
+    <string name="ss_ack_back">बैक पहुँच गया ✓</string>
+    <string name="ss_ack_home">होम पहुँच गया ✓</string>
+    <string name="ss_ack_recents">रीसेंट्स पहुँच गया ✓</string>
+    <string name="ss_ack_swipe">स्वाइप पहुँच गया ✓</string>
+    <string name="ss_ack_long">लॉन्ग-प्रेस पहुँच गया ✓</string>
+    <string name="ss_ack_tap">टैप पहुँच गया ✓</string>
+    <string name="ph_save_perm_needed">QR इमेज सेव करने के लिए स्टोरेज की अनुमति चाहिए।</string>
+    <string name="fallback_someone">कोई व्यक्ति</string>
+    <string name="fallback_helper">सहायक</string>
+    <string name="cd_pairing_qr">पेयरिंग QR कोड</string>
+    <string name="so_signout_failed">साइन-आउट विफल: %1$s</string>
+    <string name="cd_clear_messages">मैसेज साफ़ करें</string>
+
 </resources>
