@@ -164,7 +164,10 @@ import com.family.remote.support.ui.notifications.NotificationsScreen
 // §3): the 4 tabs, the consent dialog and the presence chip now live in
 // their own ui/* files; MainActivity keeps the shell wiring, the root
 // session effects and the session surfaces only.
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.family.remote.support.ui.components.PresenceChip
 import com.family.remote.support.ui.home.HomeConsentDialog
 import com.family.remote.support.ui.home.HomeTab
@@ -434,11 +437,66 @@ fun HomeScreen() {
     // privacy smell). The About dialog now shows version + package + a
     // plain-language storage note + the privacy/rules documents.
 
-    // Phase 5 — schedule the 15-minute background heartbeat (idempotent).
-    // Phase 6 — session-request notifications while the app is backgrounded.
+    // v0.36.0 (Owner quota directive): the 15-minute WorkManager heartbeat —
+    // the app's ONLY Firebase write that ran with the app fully closed — is
+    // retired. cancelPeriodicHeartbeat purges the periodic work persisted by
+    // older installs (WorkManager survives updates/reboots; the worker class
+    // itself now no-ops too — see PresenceRepo). Presence refresh is
+    // FOREGROUND-ONLY, via the lifecycle ticker below.
+    // Phase 6 — session-request notifications while the app is backgrounded
+    // (event-driven listener: zero reads unless someone actually sends an ask).
     LaunchedEffect(Unit) {
-        schedulePeriodicHeartbeat(context)
+        cancelPeriodicHeartbeat(context)
         SessionNotifier.start(context)
+    }
+
+    // v0.36.0 — foreground-only presence heartbeat: while this activity is
+    // RESUMED the shell heartbeats every 5 minutes (the app-open write in the
+    // registration effect above covers t=0); ON_STOP writes one final "last
+    // seen" — the user leaving IS a user action. Net effect: ZERO Firebase
+    // traffic while the app is closed (the Owner's directive).
+    val shellLifecycleOwner = LocalLifecycleOwner.current
+    var shellResumed by remember { mutableStateOf(false) }
+    DisposableEffect(shellLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> shellResumed = true
+                Lifecycle.Event.ON_STOP -> {
+                    shellResumed = false
+                    val user = signedInUser
+                    if (user != null) {
+                        val deviceId = ownDeviceId.ifEmpty { stableDeviceId(context) }
+                        scope.launch {
+                            try {
+                                sendHeartbeat(user.uid, deviceId, Build.MODEL)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                // best-effort final heartbeat — never block leaving
+                            }
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
+        shellLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { shellLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(shellResumed, signedInUser?.uid) {
+        if (!shellResumed) return@LaunchedEffect
+        val user = signedInUser ?: return@LaunchedEffect
+        while (true) {
+            delay(5 * 60_000L)
+            val deviceId = ownDeviceId.ifEmpty { stableDeviceId(context) }
+            try {
+                sendHeartbeat(user.uid, deviceId, Build.MODEL)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // transient failure — the next tick retries
+            }
+        }
     }
 
     // Phase 11 — one light session listener drives BOTH the bell badge and
