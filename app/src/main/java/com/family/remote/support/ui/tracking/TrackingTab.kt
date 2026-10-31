@@ -32,7 +32,6 @@ package com.family.remote.support.ui.tracking
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,7 +54,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,7 +70,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -81,6 +78,7 @@ import com.family.remote.support.LocationSharingPrefs
 import com.family.remote.support.R
 import com.family.remote.support.RelationshipView
 import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.hasAnyLocationPermission
 import com.family.remote.support.startLocationSharing
 import com.family.remote.support.stopLocationSharing
 import com.family.remote.support.ui.AppWarningColor
@@ -91,12 +89,12 @@ import com.family.remote.support.ui.components.ErrorPanel
 import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.PermissionDeniedPanel
 import com.family.remote.support.ui.components.SectionCard
+import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.google.firebase.auth.FirebaseUser
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.delay
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -187,12 +185,9 @@ internal fun deviceLabel(rel: RelationshipView): String =
 
 // ── Own-device sharing banner (§5 permission plan: consent → permission → FGS) ──
 
-/** True when EITHER runtime location permission is granted (fine or coarse). */
-private fun hasAnyLocationPermission(context: Context): Boolean =
-    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED
+// v0.37.0 (dedupe wave) — hasAnyLocationPermission ("fine || coarse") now
+// lives in LiveLocationRepo.kt as ONE app-wide check; this file's private
+// copy was one of the drifting duplicates.
 
 /** Hand-off to this app's system settings page (PermissionDeniedPanel's action). */
 private fun openAppSettings(context: Context) {
@@ -259,7 +254,9 @@ internal fun OwnSharingCard() {
         val coarse = grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (fine || coarse) {
             permissionDenied = false
-            LocationSharingPrefs.setSharingEnabled(context, true)
+            // v0.37.0 (dedupe wave) — startLocationSharing persists the
+            // consent pref itself (LiveLocationRepo records it FIRST); the
+            // redundant double write here is gone.
             startLocationSharing(context)
             sharingOn = true
         } else {
@@ -294,8 +291,10 @@ internal fun OwnSharingCard() {
             // starting) — the owner can always end sharing immediately.
             BigButton(
                 onClick = {
+                    // v0.37.0 (dedupe wave) — stopLocationSharing flips the
+                    // pref itself before stopping the service; the extra
+                    // setSharingEnabled(false) write here was redundant.
                     stopLocationSharing(context)
-                    LocationSharingPrefs.setSharingEnabled(context, false)
                     sharingOn = false
                 }
             ) {
@@ -381,16 +380,6 @@ internal fun TrackingTab(user: FirebaseUser?, onOpenMember: (String) -> Unit) {
     }
     val state by vm.state.collectAsState()
 
-    // Freshness is clock-based: tick every 30 s (the PresenceBadge cadence)
-    // so LIVE→STALE→OFFLINE transitions happen on screen without churn.
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(30_000)
-        }
-    }
-
     OwnSharingCard()
 
     // Canonical states in priority order (NAVIGATION_MAP §5): first
@@ -408,11 +397,19 @@ internal fun TrackingTab(user: FirebaseUser?, onOpenMember: (String) -> Unit) {
             title = stringResource(R.string.loc_empty_title),
             hint = stringResource(R.string.loc_empty_body)
         )
-        else -> CounterpartMapSection(
-            counterparts = state.counterparts,
-            nowMillis = nowMillis,
-            onOpenMember = onOpenMember
-        )
+        else ->
+            // v0.37.0 (dedupe wave) — the 30 s freshness clock (the
+            // PresenceBadge cadence) now lives in TickingBlock instead of a
+            // screen-level while(true) loop: only the map section reads it,
+            // so only that subtree recomposes per tick while
+            // LIVE→STALE→OFFLINE transitions still happen on screen.
+            TickingBlock(intervalMillis = 30_000) { nowMillis ->
+                CounterpartMapSection(
+                    counterparts = state.counterparts,
+                    nowMillis = nowMillis,
+                    onOpenMember = onOpenMember
+                )
+            }
     }
 }
 
