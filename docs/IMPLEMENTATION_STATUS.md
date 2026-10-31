@@ -1,18 +1,21 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **M10 CLOSED — PROJECT RELEASE-READY (2026-10-31, docs-only; APK unchanged
-> v0.35.0/54 from Pre-M10). All master-plan milestones M0–M10 ✅ + Pre-M10 Owner polish.**
-> **Post-release ops change (same day): Owner quota directive — every auto Firestore
-> poller parked (sandbox stopped / Worker cron removed / Actions schedule disabled)
-> + app v0.36.0/55 (foreground-only presence, notifier cap) → with both phones'
-> apps closed the project's Firestore traffic is exactly zero.** Root cause of the
-> recurring evening RESOURCE_EXHAUSTED: the sandbox sweep was polling at 5 s as TWO
-> zombie instances (≈69k read attempts/day = >100% of the free quota alone).
-> Final report: `docs/RELEASE_NOTES.md` (+ §9a quota-directive record). Re-arm
-> runbook for the parked tiers: RELEASE_NOTES §9a / CLOUDFLARE_SETUP কোটা-নির্দেশ.
-> Build at writing: **v0.36.0 (versionCode 55) — reinstall both phones.** Rules for
+> Status: **QA & DEDUPE WAVE CLOSED — PROJECT RELEASE-READY (2026-10-31, code wave
+> v0.37.0/56). All master-plan milestones M0–M10 ✅ + Pre-M10 polish + quota
+> directive (§75) + full back-end QA/dedupe wave (§76).**
+> §76 in one line: six parallel deep audits + secrets scan + VLM screenshot
+> verification; 2 edge-crash paths closed, auth hardening + latency wins
+> (parallel config/registration, 20 s auth timeouts), **14 of 15 duplicate
+> function clusters single-sourced**, the Add tab's duplicate session listener
+> removed (root-VM pattern), dead code deleted, sandbox stripped (315+ MB) with
+> the kill-push service folder removed so it can never auto-start again.
+> Quota posture from §75 unchanged: every auto poller parked; with both phones'
+> apps closed the project's Firestore traffic is exactly zero.
+> Final report: `docs/RELEASE_NOTES.md`. Re-arm runbook for the parked tiers:
+> RELEASE_NOTES §9a / CLOUDFLARE_SETUP কোটা-নির্দেশ.
+> Build at writing: **v0.37.0 (versionCode 56) — reinstall both phones.** Rules for
 > the `liveLocations` collection remain **LIVE** (ruleset d1a38d5e); the M9 probe
-> battery (4/4 green) is unaffected — no rules changed by M8/M9/M10/Post-M10.
+> battery (4/4 green) is unaffected — no rules changed by M8–M10/§75/§76.
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
@@ -94,13 +97,26 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | MainActivity "Registering/Registered/Online/Push ready" strings remain English | follow-up: HomeTab:296-300 prefix-parses them (startsWith) — needs deviceOk/presenceOk/pushOk flags plumbed first |
 | ScreenShareEngine bilingual assist banners + diag lines | Phase-16b follow-up (deliberate bilingual style) |
 
-## 5. Owner pending actions (Post-M10 quota-directive edition)
+## 5. Owner pending actions (QA-wave edition)
 
-1. **REINSTALL BOTH PHONES — v0.36.0 (versionCode 55)** — the current release
-   build (quota-directive code push; supersedes the v0.35.0/54 reinstall note —
-   install 55 INSTEAD, it contains everything 54 had plus the foreground-only
-   presence change). APK from any green Android Build run's `app-release-apk`
-   artifact. Post-install quick regression:
+1. **REINSTALL BOTH PHONES — v0.37.0 (versionCode 56)** — the current release
+   build (QA & dedupe wave; supersedes the v0.36.0/55 reinstall note — install
+   56 INSTEAD, it contains everything 55 had plus the §76 fixes/dedupes). APK
+   from any green Android Build run's `app-release-apk` artifact. Post-install
+   quick regression:
+   - **§76 additions:** sign-in flows get honest timeouts (a hung network no
+     longer spins the login button forever); the Add Device tab no longer runs
+     a second session listener (slightly lighter quota while pairing);
+     revoke→re-pair-as-family needs a FRESH code every time (single-use
+     invitations — reusing an old code is the #1 "can't reconnect" cause);
+   - **Settings five-card order + language picker dialog + bell→Settings top
+     entry + keyboard ride-up** (the v0.35.0/54 checks — all still included);
+   - **Presence semantics:** "Online" decays ~20 min after the counterpart last
+     USED their phone — closing the app stops its Firestore traffic entirely
+     (that is the quota fix working);
+   - M8 checks as before: bell → "Recent events", language বাংলা;
+   - TEST_PLAN device rows as before (#10–#15, #19/#20/#21, #7/#8/#24 + §4
+     quick-script).
    - **Settings five-card order + language picker dialog + bell→Settings top
      entry + keyboard ride-up** (the v0.35.0/54 checks — all still included);
    - **Presence semantics (new, expected behavior):** "Online" now decays
