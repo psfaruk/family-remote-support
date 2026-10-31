@@ -474,6 +474,9 @@
     <string name="set_section_remote">ریموٹ سپورٹ</string>
     <string name="set_section_guest">مہمان رسائی</string>
     <string name="set_section_security">سیکیورٹی</string>
+    <string name="set_section_privacysec">رازداری اور سیکیورٹی</string>
+    <string name="set_section_prefs">ترجیحات</string>
+    <string name="set_section_about_session">ایپ کے بارے میں اور سیشن</string>
     <string name="set_dev_entry_t">جوڑے ہوئے فون</string>
     <string name="set_dev_entry_d">لائیو حالت، سپورٹ اقدامات اور رسائی کی منسوخی</string>
     <string name="set_loc_status">لائیو مقام آنے والی ریلیز کے لیے منصوببندی کے تحت ہے۔ آج کوئی مقام جمع یا محفوظ نہیں کیا جاتا۔</string>
