@@ -23,6 +23,15 @@
          on time on aggressive OEM battery managers. User-initiated only
          (the wizard shows the system dialog); never silently granted. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Phase 22/M5: consent-based live location sharing (docs/LIVE_LOCATION_ARCHITECTURE.md §5).
+         Runtime FINE/COARSE prompts happen in the Tracking tab's consent sheet
+         (purpose explained BEFORE the system dialog). Sharing runs ONLY as a
+         visible location-type foreground service started while the app is in
+         use; v1 deliberately does NOT request ACCESS_BACKGROUND_LOCATION. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Android 14 (targetSdk 34): required to run the location-type FGS. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
         android:name=".App"
@@ -48,6 +57,18 @@
             android:name=".ScreenShareService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+
+        <!-- Phase 22/M5: LIVE LOCATION sharing. Started only after the
+             owner's explicit consent + while-in-use location grant (Tracking
+             tab consent sheet or the Settings Location partition). The
+             persistent notification ("Location sharing is on") is the
+             no-hidden-tracking guarantee — it NEVER contains coordinates;
+             stop is one tap from the notification, the Tracking tab, or
+             Settings. No reboot auto-restart by design (owner re-toggles). -->
+        <service
+            android:name=".LocationShareService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- Phase 8 (v0.9.0): REMOTE ASSIST. The grantor enables this ONCE in
              system Settings → Accessibility; without it the helper stays
