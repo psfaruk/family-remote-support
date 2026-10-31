@@ -2881,3 +2881,79 @@ Firestore 429 窗口内 "sweep 全绿" 不可演示，将在 13:00 达卡重置�
   deploy 存活获直接证据，"设后被抹" 症状根治结论成立。
 - M10 为项目收官里程碑：本 CI-record 补记提交自身的 run 结果由协调者核验后在最终
   报告中向 Owner 报告（无后续里程碑承接，§73 先例的末端处理）。
+
+## §75 — M10 后运维波（v0.36.0/55）：Owner 配额指令 — 全部自动 Firestore 轮询停靠 + 仅应用、仅用户驱动（2026-10-31）
+
+**触发：** Owner 报告 "Firebase api লিমিট শেষ"（连日傍晚 RESOURCE_EXHAUSTED）并下达明确
+指令："শুধু মাত্র যখন ইউজার চাইবে তখন রিড রাইট হবে, বাকি সময় অটো আপডেট বন্ধ;
+স্যান্ডবক্স থেকে কোনও রিকোয়েস্ট যাবে না, শুধু অ্যাপ থেকে যাবে; প্রয়োজন হলে যাবেই。
+Deeply solve।"——要求根因级解决。
+
+**根因（现场实测，不是推断）：** 沙盒 kill-push 服务以 **5 秒轮询、且作为两个僵尸实例**
+（§72 记录过的 EADDRINUSE 幸存者模式）同时运行 —— 2 实例 × 2 查询 × 17,280 次/日 ≈
+**69,000 次查询尝试/日 = 单独超过 5 万/日免费配额的 100%**；加上 Worker 每分钟 cron
+（1,440×2=2,880/日）与 Actions 5 分钟后备（576/日）——每天午后必然 429。两个实例的
+/health 实测均在 429（当日 15:12Z 起）。**诚实勘误（本波发现）：** ①TEST_PLAN §1a 旧表
+"sweep ≈0 idle" 是计费层真（计费按返回文档数）、**配额层假**——免费层 read-units 计数器
+对空结果查询也计数（空集查询仍撞 429 即为实证）；②§63（Phase 20）声称的 "30s+backoff"
+在现行仓库脚本与沙盒脚本中均不存在（grep 无 backoff/30000）——M7 的 repo→沙盒重同步很可能
+将其抹除（若无：则该改动从未持久化）；§72 的核检已把 5s 当作观测基线记录。本波已将勘误
+写回 TEST_PLAN §1a。
+
+**App 侧独立审计（Explore 只读 agent，中深度）：** 全源码计定时器/周期工作/监听器清点——
+**读：零定时轮询**（应用没有任何定时器重复发起 Firestore 读；全部读 = 用户动作一次性 get
+或事件驱动监听器——空闲监听器 0 计费读）；**写：唯一带应用关闭态的定时写 = HeartbeatWorker
+（presence，15 分钟 WorkManager，≤96 写/日/机）**。两机典型用量合计 ≈350 写 + 250–400 读/日
+（读 <1% 配额）。审计附带发现（记录不阻塞）：SessionNotifier 监听查询无 limit（已顺手修复）；
+Tracking/LocationDetail ViewModel 的监听器在离开页签后因 saveState 保留至进程死亡（事件驱动、
+空闲 0 读——判定为可接受，未改动，避免为零收益引入状态丢失回归）。
+
+**处置（四路并行落实指令）：**
+1. **沙盒：** 两个实例（pid 1340/1366 + 包装器 1334/1360）全部 kill；:3020 关闭；Next.js
+   dev（pid 1112/:3000）不受影响。**沙盒→Firebase 运行时流量 = 0**（探针/脚本仅保留按需
+   手动）。注意本仓库沙盒规则 "every service must be started" 由 Owner 本指令显式覆盖。
+2. **Worker：** `wrangler.toml` `[triggers] crons = []`（**显式空**——缺省键会保留既有
+   trigger，显式空使每次 deploy 都重同步为零）+ 头注释改为 DORMANT 姿态（含诚实历史与
+   re-arm 说明）。REST 直接清空 schedules 尝试 400（API 拒绝空列表体）→ 走 deploy 路径：
+   推送 wrangler.toml（commit 32d35d2）触发 Workers Builds deploy（16:25:50Z）→ **API 复核
+   `schedules: []` ✓、secrets 双 true ✓**。Worker 保留为按需 `POST /sweep`（KILL_TOKEN）。
+3. **Actions：** `kill-push.yml` schedule 块注释停用（保留 workflow_dispatch 手动通道），
+   头注释记录指令、根因与 re-arm 步骤。
+4. **App v0.36.0/55（CODE，需双机重装）：** ①presence 心跳 **foreground-only**——
+   PresenceRepo：HeartbeatWorker 退役为 `Result.failure()`（周期工作终态自灭，供旧装残留
+   计划自行终止）+ 新 `cancelPeriodicHeartbeat()`（首次打开即清除 WorkManager 持久化的
+   旧周期计划——更新/重启都会幸存，故必须显式取消）；MainActivity：shell 级生命周期观察器
+   （ON_RESUME 置位 / ON_STOP 一次收尾写 + DisposableEffect 摘除）+ RESUMED 态 5 分钟
+   ticker（delay-first，与应用打开时的注册写互补、无重复写）；②SessionNotifier 监听查询
+   加 `.limit(10)`（对齐 watchSessions 的封顶纪律）。**无新依赖/规则/i18n 键。**
+   **净效果：两机应用全关时，项目 Firestore 流量 = 恰好为零。** 语义变化（诚实）：
+   "Online" 徽章在对方最后一次实际使用约 20 分钟后衰减为 "Last seen"（20 分钟窗口系
+   v0.21.0 既有设计，保留未动）。
+
+**诚实取舍（已向 Owner 报告）：** 停靠层之后，接收方应用进程死亡期间 support-ask 不再响铃
+（进程存活——前台或托盘——时监听器即时响铃；下次打开可见 pending ask）。**Re-arm 30 秒：
+** Worker=wrangler.toml 改回 `["* * * * *"]` 推送即可；Actions=取消 schedule 注释推送；
+沙盒=nohup bun run dev。三处 Secret/代码完好，重开无需任何凭证工作。
+
+**变更范围（11 个文件）：** `wrangler.toml`、`cloudflare/killpush-worker.js`（仅头注释）、
+`.github/workflows/kill-push.yml`、`PresenceRepo.kt`、`MainActivity.kt`、`SessionNotifier.kt`、
+`app/build.gradle.kts`（55/0.36.0）、`docs/CLOUDFLARE_SETUP.md`（কোটা-নির্দেশ 节）、
+`docs/RELEASE_NOTES.md`（§2/§3/§4/§6/§7.1/§7.2/§9a/§10/§11）、`README.md`、
+`docs/IMPLEMENTATION_STATUS.md`（头部/Post-M10 行/§5）、`docs/TEST_PLAN.md`（§1a 姿态+勘误）、
+本 §75。
+
+**验证边界（诚实）：** 沙盒无 Gradle/设备——Kotlin 改动为静态核验（导入/声明顺序/call-site
+全查）+ CI 编译门；真机行为（foreground-only presence、旧计划清除）属 Owner 装机实测。
+Worker 停靠验证 = API schedules [] + deploy 后复核；"不再有 cron 调用"以 GraphQL
+invocation 采样复核（见下）。当日残余 429 于 13:00 达卡重置后自然清零（无任何层再消耗）。
+
+**推送与验证记录：** 本波推送顺序刻意为 wrangler.toml 最先（使后续每次 deploy 都用
+crons=[] 配置，避免旧配置在 deploy 间重挂 cron）。全部经 readback-verify 管线（11 推送）。
+**CI 记录（0 修复轮）：**
+- 本波推送中前 10 个 run 被工作流并发设置自动取消（正常，以最终 HEAD 为准）。
+- 最终 HEAD `（待补）` run **（待补）**——v0.36.0/55 的 Release-APK 验证门预期
+  code=55/name="0.36.0"/stale 0.35.0 缺席。
+- 停靠复核：推送后 Worker deploy 再触发（docs 波亦触发 deploy）——schedules 仍 []、
+  secrets 双 true；GraphQL invocation 采样窗内无固定秒位分钟节奏行（cron 止息）；
+  GH Actions kill-push 无新 scheduled run；沙盒 :3020 关闭无进程。上述复核结果补记于
+  最终报告（chat）与下一节（若有）。
