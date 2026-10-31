@@ -40,13 +40,39 @@ import com.family.remote.support.R
  * master instruction — Devices/Sessions are Home sections + Settings
  * surfaces, never extra tabs (conflict C2 resolution). NOTIFICATIONS is
  * the header-bell target, a plain destination above the tabs.
+ *
+ * M4 (v0.32.0) — the first NESTED detail routes under Home: the Family
+ * Overview list, the Member Details screen (the old paired-phone action
+ * bottom-sheet promoted to a route), the Recent Activity list and the
+ * Session Detail screen (NAVIGATION_MAP §2 home-subtree). The add/* flow
+ * stays modal on purpose (map §3: QR scanner, role preview, permission
+ * wizard remain dialogs/sheets); tracking/{relId} waits for M5.
  */
 object AppRoutes {
     const val HOME = "home"
+    const val HOME_FAMILY = "home/family"
+    const val HOME_FAMILY_ARG = "home/family/{relId}"
+    const val HOME_SESSIONS = "home/sessions"
+    const val HOME_SESSION_ARG = "home/sessions/{id}"
     const val ADD = "add"
     const val TRACKING = "tracking"
     const val SETTINGS = "settings"
     const val NOTIFICATIONS = "notifications"
+}
+
+/**
+ * M4 — which tab "owns" a route, for honest bottom-bar selection: the
+ * nested home/* detail routes keep the HOME tab selected (you are still
+ * inside the Home area); notifications stays deliberately unselected
+ * (no fake selection). Null = no tab highlighted.
+ */
+fun AppRoutes.tabForRoute(route: String?): String? = when {
+    route == null -> null
+    route == HOME || route.startsWith("home/") -> HOME
+    route == ADD -> ADD
+    route == TRACKING -> TRACKING
+    route == SETTINGS -> SETTINGS
+    else -> null
 }
 
 /**
@@ -120,15 +146,19 @@ fun AppTopBar(
  */
 @Composable
 fun AppBottomNav(currentRoute: String?, onSelect: (String) -> Unit) {
+    // M4 — nested home/* routes keep the Home tab selected (tabForRoute);
+    // notifications (and any unknown route) shows with no tab highlighted
+    // (honest state, no fake selection).
+    val selectedTab = AppRoutes.tabForRoute(currentRoute)
     NavigationBar {
         NavigationBarItem(
-            selected = currentRoute == AppRoutes.HOME,
+            selected = selectedTab == AppRoutes.HOME,
             onClick = { onSelect(AppRoutes.HOME) },
             icon = { Icon(Icons.Filled.Home, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_home)) }
         )
         NavigationBarItem(
-            selected = currentRoute == AppRoutes.ADD,
+            selected = selectedTab == AppRoutes.ADD,
             onClick = { onSelect(AppRoutes.ADD) },
             // Icons.Filled.Add (core set): NAVIGATION_MAP §1 said PersonAdd,
             // but PersonAdd lives in material-icons-extended — unacceptable
@@ -139,13 +169,13 @@ fun AppBottomNav(currentRoute: String?, onSelect: (String) -> Unit) {
             label = { Text(stringResource(R.string.nav_add_device)) }
         )
         NavigationBarItem(
-            selected = currentRoute == AppRoutes.TRACKING,
+            selected = selectedTab == AppRoutes.TRACKING,
             onClick = { onSelect(AppRoutes.TRACKING) },
             icon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_tracking)) }
         )
         NavigationBarItem(
-            selected = currentRoute == AppRoutes.SETTINGS,
+            selected = selectedTab == AppRoutes.SETTINGS,
             onClick = { onSelect(AppRoutes.SETTINGS) },
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_settings)) }
