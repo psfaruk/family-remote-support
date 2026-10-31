@@ -2870,10 +2870,14 @@ Firestore 429 窗口内 "sweep 全绿" 不可演示，将在 13:00 达卡重置�
 （与三层自愈机制一致）。
 
 **CI 记录（按 §72/§73 先例补记，诚实——0 修复轮）：**
-- 本波 5 个推送（RELEASE_NOTES 新建 / README / IMPLEMENTATION_STATUS /
-  CLOUDFLARE_SETUP / 本 §74）中前 4 个 run 被工作流并发设置自动取消（正常，以最终
-  HEAD 为准）。
-- 最终 HEAD `（待补）` run **（待补）**。
-- M10 为项目收官里程碑：本 CI-record 补记提交自身的 run 结果由协调者在最终报告中向
-  Owner 口头核销（无后续里程碑承接，§73 先例的末端处理）；推送后 Workers Builds 自动
-  deploy 触发，secret 存活复核结果一并记于该报告。
+- 本波 5 个推送（`8afb159`/`799e575`/`0f25307`/`208c359`/`07454e9`）中前 4 个 run 被
+  工作流并发设置自动取消（正常，以最终 HEAD 为准）。
+- 最终 HEAD `07454e9c84` run **41214860613 SUCCESS**（2026-10-31 15:33 UTC 完成验证）。
+  纯文档变更，零修复轮次。Artifacts：`app-release-apk`（27.7 MB，id 13047424535）+
+  `app-debug-apk`（32.5 MB）——v0.35.0/54 双机安装源，7 天保留自本 run 起算。
+- **Deploy-存活复核（§74 第 7 条承诺兑现）：** 本波 push 触发 Workers Builds 新 deploy
+  （15:28:19Z，source=wrangler）→ deploy 后 `/health` 仍双 secret true、bindings 仍双
+  `secret_text`、cron 每分钟继续且 `subreq=2`（15:29:11/15:30:11Z 实测）——Secret 跨
+  deploy 存活获直接证据，"设后被抹" 症状根治结论成立。
+- M10 为项目收官里程碑：本 CI-record 补记提交自身的 run 结果由协调者核验后在最终
+  报告中向 Owner 报告（无后续里程碑承接，§73 先例的末端处理）。
