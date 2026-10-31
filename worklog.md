@@ -3052,3 +3052,12 @@ MainActivity 接线、homeSessions 状态名、字符串资源存在性、import
 **Owner 动作：** 双机改装 **v0.37.0/56**（§5 QA-wave 版检查单：登录超时语义、Add tab
 无重复监听、revoke→family 需新码——旧码复用是"连不上"第一因；其余 §71/§73 检查单
 不变）。
+
+**CI 记录（§76 承诺补记，0 修复轮）：**
+- 本波 24 个推送（build.gradle 最先、worklog §76 最后）中前 23 个 run 被工作流并发
+  设置自动取消（正常，以最终 HEAD 为准）。
+- 最终 HEAD `eaa1f46ada` run **41230514448 SUCCESS**（2026-10-31 18:52 UTC 前后完成）。
+  **Release-APK 验证门 PASS（日志亲验）：** ✓ versionCode = 56 (INT_DEC) — expected 56 ·
+  ✓ versionName = "0.37.0" — expected "0.37.0"。Artifacts：`app-release-apk`（27.7 MB，
+  id 13052914142）+ `app-debug-apk`（32.5 MB）——**v0.37.0/56 双机安装源**。六路审计的
+  全部代码变更与 14/15 簇去重一次性通过编译门，零修复轮次。
