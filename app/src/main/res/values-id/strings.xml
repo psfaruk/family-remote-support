@@ -39,6 +39,39 @@
     <string name="loc_title">Lokasi langsung</string>
     <string name="loc_coming_title">Akan hadir di pembaruan mendatang</string>
     <string name="loc_coming_body">Lokasi keluarga secara langsung akan muncul di sini — selalu dengan izin jelas orangnya. Saat ini tidak ada yang dikumpulkan atau dibagikan.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Bagikan lokasi telepon ini</string>
+    <string name="loc_share_body">Anggota keluarga yang dipasangkan akan melihat posisi langsung telepon ini di peta selama berbagi sedang aktif. Hanya posisi terbaru yang disimpan — bukan riwayat — dan Anda dapat menghentikannya kapan saja.</string>
+    <string name="loc_share_start">Mulai berbagi</string>
+    <string name="loc_share_stop">Berhenti berbagi</string>
+    <string name="loc_share_on">Berbagi lokasi AKTIF</string>
+    <string name="loc_share_off">Berbagi lokasi tidak aktif</string>
+    <string name="loc_banner_on">Anda sedang membagikan lokasi telepon ini</string>
+    <string name="loc_banner_off">Berbagi tidak aktif — posisi telepon ini tidak dikirim</string>
+    <string name="loc_interval_label">Interval pembaruan</string>
+    <string name="loc_interval_30s">Setiap 30 detik</string>
+    <string name="loc_interval_1m">Setiap menit</string>
+    <string name="loc_interval_5m">Setiap 5 menit</string>
+    <string name="loc_notif_title">Berbagi lokasi aktif</string>
+    <string name="loc_notif_body">Ketuk untuk membuka aplikasi dan berhenti berbagi.</string>
+    <string name="loc_fresh_live">Langsung</string>
+    <string name="loc_fresh_stale">Lama</string>
+    <string name="loc_fresh_offline">Luring</string>
+    <string name="loc_last_known">Terakhir diketahui — %1$s</string>
+    <string name="loc_never">Belum pernah dibagikan</string>
+    <string name="loc_no_fix">Menunggu posisi pertama…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Diperbarui %1$s</string>
+    <string name="loc_details">Detail lokasi</string>
+    <string name="loc_open_maps">Buka di aplikasi peta</string>
+    <string name="loc_perm_title">Izin lokasi diperlukan</string>
+    <string name="loc_perm_body">Izin lokasi memungkinkan keluarga Anda melihat posisi telepon ini selama Anda memilih untuk membagikannya. Izin hanya digunakan saat notifikasi berbagi yang terlihat sedang ditampilkan.</string>
+    <string name="loc_denied_title">Akses lokasi ditolak</string>
+    <string name="loc_denied_body">Izin lokasi ditolak. Berbagi tidak dapat dimulai sampai izin diberikan di setelan sistem.</string>
+    <string name="loc_empty_title">Belum ada perangkat yang dipasangkan</string>
+    <string name="loc_empty_body">Pasangkan dulu perangkat keluarga — posisi langsungnya akan muncul di sini dengan izin jelas dari pemiliknya.</string>
+    <string name="loc_list_title">Pilih perangkat</string>
     <string name="set_section_account">Akun</string>
     <string name="set_profile_title">Profil</string>
     <string name="set_profile_sub">Nama dan email akun ini</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Ponsel yang dipasangkan</string>
     <string name="set_dev_entry_d">Status langsung, tindakan dukungan, dan pencabutan akses</string>
     <string name="set_loc_status">Lokasi langsung direncanakan untuk rilis mendatang. Tidak ada lokasi yang dikumpulkan atau disimpan hari ini.</string>
+    <string name="set_loc_now">Bagikan lokasi langsung telepon ini dengan perangkat keluarga yang dipasangkan. Hanya posisi terbaru yang disimpan — bukan riwayat.</string>
     <string name="set_guest_note">Tautan tamu bersifat sementara (hingga 3 jam) dan tidak pernah menjadi pasangan keluarga permanen.</string>
 </resources>
