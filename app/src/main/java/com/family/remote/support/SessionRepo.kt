@@ -58,7 +58,9 @@ fun SessionException.localizedMessage(context: android.content.Context): String 
         "already_answered" -> R.string.err_already_answered
         "already_answered_status" -> R.string.err_already_answered_status
         "session_expired_resend" -> R.string.err_session_expired_resend
-        else -> return message
+        // Exception.message is nullable (String?) — the honest fallback for
+        // code-less messages (bilingual request-blocked text) is safe here.
+        else -> return message ?: ""
     }
     return context.getString(res, *args.toTypedArray())
 }
