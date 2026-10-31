@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">重试</string>
     <string name="states_open_settings">打开系统设置</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">家庭设备</string>
+    <string name="fam_empty_t">尚未配对手机</string>
+    <string name="fam_empty_h">从“添加设备”标签页配对一部手机——它会连同实时状态显示在这里。</string>
+    <string name="fam_not_found">未找到此配对。</string>
+    <string name="fam_not_found_h">它可能已被撤销或从此帐户中移除。</string>
+    <string name="actv_title">最近活动</string>
+    <string name="actv_tile_d">正在进行和刚结束的支持会话</string>
+    <string name="actv_empty_t">暂无会话</string>
+    <string name="actv_empty_h">支持会话在运行期间和刚结束时会显示在这里。</string>
+    <string name="sess_title">会话详情</string>
+    <string name="sess_not_found">未找到此会话。</string>
+    <string name="sess_not_found_h">打开“最近活动”查看最新会话。</string>
+    <string name="sess_state">状态</string>
+    <string name="sess_kind">类型</string>
+    <string name="sess_helper">协助方</string>
+    <string name="sess_recipient">受助方</string>
+    <string name="sess_duration">时长</string>
+    <string name="sess_endedby">结束者</string>
+    <string name="sess_family">家庭</string>
+    <string name="sess_guest">访客</string>
+    <string name="cd_back">返回</string>
+    <string name="set_section_devices">设备管理</string>
+    <string name="set_section_location">位置与隐私</string>
+    <string name="set_section_remote">远程支持</string>
+    <string name="set_section_guest">访客访问</string>
+    <string name="set_section_security">安全</string>
+    <string name="set_dev_entry_t">已配对的手机</string>
+    <string name="set_dev_entry_d">实时状态、支持操作与撤销访问</string>
+    <string name="set_loc_status">实时位置计划在未来的版本中推出。目前不会收集或存储任何位置信息。</string>
+    <string name="set_guest_note">访客链接是临时的（最多 3 小时），绝不会变成永久家庭配对。</string>
 </resources>
