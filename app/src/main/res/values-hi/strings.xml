@@ -39,6 +39,39 @@
     <string name="loc_title">लाइव लोकेशन</string>
     <string name="loc_coming_title">आने वाले अपडेट में</string>
     <string name="loc_coming_body">यहाँ परिवार की लाइव लोकेशन दिखेगी — हमेशा दूसरे व्यक्ति की साफ़ अनुमति के साथ। आज कुछ भी इकट्ठा नहीं किया जाता और कुछ भी साझा नहीं किया जाता।</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">इस फ़ोन की लोकेशन शेयर करें</string>
+    <string name="loc_share_body">शेयर चालू रहने तक आपके जोड़े हुए परिवार के सदस्य को मैप पर इस फ़ोन की लाइव स्थिति दिखाई देगी। सिर्फ़ आख़िरी स्थिति रखी जाती है — कभी पूरा इतिहास नहीं — और आप कभी भी बंद कर सकते हैं।</string>
+    <string name="loc_share_start">शेयरिंग शुरू करें</string>
+    <string name="loc_share_stop">शेयरिंग बंद करें</string>
+    <string name="loc_share_on">लोकेशन शेयरिंग चालू है</string>
+    <string name="loc_share_off">लोकेशन शेयरिंग बंद है</string>
+    <string name="loc_banner_on">आप अभी इस फ़ोन की लोकेशन शेयर कर रहे हैं</string>
+    <string name="loc_banner_off">शेयरिंग बंद है — इस फ़ोन की स्थिति नहीं भेजी जा रही है</string>
+    <string name="loc_interval_label">अपडेट का अंतराल</string>
+    <string name="loc_interval_30s">हर ३० सेकंड</string>
+    <string name="loc_interval_1m">हर १ मिनट</string>
+    <string name="loc_interval_5m">हर ५ मिनट</string>
+    <string name="loc_notif_title">लोकेशन शेयरिंग चालू है</string>
+    <string name="loc_notif_body">ऐप खोलने और शेयरिंग बंद करने के लिए टैप करें।</string>
+    <string name="loc_fresh_live">लाइव</string>
+    <string name="loc_fresh_stale">पुरानी</string>
+    <string name="loc_fresh_offline">ऑफ़लाइन</string>
+    <string name="loc_last_known">आख़िरी जानी गई — %1$s</string>
+    <string name="loc_never">कभी शेयर नहीं हुई</string>
+    <string name="loc_no_fix">पहली स्थिति का इंतज़ार है…</string>
+    <string name="loc_acc_m">±%1$d मीटर</string>
+    <string name="loc_updated">अपडेट: %1$s</string>
+    <string name="loc_details">लोकेशन की जानकारी</string>
+    <string name="loc_open_maps">मैप ऐप में खोलें</string>
+    <string name="loc_perm_title">लोकेशन की अनुमति चाहिए</string>
+    <string name="loc_perm_body">लोकेशन की अनुमति से आपके शेयर करने के दौरान आपका परिवार इस फ़ोन की स्थिति देख सकता है। यह सिर्फ़ तभी इस्तेमाल होती है जब शेयरिंग की नोटिफिकेशन स्क्रीन पर दिख रही हो।</string>
+    <string name="loc_denied_title">लोकेशन की पहुँच नहीं मिली</string>
+    <string name="loc_denied_body">लोकेशन की अनुमति नहीं दी गई। सिस्टम सेटिंग्स में अनुमति मिलने तक शेयरिंग शुरू नहीं हो सकती।</string>
+    <string name="loc_empty_title">अभी तक कोई डिवाइस जुड़ा नहीं है</string>
+    <string name="loc_empty_body">पहले परिवार का कोई डिवाइस जोड़ें — मालिक की साफ़ अनुमति से उसकी लाइव स्थिति यहाँ दिखेगी।</string>
+    <string name="loc_list_title">कोई डिवाइस चुनें</string>
     <string name="set_section_account">खाता</string>
     <string name="set_profile_title">प्रोफ़ाइल</string>
     <string name="set_profile_sub">इस खाते का नाम और ईमेल</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">जोड़े गए फ़ोन</string>
     <string name="set_dev_entry_d">लाइव स्थिति, सहायता क्रियाएँ और पहुँच रद्द करना</string>
     <string name="set_loc_status">लाइव स्थान एक आगामी रिलीज़ के लिए योजित है। आज कोई स्थान एकत्र या संग्रहीत नहीं किया जाता।</string>
+    <string name="set_loc_now">जुड़े हुए परिवारिक डिवाइसों के साथ इस फ़ोन की लाइव लोकेशन शेयर करें। सिर्फ़ आख़िरी स्थिति रखी जाती है — कभी पूरा इतिहास नहीं।</string>
     <string name="set_guest_note">अतिथि लिंक अस्थायी होते हैं (अधिकतम ३ घंटे)। ये कभी भी स्थायी फ़ैमिली पेयरिंग नहीं बनते।</string>
 </resources>
