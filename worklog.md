@@ -2550,3 +2550,79 @@ parity 缺口）、打磨。
   （2026-10-31 ~10:46 UTC）。纯文档变更，无代码修复轮次。
 - **声明边界（诚实）：** 沙盒无 Gradle/模拟器；"零回归"的设备级证明仍属 Owner 实测
   （TEST_PLAN #19/#20/#21 及其余设备项）。
+
+## §71 — Phase 22/M8（v0.34.0/53）：通知本地持久化（G2）+ 无障碍 + i18n 收尾 + 性能（2026-10-31）
+
+**触发：** Owner 的 **"M8"** 指令（= §70 承诺的"通知存储、可达性、i18n 收尾、打磨"）。
+**本里程碑为代码里程碑：两机须重装 v0.34.0（versionCode 53）。**
+
+**推送前校验（诚实）：** 远端 main HEAD `962ae3f`（M7 收口）；CI run 41193778392 SUCCESS；
+本地镜像 94 文件 blob-SHA 零漂移。
+
+**多代理（诚实，5 个真实 agent、3 波，串并行如实记录）：**
+- **Wave 1（并行 2 agent）：** M8-A（通知本地事件存储，Kotlin）+ M8-B（default↔bn 倒置，
+  纯 XML）——文件集不相交。
+- **Wave 2（1 agent）：** M8-C（字面量提取 + 无障碍 + 每秒重组隔离）。
+- **Wave 3（并行 2 agent）：** M8-D1（bn/hi/ur/ne/ar/ru/tr 七语言翻译）+ M8-D2
+  （zh/ja/de/es/fr/pt/id 七语言翻译）——各持互斥文件集。
+- 协调者手术：FamilyScreens 遗留 catch 位迁移、AuthGate 硬编码孟文 cd、staged keys
+  合并（68+1 键）、`assist_service_description` 非翻译键清理、版本升级、两处注释修正、
+  最终验证扫描。
+
+**交付 1 —— G2：本地持久化通知事件存储（`NotificationsLog.kt`，新文件）：**
+JSON 存 `filesDir`（上限 100 条，最新在前，损坏容错读取，IO fire-and-forget 不阻塞 UI）。
+**只记真实事件、零新增 Firestore 读/监听**：会话 asked/started/ended（由既有 root 会话
+watch 的状态 diff 得出）+ 位置共享 started/stopped（由 `LocationShareService` 实际启停点
+记录，**绝不含坐标**）；**登出即清空**（事件含对方 email，不跨账号残留）。
+NotificationsScreen 新增 "Recent events" 分区（时间用 locale 感知 DateFormat）；`notif_hint`
+诚实新文案 ×15（"仅保存在本设备、最近 100 条、绝不上传、登出清除"）。**设计决策记录：
+本地存储而非 Firestore——Phase 20 免费配额事故的纪律；通知是设备本地信息，无需跨设备。**
+
+**交付 2 —— i18n 倒置修复（M8-B，纯 XML）：** 209 键 default↔bn 值交换（default 复归
+英语、bn 复归孟加拉语）+ `cd_notifications` 双语后缀清理 + `set_lang_info` 补英语 + bn 侧
+27 键补孟加拉语翻译（26 个英文残留键 + err_generic）；**有意保留 2 键**：`feed_last_sub`
+（纯格式 `%1$s → %2$s`）、`pw_perm_assist`（全部 15 语言一致英文）。附带清理：
+`assist_service_description`（translatable="false"）的 values-bn 违规副本移除。修复后
+default 零孟文键、bn 除 2 个记录在案键外全孟文；456/453→（+74 后）530/526。
+
+**交付 3 —— 字面量提取（M8-C + 协调者，~68 新键）：** SessionException 增稳定 code +
+`localizedMessage(context)`（9 个 err_session_* 键），UI catch 位迁移（HomeTab×4、
+AddDeviceTab×3、FamilyScreens×1——协调者补）；ScreenShareService 通知渠道/文案 4 键
+（LangPrefBus.wrap 模式，同 SessionNotifier）；**ScreenShareEngine 44 个状态/重试/自愈/
+失败/确认文案**（ss_* 键族，loc() 助手）；QrActions 分享 2 键；MainActivity setup_* 3 键 +
+so_signout_failed；fallback_someone/fallback_helper 空值兜底；无障碍 cd_pairing_qr +
+cd_clear_messages（AuthGate 硬编码孟文 → 资源化，协调者）；SessionKey 语义标签接线
+（复用 sk_*）。**诚实记录（未提取，已记为后续）：** MainActivity "Registering/Registered/
+Online/Push ready" 前缀解析型字符串（HomeTab:296-300 以 startsWith 解析——先铺
+deviceOk/presenceOk/pushOk 旗标才能本地化）；ScreenShareEngine 双语 assist 横幅与诊断行
+（Phase-16b 既定双语风格）。
+
+**交付 4 —— 性能（每秒重组隔离）：** 新组件 `ui/components/Clock.kt` 的 `TickingBlock`
+——六个屏幕级 `nowMillis` 每秒 tick（HomeTab 同意卡+弹窗、ActivityScreens 列表+详情、
+AddDeviceTab 邀请+会话卡）全部改为块内持有时钟，**每秒仅时间相关小块重组，整屏不再
+每秒重绘**；三文件零屏幕级 nowMillis 残留。reduced-motion 中立说明已注释（文本刷新
+非动画）。
+
+**交付 5 —— i18n 完成（M8-D1/D2）：** 74 新键 ×14 语言 = 1,036 条翻译 + notif_hint
+更新 ×15；两 agent 各 7 语言验证矩阵全 PASS（XML well-formed、526 键、键集=default−4
+非翻译键、占位符逐键奇偶校验、无未转义撇号、✓ 与 `\n` 保留、旧 hint 文案绝迹）。
+法语撇号转义、bn/hi/ur/ne/ar 母语数字、各语言既有术语延续（offer/answer、按钮引文等）。
+
+**变更范围：** 14 个 Kotlin（2 新：NotificationsLog.kt、Clock.kt）+ 15 个 strings.xml +
+app/build.gradle.kts（53/0.34.0）+ 5 个文档（本 worklog §71、IMPLEMENTATION_STATUS、
+TEST_PLAN、UI_UX §২৬.৪、FAMILY_GUEST G2 行）。
+
+**验证边界（诚实）：** 沙盒无 Gradle —— **CI 是唯一编译门**（本波 30 个代码/资源推送后
+最终 HEAD 的 Android Build 必须SUCCESS，失败即修复轮次，如实记录）；协调者本地验证：
+15 个 XML 全部 well-formed+计数、R.string 引用全解析、localizedMessage 9 码 9 键对齐、
+TickingBlock 调用面完整。设备级体验（通知 Recent 分区、翻译观感、每秒重组改善的体感）
+属 Owner 实测（TEST_PLAN）。
+
+**推送：** readback-verify 管线全 30+ 文件逐一校验 OK（含两次管线事故如实记录：新文件
+需 create 分支；strings 路径前缀笔误一次，立即纠正重推）。CI 记录 SUCCESS 后补记于本节。
+
+**Owner 动作：** (1) **两机重装 v0.34.0（code 53）**——版本同步规则不变；CI SUCCESS 后
+APK 从 Actions artifacts 获取；(2) 重装后快速回归：语言切到 বাংলা 检查界面全孟文
+（倒置修复最直观验证）、通知铃铛 → Recent events 分区、登出后事件清空、TEST_PLAN
+既有设备项；(3) Cloudflare `FIREBASE_SA_JSON` 仍悬置（§70 发现 3，未变）；(4)
+**下一步 = M9** —— TEST_PLAN 全量执行 + 安全审查。
