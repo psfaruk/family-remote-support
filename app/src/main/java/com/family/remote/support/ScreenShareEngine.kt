@@ -16,6 +16,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -442,8 +444,13 @@ object ScreenShareEngine {
     // removes the addSink/removeSink/release race class entirely (the 19:25
     // session: frames decoded ✓, picture black ✗ — a released
     // SurfaceViewRenderer had been re-attached by the UI's dispose/re-run).
-    private var rendererTarget: SurfaceViewRenderer? = null
-    private var previewTarget: SurfaceViewRenderer? = null
+    // v0.37.0 — @Volatile: these targets are written on the main thread and
+    // read on the WebRTC render thread (remoteProxySink/localProxySink below).
+    // Without it a stale non-null read can forward a frame into an already
+    // release()d renderer — the try/catch guards Java exceptions, not the
+    // native crash a freed EGL surface can raise.
+    @Volatile private var rendererTarget: SurfaceViewRenderer? = null
+    @Volatile private var previewTarget: SurfaceViewRenderer? = null
     private val renderedFrames = AtomicLong(0)
     private val previewFrames = AtomicLong(0)
     private var remoteProxyAttachedTo: VideoTrack? = null
@@ -578,13 +585,20 @@ object ScreenShareEngine {
             diagLog("share start (epoch ${myEpoch?.take(6) ?: "?"})")
             val app = context.applicationContext
             // v0.21.0 (audit): round token + cancellable fetch — see startRound.
+            // v0.37.0 (latency wave): TURN + quality fetches run CONCURRENTLY —
+            // they used to be strictly sequential (up to 5 s + 5 s ceiling on a
+            // cold cache, paid on BOTH phones before the first frame).
             val round = ++startRound
             configJob?.cancel()
             configJob = scope.launch {
-                dynamicIceServers = ConfigRepo.fetchTurnServers()
-                diagLog(ConfigRepo.lastNote)
-                quality = ConfigRepo.fetchQuality() // v0.9.7 — codec/fps/bitrate knobs
-                diagLog(ConfigRepo.lastQualityNote)
+                coroutineScope {
+                    val ice = async { ConfigRepo.fetchTurnServers() }
+                    val q = async { ConfigRepo.fetchQuality() }
+                    dynamicIceServers = ice.await()
+                    diagLog(ConfigRepo.lastNote)
+                    quality = q.await() // v0.9.7 — codec/fps/bitrate knobs
+                    diagLog(ConfigRepo.lastQualityNote)
+                }
                 main.post {
                     if (round == startRound && sessionId != null &&
                         _state.value != ShareState.IDLE && _state.value != ShareState.ENDED
@@ -916,13 +930,19 @@ object ScreenShareEngine {
             _info.value = loc(R.string.ss_info_preparing_viewer)
             diagLog("watch start (epoch ${myEpoch?.take(6) ?: "?"})")
             // v0.21.0 (audit): same round-token guard as the recipient side.
+            // v0.37.0 (latency wave): concurrent TURN + quality fetches (see
+            // startRecipient).
             val round = ++startRound
             configJob?.cancel()
             configJob = scope.launch {
-                dynamicIceServers = ConfigRepo.fetchTurnServers()
-                diagLog(ConfigRepo.lastNote)
-                quality = ConfigRepo.fetchQuality() // v0.9.7 — codec preference for the answer
-                diagLog(ConfigRepo.lastQualityNote)
+                coroutineScope {
+                    val ice = async { ConfigRepo.fetchTurnServers() }
+                    val q = async { ConfigRepo.fetchQuality() }
+                    dynamicIceServers = ice.await()
+                    diagLog(ConfigRepo.lastNote)
+                    quality = q.await() // v0.9.7 — codec preference for the answer
+                    diagLog(ConfigRepo.lastQualityNote)
+                }
                 main.post {
                     if (round == startRound && sessionId != null &&
                         _state.value != ShareState.IDLE && _state.value != ShareState.ENDED
@@ -1845,7 +1865,16 @@ object ScreenShareEngine {
         val me = myUid ?: return
         val to = peerUid ?: return
         val ep = myEpoch ?: return
-        createPeer()
+        // v0.37.0 (crash wave) — every OTHER createPeer() call site is guarded
+        // (beginRecipientCapture / beginHelperWatch / handleSignal); this one
+        // runs from the watchdog ticker and onConnectionChange, so a native
+        // factory failure here was an UNCAUGHT main-thread exception.
+        try {
+            createPeer()
+        } catch (e: Exception) {
+            fail(loc(R.string.ss_fail_viewer, e.message ?: e.javaClass.simpleName))
+            return
+        }
         SignalingRepo.clearAsync(sid, me)
         scope.launch {
             try {
