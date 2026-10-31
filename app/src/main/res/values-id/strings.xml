@@ -474,6 +474,9 @@
     <string name="set_section_remote">Dukungan Jarak Jauh</string>
     <string name="set_section_guest">Akses Tamu</string>
     <string name="set_section_security">Keamanan</string>
+    <string name="set_section_privacysec">Privasi &amp; Keamanan</string>
+    <string name="set_section_prefs">Preferensi</string>
+    <string name="set_section_about_session">Tentang &amp; sesi</string>
     <string name="set_dev_entry_t">Ponsel yang dipasangkan</string>
     <string name="set_dev_entry_d">Status langsung, tindakan dukungan, dan pencabutan akses</string>
     <string name="set_loc_status">Lokasi langsung direncanakan untuk rilis mendatang. Tidak ada lokasi yang dikumpulkan atau disimpan hari ini.</string>
