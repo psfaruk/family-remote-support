@@ -408,4 +408,8 @@
     <string name="notif_empty_title">अभी आपको कुछ नहीं करना है</string>
     <string name="notif_empty_body">सहायता अनुरोध, चालू सेशन और सेटअप चेतावनियाँ होते ही यहाँ दिखेंगे।</string>
     <string name="notif_hint">केवल वास्तविक, मौजूदा घटनाएँ — कुछ भी बनाया या इतिहास में रखा नहीं जाता।</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">फिर से कोशिश करें</string>
+    <string name="states_open_settings">सिस्टम सेटिंग्स खोलें</string>
 </resources>
