@@ -2452,3 +2452,93 @@ CI 记录推送后补记于本节（诚实：SUCCESS 才写）。
   （2026-10-31 08:35 UTC）。纯文档变更，无代码修复轮次。
 - **声明边界（诚实）：** 沙盒无 Gradle/模拟器；"工作正常" = CI 成功 + Owner 手机实测
   （TEST_PLAN #10–#15 等）之后才算成立。
+
+## §70 — Phase 22/M7（v0.33.0/52 不变）：远程支持集成审计 — WebRTC/assist 零回归 + 三项诚实发现（2026-10-31）
+
+> **语言记录（诚实）：** Owner 本日先以孟加拉语提问并明确要求 **"বাংলা বলো"**，其后继续
+> 以孟加拉语发指令 —— **聊天语言自本日起改回孟加拉语（最新直接指令优先于 §69 记录）**；
+> worklog 新条目维持中文（§69 既定规则，历史不回改），除非 Owner 另有指示。
+
+**触发：** Owner 的 **"Cloud flare worker ture, M7 শুরু করো।"**（M7 = §69 承诺的"远程支持
+集成审计（WebRTC 屏幕共享 / assist 无回归）"）。其中 "Cloud flare worker ture" 经实测
+**未能证实**（见发现 3）。
+
+**推送前校验（诚实）：** 远端 `psfaruk/family-remote-support` main，HEAD `95a89b9`（M6
+CI 记录推送）；CI run 41185351840 SUCCESS；本地镜像 blob-SHA 抽查 6/6 匹配（含 worklog、
+IMPLEMENTATION_STATUS、M5 核心 Kotlin 文件）。账号再确认：真实仓库 = `psfaruk/...`（继承
+摘要中 `psfarfarfaruk` 仍为拼写漂移）。
+
+**多代理（诚实）：** 2 个真实并行只读 Explore 审计代理 —— **M7-A**（WebRTC/会话/信令链）
++ **M7-B**（assist/FCM/通知路由/kill-push 链）+ 协调者本人独立复核（git `-S` 全历史检索 ×3、
+ScreenShareService 亲读抽查、Worker /health 两次实测、kill-push 失败 run 日志下载分析）。
+
+**审计结论（M7-A —— 全部 INTACT，零回归）：**
+- **WebRTC 屏幕共享链 INTACT：** consent launcher（`MainActivity.kt:1859-1868`）→
+  ScreenShareService.start → **startForeground 先于 startRecipient**（`ScreenShareService.kt:50-63`，
+  协调者亲验）；完整 teardown 释放 capturer/track/PC 并摘除信令监听（`ScreenShareEngine.kt:2184-2194`）；
+  角色守卫 stop（`ScreenShareService.kt:75-83`）；"bye" 新鲜度门（`Engine:1350-1367`）。
+- **会话 FSM 各表面 INTACT：** request/grant/deny/cancel/end/expire 全部可达且调用同一
+  SessionRepo API（`FamilyScreens.kt:330` / `HomeTab.kt:617,642,739,764` /
+  `AddDeviceTab.kt:336,340`）；多表面 grant/deny 属重构前既有设计（rules 层去重）。
+- **信令生命周期 INTACT：** attach 双角色（`Engine:1240-1254`）；`startCommon:980` 先拆
+  旧轮次；无 attach-无-detach 路径。
+- **MainActivity 重构后接线 INTACT：** root SessionWatchViewModel 在 NavHost 之上
+  （`:450-456`）、"无开放会话→全停"（`:469-474`）、root 僵尸清扫（`:482-496`）、登出拆除
+  share/viewer（`:956-957`）、停止观看确认→stopHelper（`:1104-1111`）、root 同意弹窗
+  （`:1118-1123`）。
+- INFO 级（仅记录不改码）：session-watch effect 的 onDispose 为空（`:452-455`）——实际无
+  泄漏（observe() 顶替旧监听 + onCleared() 收尾）。
+
+**审计结论（M7-B）：**
+- **assist 链 INTACT：** dispatchGesture 手势 + ACTION_SET_TEXT（`AssistService.kt:151-169`）；
+  7 个伴随入口全由 `ScreenShareEngine.kt:1450-1501` 调用。
+- **FCM 注册 + 通知路由 INTACT：** registerFcmToken（`MainActivity.kt:568`）；token 轮换
+  （`PushTokenService.kt:26-31`）；通知点击无-extras 落 Home → pendingAsk 卡片 —— **新导航
+  下依然正确**（`SessionNotifier.kt:126-131` + `MainActivity.kt:754/725`）。
+- **登出卫生 INTACT**（`MainActivity.kt:956-1003`，含 M5 的 stopLocationSharing +
+  deleteOwnLocation）。不调 FirebaseMessaging.deleteToken() 属既定取舍（token 复用）。
+- **清单注册 COMPLETE**（4 服务 + POST_NOTIFICATIONS + FCM 元数据）。
+
+**M7 三项诚实发现：**
+1. **即时层脚本过期（已修复，沙盒侧）：** mini-service 引用的
+   `/home/z/my-project/scripts/fcm-kill-push.mjs` 是过期副本 —— 缺 Phase 18.4 claim 前置
+   条件修复（body 放置 → 每次 claim 400 → 全当 claim-lost → **即时层从不推送**）+ Phase 20
+   无-deadline 过期修复。已用仓库版（`android-app/scripts/`，GH Actions 同款）覆盖同步并
+   重启服务（首扫 0 错误、0 文档）。**流程规则（已记入 IMPLEMENTATION_STATUS §4）：**该路径
+   在仓库镜像之外 —— 仓库改此脚本后必须手工重同步，否则即时层静默退化。
+2. **文档-代码漂移（本次修正）：** `docs/CLOUDFLARE_SETUP.md` 声称"app 侧 instant
+   `POST /sweep` 已于 v0.19.0 交付（helper 建档即调，~1–2 秒）" —— **从未实现**：git `-S
+   "workers.dev" / "KILL_TOKEN" / "HttpURLConnection"` 全历史 0 命中（协调者独立复跑
+   确认）；app 源码 0 HTTP 客户端；SessionRepo 0 HTTP 引用。Phase 18.9 的 F2 修复曾被
+   此文档误导标记"已交付"。本条收回该声明（CLOUDFLARE_SETUP 已改）；未来若实现须先解决
+   "公开仓库 + APK 内嵌 bearer token"泄露问题（另案设计决策，未获批不动手）。
+3. **Owner 的 "Cloudflare worker ture" 未能证实：** 今日两次实测 `/health`：
+   `KILL_TOKEN:true`、**`FIREBASE_SA_JSON:false`**、`last:"not run yet"` —— 稳定层仍未
+   激活。可能原因：加成了 **Build variable**（构建变量）而非运行时 **Secret**，或未保存；
+   KILL_TOKEN:true 或为 Owner 所见 "true" 的来源。唯一剩余步骤不变：dashboard →
+   Workers & Pages → family-remote-support → Settings → **Variables and Secrets** → 类型
+   **Secret** → `FIREBASE_SA_JSON` = 完整 SA JSON 文本（`{` 起 `}` 止）。另：GH Actions
+   后备层最后一次 run 41180972665 SUCCESS（07:31 UTC）；此前 3 次 failure 日志亲验均为
+   Firestore **429 配额**（Phase 20 家族），配额重置后自愈，非代码问题。
+
+**变更范围（仅文档，4 个文件）：** `docs/CLOUDFLARE_SETUP.md`（发现 1/2/3 证据化 + 收回
+虚假交付声明）、`docs/IMPLEMENTATION_STATUS.md`（M7 行 ✅ + §3 kill-push 行 + §4 新增两行
++ §5 Owner 动作 M7 版）、`docs/TEST_PLAN.md`（§1 M7 运维检查行）、本 worklog §70。
+**无任何代码/规则/依赖/字符串变更；两机继续 v0.33.0/52。**
+
+**验证边界（诚实）：** 沙盒无 Gradle/模拟器/设备 —— "零回归" = 双代理代码级审计 + 协调者
+抽查 + CI SUCCESS + 既有探针绿（M6 4/4，本轮未重跑——纯审计里程碑，rules 未动）；设备端
+真实 WebRTC/assist 行为仍属 Owner 实测（TEST_PLAN **#19/#20/#21** 及其余设备项）。审计
+代理 M7-B 报告"本地 git HEAD 与简报不符 + scripts/ 未提交修改"——经查为沙盒本地 git 噪音
+（自动化 UUID 提交 + 协调者今日的同步修复），GitHub 侧 blob-SHA 6/6 无漂移，不影响管线。
+
+**推送：** readback-verify 管线（GET sha → PUT → GET download → SHA256 对比，DIFF 即
+ABORT）。CI 记录推送后补记于本节（诚实：SUCCESS 才写）。
+
+**Owner 动作：** (1) 无需重装（APK 未变）；TEST_PLAN 设备项照旧（#10–#15 / #7 / #8 / #24
++ **#19/#20/#21** 远程支持实测——本轮只做了代码级验证）；(2) Cloudflare `FIREBASE_SA_JSON`
+**运行时 Secret** 仍未生效（今日实测 false ×2）——注意加在 "Variables and Secrets" 的
+**Secret** 类型里，不是 Build variable；设好后开
+`https://family-remote-support.www-farukkhan-fk885.workers.dev/health` 确认 true；
+(3) **下一步 = M8** —— 通知存储、可达性、i18n 收尾（~16 条硬编码 + default↔bn 倒置 +
+parity 缺口）、打磨。
