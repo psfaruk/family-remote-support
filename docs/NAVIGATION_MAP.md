@@ -1,14 +1,19 @@
 # NAVIGATION_MAP — Target Hierarchy (Master-Plan PART 3)
 
-> Status: **M2 SHELL IMPLEMENTED (2026-10-31, v0.30.0/49); M3 SCREENS EXTRACTED (2026-10-31,
-> v0.31.0/50).** The 4 tabs + notifications route run on Navigation-Compose (Decision C3 ADOPTED —
-> `ui/nav/AppNav.kt` routes + bars, crossfade 120 ms, saveState/restoreState). In M3 the tab
-> CONTENT moved verbatim to its own files (`ui/home/HomeTab.kt`, `ui/pairing/AddDeviceTab.kt`,
-> `ui/settings/SettingsTab.kt`, `ui/tracking/TrackingTab.kt`) with the ViewModel layer
-> (`ui/home/SessionWatchViewModel.kt`) and the canonical state components (`ui/components/States.kt`).
-> The nested detail routes below (home/family/{relId}, add/*, settings/*, tracking/{relId})
-> remain the **M4+ target** — honestly NOT built in M3 (see IMPLEMENTATION_STATUS M3 row,
-> honest deltas).
+> Status: **M2 SHELL IMPLEMENTED (v0.30.0/49); M3 SCREENS EXTRACTED (v0.31.0/50);
+> M4 NESTED HOME SUBTREE + SETTINGS 8 PARTITIONS IMPLEMENTED (v0.32.0/51).** The 4 tabs +
+> notifications route run on Navigation-Compose (Decision C3 ADOPTED — `ui/nav/AppNav.kt`
+> routes + bars, crossfade 120 ms, saveState/restoreState). M4 made the **home/ subtree of §2
+> REAL**: `home/family` (Family Overview), `home/family/{relId}` (Member Details — the old
+> paired-phone action sheet promoted to a route), `home/sessions` (Recent Activity) and
+> `home/sessions/{id}` (Session Details); nested routes slide ≈200 ms honoring the system
+> Animator duration scale; the Home tab stays selected on its nested routes
+> (`AppRoutes.tabForRoute`) and system back pops them (§3). Settings is the master's 8
+> partition grouped list (devices/guest entries route into home/family). **Still open by
+> design:** `add/*` stays MODAL per §3 (QR scanner / role preview / permission wizard are
+> dialogs/sheets — Back dismisses them without leaving the flow); `tracking/*` (map +
+> `tracking/{relId}`) waits for M5; `settings/*` sub-ROUTES beyond the devices entry remain
+> later waves (M6/M8).
 
 ## 1. Decision C1/C2 — primary tabs (exactly four, per master instruction)
 
@@ -33,20 +38,32 @@ RootShell (Scaffold: AppTopBar + NavHost + BottomNav, tab state saved/restored)
 │   ├── home                      dashboard: greeting, connection summary, device counts,
 │   │                             sharing status, quick actions, pending pairing, guest status,
 │   │                             security warnings (real data only)
-│   ├── home/family               Family Overview → trusted-device list (empty state → Add Device CTA)
-│   │   └── home/family/{relId}   Member Details: connection status, last location (M5),
-│   │                             kind/guest window, available support actions (ask/assist)
-│   ├── home/sessions             Recent activity (session history list; real records only)
-│   │   └── home/sessions/{id}    Session detail (status, duration, ended-by)
+│   │                             + M4: QuickActionTiles → home/family and home/sessions
+│   ├── home/family               ✅ M4: Family Overview → trusted-device list (empty state →
+│   │                             Add Device CTA; PairTile + presence + guest countdowns)
+│   │   └── home/family/{relId}   ✅ M4: Member Details: connection status, kind/guest window,
+│   │                             available support actions (ask/assist — the old action
+│   │                             sheet: request-session / family revoke / guest remove)
+│   ├── home/sessions             ✅ M4: Recent activity (open sessions + last-finished;
+│   │                             each row a route link — full history list needs a bounded
+│   │                             query + composite index, deliberately deferred)
+│   │   └── home/sessions/{id}    ✅ M4: Session detail (status, duration, ended-by; LIVE
+│   │                             while the root watch holds it, else one-shot getSession)
 │   └── home/add (quick action)   → routes into Tab ADD DEVICE flow
 ├── Tab ADD DEVICE
 │   ├── add                       mode choice: Family Mode | Guest Mode (clearly separated)
+│   │                             (stays MODAL per §3: the two-ways card + pair sheet +
+│   │                             role sheet ARE this flow; M4 moved the paired-phone LIST
+│   │                             and the action sheet OUT to home/family)
 │   ├── add/family                explain permanent pairing → generate QR (5-min TTL) / show code
 │   │                             · "Scan a code instead" (this device joins)
 │   ├── add/guest                 explain temporary session → scope+duration → create/scan
 │   ├── add/scan                  QR scanner (CameraX + ML Kit) + manual 12-digit code entry
 │   ├── add/progress              pairing progress / role preview / success·failure·expired
 │   └── add/permissions           "what needs separate setup" wizard hand-off
+│                                 (add/scan + add/progress + add/permissions = today's
+│                                 QrScanDialog / ScannedRoleSheet / PermissionWizard,
+│                                 intentionally modal — see §3)
 ├── Tab TRACKING (M5)
 │   ├── tracking                  map (osmdroid) + authorized markers + device selector sheet
 │   │                             + freshness (live/stale/offline) + sharing-status banner
@@ -54,17 +71,20 @@ RootShell (Scaffold: AppTopBar + NavHost + BottomNav, tab state saved/restored)
 │   └── tracking/{relId}          Location Details: last update time, accuracy, staleness,
 │                                 sharing on/off (owner), open-in-maps action, revoke/sharing controls
 ├── Tab SETTINGS
-│   ├── settings                  grouped list (Account · Appearance · Device Mgmt · Location & Privacy ·
-│   │                             Remote Support · Guest Access · Security · About)
-│   ├── settings/account          account info, auth status, sign-out
-│   ├── settings/appearance       theme (system/light/dark) · language (15)
-│   ├── settings/devices          paired devices → detail (reuse home/family/{relId}) + revoke
-│   ├── settings/location         sharing status, permission status, background info (M5)
-│   ├── settings/remote           screen-share settings, assist setup, active session, terminate
-│   ├── settings/guest            active guest sessions, expiry, revocation
-│   ├── settings/security         trusted devices, authorization status, security notes
-│   ├── settings/notifications    per-category toggles (real ones only)
-│   └── settings/about            version, package, privacy doc, help
+│   ├── settings                  ✅ M4: the master's 8 partition grouped list (Account ·
+│   │                             Appearance(theme+language) · Device Management · Location &
+│   │                             Privacy · Remote Support · Guest Access · Security · About)
+│   ├── settings/account          (grouped-list form ships; sub-ROUTE = later wave)
+│   ├── settings/appearance       (theme + language rows inside the Appearance partition)
+│   ├── settings/devices          ✅ M4 as an ENTRY: routes into home/family (the map's
+│   │                             "reuse home/family/{relId}" rule); registry list stays here
+│   ├── settings/location         (honest M5-planned note + policy docs in the partition)
+│   ├── settings/remote           (notif/assist/test tiles inside the Remote Support partition)
+│   ├── settings/guest            ✅ M4 as a NOTE+ENTRY: routes into home/family (guest links
+│   │                             with countdowns/removal live there)
+│   ├── settings/security         (permission wizard inside the Security partition)
+│   ├── settings/notifications    per-category toggles (real ones only — M8)
+│   └── settings/about            (About dialog + policy shortcuts, unchanged)
 └── notifications                 header bell target: real events (pairing, status change,
                                   sharing on/off, session start/end, permission attention)
                                   [no fabricated notifications]
