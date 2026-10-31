@@ -63,6 +63,7 @@ import com.family.remote.support.RelationshipView
 import com.family.remote.support.SessionException
 import com.family.remote.support.SessionView
 import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.localizedMessage
 import com.family.remote.support.removeGuestRelationship
 import com.family.remote.support.requestSession
 import com.family.remote.support.revokeRelationship
@@ -332,7 +333,7 @@ internal fun MemberDetailScreen(
                         context.getString(R.string.ph_req_sent, rel.recipientEmail)
                 onBack()
             } catch (e: SessionException) {
-                sessionMessage = e.message
+                sessionMessage = e.localizedMessage(context)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
