@@ -359,7 +359,9 @@ fun AuthGate(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Clear,
-                            contentDescription = "বার্তা বন্ধ করুন",
+                            // M8 (v0.34.0): was a hardcoded Bangla contentDescription —
+                            // localized like every other cd_* label.
+                            contentDescription = stringResource(R.string.cd_clear_messages),
                             tint = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.size(16.dp)
                         )
