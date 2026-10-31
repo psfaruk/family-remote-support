@@ -43,8 +43,26 @@ A trusted family member helps fix another family phone — always with the recei
     proven firing every minute with 2 subrequests per sweep (OAuth + Firestore) —
     **all three kill-push tiers simultaneously operational for the first time.**
     Worklog §74.
+  - **Post-M10 ops change ✅ (v0.36.0/55 — current release): Owner quota directive
+    ("read/write only when the user acts; auto-updates off; zero requests from the
+    sandbox, only from the app").** Root cause of the recurring evening
+    RESOURCE_EXHAUSTED: the sandbox kill-push service was polling Firestore every
+    5 s **as two zombie instances** (≈69k read attempts/day = >100% of the free
+    50k/day quota by itself), plus the Worker's every-minute cron (2,880/day) and
+    the Actions 5-min backstop (576/day). Resolution — every auto poller parked:
+    sandbox service killed (zero sandbox→Firebase traffic), Worker cron removed
+    (`wrangler.toml` `crons = []`, verified `schedules: []`; Worker kept as
+    on-demand `POST /sweep`), Actions schedule disabled (dispatch-only). App-side
+    audit (independent agent) proved ZERO timer-driven reads in the app; the one
+    timer-driven write with the app closed (15-min presence `HeartbeatWorker`) was
+    retired — **presence is foreground-only now** (open + every 5 min while RESUMED
+    + final write on ON_STOP; old installs' persisted work self-terminates and is
+    cancelled at first v0.36.0 open), SessionNotifier got a `.limit(10)` cap.
+    **Net: both phones' apps closed → project Firestore traffic = exactly zero.**
+    Honest trade-off + 30-second re-arm runbook: RELEASE_NOTES §9a +
+    CLOUDFLARE_SETUP (কোটা-নির্দেশ). Worklog §75.
   - **Owner's remaining actions are device-side only:** reinstall both phones on
-    v0.35.0/54 and run the device checklists (TEST_PLAN device rows + §71/§73 quick
+    v0.36.0/55 and run the device checklists (TEST_PLAN device rows + §71/§73 quick
     regressions). Everything automatable is verified green.
 
 - **Phase 18.1–18.8 ✅ (v0.22.0→v0.26.0, versionCode 41→45) — DEEP-AUDIT SERIES, 8 rounds:**
