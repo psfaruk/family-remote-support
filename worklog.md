@@ -2542,3 +2542,11 @@ ABORT）。CI 记录推送后补记于本节（诚实：SUCCESS 才写）。
 `https://family-remote-support.www-farukkhan-fk885.workers.dev/health` 确认 true；
 (3) **下一步 = M8** —— 通知存储、可达性、i18n 收尾（~16 条硬编码 + default↔bn 倒置 +
 parity 缺口）、打磨。
+
+**CI 记录（按本节承诺补记，诚实——0 轮修复）：**
+- 逐文件推送产生 4 个 run：前 3 个（`b65d50f`/`2c7a362`/`ced264c`）被工作流并发设置
+  自动取消（正常，以最终 HEAD 为准）。
+- 最终 run **SUCCESS** — Android Build, run **41193571914**, HEAD `13bf14c`
+  （2026-10-31 ~10:46 UTC）。纯文档变更，无代码修复轮次。
+- **声明边界（诚实）：** 沙盒无 Gradle/模拟器；"零回归"的设备级证明仍属 Owner 实测
+  （TEST_PLAN #19/#20/#21 及其余设备项）。
