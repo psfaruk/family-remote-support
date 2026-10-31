@@ -39,6 +39,39 @@
     <string name="loc_title">Position en direct</string>
     <string name="loc_coming_title">À venir dans une future mise à jour</string>
     <string name="loc_coming_body">La position en direct de la famille apparaîtra ici — toujours avec le consentement explicite de l’autre personne. Aujourd’hui rien n’est collecté ni partagé.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Partager la position de ce téléphone</string>
+    <string name="loc_share_body">Votre membre de la famille apparié verra la position en direct de ce téléphone sur une carte pendant que le partage est activé. Seule la dernière position est conservée — jamais un historique — et vous pouvez l\'arrêter à tout moment.</string>
+    <string name="loc_share_start">Démarrer le partage</string>
+    <string name="loc_share_stop">Arrêter le partage</string>
+    <string name="loc_share_on">Le partage de position est ACTIVÉ</string>
+    <string name="loc_share_off">Le partage de position est désactivé</string>
+    <string name="loc_banner_on">Vous partagez actuellement la position de ce téléphone</string>
+    <string name="loc_banner_off">Le partage est désactivé — la position de ce téléphone n\'est pas envoyée</string>
+    <string name="loc_interval_label">Fréquence de mise à jour</string>
+    <string name="loc_interval_30s">Toutes les 30 secondes</string>
+    <string name="loc_interval_1m">Chaque minute</string>
+    <string name="loc_interval_5m">Toutes les 5 minutes</string>
+    <string name="loc_notif_title">Le partage de position est activé</string>
+    <string name="loc_notif_body">Touchez pour ouvrir l\'appli et arrêter le partage.</string>
+    <string name="loc_fresh_live">En direct</string>
+    <string name="loc_fresh_stale">Obsolète</string>
+    <string name="loc_fresh_offline">Hors ligne</string>
+    <string name="loc_last_known">Dernière connue — %1$s</string>
+    <string name="loc_never">Jamais partagée</string>
+    <string name="loc_no_fix">En attente du premier positionnement…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Mis à jour %1$s</string>
+    <string name="loc_details">Détails de la position</string>
+    <string name="loc_open_maps">Ouvrir dans l\'appli de cartes</string>
+    <string name="loc_perm_title">Autorisation de localisation requise</string>
+    <string name="loc_perm_body">L\'autorisation de localisation permet à votre famille de voir la position de ce téléphone pendant que vous choisissez de la partager. Elle n\'est utilisée que pendant l\'affichage de la notification visible de partage.</string>
+    <string name="loc_denied_title">Accès à la localisation refusé</string>
+    <string name="loc_denied_body">L\'autorisation de localisation a été refusée. Le partage ne peut pas commencer tant qu\'elle n\'est pas accordée dans les paramètres système.</string>
+    <string name="loc_empty_title">Aucun appareil apparié pour le moment</string>
+    <string name="loc_empty_body">Appairez d\'abord un appareil familial — sa position en direct apparaîtra ici avec le consentement explicite de son propriétaire.</string>
+    <string name="loc_list_title">Choisir un appareil</string>
     <string name="set_section_account">Compte</string>
     <string name="set_profile_title">Profil</string>
     <string name="set_profile_sub">Nom et e-mail de ce compte</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Téléphones appariés</string>
     <string name="set_dev_entry_d">Statut en direct, actions de support et révocation</string>
     <string name="set_loc_status">La localisation en direct est prévue pour une prochaine version. Aucune localisation n\'est collectée ni stockée aujourd\'hui.</string>
+    <string name="set_loc_now">Partagez la position en direct de ce téléphone avec les appareils familiaux appariés. Seule la dernière position est conservée — jamais un historique.</string>
     <string name="set_guest_note">Les liens invité sont temporaires (jusqu\'à 3 heures) et ne deviennent jamais des appariements familiaux permanents.</string>
 </resources>
