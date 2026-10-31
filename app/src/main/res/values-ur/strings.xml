@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">دوبارہ کوشش کریں</string>
     <string name="states_open_settings">سسٹم کی ترتیبات کھولیں</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">فیملی ڈیوائسز</string>
+    <string name="fam_empty_t">ابھی تک کوئی فون جوڑا نہیں گیا</string>
+    <string name="fam_empty_h">Add Device ٹیب سے فون جوڑیں — یہ اپنی لائیو حالت کے ساتھ یہاں نظر آئے گا۔</string>
+    <string name="fam_not_found">یہ جوڑ توڑ نہیں ملا۔</string>
+    <string name="fam_not_found_h">شاید اسے منسوخ کر دیا گیا ہو یا اس اکاؤنٹ سے ہٹا دیا گیا ہو۔</string>
+    <string name="actv_title">حالیہ سرگرمی</string>
+    <string name="actv_tile_d">جاری اور حال ہی میں ختم ہونے والے سپورٹ سیشن</string>
+    <string name="actv_empty_t">ابھی تک کوئی سیشن نہیں</string>
+    <string name="actv_empty_h">سپورٹ سیشن چلتے وقت اور ختم ہونے کے فوراً بعد یہاں نظر آتے ہیں۔</string>
+    <string name="sess_title">سیشن کی تفصیلات</string>
+    <string name="sess_not_found">یہ سیشن نہیں ملا۔</string>
+    <string name="sess_not_found_h">تازہ ترین سیشن دیکھنے کے لیے حالیہ سرگرمی کھولیں۔</string>
+    <string name="sess_state">حالت</string>
+    <string name="sess_kind">قسم</string>
+    <string name="sess_helper">مددگار</string>
+    <string name="sess_recipient">سہولت حاصل کرنے والا</string>
+    <string name="sess_duration">دورانیہ</string>
+    <string name="sess_endedby">ختم کرنے والا</string>
+    <string name="sess_family">فیملی</string>
+    <string name="sess_guest">مہمان</string>
+    <string name="cd_back">واپس جائیں</string>
+    <string name="set_section_devices">ڈیوائز مینجمنٹ</string>
+    <string name="set_section_location">مقام اور رازداری</string>
+    <string name="set_section_remote">ریموٹ سپورٹ</string>
+    <string name="set_section_guest">مہمان رسائی</string>
+    <string name="set_section_security">سیکیورٹی</string>
+    <string name="set_dev_entry_t">جوڑے ہوئے فون</string>
+    <string name="set_dev_entry_d">لائیو حالت، سپورٹ اقدامات اور رسائی کی منسوخی</string>
+    <string name="set_loc_status">لائیو مقام آنے والی ریلیز کے لیے منصوببندی کے تحت ہے۔ آج کوئی مقام جمع یا محفوظ نہیں کیا جاتا۔</string>
+    <string name="set_guest_note">مہمان لنک عارضی ہوتے ہیں (زیادہ سے زیادہ ۳ گھنٹے) اور کبھی بھی مستقل فیملی جوڑ نہیں بنتے۔</string>
 </resources>
