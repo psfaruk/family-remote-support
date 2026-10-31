@@ -444,4 +444,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Try again</string>
     <string name="states_open_settings">Open system settings</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">Family Devices</string>
+    <string name="fam_empty_t">No paired phones yet</string>
+    <string name="fam_empty_h">Pair a phone from Add Device — it will appear here with its live status.</string>
+    <string name="fam_not_found">This pairing could not be found.</string>
+    <string name="fam_not_found_h">It may have been revoked or removed from this account.</string>
+    <string name="actv_title">Recent Activity</string>
+    <string name="actv_tile_d">Open and recently finished support sessions</string>
+    <string name="actv_empty_t">No sessions yet</string>
+    <string name="actv_empty_h">Support sessions appear here while running and right after they end.</string>
+    <string name="sess_title">Session Details</string>
+    <string name="sess_not_found">This session could not be found.</string>
+    <string name="sess_not_found_h">Open Recent Activity to see the latest sessions.</string>
+    <string name="sess_state">Status</string>
+    <string name="sess_kind">Type</string>
+    <string name="sess_helper">Helper</string>
+    <string name="sess_recipient">Recipient</string>
+    <string name="sess_duration">Duration</string>
+    <string name="sess_endedby">Ended by</string>
+    <string name="sess_family">Family</string>
+    <string name="sess_guest">Guest</string>
+    <string name="cd_back">Go back</string>
+    <string name="set_section_devices">Device Management</string>
+    <string name="set_section_location">Location &amp; Privacy</string>
+    <string name="set_section_remote">Remote Support</string>
+    <string name="set_section_guest">Guest Access</string>
+    <string name="set_section_security">Security</string>
+    <string name="set_dev_entry_t">Paired phones</string>
+    <string name="set_dev_entry_d">Live status, support actions and revocation</string>
+    <string name="set_loc_status">Live location is planned for a coming release. No location is collected or stored today.</string>
+    <string name="set_guest_note">Guest links are temporary (up to 3 hours). They never become permanent family pairings.</string>
 </resources>
