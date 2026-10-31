@@ -21,6 +21,11 @@
 # (this comment) re-registers the schedule. This tier is a best-effort
 # backstop only; PERMANENT every-minute coverage is the Cloudflare Worker
 # tier (cloudflare/killpush-worker.js + wrangler.toml cron trigger).
+#
+# 2026-10-31 (M9): manual dispatch run 41203101630 SUCCESS (0-error sweep);
+# the 3 earlier schedule failures (17:57 / 22:13 / 01:39 UTC) were Firestore
+# 429 free-quota, self-healing after the daily 07:00 UTC reset (logs verified
+# in M7). Touching this comment re-registers the schedule again.
 name: kill-push
 
 on:
