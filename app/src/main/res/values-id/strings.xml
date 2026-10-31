@@ -408,4 +408,8 @@
     <string name="notif_empty_title">Tidak ada yang perlu Anda lakukan</string>
     <string name="notif_empty_body">Permintaan bantuan, sesi berjalan, dan peringatan penyiapan muncul di sini begitu terjadi.</string>
     <string name="notif_hint">Hanya peristiwa nyata saat ini — tidak ada yang dibuat-buat atau disimpan sebagai riwayat.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">Coba lagi</string>
+    <string name="states_open_settings">Buka pengaturan sistem</string>
 </resources>
