@@ -426,7 +426,7 @@
     <string name="actv_empty_h">Destek oturumları çalışırken ve bittikten hemen sonra burada görünür.</string>
     <string name="sess_title">Oturum Ayrıntıları</string>
     <string name="sess_not_found">Bu oturum bulunamadı.</string>
-    <string name="sess_not_found_h">En son oturumları görmek için Son Etkinlik'i açın.</string>
+    <string name="sess_not_found_h">En son oturumları görmek için Son Etkinlik\'i açın.</string>
     <string name="sess_state">Durum</string>
     <string name="sess_kind">Tür</string>
     <string name="sess_helper">Yardımcı</string>
