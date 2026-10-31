@@ -4,7 +4,7 @@
 > (Phase 0–20) with the NEW master-plan phases (M0–M10). The stale §12 table inside
 > `docs/PHASE-0.md` is superseded by this file from now on (PHASE-0 remains the append-only
 > narrative record).
-> Build at writing: **v0.31.0 (versionCode 50)** · HEAD `<this push>` · CI: Android Build **SUCCESS** (pending final run — M2's run 41122154745 was the previous gate).
+> Build at writing: **v0.31.0 (versionCode 50)** · HEAD `f9045b9` · CI: Android Build **SUCCESS** (run 41161846658, AXML gate incl. — versionCode 50 / versionName 0.31.0 verified).
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
