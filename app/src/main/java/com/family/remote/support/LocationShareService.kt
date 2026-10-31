@@ -80,6 +80,13 @@ class LocationShareService : Service() {
      * between providers would churn registrations for nothing. */
     private var usingPlatformFallback = false
 
+    /** M8 (v0.34.0) — one "sharing_started" log per service instance: a
+     * re-start command delivered to the LIVE service (the interval-change
+     * re-arm) must not re-log "turned on", and an instance that never
+     * passed the acceptance gates must not log a matching "turned off"
+     * either — real events only. */
+    private var shareStartLogged = false
+
     // ── Gate + back-off state (§3/§6) — main-thread only ─────────────────
 
     private var configuredIntervalMillis = LocationSharingPrefs.INTERVAL_1M
@@ -129,11 +136,27 @@ class LocationShareService : Service() {
         configuredIntervalMillis = LocationSharingPrefs.intervalMillis(this)
         effectiveIntervalMillis = configuredIntervalMillis
         restartLocationRequests()
+        // M8 (v0.34.0) — the acceptance gates passed and the engine began:
+        // record the REAL start (no coordinates — the events log never
+        // carries them, same §9 rule as the tray notification).
+        if (!shareStartLogged) {
+            shareStartLogged = true
+            NotificationsLog.record(this, "sharing_started")
+        }
         return Service.START_NOT_STICKY
     }
 
     override fun onDestroy() {
         running = false
+        // M8 (v0.34.0) — every stop path funnels here: the owner's toggle,
+        // the sign-out teardown, and the defensive stopSelf branches
+        // (consent off / permission lost / signed out mid-run). Logged only
+        // when this instance really started, and only while still signed
+        // in — the sign-out flow wipes the log after signOut(), and a record
+        // landing behind that wipe would outlive its account.
+        if (shareStartLogged && FirebaseAuth.getInstance().currentUser != null) {
+            NotificationsLog.record(this, "sharing_stopped")
+        }
         stopLocationRequests()
         serviceScope.cancel()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
