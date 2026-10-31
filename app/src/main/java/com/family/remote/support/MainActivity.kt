@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -128,7 +129,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -762,7 +763,25 @@ fun HomeScreen() {
             )
         },
         bottomBar = {
-            Box(modifier = Modifier.onSizeChanged { bottomNavHeightPx = it.height }) {
+            // Pre-M10 (v0.35.0) — IME-AWARE bottom bar (Owner: "কীবোর্ড চাপলে
+            // যেনো অ্যাপ এর ফাংশন গুলো লুকিয়ে না থাকে"): while the keyboard
+            // is open the whole tab bar rides ABOVE it (ime inset padding on
+            // this wrapper), and the Scaffold's innerPadding follows the
+            // grown bar so the CONTENT region stays above the keyboard too —
+            // nothing functional is ever hidden while typing. Pads by ime
+            // ONLY (deliberately NOT the union): the NavigationBar keeps its
+            // own navigationBars inset unconsumed, so the keyboard-closed
+            // look is byte-identical to before. onSizeChanged comes FIRST so
+            // bottomNavHeightPx keeps measuring the full grown height (the
+            // helper session-key bar offsets above it correctly). Pairs with
+            // android:windowSoftInputMode="adjustResize": API 30+ dispatches
+            // the IME as insets under edge-to-edge; API 26–29 resizes the
+            // window (ime inset resolves to 0 there — same visual result).
+            Box(
+                modifier = Modifier
+                    .onSizeChanged { bottomNavHeightPx = it.height }
+                    .windowInsetsPadding(WindowInsets.ime)
+            ) {
                 val navEntry by navController.currentBackStackEntryAsState()
                 AppBottomNav(
                     currentRoute = navEntry?.destination?.route,
@@ -785,7 +804,7 @@ fun HomeScreen() {
             popExitTransition = { fadeOut(tween(120)) }
         ) {
             composable(AppRoutes.HOME) {
-                ShellTabColumn {
+                ShellTabColumn(topOnReentry = true) {
                     HomeTab(
                         signedInUser = signedInUser,
                         deviceStatus = deviceStatus,
@@ -835,6 +854,16 @@ fun HomeScreen() {
                                 navController.navigate("home/family/$relId") { launchSingleTop = true }
                             },
                             onGoAddDevice = { navController.goTab(AppRoutes.ADD) }
+                        )
+                    } else {
+                        // Pre-M10 (v0.35.0) — honest empty state instead of a
+                        // BLANK screen when Settings' "Paired phones" entry is
+                        // opened while signed out (one of the "similar
+                        // problems" the Owner asked to hunt down).
+                        EmptyState(
+                            icon = Icons.Filled.Person,
+                            title = stringResource(R.string.home_not_signed_in),
+                            hint = stringResource(R.string.set_profile_hint)
                         )
                     }
                 }
@@ -897,7 +926,7 @@ fun HomeScreen() {
                 }
             }
             composable(AppRoutes.ADD) {
-                ShellTabColumn {
+                ShellTabColumn(topOnReentry = true) {
                     PairingCard(
                         signedInUser = signedInUser,
                         showPairSheet = showPairSheet,
@@ -913,7 +942,7 @@ fun HomeScreen() {
             // (osmdroid map + authorized markers + own-sharing consent card,
             // docs/LIVE_LOCATION_ARCHITECTURE.md) at this same route.
             composable(AppRoutes.TRACKING) {
-                ShellTabColumn {
+                ShellTabColumn(topOnReentry = true) {
                     TrackingTab(
                         user = signedInUser,
                         // NAVIGATION_MAP §2 tracking-subtree: the map's detail
@@ -946,7 +975,7 @@ fun HomeScreen() {
                 }
             }
             composable(AppRoutes.SETTINGS) {
-                ShellTabColumn {
+                ShellTabColumn(topOnReentry = true) {
                     SettingsTab(
                     signedInUser = signedInUser,
                     busy = busy,
@@ -1071,7 +1100,7 @@ fun HomeScreen() {
                 }
             }
             composable(AppRoutes.NOTIFICATIONS) {
-                ShellTabColumn {
+                ShellTabColumn(topOnReentry = true) {
                     NotificationsScreen(
                         liveSessions = homeSessions,
                         meUid = signedInUser?.uid,
@@ -1170,18 +1199,36 @@ fun HomeScreen() {
 }
 
 /**
- * v0.30.0 (Phase 21/M2) — the shared per-destination scroll column. The old
- * shell wrapped ALL tabs in one Column with `tabScrollStates[tab]`; under
- * the NavHost every destination owns its scroll state instead
- * (rememberScrollState is saveable — NavHost saveState/restoreState brings
- * it back on tab return, same user-visible behavior as Phase 11.6).
+ * v0.30.0 (Phase 21/M2) — the shared per-destination scroll column.
+ *
+ * Pre-M10 (v0.35.0) — `topOnReentry`: the Owner bug report "নোটিফিকেশন
+ * বাটন ক্লিক করলে, পরে সেটিং ট্যাব ক্লিক করলে সেটিং ট্যাব এর ফাংশন গুলো
+ * নিচে পড়ে যায়" root-caused to scroll-state restoration: NavHost
+ * saveState/restoreState faithfully brought the tab's saved
+ * rememberScrollState back — on the old 4–5-screen-tall Settings page
+ * the user landed MID-PAGE after bell → tab, so everything they expected
+ * at the top had "fallen down below". Two-layer fix: the Settings redesign
+ * (v0.35.0) halves the page, AND the five top-level surfaces (Home, Add,
+ * Tracking, Settings, Notifications) now use a deliberately NON-saveable
+ * scroll state — every tab entry starts at the TOP, predictable for the
+ * family audience. Nested detail routes keep the saveable
+ * rememberScrollState (system back preserves their list position —
+ * NAVIGATION_MAP §3's intent stays honored where it matters).
  */
 @Composable
-private fun ShellTabColumn(content: @Composable ColumnScope.() -> Unit) {
+private fun ShellTabColumn(
+    topOnReentry: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val scrollState = if (topOnReentry) {
+        remember { ScrollState(0) }
+    } else {
+        rememberScrollState()
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         content = content
