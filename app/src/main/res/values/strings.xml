@@ -63,6 +63,39 @@
     <string name="loc_coming_title">Coming in a future update</string>
     <string name="loc_coming_body">Live family location will appear here — always with the other person\'s explicit consent. Today nothing is collected and nothing is shared.</string>
 
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Share this phone\'s location</string>
+    <string name="loc_share_body">Your paired family member will see this phone\'s live position on a map while sharing is on. Only the latest position is kept — never a history — and you can stop at any time.</string>
+    <string name="loc_share_start">Start sharing</string>
+    <string name="loc_share_stop">Stop sharing</string>
+    <string name="loc_share_on">Location sharing is ON</string>
+    <string name="loc_share_off">Location sharing is off</string>
+    <string name="loc_banner_on">You are sharing this phone\'s location now</string>
+    <string name="loc_banner_off">Sharing is off — this phone\'s position is not being sent</string>
+    <string name="loc_interval_label">Update interval</string>
+    <string name="loc_interval_30s">Every 30 seconds</string>
+    <string name="loc_interval_1m">Every 1 minute</string>
+    <string name="loc_interval_5m">Every 5 minutes</string>
+    <string name="loc_notif_title">Location sharing is on</string>
+    <string name="loc_notif_body">Tap to open the app and stop sharing.</string>
+    <string name="loc_fresh_live">Live</string>
+    <string name="loc_fresh_stale">Stale</string>
+    <string name="loc_fresh_offline">Offline</string>
+    <string name="loc_last_known">Last known — %1$s</string>
+    <string name="loc_never">Never shared</string>
+    <string name="loc_no_fix">Waiting for the first position fix…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Updated %1$s</string>
+    <string name="loc_details">Location details</string>
+    <string name="loc_open_maps">Open in maps app</string>
+    <string name="loc_perm_title">Location permission needed</string>
+    <string name="loc_perm_body">Location permission lets your family see this phone\'s position while you choose to share it. It is only used while the visible sharing notification is showing.</string>
+    <string name="loc_denied_title">Location access denied</string>
+    <string name="loc_denied_body">Location permission was denied. Sharing cannot start until it is granted in system settings.</string>
+    <string name="loc_empty_title">No paired devices yet</string>
+    <string name="loc_empty_body">Pair a family device first — its live position will appear here with the owner\'s explicit consent.</string>
+    <string name="loc_list_title">Choose a device</string>
+
     <!-- Settings tab -->
     <string name="set_section_account">Account</string>
     <string name="set_profile_title">Profile</string>
@@ -476,5 +509,6 @@
     <string name="set_dev_entry_t">Paired phones</string>
     <string name="set_dev_entry_d">Live status, support actions and revocation</string>
     <string name="set_loc_status">Live location is planned for a coming release. No location is collected or stored today.</string>
+    <string name="set_loc_now">Share this phone\'s live location with paired family devices. Only the latest position is kept — never a history.</string>
     <string name="set_guest_note">Guest links are temporary (up to 3 hours). They never become permanent family pairings.</string>
 </resources>
