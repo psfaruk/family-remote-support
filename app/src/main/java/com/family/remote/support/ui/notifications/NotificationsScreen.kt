@@ -8,13 +8,19 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.family.remote.support.NotifEvent
+import com.family.remote.support.NotificationsLog
 import com.family.remote.support.R
 import com.family.remote.support.SessionView
 import com.family.remote.support.ui.components.AppListTile
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.SectionCard
+import java.text.DateFormat
+import java.util.Date
 
 // ═══════════════════════════════════════════════════════════════════════
 // Phase 21/M2 (v0.30.0) — the dedicated notifications surface (the bell's
@@ -27,10 +33,12 @@ import com.family.remote.support.ui.components.SectionCard
 //   • permission checklist gap → the existing local `readPermChecklist` poll
 //   • failed setup steps       → the registration outcome flags (M2)
 //   • live sessions            → the existing REQUESTED/ACTIVE watch
-// This list is intentionally NOT a stored history: it lives in memory and
-// resets when the app restarts (a persisted events store is an M8 design
-// decision, tracked in IMPLEMENTATION_STATUS). The ⓘ popup says exactly
-// that, in every language.
+// M8 (v0.34.0) — the M8 decision landed (G2): the "Recent events" section
+// below joins the live ones, backed by the persisted LOCAL events log
+// (NotificationsLog — JSON in filesDir). It records only transitions the
+// app already observes, stays on this device (most recent 100, never
+// uploaded), and is cleared at sign-out. The ⓘ popup says exactly that,
+// in every language.
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
@@ -60,6 +68,12 @@ fun NotificationsScreen(
 ) {
     val permGap = permissionDoneCount < permissionTotal
     val hasAttention = hasPendingAsk || permGap || setupProblemCount > 0
+    // M8 (v0.34.0) — the persisted LOCAL events log (G2). The singleton's
+    // StateFlow is the ONLY source for the "Recent events" section below:
+    // no context, no listener, no extra read. The clock format is locale-
+    // aware via java.text (no new string keys).
+    val recentEvents by NotificationsLog.events.collectAsState()
+    val eventTimeFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SectionCard(
@@ -141,10 +155,41 @@ fun NotificationsScreen(
             }
         }
 
+        if (recentEvents.isNotEmpty()) {
+            SectionCard(
+                title = stringResource(R.string.notif_section_recent),
+                icon = Icons.Filled.Notifications
+            ) {
+                recentEvents.forEach { e ->
+                    AppListTile(
+                        title = recentEventTitle(e),
+                        subtitle = eventTimeFormat.format(Date(e.at)),
+                        icon = Icons.Filled.Notifications
+                    )
+                }
+            }
+        }
+
         Text(
             text = stringResource(R.string.notif_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+/**
+ * M8 (v0.34.0) — localized text for one recorded event: the type maps to a
+ * format string, the recorded arg (a counterpart email) fills it. An
+ * unknown future type falls back to its raw token — honest, never a crash,
+ * never a fabricated label.
+ */
+@Composable
+private fun recentEventTitle(e: NotifEvent): String = when (e.type) {
+    "session_asked" -> stringResource(R.string.notif_ev_asked, e.arg.orEmpty())
+    "session_started" -> stringResource(R.string.notif_ev_started, e.arg.orEmpty())
+    "session_ended" -> stringResource(R.string.notif_ev_ended, e.arg.orEmpty())
+    "sharing_started" -> stringResource(R.string.notif_ev_sharing_on)
+    "sharing_stopped" -> stringResource(R.string.notif_ev_sharing_off)
+    else -> e.type
 }
