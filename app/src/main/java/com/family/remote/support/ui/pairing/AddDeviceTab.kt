@@ -65,7 +65,6 @@ import com.family.remote.support.denySession
 import com.family.remote.support.endSession
 import com.family.remote.support.expireGuestRelationship
 import com.family.remote.support.expireSession
-import com.family.remote.support.friendlyError
 import com.family.remote.support.getSession
 import com.family.remote.support.grantSession
 import com.family.remote.support.isStaleOpen
@@ -1385,7 +1384,7 @@ private data class ScannedCode(val code: String, val kindHint: String?)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ScannedRoleSheet(
+private fun ScannedRoleSheet(
     scan: ScannedCode,
     redeeming: Boolean,
     message: String?,
