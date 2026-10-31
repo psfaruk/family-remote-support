@@ -33,7 +33,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,12 +58,14 @@ import com.family.remote.support.SessionView
 import com.family.remote.support.denySession
 import com.family.remote.support.describeFirestoreError
 import com.family.remote.support.grantSession
+import com.family.remote.support.localizedMessage
 import com.family.remote.support.mmss
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.ErrorPanel
 import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.QuickActionTile
 import com.family.remote.support.ui.components.StatusBadge
+import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.CancellationException
@@ -524,7 +525,10 @@ internal fun HomeLiveHintCard(session: SessionView, myUid: String) {
                     session.helperUid == myUid ->
                         stringResource(R.string.hint_active, session.recipientEmail)
                     else ->
-                        stringResource(R.string.hint_helping, session.helperEmail.ifBlank { "Someone" })
+                        stringResource(
+                            R.string.hint_helping,
+                            session.helperEmail.ifBlank { stringResource(R.string.fallback_someone) }
+                        )
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -545,15 +549,7 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = LocalContext.current
-
-    LaunchedEffect(session.id) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(1000)
-        }
-    }
 
     Card(
         colors = CardDefaults.cardColors(
@@ -578,7 +574,10 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
                 )
             }
             Text(
-                    text = stringResource(R.string.cons_body, session.helperEmail.ifBlank { "Someone" }),
+                    text = stringResource(
+                        R.string.cons_body,
+                        session.helperEmail.ifBlank { stringResource(R.string.fallback_someone) }
+                    ),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -590,12 +589,18 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
                     color = MaterialTheme.colorScheme.tertiary
                 )
             }
-            val secondsLeft =
-                ((session.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
-            Text(
-                    text = stringResource(R.string.cons_expiry, mmss(secondsLeft)),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            // M8 (v0.34.0) perf pass — the 2-minute answer countdown is the
+            // ONLY time-dependent piece of the card; TickingBlock isolates the
+            // per-second recomposition to this one Text (the card itself and
+            // the rest of the Home tab no longer re-render every second).
+            TickingBlock(key = session.id) { now ->
+                val secondsLeft =
+                    ((session.respondDeadlineMillis - now) / 1000).coerceAtLeast(0)
+                Text(
+                        text = stringResource(R.string.cons_expiry, mmss(secondsLeft)),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
             message?.let {
                 Text(
                     text = it,
@@ -617,7 +622,7 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
                                 grantSession(session.id, user.uid)
                                     message = context.getString(R.string.msg_allow_ok)
                             } catch (e: SessionException) {
-                                message = e.message
+                                message = e.localizedMessage(context)
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -642,7 +647,7 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
                                 denySession(session.id, user.uid)
                                     message = context.getString(R.string.msg_deny_ok)
                             } catch (e: SessionException) {
-                                message = e.message
+                                message = e.localizedMessage(context)
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -683,14 +688,6 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
     val context = LocalContext.current
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(session.id) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(1000)
-        }
-    }
     AlertDialog(
         onDismissRequest = {
             SessionUiBus.shownAsks.add(session.id)
@@ -700,7 +697,10 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                        stringResource(R.string.cons_body, session.helperEmail.ifBlank { "Someone" }),
+                        stringResource(
+                            R.string.cons_body,
+                            session.helperEmail.ifBlank { stringResource(R.string.fallback_someone) }
+                        ),
                     fontWeight = FontWeight.SemiBold
                 )
                 if (session.kind == "guest") {
@@ -710,12 +710,16 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
                         color = MaterialTheme.colorScheme.tertiary
                     )
                 }
-                val secondsLeft =
-                    ((session.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
-                Text(
-                        stringResource(R.string.cons_expiry, mmss(secondsLeft)),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                // M8 (v0.34.0) perf pass — same isolation as the consent
+                // card: only this countdown Text recomposes per second.
+                TickingBlock(key = session.id) { now ->
+                    val secondsLeft =
+                        ((session.respondDeadlineMillis - now) / 1000).coerceAtLeast(0)
+                    Text(
+                            stringResource(R.string.cons_expiry, mmss(secondsLeft)),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
                 message?.let {
                     Text(
                         it,
@@ -742,7 +746,7 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
                             delay(600)
                             show = false
                         } catch (e: SessionException) {
-                            message = e.message
+                            message = e.localizedMessage(context)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
@@ -767,7 +771,7 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
                             delay(600)
                             show = false
                         } catch (e: SessionException) {
-                            message = e.message
+                            message = e.localizedMessage(context)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
