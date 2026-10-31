@@ -32,14 +32,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -69,6 +67,7 @@ import com.family.remote.support.requestSession
 import com.family.remote.support.revokeRelationship
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.components.AppListTile
+import com.family.remote.support.ui.components.BackTitleRow
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.ErrorPanel
@@ -81,6 +80,101 @@ import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// ═══════════════════════════════════════════════════════════════════════
+// v0.37.0 (dedupe wave) — ONE relationship watcher + 30 s freshness tick.
+//
+// The audit (duplicate cluster #2) found the watchRelationships listener +
+// the conditional 30-second relNow loop in THREE screens: this file's
+// FamilyOverviewScreen and MemberDetailScreen (byte-identical — the
+// canonical shape: loaded flag + retryKey re-registration) and
+// AddDeviceTab's older copy (no loaded flag). All three now share the
+// holder below; PairingRepo.watchRelationships itself is untouched
+// (owned by another wave) — only the per-screen copies are gone.
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * State holder for the shared trusted-relationship watch: the live list,
+ * the honest loaded flag, the routed error, and the 30 s freshness clock
+ * ([relNow]) that keeps guest-window countdowns honest. NO UI inside —
+ * each screen renders its own loading/empty/error states from these.
+ */
+internal class RelationshipWatchState {
+    var relationships by mutableStateOf<List<RelationshipView>>(emptyList())
+        private set
+    var relationshipsLoaded by mutableStateOf(false)
+        private set
+    var relationshipsError by mutableStateOf<String?>(null)
+        private set
+
+    /** Ticks every 30 s while any guest link exists (see the watch helper). */
+    var relNow by mutableStateOf(System.currentTimeMillis())
+        private set
+
+    internal fun onRelationships(list: List<RelationshipView>) {
+        // Canonical shape: a snapshot clears any routed error and raises
+        // the loaded flag.
+        relationshipsError = null
+        relationships = list
+        relationshipsLoaded = true
+    }
+
+    internal fun onWatchError(message: String) {
+        relationshipsError = message
+        relationshipsLoaded = true
+    }
+
+    internal fun refreshNow() {
+        relNow = System.currentTimeMillis()
+    }
+}
+
+/**
+ * v0.37.0 (dedupe wave) — remembers the ONE relationship watcher for
+ * [user] (was 3 copies: FamilyOverviewScreen, MemberDetailScreen and
+ * AddDeviceTab's older no-loaded-flag shape — audit duplicate cluster #2).
+ * [retryKey] re-registers the listener on demand (the screens' retry
+ * buttons increment it) — no new queries, no extra reads.
+ *
+ * The 30 s tick keeps the CANONICAL conditional shape: it only loops while
+ * a guest link exists (a TickingBlock-style LaunchedEffect at 30 000 ms —
+ * family-only accounts tick zero times, the Phase 10 perf rule).
+ */
+@Composable
+internal fun rememberRelationshipWatch(
+    user: FirebaseUser,
+    retryKey: Int
+): RelationshipWatchState {
+    val context = LocalContext.current
+    val state = remember(user.uid) { RelationshipWatchState() }
+
+    // Live list of trusted relationships (both directions) — the SAME one
+    // listener the old per-screen copies registered, plus the M3
+    // real-states additions: a loaded flag for the honest skeleton and a
+    // routed, retryable error (NAVIGATION_MAP §5).
+    DisposableEffect(user.uid, retryKey) {
+        val stopWatching = watchRelationships(
+            user,
+            onUpdate = { list -> state.onRelationships(list) },
+            onError = { e -> state.onWatchError(describeFirestoreError(context, e)) }
+        )
+        onDispose { stopWatching() }
+    }
+
+    // Phase 10 — relNow ticks every 30 s while any guest link exists, so
+    // the "বাকি সময়" countdowns stay honest without a per-second churn.
+    LaunchedEffect(state.relationships) {
+        if (state.relationships.any { it.kind == REL_KIND_GUEST }) {
+            while (true) {
+                state.refreshNow()
+                delay(30_000)
+            }
+        } else {
+            state.refreshNow()
+        }
+    }
+    return state
+}
 
 /**
  * v0.14.0 — a paired phone as a chat-style tile: avatar + email + role +
@@ -183,40 +277,12 @@ internal fun FamilyOverviewScreen(
     onOpenMember: (String) -> Unit,
     onGoAddDevice: () -> Unit
 ) {
-    val context = LocalContext.current
-
-    var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
-    var relationshipsLoaded by remember { mutableStateOf(false) }
-    var syncError by remember { mutableStateOf<String?>(null) }
+    // v0.37.0 (dedupe wave, cluster #2) — the relationship listener + 30 s
+    // tick moved to the shared rememberRelationshipWatch (was a
+    // byte-identical copy with MemberDetailScreen's + the older AddDeviceTab
+    // shape). retryKey still re-registers the listener on demand.
     var retryKey by remember { mutableStateOf(0) }
-
-    // Live list of trusted relationships (both directions) — the SAME one
-    // listener the old Phones tab used (AddDeviceTab §1), plus the M3
-    // real-states additions: a loaded flag for the honest skeleton and a
-    // routed, retryable error (NAVIGATION_MAP §5). retryKey re-registers
-    // the listener on demand — no new queries, no extra reads.
-    DisposableEffect(user.uid, retryKey) {
-        val stopWatching = watchRelationships(
-            user,
-            onUpdate = { syncError = null; relationships = it; relationshipsLoaded = true },
-            onError = { e -> syncError = describeFirestoreError(context, e); relationshipsLoaded = true }
-        )
-        onDispose { stopWatching() }
-    }
-
-    // Phase 10 — relNow ticks every 30 s while any guest link exists, so
-    // the "বাকি সময়" countdowns stay honest without a per-second churn.
-    var relNow by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(relationships) {
-        if (relationships.any { it.kind == REL_KIND_GUEST }) {
-            while (true) {
-                relNow = System.currentTimeMillis()
-                delay(30_000)
-            }
-        } else {
-            relNow = System.currentTimeMillis()
-        }
-    }
+    val watch = rememberRelationshipWatch(user, retryKey)
 
     Text(
         text = stringResource(R.string.fam_title),
@@ -224,11 +290,11 @@ internal fun FamilyOverviewScreen(
         fontWeight = FontWeight.Bold
     )
 
-    if (!relationshipsLoaded) {
+    if (!watch.relationshipsLoaded) {
         LoadingSkeleton(rows = 3)
-    } else if (syncError != null) {
-        ErrorPanel(message = syncError!!, onRetry = { retryKey++ })
-    } else if (relationships.isEmpty()) {
+    } else if (watch.relationshipsError != null) {
+        ErrorPanel(message = watch.relationshipsError!!, onRetry = { retryKey++ })
+    } else if (watch.relationships.isEmpty()) {
         EmptyState(
             icon = Icons.Filled.Phone,
             title = stringResource(R.string.fam_empty_t),
@@ -239,12 +305,12 @@ internal fun FamilyOverviewScreen(
         )
     } else {
         Column {
-            relationships.forEachIndexed { index, rel ->
+            watch.relationships.forEachIndexed { index, rel ->
                 if (index > 0) HorizontalDivider()
                 PairTile(
                     rel = rel,
                     myUid = user.uid,
-                    relNow = relNow,
+                    relNow = watch.relNow,
                     onOpen = { onOpenMember(rel.id) }
                 )
             }
@@ -280,37 +346,14 @@ internal fun MemberDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
-    var relationshipsLoaded by remember { mutableStateOf(false) }
-    var syncError by remember { mutableStateOf<String?>(null) }
+    // v0.37.0 (dedupe wave, cluster #2) — the relationship listener + 30 s
+    // tick moved to the shared rememberRelationshipWatch (was a
+    // byte-identical copy with FamilyOverviewScreen's + the older
+    // AddDeviceTab shape). retryKey still re-registers on demand.
     var retryKey by remember { mutableStateOf(0) }
-
-    // Own live list of relationships — the SAME listener/pattern the old
-    // Phones tab used (AddDeviceTab §1) plus the M3 real-states additions
-    // (loaded flag → skeleton, routed error → retryable panel). One
-    // listener, no new queries; retryKey re-registers it on demand.
-    DisposableEffect(user.uid, retryKey) {
-        val stopWatching = watchRelationships(
-            user,
-            onUpdate = { syncError = null; relationships = it; relationshipsLoaded = true },
-            onError = { e -> syncError = describeFirestoreError(context, e); relationshipsLoaded = true }
-        )
-        onDispose { stopWatching() }
-    }
-
-    // Phase 10 — relNow ticks every 30 s while any guest link exists, so
-    // the "বাকি সময়" countdowns stay honest without a per-second churn.
-    var relNow by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(relationships) {
-        if (relationships.any { it.kind == REL_KIND_GUEST }) {
-            while (true) {
-                relNow = System.currentTimeMillis()
-                delay(30_000)
-            }
-        } else {
-            relNow = System.currentTimeMillis()
-        }
-    }
+    val watch = rememberRelationshipWatch(user, retryKey)
+    val relationships = watch.relationships
+    val relNow = watch.relNow
 
     // ---------- action state (ported from the old tab/sheet) ----------
     var sessionBusy by remember { mutableStateOf(false) }
@@ -346,10 +389,10 @@ internal fun MemberDetailScreen(
 
     val selectedRel = relationships.firstOrNull { it.id == relId }
 
-    if (!relationshipsLoaded) {
+    if (!watch.relationshipsLoaded) {
         LoadingSkeleton(rows = 3)
-    } else if (syncError != null) {
-        ErrorPanel(message = syncError!!, onRetry = { retryKey++ })
+    } else if (watch.relationshipsError != null) {
+        ErrorPanel(message = watch.relationshipsError!!, onRetry = { retryKey++ })
     } else if (selectedRel == null) {
         // Honest not-found: the link was revoked/removed from the other
         // side (or the route argument is stale) — say so, offer the way back.
@@ -374,20 +417,10 @@ internal fun MemberDetailScreen(
             // dropped — the caller's scroll column already pads the screen)
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // M4 — the sheet's drag handle became a real back row.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.cd_back)
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.fam_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            // M4 — the sheet's drag handle became a real back row
+            // (v0.37.0 dedupe wave, cluster #5: the inline copy became the
+            // design system's components.BackTitleRow).
+            BackTitleRow(title = stringResource(R.string.fam_title), onBack = onBack)
             // v0.8.2 — the sent-ask note / action failures, ported as the
             // old tab showed them (plain bodySmall; failures in error color).
             sessionMessage?.let {
