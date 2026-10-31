@@ -18,7 +18,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -61,6 +63,7 @@ import com.family.remote.support.mmss
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.ErrorPanel
 import com.family.remote.support.ui.components.LoadingSkeleton
+import com.family.remote.support.ui.components.QuickActionTile
 import com.family.remote.support.ui.components.StatusBadge
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.google.firebase.auth.FirebaseUser
@@ -106,7 +109,12 @@ internal fun HomeTab(
     // silent behavior for any other caller).
     sessionsError: String? = null,
     sessionsLoading: Boolean = false,
-    onRetrySessions: () -> Unit = {}
+    onRetrySessions: () -> Unit = {},
+    // M4 (v0.32.0) — nested-navigation entry points (NAVIGATION_MAP §2):
+    // Family Overview (home/family) and Recent Activity (home/sessions)
+    // live UNDER this tab as detail routes, never as extra tabs (C2).
+    onOpenFamily: () -> Unit = {},
+    onOpenActivity: () -> Unit = {}
 ) {
     // M3 (v0.31.0) — NAVIGATION_MAP §5 real states for the session watch.
     // While the first snapshot has not arrived the tab shows an honest
@@ -349,6 +357,24 @@ internal fun HomeTab(
             )
         }
     }
+
+    // ৪. M4 — nested-navigation entries (NAVIGATION_MAP §2): the two
+    // primary detail destinations under Home — the paired-phone Family
+    // Overview and the Recent Activity list. QuickActionTile = the warm
+    // CTA card of the design system (Cards.kt); real destinations only,
+    // no fabricated badges.
+    QuickActionTile(
+        icon = Icons.Filled.Phone,
+        title = stringResource(R.string.fam_title),
+        subtitle = stringResource(R.string.set_dev_entry_d),
+        onClick = onOpenFamily
+    )
+    QuickActionTile(
+        icon = Icons.Filled.Notifications,
+        title = stringResource(R.string.actv_title),
+        subtitle = stringResource(R.string.actv_tile_d),
+        onClick = onOpenActivity
+    )
 
     // Any real setup failure still gets its own honest compact card.
     val failures = buildList {
