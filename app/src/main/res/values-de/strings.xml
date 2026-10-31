@@ -474,6 +474,9 @@
     <string name="set_section_remote">Fernunterstützung</string>
     <string name="set_section_guest">Gastzugriff</string>
     <string name="set_section_security">Sicherheit</string>
+    <string name="set_section_privacysec">Datenschutz &amp; Sicherheit</string>
+    <string name="set_section_prefs">Personalisierung</string>
+    <string name="set_section_about_session">Über und Sitzung</string>
     <string name="set_dev_entry_t">Gekoppelte Telefone</string>
     <string name="set_dev_entry_d">Live-Status, Unterstützungsaktionen und Widerruf</string>
     <string name="set_loc_status">Live-Standort ist für ein kommendes Release geplant. Heute wird kein Standort erfasst oder gespeichert.</string>
