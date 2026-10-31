@@ -35,6 +35,11 @@ class ScreenShareService : Service() {
     // the session TTL or a manual stop even after the engine had ENDED.
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    // v0.37.0 (crash wave): every onStartCommand used to launch ANOTHER
+    // engine-state collector (multiple start commands = duplicate
+    // collectors, each calling stopSelf() on IDLE). One watcher per instance.
+    private var engineWatchStarted = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -65,9 +70,12 @@ class ScreenShareService : Service() {
         // v0.21.0 (audit): watch the engine — when it reaches IDLE (including
         // the 4 s grace after ENDED) the service stops itself, so the
         // foreground notification can never outlive the actual capture.
-        serviceScope.launch {
-            ScreenShareEngine.state.collect { s ->
-                if (s == ShareState.IDLE) stopSelf()
+        if (!engineWatchStarted) {
+            engineWatchStarted = true
+            serviceScope.launch {
+                ScreenShareEngine.state.collect { s ->
+                    if (s == ShareState.IDLE) stopSelf()
+                }
             }
         }
         return Service.START_NOT_STICKY
