@@ -2638,3 +2638,91 @@ APK 从 Actions artifacts 获取；(2) 重装后快速回归：语言切到 ব�
 - 逐文件推送的中间 run 按并发设置自动取消（正常）。
 - **声明边界（诚实）：** "工作正常" = CI 编译+AXML 门 SUCCESS + 上述协调者本地静态验证；
   设备级体验仍属 Owner 实测（本节 Owner 动作清单）。
+
+## §72 — Phase 22/M9：TEST_PLAN 执行 + 安全审查 + 基础设施核检（2026-10-31，纯文档/工作流注释）
+
+**触发：** Owner 提供 Cloudflare API token（`cfat_…`，存 `.secrets/cloudflare-token.txt`
+——仅沙盒，绝不入仓库；全历史扫描 `cfat_` 0 命中）并指令：解决 Cloudflare / Firebase /
+GitHub 全部问题，然后执行 M9。M8 已于本日早前收口（HEAD `917ad7a`，run 41201246291
+SUCCESS）——本轮零 app 代码变更，APK 维持 v0.34.0/53。
+
+**推送前校验（诚实）：** 远端 main HEAD `917ad7a`；本地镜像 99 blob-SHA 零漂移
+（`tmp/m9-drift.mjs` 全量比对）。
+
+**基础设施核检（Owner 要求的"全部问题"清单）：**
+1. **即时层（沙盒 :3020）✅：** 运行中——/health 实测最近 sweep 12:50:49Z、
+   `0 REQUESTED / 0 errors`；脚本与仓库版 md5 一致（M7 同步规则核验）。dev.log 里
+   的 EADDRINUSE 是 10:27 一次多余重启尝试的遗留：旧实例未退出、重启失败，但
+   `bun --hot` 已把新脚本热载入运行实例——以 /health 的真实 sweep 为准。
+2. **GH Actions 后备层 ✅：** 手动 dispatch run **41203101630 SUCCESS**（12:53 UTC，
+   当前 FIREBASE_SA_JSON repo-secret 有效）；此前 3 次 scheduled failure（17:57 /
+   22:13 / 01:39 UTC）= Firestore 429 免费配额（M7 日志亲验，07:00 UTC 日重置自愈）。
+   发现 schedule 已 5.5h 未触发 → 按工作流文件自述机制，本波 touch
+   `kill-push.yml` 注释重注册。
+3. **Cloudflare 稳定层 ⛔（新发现，唯一剩余 Owner 项）：** API token 本身有效但被
+   **IP 过滤**：verify 401（被封 IP 下的已知表现）、/accounts **403 代码 9109**
+   "Cannot use the access token from location: 47.57.242.119"；沙盒出口 IP 还会漂移
+   （一小时内 .242.119 → .232.232），且无 IPv6 出路 → 无法从沙盒编程设置
+   FIREBASE_SA_JSON。CLOUDFLARE_SETUP.md 新增 M9 节：解锁 = 移除 token 的 Client
+   IP Address Filtering（约 30 秒操作）→ Owner 回复 "done" 后协调者经 API 完成
+   Secret 设置 + /health 验证 + 实测 sweep；或 dashboard 手动 runtime Secret（旧法）。
+   Owner 的 "সেটাপ করার পরেও মোছে যায়" 最可能解释维持 M7 结论：值落在了 Build
+   variable 区（runtime 不达、UI 里"找不到"即"被抹掉"感）；KILL_TOKEN 当年落对了
+   区所以存活（/health 恒 true）。
+4. **Firebase 链路端到端 ✅：** SA → Firestore REST 读 200（fcmTokens 注册表：3 个
+   真实设备 token，最新 2026-10-31T10:31Z——Owner 手机当日活跃）→ FCM HTTP v1 发送
+   **HTTP 200 + message_id**（一条标注 "Kill-push test ✓ (no action needed) /
+   ডেলিভারি টেস্ট সফল!" 的测试推送到当前 token——Owner 手机应已收到）。配额计量
+   API 均不可用（monitoring.metricDescriptors.list 403 / apikeys API 未启用——SA
+   角色所限，如实记录，配额预算改为推导制）。
+
+**M9 执行——TEST_PLAN 全部 auto 行（今日 live 重跑）：**
+- **4/4 探针套件全绿**（与 M6 同一电池，零漂移）：pairing（P1a/P1b 200；N1/N2 403）、
+  audit（A0–A21 全中，含 killPush 伪造/wrong-side grant/超限 deadline/END 后信号）、
+  negative（P0 + N1–N10 + P10/G1/G2/N11–N18 全中）、liveLocations（12/12）。合成
+  身份与文档 cleanup 全部亲验（4 docs · 11/11 · 2 fixture sessions · auth users 2/2、
+  2/2、3/3）。
+- **CI 门：** M8 收口 run 41201246291 SUCCESS（本轮无代码变更）；本波推送后以最终
+  HEAD run 补记于本节末。
+- **运维检查：** 即上 1–4。
+
+**安全审查（M9 后半）：**
+- **全 git 历史密钥扫描**（克隆 615 commits；`git log --all -p` 5.4MB 补丁流一次性
+  dump 后多模式扫描）：`cfat_` 0 · ghp_/github_pat_ 0 · `-----BEGIN…PRIVATE KEY`
+  1 = killpush-worker.js 的 **PEM 解析代码字面量**（pemPkcs8ToDer 剥 PEM 头——非真实
+  密钥）· firebase-adminsdk 邮箱 0 · `turn:user:pass@` 内嵌凭证 0 · AIza 1 =
+  google-services.json current_key（Android/Firebase 标识符级，设计内；控制台 key
+  限制为 Owner 目检项——SA 无权读 apikeys API，403 如实记录）。
+- **工作流最小权限复核：** android-build `contents: read` + 30min 超时 + 并发取消 +
+  artifact 7 天保留（公开仓库防拉取，v0.21.0 决策）；kill-push `permissions: {}`。
+- **Manifest 姿态复核：** 全部 service `exported=false`、`allowBackup=false`、
+  FileProvider scoped、Accessibility 服务 BIND_ACCESSIBILITY_SERVICE 门控、权限逐条
+  注释依据（与 ANDROID_PERMISSION_MATRIX 一致）。
+- **.secrets 不在仓库**（克隆确认；推送管线为显式单文件 PUT，结构上不可能整目录外泄）。
+- **Firestore rules 姿态：** 上述 4/4 探针即行为级证明（ruleset d1a38d5e 沿用）。
+
+**配额预算（TEST_PLAN 新增 §1a，M9 discipline）：** 计量不可得 → 按来源推导预算表
+（即时层 5s×2 查询、Worker 60s×2、后备 sporadic、session watch 事件驱动、presence
+WorkManager 15min 底频 ≤96 写/日/机、位置共享 30s–5min+25m 双闸）+ 429 事件签名
+（达卡晚间累积、07:00 UTC 重置后首个 run SUCCESS 07:31 UTC 自愈）。
+
+**变更范围（5 个文件，零 app 代码）：** `docs/TEST_PLAN.md`（M9 执行记录 + §1a 配额
+预算）、`docs/IMPLEMENTATION_STATUS.md`（M9 行 ✅ + §3/§4/§5 M9 版）、
+`docs/CLOUDFLARE_SETUP.md`（M9 节：token IP 过滤发现 + 两条解锁路径）、
+`.github/workflows/kill-push.yml`（注释 touch 重注册 schedule）、本 worklog §72。
+**APK 不变 v0.34.0/53——两机无需因 M9 重装（M8 的重装指引仍待 Owner 执行）。**
+
+**验证边界（诚实）：** 沙盒无 Gradle/设备——TEST_PLAN 设备行（#1–#3 / #7–#15 /
+#18–#24 + M8 检查单）仍属 Owner 实测；本轮"全绿"= live 行为级探针 + CI 编译门 +
+静态扫描。FCM 测试推送的"到达"以 Owner 手机实际看到为准（HTTP 200 + message_id =
+服务端接受并路由）。
+
+**Owner 动作：** (1) M8 重装指引不变（v0.34.0/53 双机 + 设备实测清单）；(2) **CF
+解锁二选一**（推荐：移除 token 的 Client IP Address Filtering 后回复 "done"——协调
+者经 API 完成 Secret + /health 验证 + 实测；或 dashboard runtime Secret 手动法）；
+(3) Firebase 无需动作（已验证；测试推送应已到达）；(4) 可选 1 分钟控制台目检
+（google-services.json 的 Android key 限制）；(5) **下一步 = M10** —— 发布就绪
+（文档、构建指引、已知限制、最终报告）。
+
+**CI 记录（按本节承诺补记，诚实）：**
+- [本波 5 个推送后以最终 HEAD run 补记]
