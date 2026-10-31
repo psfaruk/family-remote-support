@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">फेरि प्रयास गर्नुहोस्</string>
     <string name="states_open_settings">सिस्टम सेटिङ खोल्नुहोस्</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">फमिली डिभाइसहरू</string>
+    <string name="fam_empty_t">अझै कुनै फोन जोडिएको छैन</string>
+    <string name="fam_empty_h">Add Device ट्याबबाट फोन जोड्नुहोस् — यो यहाँ आफ्नो लाइभ स्थितिसहित देखिनेछ।</string>
+    <string name="fam_not_found">यो पेयरिङ भेटिएन।</string>
+    <string name="fam_not_found_h">सम्भवतः यो रद्द गरियो वा यो खाताबाट हटाइयो।</string>
+    <string name="actv_title">हालको गतिविधि</string>
+    <string name="actv_tile_d">चालु र हालै समाप्त सहयोग सत्रहरू</string>
+    <string name="actv_empty_t">अझै कुनै सत्र छैन</string>
+    <string name="actv_empty_h">सहयोग सत्रहरू चलिरहँदा र समाप्त भएको तुरुन्तै पछि यहाँ देखिन्छन्।</string>
+    <string name="sess_title">सत्र विवरण</string>
+    <string name="sess_not_found">यो सत्र भेटिएन।</string>
+    <string name="sess_not_found_h">पछिल्ला सत्रहरू हेर्न हालको गतिविधि खोल्नुहोस्।</string>
+    <string name="sess_state">स्थिति</string>
+    <string name="sess_kind">प्रकार</string>
+    <string name="sess_helper">सहायक</string>
+    <string name="sess_recipient">प्राप्तकर्ता</string>
+    <string name="sess_duration">अवधि</string>
+    <string name="sess_endedby">समाप्त गर्ने</string>
+    <string name="sess_family">फमिली</string>
+    <string name="sess_guest">गेस्ट</string>
+    <string name="cd_back">फर्कनुहोस्</string>
+    <string name="set_section_devices">डिभाइस व्यवस्थापन</string>
+    <string name="set_section_location">स्थान र गोपनीयता</string>
+    <string name="set_section_remote">रिमोट सहयोग</string>
+    <string name="set_section_guest">गेस्ट पहुँच</string>
+    <string name="set_section_security">सुरक्षा</string>
+    <string name="set_dev_entry_t">जोडिएका फोनहरू</string>
+    <string name="set_dev_entry_d">लाइभ स्थिति, सहयोग कार्यहरू र पहुँच रद्द</string>
+    <string name="set_loc_status">लाइभ स्थान आगामी रिलिजमा आउने योजनामा छ। आज कुनै स्थान सङ्कलन वा भण्डारण गरिँदैन।</string>
+    <string name="set_guest_note">गेस्ट लिङ्कहरू अस्थायी हुन्छन् (अधिकतम ३ घण्टा)। तिनीहरू कहिल्यै स्थायी फमिली पेयरिङ बन्दैनन्।</string>
 </resources>
