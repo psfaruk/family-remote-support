@@ -2091,3 +2091,75 @@ Android Build **SUCCESS** — run **41122154745**, AXML গেটসহ (version
 ডার্ক/লাইট ×১৫ ভাষা চেক — TEST_PLAN #7/#8/#23/#24; (৩) Cloudflare `FIREBASE_SA_JSON` সিক্রেট
 (§60 থেকে বাকি)। **পরবর্তী:** M3 — স্ক্রিন-রিডিজাইন + ViewModel + নেস্টেড ডিটেইল রুট (সব M1-ডক
 অনুযায়ী); M5-এ লাইভ-লোকেশন।
+
+
+## §66 — Phase 21/M3 (v0.31.0, code 50): ফ্রন্টএন্ড রিডিজাইন — ৪ ট্যাব-স্ক্রিন নিষ্কাশন + ViewModel লেয়ার + কম্পোনেন্ট-লাইব্রেরি সম্পূর্ণ (২০২৬-১০-৩১)
+
+**ট্রিগার:** Owner-এর **"M3"** নির্দেশ = M2 (v0.30.0/49, CI SUCCESS) শিপ হওয়ায় মাস্টার-প্ল্যানের
+পরবর্তী মাইলস্টোন। M3-স্কোপ = IMPLEMENTATION_STATUS §2-এর M3-সারি: ৪ ট্যাব-স্ক্রিন + ডিটেইল
+কম্পোজেবল নিষ্কাশন (real states সহ) + ViewModel লেয়ার (`lifecycle-viewmodel-compose`) +
+কম্পোনেন্ট-লাইব্রেরি সম্পূর্ণ — FRONTEND_ARCHITECTURE §3/§4/§6/§10 (W2) অনুযায়ী।
+
+**পূর্ব-যাচাই:** HEAD `49b4924` (worklog §65-এর CI-রেকর্ড পুশ)। লোকাল মিররে ৮টি ফাইল পুরোনো +
+১৪টি ফাইল অনুপস্থিত ছিল → contents API থেকে ফেচ করে blob-SHA **১১৮/১১৮ MATCH** — মিরর এখন
+HEAD-এ হুবহু। GitHub অ্যাকাউন্ট rename (`psfarfarfaruk` → `psfaruk`, §64) এই সেশনে পুনঃনিশ্চিত।
+
+**মাল্টি-এজেন্ট সততা (§65-এর প্রতিশ্রুতি পূরণ):** এবার M3 extraction wave-এ **সত্যিকারের parallel
+subagents** চালানো হয়েছে — **M3-A** (Add Device tab → `ui/pairing/AddDeviceTab.kt`, ১,৭৬০ লাইন)
+এবং **M3-B** (Settings tab + activity feed → `ui/settings/SettingsTab.kt`, ১,০৯১ লাইন), দুটি
+একসঙ্গে সমান্তরালে, প্রত্যেকের আলাদা ফাইল-মালিকানা (PROJECT_CONTEXT §18)। প্রতিটি এজেন্ট
+byte-identical diff দিয়ে প্রমাণ করেছে: বডি হুবহু, শুধু `private`→`internal`। Coordinator (Agent 1)
+একারMainActivity সার্জারি + বাকি ৬টি নতুন ফাইল (HomeTab/Badges/Cards/Buttons/States/TrackingTab/
+SessionWatchViewModel) লিখেছে + সব static verification চালিয়েছে। এভাবে ২৪-রোল মডেলের যে অংশ
+আজ দরকার ছিল সেটাই বাস্তবে সমান্তরালে হয়েছে — কোনো ভূত-এজেন্ট দাবি নয়; বাকি role-গুলো পরের
+wave-এ (M4/M5) নেবে।
+
+**যা বদলেছে (কোড):**
+1. **স্ক্রিন-নিষ্কাশন (W2, verbatim):** `ui/home/HomeTab.kt` (HomeTab + HomeConsentCard/
+   HomeConsentDialog + HomeLiveHintCard + FeatureTile + webClientAvailable) · `ui/pairing/
+   AddDeviceTab.kt` (PairingCard + PairingSections + ScannedRoleSheet/Bullet/Code + PairOptionRow +
+   PairTile + PairingUiBus) · `ui/settings/SettingsTab.kt` (SettingsTab + ActivityTab/ActivityFeed +
+   ThemeOptionRow + EditNameDialog + LangOptionRow + TestNotifRow + DocOverlay + SettingsNotifTile +
+   SettingsAssistTile) · `ui/tracking/TrackingTab.kt` (LiveLocationTab-এর সৎ placeholder, নাম-পরিবর্তন)।
+   **MainActivity ৫,৬৮৩ → ~২,০০০ লাইন** — শুধু shell wiring + root session effects (v0.21.0-এর
+   zombie-sweep/stop গ্যারান্টি অপরিবর্তিত) + session surfaces (W1-gate)।
+2. **ViewModel লেয়ার:** `lifecycle-viewmodel-compose` **2.8.6** (runtime-ktx 2.8.6-এর সাথে মিল)।
+   `ui/home/SessionWatchViewModel.kt` — সেশন-ওয়াচ এখন `StateFlow<SessionsUiState>` (data +
+   loaded + routed error)। **অডিট-ফিক্স #5:** আগের root listener-এ `onError = { }` — লিসেনার-ফেল
+   চুপচাপ হজম হতো; এখন state-এ route হয়: প্রথম snapshot-এর আগে ফেল করলে Home-এ সৎ ErrorPanel
+   (retry সহ), snapshot আসার পরে শেষ লিস্ট থাকে (v0.21.0 নিয়ম অটুট)। ViewModel ইচ্ছাকৃতভাবে
+   NavHost-এর **উপরে** root-scoped — Home-tab-scoped হলে zombie-sweep অন্য ট্যাবে চলত না
+   (regression-by-construction এড়ানো)। Collection = `collectAsState` (shell সবসময় composed —
+   repeatOnLifecycle-এর কার্যকারিতা সমান; অতিরিক্ত runtime-compose ডিপ নেই — C4)।
+3. **কম্পোনেন্ট-লাইব্রেরি সম্পূর্ণ (FRONTEND_ARCHITECTURE §6):** `ui/components/Cards.kt`
+   (SettingsTile/IconStatusTile/QuickActionTile) · `Buttons.kt` (BigButton) · `Badges.kt`
+   (StatusBadge/sessionStatus/sessionBadgeKind/statusChipColors/PresenceBadge/PresenceChip) ·
+   `States.kt` (**নতুন:** LoadingSkeleton/ErrorPanel/PermissionDeniedPanel — NAVIGATION_MAP §5-এর
+   canonical state-কম্পোনেন্ট; permission panel-এর wire-up M4/M5-এ)। সব হুবহু প্রমোশন — এক উইজেটের
+   একটাই ভ্যারিয়েন্ট, পুরো অ্যাপে।
+4. **Real states ওয়্যারিং:** Home-এ সেশন-লিসেনারের প্রথম snapshot-এর আগে LoadingSkeleton (২ রো),
+   pre-snapshot ব্যর্থতায় ErrorPanel + retry। এটাই M3-এর একমাত্র দৃশ্যমান ব্যবহার-পরিবর্তন।
+
+**স্ট্রিং-পরিসংখ্যান:** +২ কী (`states_retry`, `states_open_settings`) × ১৫ ভাষা = ৩০ অনুবাদ; XML
+well-formed ×১৫ যাচাই (python ET)। নতুন কোনো Firestore read/লিসেনার/রুল বদল নেই — শূন্য।
+
+**সৎ ডেল্টা (Owner জানুক):** (১) NAVIGATION_MAP §2-এর nested detail রুটগুলো (home/family/{relId},
+home/sessions/{id}, settings/*, add/*, tracking/{relId}) এই মাইলস্টোনে **হয়নি** — আগে ট্যাব-লেভেল
+নিষ্কাশন শিপ হলো; রুট-ট্রি সম্প্রসারণ M4 wave-এ রেকর্ড করা হয়েছে (IMPLEMENTATION_STATUS M3-সারি
+"clearly says")। (২) Home-এ নতুন loading/error অবস্থা ছাড়া আর কোনো ভিজ্যুয়াল বদল নেই — নিষ্কাশন
+হুবহু। (৩) `repeatOnLifecycle` শব্দটি FRONTEND_ARCHITECTURE §4-এ ছিল; বাস্তবে `collectAsState` —
+কার্য-সমতুল্য, ডকুমেন্টেড।
+
+**যাচাই-অবস্থা (সৎ):** স্যান্ডবক্সে Gradle/emulator নেই। প্রমাণ = (১) static verification suite:
+সব R.string/R.drawable ref রেজোলভ (৯টি নতুন+স্পর্শকৃত kt), ১৫-লোকেল key-parity, নতুন ৯ ফাইলে
+brace-balance, MainActivity-তে সরানো প্রতীকের সংজ্ঞা শূন্য + ব্যবহারগুলো import-সহ রেজোলভ,
+cross-file symbol matrix (watchSessions/watchRelationships/watchDevicePresence/PRESENCE_*/ThemePreview/
+AssistSetupGuide/QrScanDialog ইত্যাদি সব public/internal যাচাই), gradle versionCode 50 + ডিপ যাচাই;
+(২) CI assembleDebug+Release + AXML গেট (v0.31.0/50 প্রত্যাশিত); (৩) Owner-এর ফোন-টেস্ট।
+
+**পুশ:** সব ফাইল readback-verify পাইপলাইনে (GET sha → PUT → GET download → SHA256 তুলনা)।
+CI রেকর্ড পুশ-পরে এই সেকশনে যোগ হবে (সৎ: রান সফল হলে তবেই "কাজ করছে" দাবি)।
+
+**Owner-অ্যাকশন:** (১) CI SUCCESS দেখে দুই ফোনে **v0.31.0 (code 50)** — TEST_PLAN #7/#8/#24 +
+Home-এর নতুন loading/error অবস্থা চোখে দেখা; (২) Cloudflare `FIREBASE_SA_JSON` (§60 থেকে ঝুলে
+আছে); (৩) **পরবর্তী = M4** — বিদ্যমান-ফিচার ইন্টিগ্রেশন যাচাই + drift ফিক্স + nested detail রুট।
