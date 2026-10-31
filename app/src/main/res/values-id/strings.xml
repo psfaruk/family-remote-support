@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Coba lagi</string>
     <string name="states_open_settings">Buka pengaturan sistem</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">Perangkat Keluarga</string>
+    <string name="fam_empty_t">Belum ada ponsel yang dipasangkan</string>
+    <string name="fam_empty_h">Pasangkan ponsel dari tab Tambah Perangkat — ia akan muncul di sini dengan status langsungnya.</string>
+    <string name="fam_not_found">Pemasangan ini tidak ditemukan.</string>
+    <string name="fam_not_found_h">Mungkin telah dicabut atau dihapus dari akun ini.</string>
+    <string name="actv_title">Aktivitas Terbaru</string>
+    <string name="actv_tile_d">Sesi dukungan yang berjalan dan baru saja selesai</string>
+    <string name="actv_empty_t">Belum ada sesi</string>
+    <string name="actv_empty_h">Sesi dukungan muncul di sini saat berjalan dan tepat setelah berakhir.</string>
+    <string name="sess_title">Detail Sesi</string>
+    <string name="sess_not_found">Sesi ini tidak ditemukan.</string>
+    <string name="sess_not_found_h">Buka Aktivitas Terbaru untuk melihat sesi terbaru.</string>
+    <string name="sess_state">Status</string>
+    <string name="sess_kind">Jenis</string>
+    <string name="sess_helper">Pembantu</string>
+    <string name="sess_recipient">Penerima</string>
+    <string name="sess_duration">Durasi</string>
+    <string name="sess_endedby">Dihentikan oleh</string>
+    <string name="sess_family">Keluarga</string>
+    <string name="sess_guest">Tamu</string>
+    <string name="cd_back">Kembali</string>
+    <string name="set_section_devices">Manajemen Perangkat</string>
+    <string name="set_section_location">Lokasi &amp; Privasi</string>
+    <string name="set_section_remote">Dukungan Jarak Jauh</string>
+    <string name="set_section_guest">Akses Tamu</string>
+    <string name="set_section_security">Keamanan</string>
+    <string name="set_dev_entry_t">Ponsel yang dipasangkan</string>
+    <string name="set_dev_entry_d">Status langsung, tindakan dukungan, dan pencabutan akses</string>
+    <string name="set_loc_status">Lokasi langsung direncanakan untuk rilis mendatang. Tidak ada lokasi yang dikumpulkan atau disimpan hari ini.</string>
+    <string name="set_guest_note">Tautan tamu bersifat sementara (hingga 3 jam) dan tidak pernah menjadi pasangan keluarga permanen.</string>
 </resources>
