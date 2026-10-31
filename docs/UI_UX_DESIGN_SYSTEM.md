@@ -642,3 +642,35 @@ friendlyErrorBn-এ ৬-ম্যাপ (অ্যাকাউন্ট-নে�
 5. **স্বচ্ছ নোট:** §2-এর "স্ক্রিন-প্রতি ডিজাইন চাহিদা"-র nested detail-রুট অংশ (member details,
    settings subsections ইত্যাদি) এই মাইলস্টোনে নয় — M4 wave; ট্যাব-লেভেল রিডিজাইন + নিষ্কাশন আগে
    (FRONTEND_ARCHITECTURE §2-এর "incremental, never big-bang" নীতি অনুযায়ী)।
+
+
+## §২৬.৩ M4 বাস্তবায়ন রেকর্ড (২০২৬-১০-৩১, v0.32.0/51)
+
+Owner-এর "M4" নির্দেশ — nested navigation wave 1 + Settings ৮-বিভাগ। ডিজাইন-সিস্টেমের দৃষ্টিতে:
+
+1. **নতুন স্ক্রিন, পুরোনো উইজেট (শূন্য নতুন টোকেন):** Family Overview · Member Details ·
+   Recent Activity · Session Details — চারটি নতুন nested রুট-স্ক্রিনই §৪–§৬-এর বিদ্যমান
+   কম্পোনেন্ট পরিবার থেকে বানানো (SectionCard/AppListTile/PairTile/StatusRow/QuickActionTile/
+   EmptyState/LoadingSkeleton/ErrorPanel/WideOutlinedButton/PresenceBadge)। কোনো নতুন রঙ,
+   টাইপ, স্পেসিং বা shape টোকেন যোগ হয়নি — থিম-ফাইল অস্পৃশ্য; §৭-এর "এক উইজেটের একটাই
+   বাস্তবায়ন" নিয়ম নতুন স্ক্রিনেও খাটছে।
+2. **NAVIGATION_MAP §৫-এর state-নিয়ম এখন রুট-স্তরে:** প্রতিটি নতুন রুট = LoadingSkeleton
+   (প্রথম snapshot-এর আগে) → ErrorPanel (routed, স্থানীয়কৃত, retry-সহ) → EmptyState (বাস্তব
+   empty/ not-found) — কোনো ad-hoc প্যানেল নয়। সৎ not-found স্টেট: Member Details-এ
+   "পেয়ারিং খুঁজে পাওয়া যায়নি" + ফেরার বাটন; Session Details-এ "সেশন খুঁজে পাওয়া যায়নি"।
+3. **মোশন (§১২-নীতি মেনে):** nested রুটে সামনে-স্লাইড ≈২০০ ms + ফেড — সিস্টেমের Animator
+   duration scale মানে (animation বন্ধ থাকলে তাৎক্ষণিক = reduced-motion-সৎ); ট্যাব
+   crossfade আগের মতোই ১২০ ms। কোনো অ্যানিমেশন সাফল্যের দাবি করে না — ডেটা এসে তবেই
+   কনটেন্ট।
+4. **Settings ৮-বিভাগ (মাস্টার-নির্দেশনার PART 7):** Account · Appearance (থিম+ভাষা এক
+   বিভাগে) · Device Management · Location & Privacy (সৎ M5-নোট: "আজ কোনো লোকেশন সংগ্রহ
+   হয় না") · Remote Support · Guest Access (সৎ নোট: "গেস্ট লিংক ≤৩ ঘণ্টা") · Security ·
+   About — শুধুই বাস্তব ফিচার; sign-out এখনও একদম নিচে (Owner-এর Phase-16 স্থায়ী আদেশ —
+   রেকর্ডকৃত বিচ্যুতি)। পুরোনো Activity-সেকশন home/sessions রুটে "উত্তীর্ণ" হয়েছে।
+5. **i18n/অ্যাক্সেসিবিলিটি:** ৩০টি নতুন কী ×১৫ ভাষা (৪৫০ এন্ট্রি; bn/ar/ru/hi/id/tr/ur/
+   es/ja/de/ne/pt/zh/fr — XML well-formed যাচাই; ফরাসি অ্যাপোস্ট্রফি escaped; bn/hi/ne/ar/ur-এ
+   দেশীয় অঙ্ক)। প্রতিটি নতুন স্ক্রিনে ব্যাক-বাটনে cd_back contentDescription; রঙ-একা-নয়
+   নিয়ম অটুট।
+6. **স্বচ্ছ নোট:** পুরোনো AddDeviceTab-এর PairTile-চিপের হার্ডকোডেড "Family"/"Guest" শব্দ
+   নতুন স্ক্রিনে stringResource-এ গেছে (নতুন ক্লিন-কী নিয়ম); পুরোনো কোডের ~১৬টি হার্ডকোডেড
+   লাইন + default↔bn ইনভার্সন M8 i18n-ওয়েভে (আন-টাচড, রেকর্ডকৃত)।
