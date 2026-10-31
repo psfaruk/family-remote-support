@@ -2174,3 +2174,86 @@ AXML গেটসহ: `✓ versionCode = 50` · `✓ versionName = "0.31.0"` (sc
 আর্টিফ্যাক্ট: app-release-apk + app-debug-apk আপলোডেড। ২টি intermediate run concurrency-তে
 বাতিল (প্রত্যাশিত)। **দাবির সীমা:** "কাজ করছে" = CI-সফল + Owner-এর ফোন-টেস্টের পরেই —
 স্যান্ডবক্সে Gradle/emulator নেই।
+
+
+## §67 — Phase 21/M4 (v0.32.0, code 51): নেস্টেড নেভিগেশন ওয়েভ-১ + Settings ৮-বিভাগ + ইন্টিগ্রেশন যাচাই (২০২৬-১০-৩১)
+
+**ট্রিগার:** Owner-এর **"M4"** নির্দেশ। M-sিরিজ এখন প্রতিষ্ঠিত: M0 অডিট · M1 ডক · M2 শেল
+(v0.30.0/49) · M3 নিষ্কাশন (v0.31.0/50) — সব শিপড; M4 = IMPLEMENTATION_STATUS §2-এর সারি +
+worklog §66-এর প্রতিশ্রুতি: existing-feature integration checks (pairing, sessions,
+revocation) + drift fixes + nested detail routes।
+
+**পূর্ব-যাচাই:** সারভার-পার্শ্ব হিরো: GitHub অ্যাকাউন্ট rename (`psfarfarfaruk` → `psfaruk`)
+পুনঃনিশ্চিত — রিমোট `psfaruk/family-remote-support`, HEAD `e1ee6e6` (M3-এর CI-রেকর্ড পুশ;
+run 41162136517 SUCCESS)। blob-SHA বেসলাইন: **৯০/৯০ ফাইল MATCH** — লোকাল মিরর HEAD-এ হুবহু
+(zero drift) — M4 শুরুর সামনে সোনালি ভিত্তি প্রমাণিত।
+
+**মাল্টি-এজেন্ট সততা (§১৭-মডেল চালু):** **M4-A** (FamilyScreens.kt — Family Overview +
+Member Details + PairTile সরানো, ৫৫৮ লাইন) ও **M4-B** (ActivityScreens.kt — Recent Activity +
+Session Details, ৩৫৩ লাইন) — দুটি সত্যিকারের সমান্তরাল subagent, কঠোর ফাইল-মালিকানা
+(PROJECT_CONTEXT §18); কোঅর্ডিনেটর (Agent 1) = AppNav রুট + MainActivity NavHost সার্জারি +
+HomeTab এন্ট্রি + SettingsTab ৮-বিভাগ রিস্ট্রাকচার + AddDeviceTab §৩/§৪ অপসারণ + manifest
+ড্রিফট ফিক্স + strings ×১৫ + স্ট্যাটিক ভেরিফিকেশন। এজেন্ট-রিপোর্ট অনুযায়ী পোর্টগুলো verbatim
+(diff-প্রমাণিত) — শুধু চিহ্নিত এক-লাইন বিচ্যুতি (চিপ-শব্দ → নতুন ক্লিন-কী; শীট-ইনসেট বাদ;
+sheet-dismiss → onBack)।
+
+**যা বদলেছে (কোড):**
+1. **নেস্টেড রুট (NAVIGATION_MAP §2 home/ সাবট্রি বাস্তব):** `home/family` (PairTile-তালিকা
+   + presence + গেস্ট-কাউন্টডাউন; সৎ loading/error/empty; empty-CTA → Add Device) ·
+   `home/family/{relId}` (পুরোনো অ্যাকশন-শীট → রুট: role, গেস্ট-উইন্ডো, request-session,
+   family-revoke, guest-remove — **একই** PairingRepo/SessionRepo কল; সাফল্যে রুট pop) ·
+   `home/sessions` (প্রতিটি open সেশনের রো + last-finished লাইন — সব রো রুট-লিংক) ·
+   `home/sessions/{id}` (status/type/helper/recipient/duration/ended-by; root watch-এ থাকলে
+   LIVE, নাহলে সেই একই one-shot getSession যা last-finished লাইন আজও করে)। Home-এ দুটি
+   QuickActionTile এন্ট্রি। Nested ট্রানজিশন: স্লাইড ≈২০০ ms + fade, **Animator durationScale
+   সম্মান** (animation বন্ধ = তাৎক্ষণিক) — §4-নীতি প্রথমবার আক্ষরিকভাবে বাস্তবায়িত।
+   `AppRoutes.tabForRoute`: home/*-এ Home ট্যাব selected থাকে; system-Back pop করে (§3)।
+2. **Settings ৮-বিভাগ (মাস্টার PART 7):** Account · Appearance(থিম+ভাষা) · Device Management
+   (paired-phones এন্ট্রি → home/family + devices রেজিস্ট্রি Account থেকে সরানো) · Location &
+   Privacy (সৎ M5-নোট + privacy/rules ডক) · Remote Support (notif/assist/test) · Guest Access
+   (নোট + → home/family) · Security (permission wizard) · About। **Sign-out এখনও একদম নিচে**
+   (Owner-এর Phase-16 স্থায়ী আদেশ — NAVIGATION_MAP-এর settings/account-স্কেচ থেকে রেকর্ডকৃত
+   বিচ্যুতি)। পুরোনো Activity সেকশন (ActivityTab/ActivityFeed, ২১০ লাইন) home/sessions রুটে
+   উত্তীর্ণ — SettingsTab.kt থেকে ডিলিট।
+3. **AddDeviceTab ডায়েট (১,৭৬০ → ১,৪৪৩ লাইন):** §৩ তালিকা + §৪ অ্যাকশন-শীট + PairTile +
+   selectedRelId/revokingId/startSessionFor বাদ (সব home/* রুটে)। থাকল: পেয়ারিং ফ্লো (two-ways
+   কার্ড + invite-QR + স্ক্যানার + role-শীট) + relationship লিসেনার (গেস্ট-এক্সপায়ারি lazy
+   sweep — Phase-10 আচরণ অপরিবর্তিত)। add/* রুট-না-হওয়া **ইচ্ছাকৃত** (NAVIGATION_MAP §3:
+   QR/role/wizard মোডাল থাকবে)।
+4. **Drift ফিক্স:** AndroidManifest-এর AssistService কমেন্ট এখন সত্য বলে —
+   canRetrieveWindowContent আসলে Phase 8.3 (v0.12.0) থেকেই true (ACTION_SET_TEXT টাইপিং-ই
+   একমাত্র ভোক্তা; নোড-টেক্সট কখনো পড়ে/লগ করে/জমা রাখে না)। assist_service_config.xml-এর
+   v0.12.0-কমেন্টের সাথে মিল।
+5. **build.gradle:** versionCode 51 / versionName 0.32.0। শূন্য নতুন ডিপেন্ডেন্সি।
+
+**স্ট্রিং-পরিসংখ্যাণ:** +৩০ কী (fam_/actv_/sess_/cd_back/set_section_×৫/set_dev_entry_×২/
+set_loc_status/set_guest_note) ×১৫ = ৪৫০ এন্ট্রি; XML well-formed ×১৫ (python ET); ফরাসি
+অ্যাপোস্ট্রফি escaped; bn/hi/ne/ar/ur-এ দেশীয় অঙ্ক (৩ ঘণ্টা)। নতুন কোনো Firestore read/
+লিসেনার/রুল/ডেটাবেস পরিবর্তন নেই — শূন্য।
+
+**সৎ ডেল্টা (Owner জানুক):** (১) পূর্ণ সেশন-হিস্ট্রি LIST বানানো হয়নি — তার জন্য bounded
+query + composite index লাগবে; watchSessions ইচ্ছাকৃতভাবে equality-only (quota + index
+ডিসিপ্লিন) — Recent Activity আজ যা বাস্তব ডেটা আছে তাই দেখায় (open + last-finished)।
+(২) settings/* সাব-রুট (account/appearance/… আলাদা স্ক্রিন হিসেবে) এই ওয়েভে নয় —
+grouped-list রূপ শিপ হলো; guest= M6, notifications=M8-এর মালিকানা। (৩) i18n অবশিষ্ট
+(~১৬ হার্ডকোডেড লাইন + parity + default↔bn ইনভার্সন) সচেতনভাবে M8-এ রাখা — M4-এর সিদ্ধান্ত
+IMPLEMENTATION_STATUS §4-এ রেকর্ডকৃত। (৪) Settings-এ Language সাব-হেডার লিগ্যাসি
+set_section_lang কী ব্যবহার করে (মান ইনভার্সন-আক্রান্ত — M8-এ ইন-প্লেস মান-ফিক্স হবে)।
+(৫) হাতে-লেখা পরীক্ষণে পাওয়া পূর্ব-বিদ্যমান benign artifact: assist_service_description
+default-এ translatable="false" কিন্তু bn-এ একটি অনুবাদ-কপি আছে (M4-পূর্ব থেকেই; M8 ক্লিনআপ)।
+
+**যাচাই-অবস্থা (সৎ):** স্যান্ডবক্সে Gradle/emulator নেই। প্রমাণ = (১) স্ট্যাটিক স্যুট:
+৪৫৯টি R.string রেফ রেজোলভ, ১৫-লোকেল key-parity (translatable=false বাদে), ৭ স্পর্শকৃত ফাইলে
+brace-balance (string/comment-aware), ডিলিটেড-সিম্বল সুইপ (ActivityTab/ActivityFeed/
+PairTile-in-pairing/selectedRelId/startSessionFor = ০), সিম্বল-ম্যাট্রিক্স + scoping যাচাই
+(M4-A-এর startSessionFor/revokingId সব MemberDetailScreen-এর ভিতরে, লিক শূন্য);
+(২) CI assembleDebug+Release + AXML গেট (v0.32.0/51 প্রত্যাশিত); (৩) Owner-এর ফোন-টেস্ট।
+
+**পুশ:** readback-verify পাইপলাইনে (GET sha → PUT → GET download → SHA256 তুলনা)। CI রেকর্ড
+পুশ-পরে এই সেকশনে যোগ হবে (সৎ: রান সফল হলে তবেই "কাজ করছে" দাবি)।
+
+**Owner-অ্যাকশন:** (১) CI SUCCESS দেখে দুই ফোনে **v0.32.0 (code 51)** — TEST_PLAN #7/#8
+(এখন সত্যিকারের nested: Home→Family Devices→সদস্য-রো→Back; Home→Recent Activity→সেশন-রো→
+Session Details→Back; nested-এ Home ট্যাব selected) + #24 + Settings ৮-বিভাগ চোখে দেখা;
+(২) Cloudflare `FIREBASE_SA_JSON` (§60 থেকে ঝুলে আছে); (৩) **পরবর্তী = M5** — লাইভ-লোকেশন
+(engine + map + rules + probes, LIVE_LOCATION_ARCHITECTURE অনুযায়ী)।
