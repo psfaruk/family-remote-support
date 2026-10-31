@@ -474,6 +474,9 @@
     <string name="set_section_remote">الدعم عن بُعد</string>
     <string name="set_section_guest">وصول الضيوف</string>
     <string name="set_section_security">الأمان</string>
+    <string name="set_section_privacysec">الخصوصية والأمان</string>
+    <string name="set_section_prefs">التفضيلات</string>
+    <string name="set_section_about_session">حول التطبيق والجلسة</string>
     <string name="set_dev_entry_t">الهواتف المقترنة</string>
     <string name="set_dev_entry_d">الحالة المباشرة وإجراءات الدعم وإلغاء الوصول</string>
     <string name="set_loc_status">الموقع المباشر مخطط له في إصدار قادم. لا يتم جمع أي موقع أو تخزينه اليوم.</string>
