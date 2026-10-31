@@ -3061,3 +3061,40 @@ MainActivity 接线、homeSessions 状态名、字符串资源存在性、import
   ✓ versionName = "0.37.0" — expected "0.37.0"。Artifacts：`app-release-apk`（27.7 MB，
   id 13052914142）+ `app-debug-apk`（32.5 MB）——**v0.37.0/56 双机安装源**。六路审计的
   全部代码变更与 14/15 簇去重一次性通过编译门，零修复轮次。
+
+## §77 — Location 主计划 Phase 1–3 文档包（v0.37.0 基线，零代码变更）
+
+**背景：** Owner 提交 1365 行 MASTER IMPLEMENTATION PROMPT（同意制实时位置 +
+路线历史 + 移动洞察 + 地点提醒）。执行顺序：审计 → UX/数据设计 → Owner 审批 →
+前端（mock）→ 权限 → 引擎 → 后端 → 历史 → 洞察 → 提醒 → 安全/性能/发布。
+
+**本波交付（docs/location/ 四份新文档，纯文档推送，§75 零 Firebase 请求）：**
+- `LOCATION_FEATURE_AUDIT.md`（Phase 1）：现有 M5 实时位置系统全面盘点（引擎/门
+  控/单文档模型/规则 12 探针/撤销语义/配额姿态）；15 项缺口表（历史/洞察/授权
+  实体/留存等全缺）；8 项兼容风险；6 项决策记录 D1–D6；Appendix A 记录 6 处文档
+  漂移（含 **privacy_body 占位符文案仍在用户可见的 Settings→Privacy** — Phase 4
+  必修）。
+- `LOCATION_UX_SPECIFICATION.md`（Phase 2）：4-tab 不变，Tracking 内扩展；7 态共
+  享状态模型（图标+文字+颜色，非仅颜色）；成员卡/详情 A–E 分区（按授权渲染，
+  无授权=诚实缺席）；6 步同意向导（解释→接收人→范围→留存→权限→确认）；历史屏
+  （日期选择、断点折线、近似摘要）；上传态诚实文案；**demo 数据策略：显式进入+
+  常驻横幅"DEMO DATA — not real locations"+零 Firestore 流量**；~95 新字符串键
+  （15 locale，bn 齐全）。
+- `LOCATION_DATA_AND_SECURITY_DESIGN.md`（Phase 3）：5 集合目标态（liveLocations
+  原样+双读路径零停机迁移；locationAuthorizations 所有者独写/接收方只读；users/
+  {owner}/locationHistory 路径变量式规则工效；placeAlerts；locationAuditEvents
+  纯元数据 hasOnly）；规则不变量集+locationAuthz() 共享函数；≥30 探针用例（A/H/
+  P/E/L 系）为 Phase 8 门槛；撤销 8 步映射；留存=查询期过期+设备侧机会性批量删
+  （§75 合规，零 sweep）；配额数学（2 设备 ≈2.5–3.5K 写/日 vs 20K 上限，闲置流量
+  0）；D1 规则优先无服务端计算、D2 位置事件不推送、D3 提醒 v1=本机自提醒、D4 分
+  类纯本地渲染期估计。
+- `LOCATION_IMPLEMENTATION_PROGRESS.md`：常驻进度文档；Phase 1–3 ✅，**Owner 审
+  批门未过**；4 个待 Owner 裁决问题（v1 范围、历史粒度 50m、后台权限保持不申请、
+  临时范围预设）。
+
+**验证：** 两路独立全源研究（引擎/规则/配额 + UI/配对/设计系统/本地化）交叉核
+实事实；4 文件全部 readback-verify 通过（SHA256 逐文件）。docs-only 推送，CI 不
+受代码面影响。
+
+**Owner 动作：** 审阅三份设计文档（重点 §77 四个开放问题）；批准后进入 Phase 4
+（前端 mock 实现，含 privacy_body 漂移修复与 6 处孤儿字符串清理）。
