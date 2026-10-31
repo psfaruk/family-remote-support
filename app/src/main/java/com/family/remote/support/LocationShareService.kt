@@ -118,13 +118,31 @@ class LocationShareService : Service() {
             // Defensive backstop, not the happy path (M5-D checks all three
             // before starting the service): consent flipped off mid-flight,
             // signed out, or the while-in-use permission is gone. Stop
-            // instead of crashing or running silently. The notification goes
-            // up only when the permission allows a location-type
-            // startForeground — Android 14 throws SecurityException from
-            // that call without the permission, which would turn this
-            // defensive stop into a crash — and showing it first satisfies
-            // the startForegroundService contract on the remaining paths.
-            if (intent != null && hasLocationPermission()) startInForeground()
+            // instead of crashing or running silently.
+            //
+            // v0.37.0 (crash wave): ContextCompat.startForegroundService() was
+            // used to start THIS instance, so Android's 5-second contract
+            // requires a startForeground() call even on this stop path — the
+            // old code skipped it when the location permission was gone
+            // (ForegroundServiceDidNotStartInTimeException = crash). A
+            // location-type startForeground would itself throw on Android 14
+            // without the permission, so the notification goes up with NO
+            // foreground-service type (type 0), which is always legal, and
+            // the service then stops immediately — the tray entry vanishes
+            // with the stop, nothing lingers.
+            if (intent != null) {
+                try {
+                    ServiceCompat.startForeground(
+                        this,
+                        NOTIFICATION_ID,
+                        buildNotification(),
+                        0 // no FGS type: satisfies the 5 s contract, no SecurityException
+                    )
+                } catch (_: Exception) {
+                    // even the type-0 call can fail on exotic OEM states —
+                    // stopSelf() below still ends the instance honestly
+                }
+            }
             stopSelf()
             return Service.START_NOT_STICKY
         }
@@ -187,6 +205,25 @@ class LocationShareService : Service() {
     // ── Foreground notification (mirrors ScreenShareService's pattern) ───
 
     private fun startInForeground() {
+        // v0.37.0 (crash wave): the location-type startForeground can throw
+        // SecurityException on Android 14 when the while-in-use permission is
+        // revoked between the check and this call (millisecond TOCTOU); fall
+        // back to the type-0 form so the FGS contract still holds.
+        try {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                buildNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            )
+        } catch (_: SecurityException) {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), 0)
+        }
+    }
+
+    // v0.37.0 (dedupe wave) — extracted so the defensive no-permission path
+    // can satisfy the startForegroundService contract with a type-0 call.
+    private fun buildNotification(): android.app.Notification {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
@@ -207,19 +244,13 @@ class LocationShareService : Service() {
         )
         // Localized by the M5-D wave for all 15 languages; no coordinates
         // ever appear here (§9: the tray is lock-screen visible).
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentTitle(getString(R.string.loc_notif_title))
             .setContentText(getString(R.string.loc_notif_body))
             .setOngoing(true)
             .setContentIntent(tapIntent)
             .build()
-        ServiceCompat.startForeground(
-            this,
-            NOTIFICATION_ID,
-            notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-        )
     }
 
     private fun hasLocationPermission(): Boolean {
@@ -479,17 +510,9 @@ class LocationShareService : Service() {
          * isLocationSharingRunning() is called from arbitrary threads. */
         val isRunning: Boolean get() = running
 
-        /**
-         * Notification delete path for the stop flow: clears the ongoing
-         * location notification by id. The service's own stop removes it via
-         * stopForeground(REMOVE); this is the belt-and-braces entry point
-         * for UI code that needs the tray entry gone without owning the
-         * service lifecycle.
-         */
-        fun cancelNotification(context: Context) {
-            val manager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.cancel(NOTIFICATION_ID)
-        }
+        // v0.37.0 (dead-code sweep) — cancelNotification(context) removed:
+        // defined here but never called anywhere in app/src (verified by
+        // grep); the service's own stop path already clears the tray entry
+        // via stopForeground(STOP_FOREGROUND_REMOVE).
     }
 }
