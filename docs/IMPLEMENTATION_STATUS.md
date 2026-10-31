@@ -1,14 +1,15 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **IMPLEMENTATION checkpoint — M6 shipped (verification + G1–G4 reconciliation,
-> docs-only).** Reconciles the ORIGINAL phase history (Phase 0–22) with the master-plan
-> phases (M0–M10). The stale §12 table inside `docs/PHASE-0.md` is superseded by this file
-> from now on (PHASE-0 remains the append-only narrative record).
-> Build at writing: **v0.33.0 (versionCode 52) — unchanged by M6 (no app code change)** ·
-> HEAD at M5-close `7811ef5` (CI SUCCESS, runs 41179958569 / 41180972665) · M6 docs push
-> follows this line. Rules for the `liveLocations` collection remain **LIVE** (ruleset
-> d1a38d5e) — **M6 re-ran the FULL probe battery live: 4/4 green** (pairing · audit A0–A21 ·
-> negative 16-hostile · liveLocations 12/12).
+> Status: **IMPLEMENTATION checkpoint — M7 shipped (remote-support integration audit:
+> zero regressions + 3 honest findings, docs-only).** Reconciles the ORIGINAL phase history
+> (Phase 0–22) with the master-plan phases (M0–M10). The stale §12 table inside
+> `docs/PHASE-0.md` is superseded by this file from now on (PHASE-0 remains the append-only
+> narrative record).
+> Build at writing: **v0.33.0 (versionCode 52) — unchanged by M7 (no app code change)** ·
+> HEAD at M6-close `95a89b9` (CI SUCCESS, run 41185351840) · M7 docs push follows this line.
+> Rules for the `liveLocations` collection remain **LIVE** (ruleset d1a38d5e) — full probe
+> battery last re-run live in M6: 4/4 green (pairing · audit A0–A21 · negative 16-hostile ·
+> liveLocations 12/12); M7 was a code-level audit, rules untouched.
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
@@ -40,7 +41,7 @@
 | M4 | Existing-feature integration checks (pairing, sessions, revocation) + drift fixes | ✅ **2026-10-31 (this push, v0.32.0/51)** — **Nested navigation wave 1 (NAVIGATION_MAP §2 Home subtree):** `home/family` Family Overview (PairTile list + live presence + guest countdowns, real loading/error/empty states, empty-state CTA → Add Device) · `home/family/{relId}` Member Details (the old AddDeviceTab §4 action sheet promoted to a route — role row, guest window, PresenceBadge, request-session, family revoke, guest remove: SAME PairingRepo/SessionRepo calls, success pops the route) · `home/sessions` Recent Activity (rows per open session + last-finished line, each a route link; data = root SessionWatchViewModel state + the ported lastFinished one-shot pattern) · `home/sessions/{id}` Session Details (StatusRow set: status/type/helper/recipient/duration/ended-by; LIVE while the root watch holds it, else the SAME one-shot getSession). Home gets two QuickActionTile entries; nested routes slide ≈200 ms honoring Animator durationScale (reduced-motion = instant); Home tab stays selected on nested routes (tabForRoute); system back pops. **Settings restructured into the master's 8 partitions** (Account · Appearance(theme+language) · Device Management(→home/family + devices registry) · Location & Privacy(honest M5 note + policy docs) · Remote Support(notif/assist/test) · Guest Access(note + →home/family) · Security(permission wizard) · About; sign-out LAST = Owner's standing order, recorded deviation). ActivityTab/ActivityFeed graduated to the route (deleted from SettingsTab). **add/* stays modal on purpose** (map §3); tracking/{relId} = M5. **Drift fixed:** manifest assist-config comment now truthful (canRetrieveWindowContent=true since Phase 8.3, ACTION_SET_TEXT only). 2 real parallel agents (M4-A/M4-B) + coordinator. **Honest deltas:** (1) full session-history LIST needs a bounded query + composite index — deliberately NOT added (quota + index discipline, watchSessions is equality-only by design); Recent Activity shows the real data that exists (open + last-finished). (2) settings/* subsection ROUTES beyond devices (account/appearance/location/remote/guest/security/notifications/about as separate screens) remain future waves (M6/M8 own guest/notifications; grouped-list form ships now). (3) i18n residuals (~16 hardcoded lines + parity + default↔bn inversion) stay M8. (4) no new deps/listeners/queries/rules. 30 new keys ×15 = 450 entries. |
 | M5 | Live location implementation (engine, map, rules, probes) | ✅ **2026-10-31 (v0.33.0/52)** — **Engine (M5.a/b):** `LiveLocationRepo.kt` (contract API: LiveLocationView / watchLiveLocation / writeLocationFix / deleteOwnLocation / LocationSharingPrefs / start-stopLocationSharing / isLocationSharingRunning) + `LocationShareService.kt` (FGS type location, low-importance channel, coordinate-free persistent notification R.string.loc_notif_*; FusedLocation PRIORITY_BALANCED with LocationManager fallback; acceptance gates Δt≥interval ∧ Δd≥25 m ∧ accuracy≤100 m; stationary back-off ×2 cap 5 min; defensive stop on permission loss / signed-out / consent-off). **Rules (M5.a):** liveLocations block (56 lines) published LIVE (ruleset d1a38d5e) — own-doc or counterpart-of-ACTIVE (guest window) + sharingEnabled reads; writer = uid-of-docId with docId pattern, hasOnly 8-field set, lat/lng ranges, accuracy int cap, bool, timestamp ±5 min freshness, appVersionCode int; owner-only delete — **runtime probe 12/12 PASS** (`scripts/rules-liveLocations-probe.mjs`, self-cleaning). **Tracking tab (M5.c):** real osmdroid map (MAPNIK, CopyrightOverlay kept, multi-touch, lifecycle-correct) with one marker per counterpart that actually published, camera fit-to-set, device selector sheet, freshness LIVE<2 min/STALE<5 min/OFFLINE + always-visible "Last known — HH:mm ±N m" (never labeled live when old), canonical Loading/Error/Empty/PermissionDenied states, own-sharing banner + consent sheet → FINE/COARSE launcher; `TrackingViewModel` (root listener rebuild per authorized set, routed errors, keep-last). **tracking/{relId} (M5.c):** LocationDetailScreen (back row, freshness/updated/accuracy rows, counterpart sharing READ-ONLY, open-in-maps geo: intent, honest not-found + defensive own-device branch). **Settings (M5.d):** Location partition real (sharing toggle + runtime permission gate + 30 s/1 min/5 min interval dialog; running change restarts the service so it takes effect immediately). **Deps (C4, approved with the Owner's M5 command, same precedent as M2):** play-services-location 21.3.0 + osmdroid-android 6.1.18. **i18n:** +32 keys ×15 = 480 entries (M5-D agent 14 locales + coordinator zh), apostrophe/placeholder/native-digit scans clean. **Sign-out hygiene:** stopLocationSharing + deleteOwnLocation join the Phase-13 cleanup. Multi-agent honesty: 2 real parallel coding agents (M5-A engine / M5-C map UI) + M5-B rules/probe + M5-D i18n (i18n agent hit the turn limit after 14/15 locales — zh completed by the coordinator, recorded); C and D agents exceeded time/turn limits but had already written their full file sets to disk — verified line-by-line by the coordinator before surgery. |
 | M6 | Family/Guest authorization verification + G1–G4 deltas | ✅ **2026-10-31 (docs-only push; APK v0.33.0/52 unchanged)** — **Live verification (self-cleaning probes, all green):** pairing-probe (P1a/P1b redeem round-trip; N1/N2 no/wrong claimToken → 403) · audit-probe A0–A21 (session-FSM side/step/cap fences, payload caps, schema fences, post-END signals) · negative-probe (P0/N1–N10 + P10/N11–N18/G1/G2/N12–N16b: kind fence family↔guest, guest-window bounds/expiry/silent-extension denied, lazy EXPIRED + participant delete allowed) · liveLocations-probe **12/12 re-run PASS**. **G1–G4:** G1 ✅ M5 (rules LIVE d1a38d5e + consent sheet + FAMILY_GUEST §3 matrix row) · G2 ⛔ M8 by design (out of scope) · G3 ✅ closed-as-covered (OS posture + assist state → Security wizard `PermChecklist`/`AssistSetup.isAssistEnabled`; relationship/guest → home/family; sharing → Location & Privacy + Tracking — all verified in code) · G4 ✅ M4 (manifest comment re-verified). **FAMILY_GUEST §7 acceptance: all 5 criteria probe/scan-backed.** No app code, rules, deps, or strings changed; both phones stay on v0.33.0/52. |
-| M7 | Remote support integration audit (no regression to WebRTC/assist) | ⛔ |
+| M7 | Remote support integration audit (no regression to WebRTC/assist) | ✅ **2026-10-31 (docs-only push; APK v0.33.0/52 unchanged)** — **2 real parallel read-only audit agents (M7-A WebRTC/session/signaling chain · M7-B assist/FCM/notification/kill-push chain) + coordinator independent verification** (git `-S` all-history searches, ScreenShareService spot-check, live Worker `/health` probes ×2, GH Actions log download). **Verdicts — all INTACT, zero refactor regressions:** WebRTC screen-share chain (consent launcher → FGS `startForeground` BEFORE `startRecipient` — spot-verified; full teardown incl. signal-listener detach; role-guarded stop; "bye" freshness gate) · session FSM surfaces (request/grant/deny/cancel/end/expire all reachable via the SAME SessionRepo APIs across HomeTab/AddDeviceTab/FamilyScreens nested routes) · signaling lifecycle (no attach-without-detach path) · MainActivity post-refactor wiring (root SessionWatchViewModel above NavHost, no-open-session→stop-everything, root zombie sweep, sign-out teardown incl. M5 location additions) · assist chain (dispatchGesture + ACTION_SET_TEXT + all 7 companion entry points) · FCM registration/notification routing (extras-free tap → Home → pendingAsk card — lands correctly in the NEW nav) · manifest registrations (4 services + POST_NOTIFICATIONS + FCM meta). **3 honest findings:** (1) sandbox instant-tier sweep script was a STALE copy missing the Phase 18.4 claim fix + Phase 20 expiry fix (instant tier could never win a claim → never pushed) — fixed in-sandbox by re-syncing from the repo copy + service restart, first sweep 0 errors; process rule recorded (that path lives OUTSIDE the repo mirror — manual re-sync needed after repo changes to the script); (2) **doc-code drift corrected:** CLOUDFLARE_SETUP.md had claimed the app-side instant `POST /sweep` call "shipped in v0.19.0" — **never implemented** (0 HTTP clients in app code, ever; git `-S` all-history 0 hits; Phase 18.9's F2 fix had been misled by that same doc) — claim retracted this push; any future implementation must first solve the bearer-token-in-public-repo leak problem (design decision); (3) Owner's "Cloudflare worker true" NOT confirmed live: `/health` probed twice today → `FIREBASE_SA_JSON:false`, `last:"not run yet"` (possible cause: added as Build variable instead of runtime Secret); GH Actions backstop last run SUCCESS (41180972665), its 3 prior failures verified from logs = Firestore 429 quota (self-healing, not code). INFO-only: empty `onDispose` on the root session-watch effect (no practical leak — documented, not changed). |
 | M8 | Notifications, accessibility, i18n completion, polish | ⛔ |
 | M9 | Testing & integration: TEST_PLAN execution, security review | ⛔ |
 | M10 | Release readiness: docs, build instructions, known limits, final report | ⛔ |
@@ -56,7 +57,7 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | Family device list / details / revoke | ✅ | `PairingRepo.kt:521-565`, `MainActivity.kt:4180-4300` |
 | Guest mode (window ≤3 h, fence, guest-only delete) | ✅ | rules `:198-313`, `SessionRepo.kt:246-280` |
 | Presence (20-min window, heartbeat, chips) | ✅ | `PresenceRepo.kt` |
-| FCM + token rotation + session asks + kill-push 3 tiers | ✅ (permanent tier inactive: SA secret unset) | manifest `:76-97`, worker, §63 |
+| FCM + token rotation + session asks + kill-push 3 tiers | ✅ tiers audited M7: sandbox instant tier ✅ running (stale-script incident found & fixed in-sandbox); GH Actions backstop ✅ last SUCCESS (429 quota failures known, self-heal); Worker permanent tier ⛔ `FIREBASE_SA_JSON` still unset (Owner action); app-side instant `POST /sweep` never implemented (false doc claim retracted M7) | manifest `:76-97`, worker, §63, §70 |
 | Screen share (WebRTC + MediaProjection FGS) | ✅ | `ScreenShareEngine.kt`, `ScreenShareService.kt` |
 | Remote interaction (accessibility gestures + typing) | ✅ | `AssistService.kt`, `AssistSetup.kt` |
 | Sessions + signaling + zombie guards + quota errors | ✅ | `SessionRepo.kt`, `SignalingRepo.kt`, §63 |
@@ -80,21 +81,29 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | default↔bn locale inversion — ~203 legacy keys | M8 (full re-language sweep; new M4 keys are clean-language) |
 | Per-second recomposition tick | M8 (perf pass) |
 | `isMinifyEnabled=false`, no tests, 40 MB APK | record-only; R8 = separate future decision |
-| Cloudflare `FIREBASE_SA_JSON` unset (permanent kill-push tier inactive) | **Owner action** (unchanged since §60) |
+| Cloudflare `FIREBASE_SA_JSON` unset (permanent kill-push tier inactive) | **Owner action** (unchanged since §60; M7 live probe ×2 still `false` — add as a runtime **Secret** in Worker → Settings → Variables and Secrets, NOT a Build variable) |
+| App-side instant `POST /sweep` — was falsely documented as shipped (v0.19.0); never implemented (M7 audit: 0 HTTP clients in app code, git `-S` all-history 0 hits) | docs corrected M7; future impl blocked on public-repo bearer-token-leak design decision |
+| Sandbox kill-push script drift: `my-project/scripts/fcm-kill-push.mjs` (mini-service import path) lives OUTSIDE the repo mirror and had gone stale (missing Phase 18.4 + Phase 20 fixes) | fixed + restarted M7 (sandbox-only); RULE: re-sync after every repo change to `android-app/scripts/fcm-kill-push.mjs` |
 | docs/PHASE-0.md §12 stale table | superseded by this file (narrative stays) |
 | Pre-existing: `assist_service_description` is translatable="false" in default but carries a bn copy | harmless resource-merge artifact (pre-dates M4); cleanup = M8 i18n wave |
 
-## 5. Owner pending actions (M6 edition)
+## 5. Owner pending actions (M7 edition)
 
-1. **M6 changed no app code — the APK stays v0.33.0 (code 52)**; if already installed,
+1. **M7 changed no app code — the APK stays v0.33.0 (code 52)**; if already installed,
    no reinstall is needed. The outstanding device checks remain TEST_PLAN **#10–#15**
    (location permission granted/denied/approximate-only, owner stops sharing, device
-   offline, stale badge) + #7/#8/#24 as before, plus the visual pass over the Tracking tab
-   (map renders with OSM attribution, device selector sheet, consent sheet → permission
-   dialog), the `tracking/{relId}` detail screen, and the Settings Location partition
-   (toggle + interval dialog). The sharing notification must show while sharing is on and
-   contain NO coordinates; stop from any of the three places must clear it.
-2. Set Cloudflare secret `FIREBASE_SA_JSON` (dashboard → Worker → Variables and Secrets) —
-   activates the permanent kill-push tier (pending since §60).
-3. **Next = M7** — Remote-support integration audit (no regression to WebRTC screen-share /
-   assist), per the master plan.
+   offline, stale badge) + #7/#8/#24 as before, **plus the remote-support scenarios M7
+   verified only at code level: #19 (screen-share permission denied/revoked), #20
+   (remote-interaction limits), #21 (notification permission denied)** — a real
+   helper→recipient screen-share round + assist tap/typing pass on the phones.
+2. **Cloudflare secret `FIREBASE_SA_JSON` is STILL NOT SET** (M7 probed `/health` twice
+   today: `false`, `last:"not run yet"`; the "worker true" report is not yet reflected
+   live). Add it in the dashboard as a **runtime Secret** (Workers & Pages →
+   `family-remote-support` → Settings → Variables and Secrets → type **Secret**, not a
+   Build variable), value = the full Firebase SA JSON text. Verify at
+   `https://family-remote-support.www-farukkhan-fk885.workers.dev/health` — when it
+   shows `FIREBASE_SA_JSON:true`, the permanent tier is live (cron already registered).
+   Until then coverage = sandbox instant tier (fixed + restarted in M7) + GitHub Actions
+   backstop (last run SUCCESS; 429 quota failures self-heal after reset).
+3. **Next = M8** — notifications store, accessibility, i18n completion (~16 hardcoded
+   strings + default↔bn inversion + parity gap), polish — per the master plan.
