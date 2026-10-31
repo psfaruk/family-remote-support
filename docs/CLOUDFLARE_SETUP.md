@@ -127,8 +127,12 @@ Owner-সিদ্ধান্ত অনুযায়ী ততদিন অ�
 
 ## পরবর্তী-তালিকার আপডেট (Phase 18.9 অডিট, ২০২৬-১০-৩০)
 
-- **অ্যাপ-পাশের instant কল — ডেলিভার হয়েছে:** Phase 14b, v0.19.0-এ শিপ হয়েছে
-  (helper ফোন সেশন-doc তৈরি করেই `POST /sweep` ডাকে, fire-and-forget → পুশ ~১-২ সেকেন্ডে)।
+- **অ্যাপ-পাশের instant কল — ❌ সংশোধন (M7 অডিট, ২০২৬-১০-৩১):** আগে এখানে লেখা ছিল
+  "Phase 14b, v0.19.0-এ শিপ হয়েছে (helper ফোন সেশন-doc তৈরি করেই `POST /sweep` ডাকে,
+  পুশ ~১–২ সেকেন্ডে)"। **এটি কখনোই সত্য ছিল না** — অ্যাপ কোডে কোনোদিন কোনো HTTP
+  ক্লায়েন্ট ছিল না (পুরো git ইতিহাসে `workers.dev`/`KILL_TOKEN`/`HttpURLConnection`
+  `-S` অনুসন্ধানে ০ ফল; `SessionRepo.kt`-তে ০ HTTP রেফারেন্স)। বিস্তারিত নিচের
+  **M7 অডিট সংশোধন** সেকশনে। instant স্তর = স্যান্ডবক্স mini-service (~৫ সেকেন্ড)।
 - টোকেন rotate: প্রয়োজন হলে নতুন টোকেন জেনারেট করে Secret আপডেট করলেই হবে।
 
 ### লাইভ-স্টেট যাচাই (Phase 18.9, ২০২৬-১০-৩০)
@@ -140,3 +144,38 @@ Owner-সিদ্ধান্ত অনুযায়ী ততদিন অ�
 `FIREBASE_SA_JSON:true` এলেই স্থায়ী স্তর জীবন্ত। ততদিন কভারেজ: স্যান্ডবক্স
 mini-service (~৫ সেকেন্ড) + GitHub Actions ব্যাকস্টপ (best-effort — ২০২৬-১০-২৮→৩০
 পর্যবেক্ষণে ৪৮ ঘণ্টায় মাত্র ৫টি schedule-রান)।
+
+### M7 অডিট সংশোধন + লাইভ-স্টেট (২০২৬-১০-৩১)
+
+**লাইভ-স্টেট (দুইবার প্রোব, M7):** `KILL_TOKEN:true`, কিন্তু **`FIREBASE_SA_JSON:false`**
+এবং `last:"not run yet"` — Phase 18.9-এর পর অপরিবর্তিত। Owner জানিয়েছেন "worker true" —
+লাইভ এন্ডপয়েন্ট এটি নিশ্চিত করেনি। সম্ভাব্য কারণ: মানটি **Build variable** হিসেবে যোগ
+হয়েছে (রানটাইম Secret নয় — Workers Builds-এর সেটিংসে দুই জায়গায় ভেরিয়েবল থাকে:
+build-time ও runtime), অথবা সেভ সম্পূর্ণ হয়নি। ঠিক করার ধাপ: Workers & Pages →
+**family-remote-support** → **Settings → Variables and Secrets** → Add → ধরন অবশ্যই
+**Secret** (Build variable নয়) → নাম `FIREBASE_SA_JSON`, মান = SA JSON-এর পুরো টেক্সট
+(`{` দিয়ে শুরু `}` দিয়ে শেষ)। সেভ করলেই কার্যকর — নতুন deploy লাগে না। তারপর যাচাই:
+`https://family-remote-support.www-farukkhan-fk885.workers.dev/health` —
+`FIREBASE_SA_JSON:true` দেখলেই স্থায়ী স্তর জীবন্ত (cron `* * * * *` আগেই নিবন্ধিত)।
+
+**স্যান্ডবক্স instant স্তরের M7 ঘটনা (ঠিক করা হয়েছে):** mini-service যে স্ক্রিপ্ট চালায়
+(`/home/z/my-project/scripts/fcm-kill-push.mjs`) সেটি পুরনো কপি ছিল — Phase 18.4
+claim-ফিক্স (query-param precondition) ও Phase 20 expiry-ফিক্স ছাড়া। ফল: প্রতিটি claim
+400 → "claim-lost" হিসেবে গোনা → instant স্তর কখনোই push করত না (Phase 18.4-এর ব্যাগের
+স্যান্ডবক্স-কপি সংস্করণ)। M7-তে রিপো কপি (`android-app/scripts/fcm-kill-push.mjs`,
+GitHub Actions যেটি চালায়) দিয়ে সিঙ্ক করে সার্ভিস রিস্টার্ট করা হয়েছে — প্রথম sweep:
+০ ত্রুটি। **প্রক্রিয়া-নিয়ম (রেকর্ডকৃত):** এই স্যান্ডবক্স কপি রিপো-মিররের বাইরে — রিপোতে
+স্ক্রিপ্ট বদলালে স্যান্ডবক্স কপিও আবার সিঙ্ক করতে হবে, না হলে instant স্তর নীরবে পুরনো
+হয়ে যায়।
+
+**GitHub Actions ব্যাকস্টপ (M7 যাচাই):** শেষ run SUCCESS (41180972665, ২০২৬-১০-৩১
+07:31 UTC); আগের ৩টি failure-এর লগ ডাউনলোড করে যাচাইকৃত — কারণ Firestore **429**
+(ফ্রি-কোটা, Phase 20 পরিবারের), কোটা রিসেটে নিজেই সেরে যায়, কোডে দোষ নেই।
+
+**তিন-স্তরের সৎ অবস্থা (M7 পরে):**
+
+| স্তর | অবস্থা |
+|------|--------|
+| স্যান্ডবক্স mini-service (~৫সে) | ✅ চলমান — M7-এ স্ক্রিপ্ট সিঙ্ক+রিস্টার্ট |
+| Cloudflare Worker স্থায়ী (~৬০সে) | ⛔ `FIREBASE_SA_JSON` এখনো false (Owner-ধাপ) |
+| GitHub Actions (~৫মি) | ✅ শেষ run SUCCESS (429-failure জানা-সীমা) |
