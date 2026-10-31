@@ -50,6 +50,17 @@ data class TrackingUiState(
 )
 
 /**
+ * v0.37.0 (dedupe wave) — ONE counterpart-trackable predicate (was 2
+ * drifting copies: TrackingViewModel.trackedCounterparts' filter below and
+ * LocationDetailScreen's syncLocationWatch key). A device is trackable
+ * when the relationship is ACTIVE, the guest window is live, the tracked
+ * device belongs to the OTHER account (recipient side carries the device
+ * identity), and it has a device id — verified identical in both copies.
+ */
+internal fun RelationshipView.isTrackableCounterpart(myUid: String?): Boolean =
+    status == "ACTIVE" && guestLive && recipientUid != myUid && recipientDeviceId.isNotBlank()
+
+/**
  * M5 (v0.33.0) — the Tracking tab's data owner: one relationship listener
  * plus a live-location listener per authorized counterpart device. The
  * composable reads locations ONLY through [state] (no direct
@@ -115,10 +126,7 @@ class TrackingViewModel : ViewModel() {
      * authorized — those rows never become pins.
      */
     private fun trackedCounterparts(): List<RelationshipView> =
-        relationships.filter { rel ->
-            rel.status == "ACTIVE" && rel.guestLive &&
-                rel.recipientUid != myUid && rel.recipientDeviceId.isNotBlank()
-        }
+        relationships.filter { it.isTrackableCounterpart(myUid) }
 
     /**
      * Diff the wanted location listeners against the registered ones —
