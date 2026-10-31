@@ -46,7 +46,12 @@ import com.family.remote.support.R
  * bottom-sheet promoted to a route), the Recent Activity list and the
  * Session Detail screen (NAVIGATION_MAP §2 home-subtree). The ADD-flow
  * steps stay modal on purpose (map §3: QR scanner, role preview, permission
- * wizard remain dialogs/sheets); tracking detail waits for M5.
+ * wizard remain dialogs/sheets).
+ *
+ * M5 (v0.33.0) — the TRACKING detail route joins the tree (map §2
+ * tracking-subtree): tracking itself is the osmdroid map tab;
+ * tracking/{relId} is the Location Details screen (last update time,
+ * accuracy, staleness, sharing on/off, open-in-maps).
  */
 object AppRoutes {
     const val HOME = "home"
@@ -56,6 +61,7 @@ object AppRoutes {
     const val HOME_SESSION_ARG = "home/sessions/{id}"
     const val ADD = "add"
     const val TRACKING = "tracking"
+    const val TRACKING_ARG = "tracking/{relId}"
     const val SETTINGS = "settings"
     const val NOTIFICATIONS = "notifications"
 }
@@ -65,12 +71,15 @@ object AppRoutes {
  * nested Home-subtree detail routes keep the HOME tab selected (you are
  * still inside the Home area); notifications stays deliberately unselected
  * (no fake selection). Null = no tab highlighted.
+ *
+ * M5 — the tracking-subtree detail route (tracking/{relId}) keeps the
+ * TRACKING tab selected, same rule as the home-subtree (map §2).
  */
 fun AppRoutes.tabForRoute(route: String?): String? = when {
     route == null -> null
     route == HOME || route.startsWith("home/") -> HOME
     route == ADD -> ADD
-    route == TRACKING -> TRACKING
+    route == TRACKING || route.startsWith("tracking/") -> TRACKING
     route == SETTINGS -> SETTINGS
     else -> null
 }
