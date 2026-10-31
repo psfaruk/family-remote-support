@@ -201,7 +201,6 @@ import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.ThemePreview
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
-import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
@@ -229,6 +228,8 @@ import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -301,7 +302,8 @@ private suspend fun signInWithGoogle(activity: ComponentActivity): FirebaseUser 
     ) {
         val googleId = GoogleIdTokenCredential.createFrom(credential.data)
         val firebaseCredential = GoogleAuthProvider.getCredential(googleId.idToken, null)
-        val result = FirebaseAuth.getInstance().signInWithCredential(firebaseCredential).await()
+        val result = FirebaseAuth.getInstance().signInWithCredential(firebaseCredential)
+            .awaitWithTimeout("signing in with Google", 20_000L)
         return result.user ?: throw IllegalStateException("Sign-in returned no user")
     }
     throw IllegalStateException("Unexpected credential type: ${credential.type}")
@@ -314,18 +316,18 @@ private suspend fun signInWithGoogle(activity: ComponentActivity): FirebaseUser 
  */
 private suspend fun signInWithEmailPassword(email: String, password: String): FirebaseUser {
     val result = FirebaseAuth.getInstance()
-        .signInWithEmailAndPassword(email, password).await()
+        .signInWithEmailAndPassword(email, password).awaitWithTimeout("signing in", 20_000L)
     return result.user ?: throw IllegalStateException("Sign-in returned no user")
 }
 
 /** Create a new email/password account and stamp the chosen display name. */
 private suspend fun signUpWithEmailPassword(name: String, email: String, password: String): FirebaseUser {
     val result = FirebaseAuth.getInstance()
-        .createUserWithEmailAndPassword(email, password).await()
+        .createUserWithEmailAndPassword(email, password).awaitWithTimeout("creating the account", 20_000L)
     val user = result.user ?: throw IllegalStateException("Sign-up returned no user")
     if (name.isNotBlank()) {
         val profile = UserProfileChangeRequest.Builder().setDisplayName(name).build()
-        user.updateProfile(profile).await()
+        user.updateProfile(profile).awaitWithTimeout("saving the profile name", 20_000L)
     }
     return user
 }
@@ -395,6 +397,20 @@ fun HomeScreen() {
     // success text for the login/sign-up/reset attempts.
     var authMessage by remember { mutableStateOf<String?>(null) }
     var authNotice by remember { mutableStateOf<String?>(null) }
+    // v0.37.0 — server-side sign-out / token revocation must reach the UI.
+    // signedInUser used to be read ONCE (line above) and only ever written
+    // by the manual sign-in/out handlers, so a revoked session left a stale
+    // shell whose every Firestore listener then failed into its error panel.
+    // The SDK's AuthStateListener is the only source of truth for "session
+    // died under us"; manual sign-out also lands here (same null → no-op).
+    DisposableEffect(Unit) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            val current = auth.currentUser
+            if (current?.uid != signedInUser?.uid) signedInUser = current
+        }
+        FirebaseAuth.getInstance().addAuthStateListener(listener)
+        onDispose { FirebaseAuth.getInstance().removeAuthStateListener(listener) }
+    }
     // M8 (v0.34.0) — initial setup-state lines resolve from values/strings.xml
     // (app language). NOTE: the in-flight variants ("Registering…", "Registered ✓",
     // "Online ✓…", "Push notifications ready ✓") stay literal on purpose —
@@ -623,41 +639,52 @@ fun HomeScreen() {
         // killed-app notifications silently never fired (the Owner's
         // "notification asche na" root cause). Each step now runs
         // independently with its own error handling and retry.
-        var registeredDeviceId: String? = null
-        try {
-            registeredDeviceId = registerDevice(context, user)
-            deviceStatus = "Registered ✓ (id ${registeredDeviceId.take(8)}…)"
-            deviceOk = true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-                deviceOk = false
-                deviceStatus = context.getString(R.string.reg_failed, friendlyError(context, e))
-        }
-        // Phase 5 — presence heartbeat + push token registration. The token
-        // registry key is the stable device id, which exists even when the
-        // device-record write above failed (rules allow both self-writes).
-        val deviceId = registeredDeviceId ?: stableDeviceId(context)
+        // v0.37.0 (latency wave): the three registration writes are
+        // data-independent (all key off the locally-computed stable device
+        // id) and used to run STRICTLY sequentially — worst case offline that
+        // was 3 × 30 s of stacked timeouts before the setup strip settled.
+        // They now run concurrently; the informational device-list read stays
+        // AFTER them so it sees this device's own record.
+        val deviceId = stableDeviceId(context)
         ownDeviceId = deviceId
-        try {
-            sendHeartbeat(user.uid, deviceId, Build.MODEL)
-            presenceStatus = "Online ✓ — heartbeat sent just now"
-            presenceOk = true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-                presenceOk = false
-                presenceStatus = context.getString(R.string.presence_failed, friendlyError(context, e))
-        }
-        try {
-            registerFcmToken(user.uid, deviceId)
-            pushStatus = "Push notifications ready ✓"
-            pushOk = true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-                pushOk = false
-                pushStatus = context.getString(R.string.push_failed, friendlyError(context, e))
+        coroutineScope {
+            val deviceJob = async {
+                try {
+                    registerDevice(context, user)
+                    deviceStatus = "Registered ✓ (id ${deviceId.take(8)}…)"
+                    deviceOk = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    deviceOk = false
+                    deviceStatus = context.getString(R.string.reg_failed, friendlyError(context, e))
+                }
+            }
+            val heartbeatJob = async {
+                try {
+                    sendHeartbeat(user.uid, deviceId, Build.MODEL)
+                    presenceStatus = "Online ✓ — heartbeat sent just now"
+                    presenceOk = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    presenceOk = false
+                    presenceStatus = context.getString(R.string.presence_failed, friendlyError(context, e))
+                }
+            }
+            val pushJob = async {
+                try {
+                    registerFcmToken(user.uid, deviceId)
+                    pushStatus = "Push notifications ready ✓"
+                    pushOk = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    pushOk = false
+                    pushStatus = context.getString(R.string.push_failed, friendlyError(context, e))
+                }
+            }
+            deviceJob.join(); heartbeatJob.join(); pushJob.join()
         }
         try {
             deviceList = loadDevices(user)
@@ -681,6 +708,8 @@ fun HomeScreen() {
                     signedInUser = signInWithGoogle(activity)
                 } catch (e: GetCredentialException) {
                         authMessage = context.getString(R.string.auth_cancelled)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                         authMessage = context.getString(R.string.auth_failed, friendlyError(context, e))
                 } finally {
@@ -742,7 +771,8 @@ fun HomeScreen() {
                 authNotice = null
                 scope.launch {
                     try {
-                        FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+                        FirebaseAuth.getInstance().sendPasswordResetEmail(email)
+                            .awaitWithTimeout("sending the reset email", 20_000L)
                             authNotice = context.getString(R.string.auth_reset_sent, email)
                     } catch (e: CancellationException) {
                         throw e
@@ -944,6 +974,16 @@ fun HomeScreen() {
                             openSession = openSession,
                             onBack = { navController.popBackStack() }
                         )
+                    } else {
+                        // v0.37.0 — the ARG route (stale back stack after a
+                        // sign-out, or a deep link) used to render a BLANK
+                        // screen: the Pre-M10 honest-empty-state fix was only
+                        // applied to the list route, not this detail route.
+                        EmptyState(
+                            icon = Icons.Filled.Person,
+                            title = stringResource(R.string.home_not_signed_in),
+                            hint = stringResource(R.string.set_profile_hint)
+                        )
                     }
                 }
             }
@@ -989,7 +1029,17 @@ fun HomeScreen() {
                         signedInUser = signedInUser,
                         showPairSheet = showPairSheet,
                         onDismissPairSheet = { showPairSheet = false },
-                        onOpenPairSheet = { showPairSheet = true }
+                        onOpenPairSheet = { showPairSheet = true },
+                        // v0.37.0 (dedupe wave, cluster #15) — the Add tab used
+                        // to register its OWN watchSessions listener on the
+                        // same query the root SessionWatchViewModel already
+                        // watches (double listener reads while the tab was
+                        // open). It now consumes the root state, exactly the
+                        // M4 pattern HomeTab/RecentActivity already use.
+                        sessions = homeSessions,
+                        sessionsLoaded = homeSessionsLoaded,
+                        sessionsError = homeSessionsState.error?.takeIf { !homeSessionsLoaded },
+                        onRetrySessions = { sessionRetryKey++ }
                     )
                 }
             }
@@ -1138,6 +1188,12 @@ fun HomeScreen() {
                                 authMessage = null
                                 authNotice = cleanupNote
                                         ?: context.getString(R.string.so_cleanup_ok)
+                            } catch (e: CancellationException) {
+                                // v0.37.0 — same convention as every other
+                                // handler here: a cancelled scope (activity
+                                // destroyed mid-sign-out) must not be swallowed
+                                // into a dead-composition status write.
+                                throw e
                             } catch (e: Exception) {
                                 statusMessage = context.getString(
                                     R.string.so_signout_failed, friendlyError(context, e)
@@ -1299,6 +1355,11 @@ private fun ShellTabColumn(
  * through to the full technical describeFirestoreError.
  */
 // v0.28.0 (Phase 19.2): context-based localized errors (was friendlyErrorBn).
+// v0.37.0 (dedupe wave, cluster #8): the Firestore branches were a DRIFTING
+// second copy of PairingRepo.describeFirestoreError (UNAVAILABLE mapped to
+// fe_no_internet here but err_unreachable there — same failure, two texts).
+// This mapper now owns ONLY the auth-exception branches and delegates every
+// Firestore failure to the single canonical mapper all listeners use.
 private fun friendlyError(context: Context, e: Exception): String = when (e) {
     // Phase 11.7 — auth-specific failures in family language first.
     is FirebaseAuthInvalidUserException ->
@@ -1313,14 +1374,6 @@ private fun friendlyError(context: Context, e: Exception): String = when (e) {
         context.getString(R.string.fe_too_many)
     is FirebaseNetworkException ->
         context.getString(R.string.fe_no_internet)
-    is FirebaseFirestoreException -> when (e.code) {
-        FirebaseFirestoreException.Code.UNAVAILABLE,
-        FirebaseFirestoreException.Code.DEADLINE_EXCEEDED ->
-            context.getString(R.string.fe_no_internet)
-        FirebaseFirestoreException.Code.PERMISSION_DENIED ->
-            context.getString(R.string.fe_not_allowed)
-        else -> describeFirestoreError(context, e)
-    }
     else -> describeFirestoreError(context, e)
 }
 
