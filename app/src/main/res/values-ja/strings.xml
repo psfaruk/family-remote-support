@@ -39,6 +39,39 @@
     <string name="loc_title">ライブ位置情報</string>
     <string name="loc_coming_title">今後のアップデートで提供予定</string>
     <string name="loc_coming_body">ここに家族のライブ位置情報が表示される予定 — 常に相手の明確な同意のもとで。現在は何も収集・共有していません。</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">この端末の位置情報を共有</string>
+    <string name="loc_share_body">共有がオンの間、ペアリング済みの家族がこの端末の現在位置を地図で見られます。保存されるのは最新の位置だけ — 履歴は決して残りません — いつでも停止できます。</string>
+    <string name="loc_share_start">共有を開始</string>
+    <string name="loc_share_stop">共有を停止</string>
+    <string name="loc_share_on">位置情報の共有はオンです</string>
+    <string name="loc_share_off">位置情報の共有はオフです</string>
+    <string name="loc_banner_on">この端末の位置情報を共有しています</string>
+    <string name="loc_banner_off">共有はオフです — この端末の位置は送信されていません</string>
+    <string name="loc_interval_label">更新間隔</string>
+    <string name="loc_interval_30s">30秒ごと</string>
+    <string name="loc_interval_1m">1分ごと</string>
+    <string name="loc_interval_5m">5分ごと</string>
+    <string name="loc_notif_title">位置情報の共有はオンです</string>
+    <string name="loc_notif_body">タップしてアプリを開き、共有を停止してください。</string>
+    <string name="loc_fresh_live">ライブ</string>
+    <string name="loc_fresh_stale">古い</string>
+    <string name="loc_fresh_offline">オフライン</string>
+    <string name="loc_last_known">最後の既知位置 — %1$s</string>
+    <string name="loc_never">共有されたことはありません</string>
+    <string name="loc_no_fix">最初の位置情報を待っています…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">更新: %1$s</string>
+    <string name="loc_details">位置情報の詳細</string>
+    <string name="loc_open_maps">地図アプリで開く</string>
+    <string name="loc_perm_title">位置情報の権限が必要です</string>
+    <string name="loc_perm_body">位置情報の権限があると、あなたが共有している間、家族がこの端末の位置を見られます。権限は、見える共有通知が表示されている間だけ使われます。</string>
+    <string name="loc_denied_title">位置情報へのアクセスが拒否されました</string>
+    <string name="loc_denied_body">位置情報の権限が拒否されました。システムの設定で許可されるまで、共有は開始できません。</string>
+    <string name="loc_empty_title">まだペアリング済みの端末がありません</string>
+    <string name="loc_empty_body">まず家族の端末をペアリングしてください — 所有者の明確な同意のもと、その現在位置がここに表示されます。</string>
+    <string name="loc_list_title">端末を選択</string>
     <string name="set_section_account">アカウント</string>
     <string name="set_profile_title">プロフィール</string>
     <string name="set_profile_sub">このアカウントの名前とメール</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">ペアリング済みの電話</string>
     <string name="set_dev_entry_d">ライブ状況、サポート操作、アクセスの取り消し</string>
     <string name="set_loc_status">ライブ位置情報は今後のリリースで予定されています。現時点では位置情報の収集や保存は一切ありません。</string>
+    <string name="set_loc_now">この端末のライブ位置情報をペアリング済みの家族端末と共有します。保存されるのは最新の位置だけ — 履歴は決して残りません。</string>
     <string name="set_guest_note">ゲストリンクは一時的です（最大3時間）。永続的なファミリーのペアリングになることはありません。</string>
 </resources>
