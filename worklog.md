@@ -2257,3 +2257,23 @@ PairTile-in-pairing/selectedRelId/startSessionFor = ০), সিম্বল-ম
 Session Details→Back; nested-এ Home ট্যাব selected) + #24 + Settings ৮-বিভাগ চোখে দেখা;
 (২) Cloudflare `FIREBASE_SA_JSON` (§60 থেকে ঝুলে আছে); (৩) **পরবর্তী = M5** — লাইভ-লোকেশন
 (engine + map + rules + probes, LIVE_LOCATION_ARCHITECTURE অনুযায়ী)।
+
+**CI রেকর্ড (§৬৭-এর প্রতিশ্রুতি অনুযায়ী, সৎ — ২ রাউন্ড ফিক্স):**
+- রান-১ **FAILED**: `values-tr/strings.xml`-এর `sess_not_found_h`-তে অনাস্কেপড অ্যাপোস্ট্রফি
+  (`Son Etkinlik'i` — aapt2 flatten ব্যর্থ)। ফিক্স: `Etkinlik\'i` (commit `a12a46c`)।
+  শিক্ষা: অ্যাপোস্ট্রফি-স্ক্যান আগে শুধু default+ফরাসি-২-কী-তে চালানো হয়েছিল — এখন থেকে
+  সব লোকেল × সব নতুন কী (স্ক্যানারটি এই সেশনেই সংশোধিত)।
+- রান-২ **FAILED**: `AppNav.kt` ডক-কমেন্টে **নেস্টেড `/*`** — Kotlin ব্লক-কমেন্ট নেস্ট করে!
+  `add/* flow` (লাইন ৪৭) নেস্টেড ওপেনার খুলেছিল → বাইরের `/**…*/` অবন্ধ হয়নি → পুরো
+  ফাইলের সিম্বল উবে গিয়ে MainActivity-তে "Unresolved reference: AppRoutes/AppTopBar/
+  AppBottomNav/goTab" ঝড়। ফিক্স-১ (commit `be6790c`) পরেও দ্বিতীয় ওপেনার
+  (`home/*`, tabForRoute-ডক-এ) রয়ে গিয়েছিল — ফিক্স-২ (commit `0f5bd73`) দুটোই ডি-নেস্ট
+  করে। **নতুন স্ট্যাটিক-গেট জন্ম নিলে:** comment-nesting checker (গোটা কোডবেসে
+  final-depth == 0 যাচাই) — ভবিষ্যতের প্রতিটি পুশে verify-স্যুটের অংশ।
+- রান-৩ **SUCCESS** — Android Build, run **41170229200**, HEAD `0f5bd73`। AXML গেটসহ:
+  `✓ versionCode = 51 (INT_DEC)` · `✓ versionName = "0.32.0"` ·
+  `✓ APK Signing Block v2 present` · `✓ no stale version strings` (শুধু 0.32.0)।
+  APK ≈ ৩৮.৭ MB; debug+release আর্টিফ্যাক্ট আপলোডেড।
+- **দাবির সীমা (সৎ):** "কাজ করছে" = CI-সফল + Owner-এর ফোন-টেস্টের পরেই — স্যান্ডবক্সে
+  Gradle/emulator নেই। দুটি ফিক্স-রাউন্ডই এই সেশনের ভুল (ট্রান্সলেশন-এস্কেপিং স্ক্যানের
+  ফাঁক + নেস্টেড-কমেন্ট অজান্তে), ডকুমেন্টে লুকানো নয়।
