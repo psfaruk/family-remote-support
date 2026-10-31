@@ -408,4 +408,8 @@
     <string name="notif_empty_title">目前没有需要您处理的事项</string>
     <string name="notif_empty_body">支持请求、进行中的会话和设置警告一旦发生就会显示在这里。</string>
     <string name="notif_hint">仅显示真实的当前事件 — 不虚构，也不保存历史。</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">重试</string>
+    <string name="states_open_settings">打开系统设置</string>
 </resources>
