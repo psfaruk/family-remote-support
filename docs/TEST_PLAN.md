@@ -28,6 +28,9 @@
   allow-ACTIVE-counterpart / deny-forged-fields-or-stale-updatedAt; sweep-exclusion verified
   by code inspection (worker queries only supportSessions); quota-budget probe (documented
   reads during a scripted day) remains an M9 discipline.
+- **M6 (2026-10-31): FULL battery re-run LIVE — 4/4 green** (pairing · audit A0–A21 ·
+  negative 16-hostile Family/Guest · liveLocations 12/12) — the Family/Guest authorization
+  verification milestone; recorded in worklog §69. APK unchanged (v0.33.0/52).
 
 ## 2. Scenario matrix (master list → method)
 
