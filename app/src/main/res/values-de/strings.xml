@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s unterstützt Sie gerade</string>
     <string name="notif_empty_title">Im Moment nichts für Sie</string>
     <string name="notif_empty_body">Support-Anfragen, aktive Sitzungen und Einrichtungshinweise erscheinen hier, sobald sie passieren.</string>
-    <string name="notif_hint">Nur echte, aktuelle Ereignisse — nichts Erfundenes, kein Verlauf.</string>
+    <string name="notif_hint">Nur echte Ereignisse — gespeichert nur auf diesem Gerät (die letzten 100), niemals hochgeladen und beim Abmelden gelöscht.</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Erneut versuchen</string>
@@ -479,4 +479,84 @@
     <string name="set_loc_status">Live-Standort ist für ein kommendes Release geplant. Heute wird kein Standort erfasst oder gespeichert.</string>
     <string name="set_loc_now">Teilen Sie den Live-Standort dieses Telefons mit den gekoppelten Familien-Geräten. Es wird nur die jeweils letzte Position behalten — nie ein Verlauf.</string>
     <string name="set_guest_note">Gast-Verknüpfungen sind temporär (bis zu 3 Stunden) und werden niemals dauerhafte Familien-Kopplungen.</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">Letzte Ereignisse</string>
+    <string name="notif_ev_asked">Support-Anfrage von %1$s</string>
+    <string name="notif_ev_started">Unterstützungs-Sitzung mit %1$s gestartet</string>
+    <string name="notif_ev_ended">Unterstützungs-Sitzung mit %1$s beendet</string>
+    <string name="notif_ev_sharing_on">Standort-Freigabe aktiviert</string>
+    <string name="notif_ev_sharing_off">Standort-Freigabe deaktiviert</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">Diese Anfrage existiert nicht mehr.</string>
+    <string name="err_session_unreadable">Diese Anfrage ist unlesbar.</string>
+    <string name="err_session_unreadable_resend">Diese Anfrage ist unlesbar — bitten Sie den Helfer, sie erneut zu senden.</string>
+    <string name="err_only_recipient_allow">Nur das angefragte Telefon kann diese Sitzung zulassen.</string>
+    <string name="err_only_recipient_deny">Nur das angefragte Telefon kann diese Anfrage ablehnen.</string>
+    <string name="err_only_helper_cancel">Nur der Helfer kann seine eigene Anfrage abbrechen.</string>
+    <string name="err_already_answered">Diese Anfrage wurde bereits beantwortet.</string>
+    <string name="err_already_answered_status">Diese Anfrage wurde bereits beantwortet (%1$s).</string>
+    <string name="err_session_expired_resend">Diese Anfrage ist bereits abgelaufen — bitten Sie den Helfer, eine neue zu senden.</string>
+    <string name="setup_not_checked">Noch nicht geprüft</string>
+    <string name="setup_not_sent">Noch nicht gesendet</string>
+    <string name="setup_not_setup">Noch nicht eingerichtet</string>
+    <string name="share_channel_name">Bildschirmfreigabe</string>
+    <string name="share_channel_desc">Wird angezeigt, während Ihr Bildschirm mit einem Helfer geteilt wird.</string>
+    <string name="share_notif_title">Bildschirmfreigabe aktiv</string>
+    <string name="share_notif_body">Ein Helfer sieht sich den Bildschirm dieses Telefons an. Zum Öffnen tippen.</string>
+    <string name="qr_share_chooser_title">Kopplungscode teilen</string>
+    <string name="qr_share_text">Family Remote Support Kopplungscode: %1$s\nÖffnen Sie die App Family Remote Support auf dem anderen Telefon, tippen Sie auf «QR-Scan» oder geben Sie diesen Code ein. 5 Minuten gültig.</string>
+    <string name="ss_info_live_receiving">Live — Bildschirm wird empfangen ✓</string>
+    <string name="ss_info_preparing_share">Bildschirmfreigabe wird vorbereitet…</string>
+    <string name="ss_info_capture_ready">Bildschirmaufnahme bereit — wartet darauf, dass der Helfer auf «Bildschirm ansehen» tippt.</string>
+    <string name="ss_info_preparing_viewer">Betrachter wird vorbereitet…</string>
+    <string name="ss_info_asked">Bildschirm beim Telefon des Empfängers angefragt — Verbindung läuft…</string>
+    <string name="ss_info_video_ready">Videokanal bereit — warten auf die Verbindung…</string>
+    <string name="ss_info_connected">Verbindung hergestellt — Video startet…</string>
+    <string name="ss_info_live_share">Live — der Helfer sieht diesen Bildschirm.</string>
+    <string name="ss_info_interrupted">Verbindung unterbrochen — Wiederherstellung läuft…</string>
+    <string name="ss_info_watch_received">Der Helfer möchte zusehen — Bildschirm wird gesendet…</string>
+    <string name="ss_info_share_stopped">Der Empfänger hat die Freigabe gestoppt.</string>
+    <string name="ss_info_view_closed">Der Helfer hat die Ansicht geschlossen.</string>
+    <string name="ss_info_offer_sent">Angebot gesendet — warten auf die Antwort des Helfers…</string>
+    <string name="ss_info_offer_failed">Das Bildschirm-Angebot konnte nicht vorbereitet werden — der Helfer versucht es automatisch erneut.</string>
+    <string name="ss_info_answer_sent">Antwort gesendet — Video wird verbunden…</string>
+    <string name="ss_info_negotiation_done">Aushandlung abgeschlossen — Verbindung zum Helfer läuft…</string>
+    <string name="ss_retry_no_response">Keine Antwort vom Telefon des Empfängers — stellen Sie sicher, dass dort «Bildschirm teilen» AN ist.</string>
+    <string name="ss_retry_no_answer">Die Antwort des Empfängers kam nie an.</string>
+    <string name="ss_retry_link_failed">Die beiden Telefone konnten sich nicht verbinden.</string>
+    <string name="ss_retry_conn_failed">Der Verbindungsversuch ist fehlgeschlagen</string>
+    <string name="ss_retry_answer_failed">Konnte das Angebot des Empfängers nicht beantworten</string>
+    <string name="ss_retry_apply_failed">Konnte das Angebot des Empfängers nicht anwenden</string>
+    <string name="ss_retrying_auto">%1$s — wird automatisch erneut versucht…</string>
+    <string name="ss_retried_watch">%1$s — Telefon des Empfängers erneut angefragt…</string>
+    <string name="ss_recover_conn_failed">Verbindung zum Helfer fehlgeschlagen — die Freigabe bleibt bereit. Bitten Sie den Helfer, erneut auf «Bildschirm ansehen» zu tippen.</string>
+    <string name="ss_recover_answer_failed">Konnte nicht antworten — der Helfer versucht es automatisch erneut.</string>
+    <string name="ss_recover_apply_failed">Konnte die Antwort des Helfers nicht anwenden — der Helfer versucht es erneut.</string>
+    <string name="ss_fail_projection_stopped">Die Bildschirm-Projektion wurde vom System gestoppt — tippen Sie erneut auf «Bildschirm teilen».</string>
+    <string name="ss_fail_capture">Bildschirmaufnahme fehlgeschlagen: %1$s</string>
+    <string name="ss_fail_watch">Zuschauen konnte nicht angefordert werden: %1$s</string>
+    <string name="ss_fail_viewer">Betrachter konnte nicht gestartet werden: %1$s</string>
+    <string name="ss_fail_conn_stopped">Verbindung fehlgeschlagen — tippen Sie auf «Teilen beenden» und teilen Sie dann erneut.</string>
+    <string name="ss_fail_no_engine">Die WebRTC-Engine konnte auf diesem Telefon nicht erstellt werden.</string>
+    <string name="ss_fail_signal">Fehler im Signalkanal: %1$s</string>
+    <string name="ss_fail_conn_retry">Verbindung fehlgeschlagen — die beiden Telefone konnten sich nicht verbinden. Tippen Sie erneut auf «Bildschirm ansehen»; wenn es weiterhin scheitert, verbinden Sie beide Telefone mit demselben Wi-Fi-Netzwerk (oder mit dem Hotspot eines der Telefone).</string>
+    <string name="ss_fail_offer">Das Angebot konnte nicht gesendet werden: %1$s</string>
+    <string name="ss_fail_answer">Die Antwort konnte nicht gesendet werden: %1$s</string>
+    <string name="ss_fail_apply">Die Antwort des Helfers konnte nicht angewendet werden.</string>
+    <string name="ss_ack_back">Zurück übermittelt ✓</string>
+    <string name="ss_ack_home">Startbildschirm übermittelt ✓</string>
+    <string name="ss_ack_recents">Übersicht übermittelt ✓</string>
+    <string name="ss_ack_swipe">Wischgeste übermittelt ✓</string>
+    <string name="ss_ack_long">Langer Tipp übermittelt ✓</string>
+    <string name="ss_ack_tap">Tipp übermittelt ✓</string>
+    <string name="ph_save_perm_needed">Zum Sichern des QR-Bilds wird die Speicherberechtigung benötigt.</string>
+    <string name="fallback_someone">Jemand</string>
+    <string name="fallback_helper">Helfer</string>
+    <string name="cd_pairing_qr">Kopplungs-QR-Code</string>
+    <string name="so_signout_failed">Abmelden fehlgeschlagen: %1$s</string>
+    <string name="cd_clear_messages">Nachrichten löschen</string>
 </resources>
