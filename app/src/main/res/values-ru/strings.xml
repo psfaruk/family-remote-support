@@ -408,4 +408,8 @@
     <string name="notif_empty_title">Сейчас ничего не требует вашего внимания</string>
     <string name="notif_empty_body">Запросы на поддержку, активные сессии и предупреждения настройки появляются здесь сразу.</string>
     <string name="notif_hint">Только реальные текущие события — ничего выдуманного, без истории.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">Попробовать снова</string>
+    <string name="states_open_settings">Открыть настройки системы</string>
 </resources>
