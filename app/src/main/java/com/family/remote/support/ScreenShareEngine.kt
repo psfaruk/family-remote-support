@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.WindowManager
+import com.family.remote.support.ui.LangPrefBus
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
@@ -307,6 +308,19 @@ object ScreenShareEngine {
     private val assistClear = Runnable { _assistStatus.value = null }
 
     private var appContext: Context? = null
+
+    /**
+     * M8 (v0.34.0) — user-visible status/error lines resolve through the app
+     * language (LangPrefBus.wrap — the same pattern SessionNotifier uses for
+     * the request notifications) instead of hardcoded English. appContext is
+     * captured by startCommon BEFORE the first state write, so the empty
+     * fallback only guards a message emitted before any start (not a real
+     * path — kept honest instead of a !! crash).
+     */
+    private fun loc(res: Int, vararg fmt: Any): String {
+        val ctx = appContext ?: return ""
+        return LangPrefBus.wrap(ctx).getString(res, *fmt)
+    }
     private var eglBase: EglBase? = null
     private var factory: PeerConnectionFactory? = null
 
@@ -507,24 +521,22 @@ object ScreenShareEngine {
             when {
                 seen > 0 && (st == ShareState.CONNECTING || st == ShareState.WAITING_PEER) -> {
                     _state.value = ShareState.LIVE
-                    _info.value = "Live — receiving the screen ✓"
+                    _info.value = loc(R.string.ss_info_live_receiving)
                 }
                 st == ShareState.WAITING_PEER &&
                     sentWatchAt > 0 && now - sentWatchAt > 12_000 -> {
                     repost = false
-                    helperRetryOrFail(
-                        "No response from the recipient's phone — make sure “Share screen” is ON there."
-                    )
+                    helperRetryOrFail(loc(R.string.ss_retry_no_response))
                 }
                 st == ShareState.CONNECTING &&
                     gotOfferAt > 0 && answerSentAtMillis == 0L && now - gotOfferAt > 12_000 -> {
                     repost = false
-                    helperRetryOrFail("The recipient's answer never arrived.")
+                    helperRetryOrFail(loc(R.string.ss_retry_no_answer))
                 }
                 st == ShareState.CONNECTING &&
                     answerSentAtMillis > 0 && seen == 0L && now - answerSentAtMillis > 14_000 -> {
                     repost = false
-                    helperRetryOrFail("The two phones could not finish linking up.")
+                    helperRetryOrFail(loc(R.string.ss_retry_link_failed))
                 }
             }
             if (repost) main.postDelayed(this, 1000)
@@ -562,7 +574,7 @@ object ScreenShareEngine {
             _info.value = null
             startCommon(context, sessionIdArg, uid, peerUidArg, isHelperArg = false)
             _state.value = ShareState.PREPARING
-            _info.value = "Preparing the screen share…"
+            _info.value = loc(R.string.ss_info_preparing_share)
             diagLog("share start (epoch ${myEpoch?.take(6) ?: "?"})")
             val app = context.applicationContext
             // v0.21.0 (audit): round token + cancellable fetch — see startRound.
@@ -621,10 +633,7 @@ object ScreenShareEngine {
                     override fun onStop() {
                         runOnMain {
                             if (captureAlive) {
-                                fail(
-                                    "Screen projection was stopped from the system — " +
-                                        "tap “Share screen” again."
-                                )
+                                fail(loc(R.string.ss_fail_projection_stopped))
                             }
                         }
                     }
@@ -669,11 +678,11 @@ object ScreenShareEngine {
                     " (real display $rw x $rh)"
             )
             _state.value = ShareState.WAITING_PEER
-            _info.value = "Screen capture ready — waiting for the helper to tap “Watch screen”."
+            _info.value = loc(R.string.ss_info_capture_ready)
             watchSignals()
         } catch (e: Exception) {
             captureAlive = false
-            fail("Screen capture failed: ${e.message ?: e.javaClass.simpleName}")
+            fail(loc(R.string.ss_fail_capture, e.message ?: e.javaClass.simpleName))
         }
     }
 
@@ -904,7 +913,7 @@ object ScreenShareEngine {
             _info.value = null
             startCommon(context, sessionIdArg, uid, peerUidArg, isHelperArg = true)
             _state.value = ShareState.WAITING_PEER
-            _info.value = "Preparing the viewer…"
+            _info.value = loc(R.string.ss_info_preparing_viewer)
             diagLog("watch start (epoch ${myEpoch?.take(6) ?: "?"})")
             // v0.21.0 (audit): same round-token guard as the recipient side.
             val round = ++startRound
@@ -941,15 +950,15 @@ object ScreenShareEngine {
                 try {
                     SignalingRepo.send(sid, me, to, "watch", ep)
                     sentWatchAt = System.currentTimeMillis()
-                    _info.value = "Asked the recipient's phone for the screen — connecting…"
+                    _info.value = loc(R.string.ss_info_asked)
                     diagLog("watch sent → waiting for the offer")
                     startTicker()
                 } catch (e: Exception) {
-                    fail("Could not ask to watch: ${e.message ?: e.javaClass.simpleName}")
+                    fail(loc(R.string.ss_fail_watch, e.message ?: e.javaClass.simpleName))
                 }
             }
         } catch (e: Exception) {
-            fail("Could not start the viewer: ${e.message ?: e.javaClass.simpleName}")
+            fail(loc(R.string.ss_fail_viewer, e.message ?: e.javaClass.simpleName))
         }
     }
 
@@ -1134,7 +1143,7 @@ object ScreenShareEngine {
                     ensureRemoteProxy(track)
                     addFrameCounterIfMissing(track)
                     if (isHelper) {
-                        _info.value = "Video channel ready — waiting for the connection…"
+                        _info.value = loc(R.string.ss_info_video_ready)
                     }
                 }
             }
@@ -1151,30 +1160,27 @@ object ScreenShareEngine {
                             scheduleRelayBandwidthCheck(mine())
                             if (isHelper) {
                                 retryBudget = 3 // success refills the auto-retry budget
-                                _info.value = "Connection established — starting the video…"
+                                _info.value = loc(R.string.ss_info_connected)
                             } else {
                                 _state.value = ShareState.LIVE
-                                _info.value = "Live — the helper can see this screen."
+                                _info.value = loc(R.string.ss_info_live_share)
                             }
                         }
                         PeerConnection.PeerConnectionState.DISCONNECTED -> {
                             diagLog("peer connection DISCONNECTED")
                             if (_state.value == ShareState.LIVE) {
-                                _info.value = "Connection interrupted — trying to recover…"
+                                _info.value = loc(R.string.ss_info_interrupted)
                             }
                         }
                         PeerConnection.PeerConnectionState.FAILED -> {
                             diagLog("peer connection FAILED")
                             if (isHelper) {
-                                helperRetryOrFail("The connection attempt failed")
+                                helperRetryOrFail(loc(R.string.ss_retry_conn_failed))
                             } else if (captureAlive) {
                                 // v0.8.3 — the share survives; only the link died.
-                                recipientRecover(
-                                    "Connection to the helper failed — the share stays ready. " +
-                                        "Ask the helper to tap “Watch screen” again."
-                                )
+                                recipientRecover(loc(R.string.ss_recover_conn_failed))
                             } else {
-                                fail("Connection failed — tap “Stop sharing”, then share again.")
+                                fail(loc(R.string.ss_fail_conn_stopped))
                             }
                         }
                         else -> Unit
@@ -1207,7 +1213,7 @@ object ScreenShareEngine {
             PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
         val pc = factory!!.createPeerConnection(config, observer)
         if (pc == null) {
-            fail("Could not create the WebRTC engine on this phone.")
+            fail(loc(R.string.ss_fail_no_engine))
             return
         }
         thisPc = pc
@@ -1246,7 +1252,7 @@ object ScreenShareEngine {
             onSignal = { type, ep, payload, createdAt ->
                 main.post { handleSignal(type, ep, payload, createdAt) }
             },
-            onError = { e -> main.post { fail("Signal channel error: ${e.message ?: "unknown"}") } }
+            onError = { e -> main.post { fail(loc(R.string.ss_fail_signal, e.message ?: "unknown")) } }
         )
         signalStop = stop
         // Clear stale documents addressed to me from earlier rounds.
@@ -1291,7 +1297,7 @@ object ScreenShareEngine {
                             createPeer() // self-heal path: reconnect after a failure
                         }
                         val pcNow = peerConnection ?: return
-                        _info.value = "The helper asked to watch — sending the screen…"
+                        _info.value = loc(R.string.ss_info_watch_received)
                         val restart = MediaConstraints()
                         restart.mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
                         pcNow.createOffer(offerObserver(peerEpoch), restart)
@@ -1362,8 +1368,8 @@ object ScreenShareEngine {
                     } else {
                         val wasHelper = isHelper
                         teardown(sendBye = false)
-                        _info.value = if (wasHelper) "The recipient stopped sharing."
-                        else "The helper closed the view."
+                        _info.value = if (wasHelper) loc(R.string.ss_info_share_stopped)
+                        else loc(R.string.ss_info_view_closed)
                     }
                 }
                 // Phase 8 — remote-assist commands (helper → recipient) and
@@ -1662,15 +1668,15 @@ object ScreenShareEngine {
         }
         if (obj.optBoolean("ok")) {
             _assistStatus.value = when (obj.optString("kind")) {
-                "back" -> "Back delivered ✓"
-                "home" -> "Home delivered ✓"
-                "recents" -> "Recents delivered ✓"
-                "swipe" -> "Swipe delivered ✓"
-                "long" -> "Long-press delivered ✓"
+                "back" -> loc(R.string.ss_ack_back)
+                "home" -> loc(R.string.ss_ack_home)
+                "recents" -> loc(R.string.ss_ack_recents)
+                "swipe" -> loc(R.string.ss_ack_swipe)
+                "long" -> loc(R.string.ss_ack_long)
                 // v0.12.0 (Phase 8.3 completion) — the two new commands.
                 "text" -> "Text delivered ✓ · লেখা বসেছে"
                 "qcap" -> "Data saver applied ✓ · ছবির মান আপডেট হয়েছে"
-                else -> "Tap delivered ✓"
+                else -> loc(R.string.ss_ack_tap)
             }
             // Success clears itself shortly.
             main.removeCallbacks(assistClear)
@@ -1795,11 +1801,7 @@ object ScreenShareEngine {
                 retryBudget--
                 helperRestartRound(reason)
             } else {
-                fail(
-                    "Connection failed — the two phones could not link up. " +
-                        "Tap “Watch screen” again; if it keeps failing, put both " +
-                        "phones on the same Wi-Fi network (or one phone's hotspot)."
-                )
+                fail(loc(R.string.ss_fail_conn_retry))
             }
         }
     }
@@ -1838,7 +1840,7 @@ object ScreenShareEngine {
         myEpoch = UUID.randomUUID().toString().replace("-", "").take(24)
         diagLog("retry round ${myEpoch?.take(6)} — $reason")
         _state.value = ShareState.WAITING_PEER
-        _info.value = "$reason — trying again automatically…"
+        _info.value = loc(R.string.ss_retrying_auto, reason)
         val sid = sessionId ?: return
         val me = myUid ?: return
         val to = peerUid ?: return
@@ -1849,10 +1851,10 @@ object ScreenShareEngine {
             try {
                 SignalingRepo.send(sid, me, to, "watch", ep)
                 sentWatchAt = System.currentTimeMillis()
-                _info.value = "$reason — asked the recipient's phone again…"
+                _info.value = loc(R.string.ss_retried_watch, reason)
                 startTicker()
             } catch (e: Exception) {
-                fail("Could not ask to watch: ${e.message ?: e.javaClass.simpleName}")
+                fail(loc(R.string.ss_fail_watch, e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -1910,10 +1912,10 @@ object ScreenShareEngine {
                         SignalingRepo.send(sid, me, to, "offer", json, ep)
                         diagLog("offer sent — waiting for the helper's answer")
                         _state.value = ShareState.CONNECTING
-                        _info.value = "Offer sent — waiting for the helper's answer…"
+                        _info.value = loc(R.string.ss_info_offer_sent)
                     } catch (e: Exception) {
                         diagLog("offer send FAILED: ${e.message ?: e.javaClass.simpleName}")
-                        fail("Could not send the offer: ${e.message ?: e.javaClass.simpleName}")
+                        fail(loc(R.string.ss_fail_offer, e.message ?: e.javaClass.simpleName))
                     }
                 }
             }
@@ -1928,7 +1930,7 @@ object ScreenShareEngine {
                 if (isHelper || !captureAlive) return@runOnMain
                 if (_state.value == ShareState.ENDED || _state.value == ShareState.IDLE) return@runOnMain
                 _state.value = ShareState.WAITING_PEER
-                _info.value = "Could not prepare the screen offer — the helper will retry automatically."
+                _info.value = loc(R.string.ss_info_offer_failed)
             }
         }
     }
@@ -1975,10 +1977,10 @@ object ScreenShareEngine {
                                         )
                                         diagLog("answer sent — linking up")
                                         _state.value = ShareState.CONNECTING
-                                        _info.value = "Answer sent — connecting video…"
+                                        _info.value = loc(R.string.ss_info_answer_sent)
                                     } catch (e: Exception) {
                                         diagLog("answer send FAILED: ${e.message ?: e.javaClass.simpleName}")
-                                        fail("Could not send the answer: ${e.message ?: e.javaClass.simpleName}")
+                                        fail(loc(R.string.ss_fail_answer, e.message ?: e.javaClass.simpleName))
                                     }
                                 }
                             }
@@ -1991,9 +1993,9 @@ object ScreenShareEngine {
                             diagLog("createAnswer FAILED: ${error ?: "unknown"}")
                             runOnMain {
                                 if (isHelper) {
-                                    helperRetryOrFail("Could not answer the recipient's offer")
+                                    helperRetryOrFail(loc(R.string.ss_retry_answer_failed))
                                 } else if (captureAlive) {
-                                    recipientRecover("Could not answer — the helper will retry automatically.")
+                                    recipientRecover(loc(R.string.ss_recover_answer_failed))
                                 }
                             }
                         }
@@ -2002,7 +2004,7 @@ object ScreenShareEngine {
                 remoteDescriptionSet = true
                 flushIce()
                 _state.value = ShareState.CONNECTING
-                _info.value = "Negotiation done — connecting to the helper…"
+                _info.value = loc(R.string.ss_info_negotiation_done)
             }
             // "local" descriptions carry no further action.
             }
@@ -2018,11 +2020,11 @@ object ScreenShareEngine {
                 val currentEp = if (isHelper) myEpoch else peerEpoch
                 if (expectedEpoch != null && currentEp != expectedEpoch) return@runOnMain
                 if (isHelper) {
-                    helperRetryOrFail("Could not apply the recipient's offer")
+                    helperRetryOrFail(loc(R.string.ss_retry_apply_failed))
                 } else if (captureAlive) {
-                    recipientRecover("Could not apply the helper's answer — the helper will retry.")
+                    recipientRecover(loc(R.string.ss_recover_apply_failed))
                 } else {
-                    fail("Could not apply the helper's answer.")
+                    fail(loc(R.string.ss_fail_apply))
                 }
             }
         }
