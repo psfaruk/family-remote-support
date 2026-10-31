@@ -187,6 +187,9 @@ import com.family.remote.support.ui.home.MemberDetailScreen
 import com.family.remote.support.ui.home.RecentActivityScreen
 import com.family.remote.support.ui.home.SessionDetailScreen
 import com.family.remote.support.ui.AppWarningColor
+// M5 (v0.33.0) — the Tracking detail route (NAVIGATION_MAP §2
+// tracking-subtree): tracking/{relId} Location Details screen.
+import com.family.remote.support.ui.tracking.LocationDetailScreen
 import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.FamilyRemoteSupportTheme
 import com.family.remote.support.ui.LangPrefBus
@@ -880,10 +883,41 @@ fun HomeScreen() {
             // Phase 16 — the old একটিভিটি tab became the LIVE LOCATION tab
             // (Owner's order then; an honest placeholder, nothing collected).
             // The Activity content stays merged INTO Settings as requested.
-            // The real Tracking implementation lands in M5
-            // (LIVE_LOCATION_ARCHITECTURE.md) at this same route.
+            // M5 (v0.33.0) — the placeholder is GONE: the real Tracking tab
+            // (osmdroid map + authorized markers + own-sharing consent card,
+            // docs/LIVE_LOCATION_ARCHITECTURE.md) at this same route.
             composable(AppRoutes.TRACKING) {
-                ShellTabColumn { TrackingTab() }
+                ShellTabColumn {
+                    TrackingTab(
+                        user = signedInUser,
+                        // NAVIGATION_MAP §2 tracking-subtree: the map's detail
+                        // entry routes into tracking/{relId} (Location Details).
+                        onOpenMember = { relId ->
+                            navController.navigate("tracking/$relId") { launchSingleTop = true }
+                        }
+                    )
+                }
+            }
+            // ── M5 (v0.33.0) — NESTED TRACKING ROUTE (NAVIGATION_MAP §2) ─────
+            // Location Details: last update time, accuracy, staleness, the
+            // counterpart's read-only sharing status + open-in-maps. System
+            // back pops it (map §3); the Tracking tab stays selected
+            // (tabForRoute) — same motion rules as the M4 home-subtree.
+            composable(
+                AppRoutes.TRACKING_ARG,
+                arguments = listOf(navArgument("relId") { type = NavType.StringType }),
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) { entry ->
+                ShellTabColumn {
+                    LocationDetailScreen(
+                        user = signedInUser,
+                        relId = entry.arguments?.getString("relId").orEmpty(),
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
             composable(AppRoutes.SETTINGS) {
                 ShellTabColumn {
@@ -925,9 +959,30 @@ fun HomeScreen() {
                                 SessionUiBus.stopConfirm = false
                                 SessionUiBus.typeDialog = false
                                 SessionUiBus.touchOn = false
+                                // M5 (v0.33.0) — sign-out also stops live-
+                                // location sharing: the FGS stops AND the
+                                // sharing pref flips off (same hygiene as the
+                                // share/viewer teardown above; the doc delete
+                                // below runs while still signed in).
+                                stopLocationSharing(context)
                                 var cleanupNote: String? = null
                                 val currentUser = FirebaseAuth.getInstance().currentUser
                                 if (currentUser != null) {
+                                    // M5: remove the liveLocations doc while
+                                    // still authenticated (rules-allowed
+                                    // self-delete; best-effort — a failure never
+                                    // traps the user signed in).
+                                    try {
+                                        deleteOwnLocation(
+                                            currentUser.uid,
+                                            stableDeviceId(context)
+                                        )
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (_: Exception) {
+                                        // best-effort; the presence/token
+                                        // cleanup below reports honestly
+                                    }
                                     val clean = try {
                                         deleteOwnPresenceAndToken(
                                             currentUser.uid,
