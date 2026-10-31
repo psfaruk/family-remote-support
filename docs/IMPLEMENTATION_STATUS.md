@@ -1,14 +1,15 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **IMPLEMENTATION checkpoint — M8 shipped (local notifications store G2 +
-> accessibility + i18n completion + perf pass; v0.34.0/53).** Reconciles the ORIGINAL phase
-> history (Phase 0–22) with the master-plan phases (M0–M10). The stale §12 table inside
-> `docs/PHASE-0.md` is superseded by this file from now on (PHASE-0 remains the append-only
-> narrative record).
-> Build at writing: **v0.34.0 (versionCode 53) — M8 is a CODE milestone: both phones must
-> reinstall.** HEAD at M7-close `962ae3f` (CI SUCCESS, run 41193778392) · M8 code+docs pushes
-> follow that line. Rules for the `liveLocations` collection remain **LIVE** (ruleset d1a38d5e);
-> full probe battery last re-run live in M6 (4/4 green) — M8 changed no rules.
+> Status: **IMPLEMENTATION checkpoint — M9 executed (TEST_PLAN auto rows re-run live
+> 4/4 + security review + quota budget; docs-only, APK unchanged v0.34.0/53).** Reconciles
+> the ORIGINAL phase history (Phase 0–22) with the master-plan phases (M0–M10). The stale
+> §12 table inside `docs/PHASE-0.md` is superseded by this file from now on (PHASE-0
+> remains the append-only narrative record).
+> Build at writing: **v0.34.0 (versionCode 53) — M8's reinstall instruction for both phones
+> still stands; M9 added no code.** HEAD at M8-close `917ad7a` (CI SUCCESS, run
+> 41201246291) · M9 docs push follows that line. Rules for the `liveLocations` collection
+> remain **LIVE** (ruleset d1a38d5e); full probe battery re-run live in M9 (4/4 green —
+> same as M6; M8/M9 changed no rules).
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
@@ -42,7 +43,7 @@
 | M6 | Family/Guest authorization verification + G1–G4 deltas | ✅ **2026-10-31 (docs-only push; APK v0.33.0/52 unchanged)** — **Live verification (self-cleaning probes, all green):** pairing-probe (P1a/P1b redeem round-trip; N1/N2 no/wrong claimToken → 403) · audit-probe A0–A21 (session-FSM side/step/cap fences, payload caps, schema fences, post-END signals) · negative-probe (P0/N1–N10 + P10/N11–N18/G1/G2/N12–N16b: kind fence family↔guest, guest-window bounds/expiry/silent-extension denied, lazy EXPIRED + participant delete allowed) · liveLocations-probe **12/12 re-run PASS**. **G1–G4:** G1 ✅ M5 (rules LIVE d1a38d5e + consent sheet + FAMILY_GUEST §3 matrix row) · G2 ⛔ M8 by design (out of scope) · G3 ✅ closed-as-covered (OS posture + assist state → Security wizard `PermChecklist`/`AssistSetup.isAssistEnabled`; relationship/guest → home/family; sharing → Location & Privacy + Tracking — all verified in code) · G4 ✅ M4 (manifest comment re-verified). **FAMILY_GUEST §7 acceptance: all 5 criteria probe/scan-backed.** No app code, rules, deps, or strings changed; both phones stay on v0.33.0/52. |
 | M7 | Remote support integration audit (no regression to WebRTC/assist) | ✅ **2026-10-31 (docs-only push; APK v0.33.0/52 unchanged)** — **2 real parallel read-only audit agents (M7-A WebRTC/session/signaling chain · M7-B assist/FCM/notification/kill-push chain) + coordinator independent verification** (git `-S` all-history searches, ScreenShareService spot-check, live Worker `/health` probes ×2, GH Actions log download). **Verdicts — all INTACT, zero refactor regressions:** WebRTC screen-share chain (consent launcher → FGS `startForeground` BEFORE `startRecipient` — spot-verified; full teardown incl. signal-listener detach; role-guarded stop; "bye" freshness gate) · session FSM surfaces (request/grant/deny/cancel/end/expire all reachable via the SAME SessionRepo APIs across HomeTab/AddDeviceTab/FamilyScreens nested routes) · signaling lifecycle (no attach-without-detach path) · MainActivity post-refactor wiring (root SessionWatchViewModel above NavHost, no-open-session→stop-everything, root zombie sweep, sign-out teardown incl. M5 location additions) · assist chain (dispatchGesture + ACTION_SET_TEXT + all 7 companion entry points) · FCM registration/notification routing (extras-free tap → Home → pendingAsk card — lands correctly in the NEW nav) · manifest registrations (4 services + POST_NOTIFICATIONS + FCM meta). **3 honest findings:** (1) sandbox instant-tier sweep script was a STALE copy missing the Phase 18.4 claim fix + Phase 20 expiry fix (instant tier could never win a claim → never pushed) — fixed in-sandbox by re-syncing from the repo copy + service restart, first sweep 0 errors; process rule recorded (that path lives OUTSIDE the repo mirror — manual re-sync needed after repo changes to the script); (2) **doc-code drift corrected:** CLOUDFLARE_SETUP.md had claimed the app-side instant `POST /sweep` call "shipped in v0.19.0" — **never implemented** (0 HTTP clients in app code, ever; git `-S` all-history 0 hits; Phase 18.9's F2 fix had been misled by that same doc) — claim retracted this push; any future implementation must first solve the bearer-token-in-public-repo leak problem (design decision); (3) Owner's "Cloudflare worker true" NOT confirmed live: `/health` probed twice today → `FIREBASE_SA_JSON:false`, `last:"not run yet"` (possible cause: added as Build variable instead of runtime Secret); GH Actions backstop last run SUCCESS (41180972665), its 3 prior failures verified from logs = Firestore 429 quota (self-healing, not code). INFO-only: empty `onDispose` on the root session-watch effect (no practical leak — documented, not changed). |
 | M8 | Notifications, accessibility, i18n completion, polish | ✅ **2026-10-31 (v0.34.0/53 — CODE milestone, reinstall both phones)** — **5 real agents in 3 waves (honest):** Wave1 parallel M8-A (notifications local store, Kotlin) + M8-B (default↔bn inversion, XML-only); Wave2 M8-C (literals+a11y+perf); Wave3 parallel M8-D1/M8-D2 (7 locales each); + coordinator surgery (staged-keys merge 68+1, FamilyScreens catch migration, AuthGate Bangla cd, assist_service_description cleanup, version bump). **G2 delivered — LOCAL persisted events store** (`NotificationsLog.kt` NEW): JSON in filesDir, cap 100, fire-and-forget IO, defensive load; real events only from EXISTING observations (session asked/started/ended via root-watch state diff + sharing on/off from LocationShareService actual start/stops) — **zero extra Firestore reads, zero coordinates, cleared at sign-out**; NotificationsScreen "Recent events" section + honest new notif_hint ×15. **Design decision (recorded): local, not Firestore — Phase-20 quota discipline.** **i18n inversion FIXED (M8-B):** 209 default↔bn value swaps + cd_notifications suffix cleanup + set_lang_info English + 27 bn translations; 2 keys deliberately left (feed_last_sub pure-format, pw_perm_assist all-15-English); post-state: default has ZERO Bengali keys, bn fully Bengali except the 2 recorded. **Literals extracted (~68 keys):** SessionException stable codes + localizedMessage (9 err_session_*) with catch-site migration (HomeTab×4/AddDeviceTab×3/FamilyScreens×1); ScreenShareEngine 44 ss_* status/retry/recover/fail/ack keys; ScreenShareService share_* ×4 (LangPrefBus.wrap); QrActions qr_* ×2; setup_* ×3 + so_signout_failed; fallback_* ×2; a11y cd_pairing_qr + cd_clear_messages; SessionKey semantics wired (sk_*). **Perf:** NEW `ui/components/Clock.kt` TickingBlock isolates all 6 per-second screen-level ticks — whole screens no longer recompose every second. **i18n completion:** 74 new keys ×14 locales (1,036 entries, M8-D1/D2 with per-locale verification matrices all PASS: well-formed/526 keys/key-set parity/placeholder parity/no unescaped apostrophes/✓ & \n preserved) + notif_hint updated ×15. **Honest remainders (recorded follow-ups):** MainActivity prefix-parsed setup strings ("Registered ✓…" — HomeTab:296-300 startsWith logic needs flag plumbing first); ScreenShareEngine bilingual assist banners + diag lines (Phase-16b); bn notif_item_perms placeholder order pre-existing quirk (out of scope). |
-| M9 | Testing & integration: TEST_PLAN execution, security review | ⛔ |
+| M9 | Testing & integration: TEST_PLAN execution, security review | ✅ **2026-10-31 (docs-only push; APK v0.34.0/53 unchanged)** — **All AUTO rows re-run LIVE, 4/4 suites green** (pairing · audit A0–A21 · negative P0–N18+G1/G2 · liveLocations 12/12 — the M6 battery, zero drift; synthetic fixtures self-cleaned). **Ops:** instant tier verified sweeping every 5 s (0 errors; script-sync md5 = repo); GH Actions backstop verified by manual dispatch **41203101630 SUCCESS** (3 prior schedule failures = Firestore 429 quota, self-healing after the 07:00 UTC daily reset — M7 log-verified; schedule re-registered by touching the workflow comment); Worker permanent tier ⛔ **new finding: the Owner's Cloudflare API token is IP-filtered (HTTP 9109 — sandbox egress blocked AND drifts IPs)** → `FIREBASE_SA_JSON` still cannot be set programmatically; unlock steps in CLOUDFLARE_SETUP.md M9 (remove the token's Client IP Address Filtering, then the assistant finishes via API + /health verify + live sweep test). **Firebase verified end-to-end:** SA → Firestore REST read 200 (fcmTokens: 3 real device tokens, newest today 10:31Z) → FCM send **200 + message_id** (labeled test push delivered to the live token). **Security review:** full 615-commit history scan — zero secrets (only hits: the Worker's PEM-parsing code string + google-services.json API key, Android identifier-class by design; console key-restriction = Owner console check, the SA can't read the Keys API — 403, recorded); workflows least-privilege re-checked; APK artifacts 7-day retention; manifest posture re-checked (services exported=false, allowBackup=false, scoped FileProvider, gated accessibility service). **Quota budget documented** (TEST_PLAN §1a — metering APIs denied to the SA, so estimate-by-source + observed 429 signature). Owner device rows + M8's reinstall remain the Owner's. |
 | M10 | Release readiness: docs, build instructions, known limits, final report | ⛔ |
 
 Rule honored: no later phase starts before its prerequisites are verified (master PART 14).
@@ -56,7 +57,7 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | Family device list / details / revoke | ✅ | `PairingRepo.kt:521-565`, `MainActivity.kt:4180-4300` |
 | Guest mode (window ≤3 h, fence, guest-only delete) | ✅ | rules `:198-313`, `SessionRepo.kt:246-280` |
 | Presence (20-min window, heartbeat, chips) | ✅ | `PresenceRepo.kt` |
-| FCM + token rotation + session asks + kill-push 3 tiers | ✅ tiers audited M7: sandbox instant tier ✅ running (stale-script incident found & fixed in-sandbox); GH Actions backstop ✅ last SUCCESS (429 quota failures known, self-heal); Worker permanent tier ⛔ `FIREBASE_SA_JSON` still unset (Owner action); app-side instant `POST /sweep` never implemented (false doc claim retracted M7) | manifest `:76-97`, worker, §63, §70 |
+| FCM + token rotation + session asks + kill-push 3 tiers | ✅ **M9 live-verified:** instant tier ✅ sweeping 5 s / 0 errors (script md5 = repo); GH Actions backstop ✅ manual-dispatch **41203101630 SUCCESS** (429 schedule failures = quota, self-healing); Worker permanent tier ⛔ blocked on the Owner's CF token IP filter (9109 — see CLOUDFLARE_SETUP M9); app-side instant `POST /sweep` never implemented (false claim retracted M7) | manifest `:76-97`, worker, §63, §70, §72 |
 | Screen share (WebRTC + MediaProjection FGS) | ✅ | `ScreenShareEngine.kt`, `ScreenShareService.kt` |
 | Remote interaction (accessibility gestures + typing) | ✅ | `AssistService.kt`, `AssistSetup.kt` |
 | Sessions + signaling + zombie guards + quota errors | ✅ | `SessionRepo.kt`, `SignalingRepo.kt`, §63 |
@@ -80,7 +81,7 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | ~~default↔bn locale inversion — ~203 legacy keys~~ | ✅ **fixed M8** — 209 swaps + cd_notifications/set_lang_info specials + 27 bn fills; default now zero-Bengali; 2 deliberate leaves recorded (feed_last_sub, pw_perm_assist) |
 | ~~Per-second recomposition tick~~ | ✅ **fixed M8** — TickingBlock (ui/components/Clock.kt) isolates all 6 tick sites; zero screen-level nowMillis remains |
 | `isMinifyEnabled=false`, no tests, 40 MB APK | record-only; R8 = separate future decision |
-| Cloudflare `FIREBASE_SA_JSON` unset (permanent kill-push tier inactive) | **Owner action** (unchanged since §60; M7 live probe ×2 still `false` — add as a runtime **Secret** in Worker → Settings → Variables and Secrets, NOT a Build variable) |
+| Cloudflare `FIREBASE_SA_JSON` unset (permanent kill-push tier inactive) | **Owner action — M9 refined:** the Owner's CF API token (saved sandbox-side at `.secrets/cloudflare-token.txt`, never in the repo) is **IP-filtered** (API 9109 from the sandbox; egress IP drifts) → EITHER remove the token's Client IP Address Filtering (My Profile → API Tokens → Edit) and tell the assistant (it then sets the Secret via API + verifies `/health` + live sweep test), OR set the runtime **Secret** manually in Worker → Settings → Variables and Secrets (NOT a Build variable) |
 | App-side instant `POST /sweep` — was falsely documented as shipped (v0.19.0); never implemented (M7 audit: 0 HTTP clients in app code, git `-S` all-history 0 hits) | docs corrected M7; future impl blocked on public-repo bearer-token-leak design decision |
 | Sandbox kill-push script drift: `my-project/scripts/fcm-kill-push.mjs` (mini-service import path) lives OUTSIDE the repo mirror and had gone stale (missing Phase 18.4 + Phase 20 fixes) | fixed + restarted M7 (sandbox-only); RULE: re-sync after every repo change to `android-app/scripts/fcm-kill-push.mjs` |
 | docs/PHASE-0.md §12 stale table | superseded by this file (narrative stays) |
@@ -88,22 +89,29 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | MainActivity "Registering/Registered/Online/Push ready" strings remain English | follow-up: HomeTab:296-300 prefix-parses them (startsWith) — needs deviceOk/presenceOk/pushOk flags plumbed first |
 | ScreenShareEngine bilingual assist banners + diag lines | Phase-16b follow-up (deliberate bilingual style) |
 
-## 5. Owner pending actions (M8 edition)
+## 5. Owner pending actions (M9 edition)
 
-1. **REINSTALL BOTH PHONES — v0.34.0 (versionCode 53)** — M8 is a code milestone (the
-   version-sync rule applies; AXML gate refuses drift). APK from the CI SUCCESS run's
-   artifacts. Post-install quick regression (highest-signal checks first):
-   - **Language → বাংলা:** the whole UI should now be Bengali (the default↔bn inversion
-     fix is the most visible change — previously ~209 screens/labels showed the wrong
-     language for bn AND default users);
-   - **Bell → notifications screen:** new "Recent events" section appears after real
-     events (session ask/start/end, sharing on/off); events survive an app restart;
-   - **Sign out → sign back in:** the Recent-events list is empty (cleared at sign-out);
-   - **Countdown surfaces** (consent card, session rows) still tick every second —
-     the perf change is invisible by design (no visual delta);
-   - Remaining TEST_PLAN device rows as before (#10–#15, #19/#20/#21, #7/#8/#24).
-2. **Cloudflare `FIREBASE_SA_JSON` is STILL unset** (M7 probes: `false` ×2 — runtime
-   **Secret**, not Build variable; see §70). Unchanged Owner action.
-3. **Next = M9** — TEST_PLAN execution (24 scenarios) + security review, per the master
-   plan. The M8 remainders (prefix-parsed setup strings, 16b bilingual banners) are
-   recorded follow-ups, not M9 blockers.
+1. **REINSTALL BOTH PHONES — v0.34.0 (versionCode 53)** — unchanged from M8 (M9 added no
+   code). APK from the CI SUCCESS run's artifacts. Post-install quick regression:
+   - **Language → বাংলা:** the whole UI in Bengali (the default↔bn inversion fix);
+   - **Bell → notifications screen:** "Recent events" after real events; survives restart;
+   - **Sign out → sign back in:** the Recent-events list clears;
+   - TEST_PLAN device rows as before (#10–#15, #19/#20/#21, #7/#8/#24 + §4 quick-script).
+2. **Cloudflare unlock — ONE owner action, two ways (see CLOUDFLARE_SETUP.md M9):**
+   - **(recommended)** remove the API token's **Client IP Address Filtering**
+     (dash.cloudflare.com → My Profile → API Tokens → the token → Edit → clear the IP
+     filter → Save), then say "done" in chat — the assistant sets `FIREBASE_SA_JSON` via
+     the API, verifies `/health` → `true`, and runs a live sweep test; OR
+   - set the runtime **Secret** manually (Worker → Settings → Variables and Secrets →
+     type **Secret**, NOT a Build variable) — `FIREBASE_SA_JSON` = the full SA JSON text.
+3. **Firebase — no action needed:** verified end-to-end in M9 (Firestore read 200 + FCM
+   test push 200/message_id — the labeled test notification should have arrived on the
+   phone; the "SA JSON gets erased" symptom was the Worker secret never landing in the
+   runtime section, not a Firebase problem).
+4. **Console eye-check (optional, 1 min):** Firebase console → Project settings → the
+   Android key's restrictions (the repo's google-services.json key is identifier-class
+   by design; an Android-app restriction is nice-to-have — the SA cannot check this via
+   API).
+5. **Next = M10** — release readiness (docs, build instructions, known limits, final
+   report). M8's recorded follow-ups (prefix-parsed setup strings, 16b bilingual banners)
+   stay follow-ups, not M10 blockers.
