@@ -4,13 +4,19 @@
 //
 // The composable/object bodies below are copied char-for-char from
 // MainActivity.kt (PairingCard, PairingSections, ScannedCode,
-// ScannedRoleSheet, ScannedRoleBullet, PairOptionRow, PairTile,
-// PairingUiBus). Behavior-identical; the ONLY edits are:
+// ScannedRoleSheet, ScannedRoleBullet, PairOptionRow, PairingUiBus).
+// Behavior-identical; the ONLY edits are:
 //   • package + import block (symbols that stay behind now come from
 //     their own files/packages),
 //   • visibility: private → internal on PairingSections, ScannedRoleSheet,
-//     ScannedRoleBullet, PairOptionRow, PairTile, PairingUiBus
+//     ScannedRoleBullet, PairOptionRow, PairingUiBus
 //     (PairingCard stays public; ScannedCode stays private — used only here).
+//
+// M4 (v0.32.0) — PairTile, the paired-phone LIST (old §3) and the ACTION
+// SHEET (old §4) MOVED OUT to ui/home/FamilyScreens.kt (FamilyOverviewScreen
+// + MemberDetailScreen — the NAVIGATION_MAP §2 home/family routes; the
+// sheet's revoke/remove/request-session actions now live on the Member
+// Detail screen). This file keeps the pairing FLOW only.
 // ═══════════════════════════════════════════════════════════════════════
 package com.family.remote.support.ui.pairing
 
@@ -23,14 +29,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -71,22 +77,16 @@ import com.family.remote.support.isStaleOpen
 import com.family.remote.support.mmss
 import com.family.remote.support.qrBitmap
 import com.family.remote.support.redeemCode
-import com.family.remote.support.removeGuestRelationship
-import com.family.remote.support.requestSession
-import com.family.remote.support.revokeRelationship
 import com.family.remote.support.saveQrToDownloads
 import com.family.remote.support.stableDeviceId
 import com.family.remote.support.watchInvitation
 import com.family.remote.support.watchRelationships
 import com.family.remote.support.watchSessions
 import com.family.remote.support.ui.AppWarningColor
-import com.family.remote.support.ui.components.AppListTile
 import com.family.remote.support.ui.components.EmptyState
-import com.family.remote.support.ui.components.PresenceBadge
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.StatusBadge
 import com.family.remote.support.ui.components.WideOutlinedButton
-import com.family.remote.support.ui.components.sessionBadgeKind
 import com.family.remote.support.ui.components.sessionStatus
 import com.family.remote.support.ui.home.HomeConsentCard
 import com.google.firebase.auth.FirebaseUser
@@ -96,6 +96,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// ═══ M4 (v0.32.0) — the paired-phone LIST (old §3) and the ACTION
+// SHEET (old §4) graduated to real routes: ui/home/FamilyScreens.kt
+// (FamilyOverviewScreen + MemberDetailScreen — NAVIGATION_MAP §2
+// home/family, the old sheet promoted). This file keeps the pairing
+// FLOW (two-ways card, invite QR + dropdown, scanner, role sheet) and
+// the relationship listener (guest-window lazy expiry sweep) only.
+// ═══
 @Composable
 fun PairingCard(
     signedInUser: FirebaseUser?,
@@ -145,10 +152,7 @@ internal fun PairingSections(
     var redeemMessage by remember { mutableStateOf<String?>(null) }
     var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
     var relationshipsSyncError by remember { mutableStateOf<String?>(null) }
-    var revokingId by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
-    // v0.14.0 — which paired phone's action sheet is open (by rel id).
-    var selectedRelId by remember { mutableStateOf<String?>(null) }
     // Phase 12 — the code waiting in the role-setup sheet (scan → preview →
     // confirm → redeem → success, one automatic journey).
     var pendingScan by remember { mutableStateOf<ScannedCode?>(null) }
@@ -320,27 +324,6 @@ internal fun PairingSections(
             sessionMessage?.startsWith("Request sent") == true
         ) {
             sessionMessage = null
-        }
-    }
-
-    val startSessionFor: (RelationshipView) -> Unit = { rel ->
-        scope.launch {
-            sessionBusy = true
-            sessionMessage = null
-            try {
-                requestSession(user, rel)
-                sessionMessage =
-                        context.getString(R.string.ph_req_sent, rel.recipientEmail)
-                selectedRelId = null
-            } catch (e: SessionException) {
-                sessionMessage = e.message
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                sessionMessage = context.getString(R.string.err_send_failed, describeFirestoreError(context, e))
-            } finally {
-                sessionBusy = false
-            }
         }
     }
 
@@ -1006,219 +989,6 @@ internal fun PairingSections(
         )
     }
 
-    // ---------- ৩. যুক্ত ফোন — List Tiles + অ্যাকশন নিচ-শিট ----------
-    SectionCard(
-            title = stringResource(R.string.devices_title),
-        icon = Icons.Filled.Phone,
-            infoText = stringResource(R.string.ph_two_kinds_info),
-    ) {
-        if (relationships.isEmpty()) {
-            if (relationshipsSyncError != null) {
-                Text(
-                    text = relationshipsSyncError!!,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            } else {
-                EmptyState(
-                    icon = Icons.Filled.Phone,
-                        title = stringResource(R.string.devices_empty_title),
-                        hint = stringResource(R.string.devices_empty_hint2),
-                )
-            }
-        } else {
-            Column {
-                relationships.forEachIndexed { index, rel ->
-                    if (index > 0) HorizontalDivider()
-                    PairTile(
-                        rel = rel,
-                        myUid = user.uid,
-                        relNow = relNow,
-                        onOpen = { selectedRelId = rel.id }
-                    )
-                }
-            }
-        }
-    }
-
-    // ---------- ৪. যুক্ত-ফোন অ্যাকশন নিচ-শিট ----------
-    val selectedRel = relationships.firstOrNull { it.id == selectedRelId }
-    if (selectedRel != null) {
-        val isGuest = selectedRel.kind == REL_KIND_GUEST
-        val iHelp = selectedRel.helperUid == user.uid
-        val otherEmail =
-            (if (iHelp) selectedRel.recipientEmail else selectedRel.helperEmail)
-                .ifBlank { "(no email)" }
-        val sheetState = rememberModalBottomSheetState()
-        ModalBottomSheet(
-            onDismissRequest = { selectedRelId = null },
-            sheetState = sheetState
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = otherEmail,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = buildString {
-                            append(if (iHelp) stringResource(R.string.rel_you_help) else stringResource(R.string.rel_helps_you))
-                        if (selectedRel.recipientDeviceModel.isNotBlank()) {
-                            append(" · ${selectedRel.recipientDeviceModel}")
-                        }
-                            append(" · " + sessionStatus(context, selectedRel.status))
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (isGuest) {
-                    val remainingMin =
-                        ((selectedRel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
-                    Text(
-                        text = when {
-                                selectedRel.status != "ACTIVE" -> stringResource(R.string.rel_guest_expired)
-                                selectedRel.guestExpiresAtMillis <= 0L -> stringResource(R.string.rel_guest_label)
-                            remainingMin >= 60L ->
-                                    stringResource(R.string.rel_guest_left_hm, remainingMin / 60L, remainingMin % 60L)
-                                else -> stringResource(R.string.rel_guest_left_m, remainingMin)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (selectedRel.status == "ACTIVE" && remainingMin > 0L) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
-                    )
-                }
-                if (iHelp && selectedRel.recipientDeviceId.isNotBlank()) {
-                    PresenceBadge(
-                        uid = selectedRel.recipientUid,
-                        deviceId = selectedRel.recipientDeviceId
-                    )
-                }
-                HorizontalDivider()
-                // Phase 12 — the role is a first-class, visible thing.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isGuest) {
-                            Icons.Filled.DateRange
-                        } else {
-                            Icons.Filled.Home
-                        },
-                        contentDescription = null,
-                        tint = if (isGuest) {
-                            AppWarningColor()
-                        } else {
-                            MaterialTheme.colorScheme.tertiary
-                        },
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = if (isGuest) {
-                                stringResource(R.string.rel_role_guest)
-                        } else {
-                                stringResource(R.string.rel_role_family)
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isGuest) {
-                            AppWarningColor()
-                        } else {
-                            MaterialTheme.colorScheme.tertiary
-                        }
-                    )
-                }
-                if (selectedRel.status == "ACTIVE" && iHelp && !selectedRel.guestLive) {
-                    Text(
-                            text = stringResource(R.string.rel_guest_over_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                if (selectedRel.status == "ACTIVE" && iHelp && selectedRel.guestLive) {
-                    BigButton(
-                        enabled = !sessionBusy && openSession == null,
-                        onClick = { startSessionFor(selectedRel) }
-                    ) {
-                            Text(stringResource(R.string.btn_request_session))
-                    }
-                    if (openSession != null) {
-                        Text(
-                                text = stringResource(R.string.rel_session_running),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                if (!isGuest && selectedRel.status == "ACTIVE") {
-                    OutlinedButton(
-                        enabled = revokingId != selectedRel.id,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        onClick = {
-                            revokingId = selectedRel.id
-                            scope.launch {
-                                try {
-                                    revokeRelationship(selectedRel.id)
-                                    selectedRelId = null
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    pairingError =
-                                        context.getString(R.string.err_revoke_failed, describeFirestoreError(context, e))
-                                } finally {
-                                    revokingId = null
-                                }
-                            }
-                        }
-                    ) {
-                            Text(stringResource(R.string.btn_revoke))
-                    }
-                }
-                // Phase 10 — a guest link can be REMOVED entirely (the doc
-                // is deleted; afterwards a fresh family pairing may reuse
-                // the pair). Family links have no such button on purpose.
-                if (isGuest) {
-                    OutlinedButton(
-                        enabled = revokingId != selectedRel.id,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        onClick = {
-                            revokingId = selectedRel.id
-                            scope.launch {
-                                try {
-                                    removeGuestRelationship(selectedRel.id)
-                                    selectedRelId = null
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    pairingError =
-                                        context.getString(R.string.err_remove_failed, describeFirestoreError(context, e))
-                                } finally {
-                                    revokingId = null
-                                }
-                            }
-                        }
-                    ) {
-                            Text(stringResource(R.string.btn_remove))
-                    }
-                }
-            }
-        }
-    }
-
     // ---------- ৫. FAB-এর পেয়ারিং নিচ-শিট ----------
     if (showPairSheet) {
         val pairSheetState = rememberModalBottomSheetState()
@@ -1661,87 +1431,6 @@ internal fun PairOptionRow(
                     modifier = Modifier.size(20.dp)
                 )
             }
-        }
-    }
-}
-
-/**
- * v0.14.0 — a paired phone as a chat-style tile: avatar + email + role +
- * Family/Guest badge (+ guest countdown), optional live presence underneath.
- * Tapping opens the action bottom-sheet.
- */
-@Composable
-internal fun PairTile(
-    rel: RelationshipView,
-    myUid: String,
-    relNow: Long,
-    onOpen: () -> Unit
-) {
-    val isGuest = rel.kind == REL_KIND_GUEST
-    val iHelp = rel.helperUid == myUid
-    val context = LocalContext.current
-    val otherEmail =
-        (if (iHelp) rel.recipientEmail else rel.helperEmail).ifBlank { "(no email)" }
-    val guestOk = isGuest && rel.status == "ACTIVE" && rel.guestLive
-    // Phase 11.6 — minutes until the guest relationship expires (for the
-    // warning-colored chip when it is nearly over).
-    val guestMinutesLeft = ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
-    val chipText = when {
-        !isGuest && rel.status == "ACTIVE" -> "Family"
-            !isGuest -> stringResource(R.string.tile_family_status, sessionStatus(context, rel.status))
-        guestOk -> {
-            val remainingMin =
-                ((rel.guestExpiresAtMillis - relNow) / 60000L).coerceAtLeast(0)
-            when {
-                rel.guestExpiresAtMillis <= 0L -> "Guest"
-                remainingMin >= 60L -> stringResource(R.string.tile_guest_left_hm, remainingMin / 60L, remainingMin % 60L)
-                else -> stringResource(R.string.tile_guest_left_m, remainingMin)
-            }
-        }
-            else -> stringResource(R.string.tile_guest_status, sessionStatus(context, rel.status))
-    }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        AppListTile(
-            title = otherEmail,
-            initials = otherEmail.take(1).ifBlank { "?" },
-            subtitle = buildString {
-                append(if (iHelp) stringResource(R.string.rel_you_help) else stringResource(R.string.rel_helps_you))
-                if (rel.recipientDeviceModel.isNotBlank()) {
-                    append(" · ${rel.recipientDeviceModel}")
-                }
-            },
-            chip = chipText,
-            chipContainer = when {
-                rel.status != "ACTIVE" -> MaterialTheme.colorScheme.errorContainer
-                // Phase 11.6 — guest countdown turns warning-colored when it
-                // is nearly over (<15 min); the chip text still says the time.
-                guestOk && guestMinutesLeft >= 1 && guestMinutesLeft <= 14 ->
-                    AppWarningColor().copy(alpha = 0.18f)
-                guestOk -> MaterialTheme.colorScheme.tertiaryContainer
-                else -> MaterialTheme.colorScheme.primaryContainer
-            },
-            chipContent = when {
-                rel.status != "ACTIVE" -> MaterialTheme.colorScheme.onErrorContainer
-                guestOk && guestMinutesLeft >= 1 && guestMinutesLeft <= 14 ->
-                    AppWarningColor()
-                guestOk -> MaterialTheme.colorScheme.onTertiaryContainer
-                else -> MaterialTheme.colorScheme.onPrimaryContainer
-            },
-            onClick = onOpen,
-            trailingIcon = Icons.Filled.KeyboardArrowRight
-        )
-        if (iHelp && rel.recipientDeviceId.isNotBlank()) {
-            Box(modifier = Modifier.padding(start = 56.dp)) {
-                PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
-            }
-        }
-        if (isGuest && rel.status == "ACTIVE" && !rel.guestLive) {
-            Text(
-                text = stringResource(R.string.tile_guest_expired),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 56.dp)
-            )
         }
     }
 }
