@@ -39,6 +39,39 @@
     <string name="loc_title">لائیو لوکیشن</string>
     <string name="loc_coming_title">آنے والے اپ ڈیٹ میں</string>
     <string name="loc_coming_body">یہاں خاندان کی لائیو لوکیشن دکھے گی — ہمیشہ دوسرے شخص کی واضح اجازت سے۔ آج کچھ بھی جمع نہیں ہوتا اور کچھ شیئر نہیں ہوتا۔</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">اس فون کی لوکیشن شیئر کریں</string>
+    <string name="loc_share_body">شیئرنگ آن رہنے تک آپ کے جوڑے ہوئے فیملی ممبر کو نقشے پر اس فون کی لائیو پوزیشن نظر آئے گی۔ صرف آخری پوزیشن رکھی جاتی ہے — کبھی پوری تاریخ نہیں — اور آپ کسی بھی وقت بند کر سکتے ہیں۔</string>
+    <string name="loc_share_start">شیئرنگ شروع کریں</string>
+    <string name="loc_share_stop">شیئرنگ بند کریں</string>
+    <string name="loc_share_on">لوکیشن شیئرنگ آن ہے</string>
+    <string name="loc_share_off">لوکیشن شیئرنگ بند ہے</string>
+    <string name="loc_banner_on">آپ اس وقت اس فون کی لوکیشن شیئر کر رہے ہیں</string>
+    <string name="loc_banner_off">شیئرنگ بند ہے — اس فون کی پوزیشن بھیجی نہیں جا رہی</string>
+    <string name="loc_interval_label">اپ ڈیٹ کا وقفہ</string>
+    <string name="loc_interval_30s">ہر ۳۰ سیکنڈ</string>
+    <string name="loc_interval_1m">ہر ۱ منٹ</string>
+    <string name="loc_interval_5m">ہر ۵ منٹ</string>
+    <string name="loc_notif_title">لوکیشن شیئرنگ آن ہے</string>
+    <string name="loc_notif_body">ایپ کھولنے اور شیئرنگ بند کرنے کے لیے ٹیپ کریں۔</string>
+    <string name="loc_fresh_live">لائیو</string>
+    <string name="loc_fresh_stale">پرانی</string>
+    <string name="loc_fresh_offline">آف لائن</string>
+    <string name="loc_last_known">آخری معلوم — %1$s</string>
+    <string name="loc_never">کبھی شیئر نہیں ہوئی</string>
+    <string name="loc_no_fix">پہلی پوزیشن کا انتظار ہے…</string>
+    <string name="loc_acc_m">±%1$d میٹر</string>
+    <string name="loc_updated">اپ ڈیٹ: %1$s</string>
+    <string name="loc_details">لوکیشن کی تفصیل</string>
+    <string name="loc_open_maps">نقشے والی ایپ میں کھولیں</string>
+    <string name="loc_perm_title">لوکیشن کی اجازت درکار ہے</string>
+    <string name="loc_perm_body">لوکیشن کی اجازت سے آپ کے شیئر کرنے کے دوران آپ کا خاندان اس فون کی پوزیشن دیکھ سکتا ہے۔ یہ صرف اُس وقت استعمال ہوتی ہے جب شیئرنگ کی نظر آنے والی نوٹیفکیشن دکھائی دے رہی ہو۔</string>
+    <string name="loc_denied_title">لوکیشن کی رسائی مسترد کر دی گئی</string>
+    <string name="loc_denied_body">لوکیشن کی اجازت مسترد کر دی گئی ہے۔ سسٹم سیٹنگز میں اجازت دینے تک شیئرنگ شروع نہیں ہو سکتی۔</string>
+    <string name="loc_empty_title">ابھی تک کوئی ڈیوائس جوڑا نہیں گیا</string>
+    <string name="loc_empty_body">پہلے خاندان کا کوئی ڈیوائس جوڑیں — مالک کی واضح اجازت سے اُس کی لائیو پوزیشن یہاں دکھے گی۔</string>
+    <string name="loc_list_title">ایک ڈیوائس منتخب کریں</string>
     <string name="set_section_account">اکاؤنٹ</string>
     <string name="set_profile_title">پروفائل</string>
     <string name="set_profile_sub">اس اکاؤنٹ کا نام اور ای میل</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">جوڑے ہوئے فون</string>
     <string name="set_dev_entry_d">لائیو حالت، سپورٹ اقدامات اور رسائی کی منسوخی</string>
     <string name="set_loc_status">لائیو مقام آنے والی ریلیز کے لیے منصوببندی کے تحت ہے۔ آج کوئی مقام جمع یا محفوظ نہیں کیا جاتا۔</string>
+    <string name="set_loc_now">جوڑے ہوئے فیملی ڈیوائسز کے ساتھ اس فون کی لائیو لوکیشن شیئر کریں۔ صرف آخری پوزیشن رکھی جاتی ہے — کبھی پوری تاریخ نہیں۔</string>
     <string name="set_guest_note">مہمان لنک عارضی ہوتے ہیں (زیادہ سے زیادہ ۳ گھنٹے) اور کبھی بھی مستقل فیملی جوڑ نہیں بنتے۔</string>
 </resources>
