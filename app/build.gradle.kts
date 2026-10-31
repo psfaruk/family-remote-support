@@ -43,8 +43,8 @@ android {
         // Firebase traffic while closed), and SessionNotifier's listener
         // query got a .limit(10) cap. Server sweep tiers parked (see
         // wrangler.toml / kill-push.yml / docs).
-        versionCode = 55
-        versionName = "0.36.0"
+        versionCode = 56
+        versionName = "0.37.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
