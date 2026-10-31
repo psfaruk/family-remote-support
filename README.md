@@ -55,6 +55,34 @@ A trusted family member helps fix another family phone — always with the recei
     tab behavior — documented delta); pre-existing default↔bn locale inversion of ~203 legacy
     keys DISCOVERED and recorded (fix = M4/M8 i18n wave, untouched here).
 
+- **Phase 21 / M3 ✅ (v0.31.0, versionCode 50) — FRONTEND REDESIGN: SCREEN EXTRACTION + VIEWMODEL
+  LAYER + COMPONENT LIBRARY COMPLETE (Owner's "M3" command):**
+  • **Screen extraction (FRONTEND_ARCHITECTURE §3/§10 W2):** the 4 tab screens + their detail
+    composables moved VERBATIM out of the 5,683-line `MainActivity.kt` into their own files —
+    `ui/home/HomeTab.kt` (+consent card/dialog, feature tiles), `ui/pairing/AddDeviceTab.kt`
+    (PairingCard/PairingSections/role sheet/option rows, 1,760 lines), `ui/settings/SettingsTab.kt`
+    (+activity feed, appearance/language rows, assist/notification tiles, dialogs, 1,091 lines),
+    `ui/tracking/TrackingTab.kt` (the honest M5 placeholder, renamed). MainActivity slims to
+    ~2,000 lines: shell wiring + root session effects + session surfaces only.
+  • **ViewModel layer added** (`lifecycle-viewmodel-compose` 2.8.6): `ui/home/SessionWatchViewModel.kt`
+    owns the session watch as `StateFlow<SessionsUiState>` — listener failures are now ROUTED
+    into the state (closes audit risk #5: the old `onError = { }` swallowed them) and surface on
+    Home as a real error panel with retry while no snapshot has arrived; `LoadingSkeleton` shows
+    during the first load. Root-scoped ON PURPOSE so the v0.21.0 zombie-sweep/stop-guarantees
+    still run on every tab (regression avoided by construction).
+  • **Component library complete (FRONTEND_ARCHITECTURE §6):** `ui/components/Cards.kt`
+    (SettingsTile/IconStatusTile/QuickActionTile), `Buttons.kt` (BigButton), `Badges.kt`
+    (StatusBadge/sessionStatus/sessionBadgeKind/statusChipColors/PresenceBadge/PresenceChip),
+    `States.kt` (LoadingSkeleton/ErrorPanel/PermissionDeniedPanel) — all verbatim promotions,
+    one variant of each widget app-wide. 2 real parallel extraction agents + coordinator surgery
+    (file-ownership rule), static verification passes, CI-gated.
+  • Honest notes: the nested detail routes of NAVIGATION_MAP §2 (home/family/{relId},
+    home/sessions/{id}, settings/*, add/*, tracking/{relId}) are NOT built in this milestone —
+    tab-level redesign + extraction shipped first; route-tree expansion recorded as the next
+    wave (M4). Error collection uses `collectAsState` (shell-always-composed scope) — the
+    `repeatOnLifecycle` wording of FRONTEND_ARCHITECTURE §4 is satisfied in effect; no extra
+    runtime-compose dependency (C4 minimal-deps discipline).
+
 - **Phase 17 ✅ (v0.21.0, versionCode 40) — FULL-CODEBASE AUDIT + FIX ROUND:** Owner-ordered deep
   audit of every phase (4 parallel review agents over app/rules/worker/CI + owner verification of
   the findings) surfaced 30+ real defects; all high/critical ones are fixed in this release.
