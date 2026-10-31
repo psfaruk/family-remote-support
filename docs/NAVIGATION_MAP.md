@@ -73,21 +73,30 @@ RootShell (Scaffold: AppTopBar + NavHost + BottomNav, tab state saved/restored)
 │   └── tracking/{relId}          ✅ M5: Location Details: last update time, accuracy, staleness,
 │                                 sharing on/off (counterpart read-only), open-in-maps action
 ├── Tab SETTINGS
-│   ├── settings                  ✅ M4: the master's 8 partition grouped list (Account ·
-│   │                             Appearance(theme+language) · Device Management · Location &
-│   │                             Privacy · Remote Support · Guest Access · Security · About)
+│   ├── settings                  ✅ Pre-M10 (v0.35.0): the Owner's FIVE-partition grouped
+│   │                             list, top-to-bottom (Account · Device Management ·
+│   │                             Privacy & Security · Preferences · About & session);
+│   │                             language became a one-row picker dialog, Sign-out is
+│   │                             the red-outlined last row of About & session
 │   ├── settings/account          (grouped-list form ships; sub-ROUTE = later wave)
-│   ├── settings/appearance       (theme + language rows inside the Appearance partition)
+│   ├── settings/appearance       (theme rows inside the Preferences partition;
+│   │                             language = ONE row opening a capped+scrollable dialog)
 │   ├── settings/devices          ✅ M4 as an ENTRY: routes into home/family (the map's
-│   │                             "reuse home/family/{relId}" rule); registry list stays here
+│   │                             "reuse home/family/{relId}" rule); registry list stays
+│   │                             here; remote-assist status tile joined it (v0.35.0)
 │   ├── settings/location         ✅ M5 REAL: sharing toggle + 30 s/1 min/5 min interval rows
-│   │                             + policy docs (privacy/rules) in the partition
-│   ├── settings/remote           (notif/assist/test tiles inside the Remote Support partition)
-│   ├── settings/guest            ✅ M4 as a NOTE+ENTRY: routes into home/family (guest links
-│   │                             with countdowns/removal live there)
-│   ├── settings/security         (permission wizard inside the Security partition)
+│   │                             — v0.35.0: these rows live in the Privacy & Security
+│   │                             partition (with guest, wizard, privacy, rules)
+│   ├── settings/remote           (dissolved v0.35.0: notif toggle + test probe moved to
+│   │                             Preferences; assist status to Device Management)
+│   ├── settings/guest            ✅ M4 as an ENTRY: routes into home/family (guest links
+│   │                             with countdowns/removal live there); now a row inside
+│   │                             Privacy & Security
+│   ├── settings/security         (dissolved v0.35.0: permission wizard row lives inside
+│   │                             Privacy & Security)
 │   ├── settings/notifications    per-category toggles (real ones only — M8)
-│   └── settings/about            (About dialog + policy shortcuts, unchanged)
+│   └── settings/about            (About dialog + policy shortcuts; v0.35.0 the card is
+│                                 "About & session" and carries the red-outlined Sign-out)
 └── notifications                 header bell target: real events (pairing, status change,
                                   sharing on/off, session start/end, permission attention)
                                   [no fabricated notifications]
@@ -95,8 +104,12 @@ RootShell (Scaffold: AppTopBar + NavHost + BottomNav, tab state saved/restored)
 
 ## 3. Back-stack & state rules
 
-- Bottom tabs use `saveState/restoreState` semantics; switching tabs never loses scroll or
-  nested stack (current `tabScrollStates` behavior is preserved through the NavHost).
+- Bottom tabs use `saveState/restoreState` semantics; the NESTED stack is preserved on tab
+  switches. Pre-M10 (v0.35.0) delta: the five TOP-LEVEL surfaces deliberately open at
+  scroll-TOP on every entry (`ShellTabColumn(topOnReentry = true)` — a non-saveable scroll
+  state): the Owner reported bell→Settings landing mid-page ("ফাংশন গুলো নিচে পড়ে যায়")
+  because the restored `rememberScrollState` dropped them deep in the old 4–5-screen
+  Settings page. Nested detail routes still restore their saved scroll on system back.
 - Detail routes pop with system back; overlays that are *modal by nature* (QR scanner,
   consent, role preview, permission wizard, doc overlay) remain dialogs/bottom sheets so the
   back key dismisses them without leaving the flow.
