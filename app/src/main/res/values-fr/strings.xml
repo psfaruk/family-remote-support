@@ -408,4 +408,8 @@
     <string name="notif_empty_title">Rien n\'attend votre attention</string>
     <string name="notif_empty_body">Les demandes d\'assistance, sessions en cours et alertes de configuration apparaissent ici dès qu\'elles surviennent.</string>
     <string name="notif_hint">Uniquement des événements réels et actuels — rien d\'inventé, aucun historique.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">Réessayer</string>
+    <string name="states_open_settings">Ouvrir les paramètres système</string>
 </resources>
