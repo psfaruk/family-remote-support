@@ -22,8 +22,8 @@ android {
         // + runtime probe — docs/LIVE_LOCATION_ARCHITECTURE.md).
         // NAVIGATION_MAP §6: v0.30.0/49 was the first-implementation version;
         // each later M-milestone increments from there.
-        versionCode = 52
-        versionName = "0.33.0"
+        versionCode = 53
+        versionName = "0.34.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
