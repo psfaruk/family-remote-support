@@ -77,6 +77,20 @@
 
 ### 1a. Quota budget (M9 discipline — documented estimate, not metered)
 
+> **⚠ POSTURE CHANGE (2026-10-31, post-M10 Owner quota directive — supersedes the
+> tier rows below):** every auto Firestore poller is PARKED (sandbox killed /
+> Worker cron removed via `wrangler.toml` `crons = []` / Actions schedule disabled)
+> and the app's presence heartbeat became foreground-only in v0.36.0/55 — with both
+> phones' apps closed the project's Firestore traffic is exactly zero. The table
+> below is kept as the historical M9 estimate. **Correction discovered by the
+> directive wave:** the "≈0 idle" tier rows are BILLING-true (billed reads count
+> returned documents) but **quota-false — the free tier's daily read-units counter
+> counts every query operation even when it returns nothing** (live proof: the
+> sandbox sweeps at 5 s ran head-first into 429 "Free daily read units" with an
+> empty result set, as two zombie instances ≈ 69k query-attempts/day = >100% of the
+> 50k/day quota alone). That misread is why the exhaustion kept recurring despite
+> the idle sweeps "costing nothing". Full record: RELEASE_NOTES §9a + worklog §75.
+
 Honest limit: the SA's IAM roles deny `monitoring.metricDescriptors.list` (403) and the
 Keys API is disabled in the project — billed reads cannot be metered from the sandbox.
 Budget by source instead (Firestore free tier: 50 k reads / 20 k writes / 20 k deletes /
