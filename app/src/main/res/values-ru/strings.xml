@@ -39,6 +39,39 @@
     <string name="loc_title">Локация в реальном времени</string>
     <string name="loc_coming_title">Появится в будущем обновлении</string>
     <string name="loc_coming_body">Здесь будет локация семьи в реальном времени — всегда с явного согласия другого человека. Сегодня ничего не собирается и не передаётся.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Поделиться местоположением этого телефона</string>
+    <string name="loc_share_body">Ваш сопряжённый родственник будет видеть местоположение этого телефона на карте, пока включён обмен. Хранится только последнее положение — никогда не история — и вы можете остановить обмен в любой момент.</string>
+    <string name="loc_share_start">Начать обмен</string>
+    <string name="loc_share_stop">Остановить обмен</string>
+    <string name="loc_share_on">Обмен местоположением ВКЛЮЧЁН</string>
+    <string name="loc_share_off">Обмен местоположением выключен</string>
+    <string name="loc_banner_on">Сейчас вы делитесь местоположением этого телефона</string>
+    <string name="loc_banner_off">Обмен выключен — местоположение этого телефона не передаётся</string>
+    <string name="loc_interval_label">Период обновления</string>
+    <string name="loc_interval_30s">Каждые 30 секунд</string>
+    <string name="loc_interval_1m">Каждую минуту</string>
+    <string name="loc_interval_5m">Каждые 5 минут</string>
+    <string name="loc_notif_title">Обмен местоположением включён</string>
+    <string name="loc_notif_body">Нажмите, чтобы открыть приложение и остановить обмен.</string>
+    <string name="loc_fresh_live">Онлайн</string>
+    <string name="loc_fresh_stale">Устарело</string>
+    <string name="loc_fresh_offline">Не в сети</string>
+    <string name="loc_last_known">Последнее известное — %1$s</string>
+    <string name="loc_never">Никогда не передавалось</string>
+    <string name="loc_no_fix">Ожидаем первое определение местоположения…</string>
+    <string name="loc_acc_m">±%1$d м</string>
+    <string name="loc_updated">Обновлено %1$s</string>
+    <string name="loc_details">Сведения о местоположении</string>
+    <string name="loc_open_maps">Открыть в приложении карт</string>
+    <string name="loc_perm_title">Нужно разрешение на местоположение</string>
+    <string name="loc_perm_body">Разрешение на местоположение позволяет вашей семье видеть, где находится этот телефон, пока вы решили делиться им. Оно используется, только пока видно уведомление об обмене.</string>
+    <string name="loc_denied_title">Доступ к местоположению запрещён</string>
+    <string name="loc_denied_body">Разрешение на местоположение было отклонено. Обмен не сможет начаться, пока оно не будет выдано в настройках системы.</string>
+    <string name="loc_empty_title">Пока нет сопряжённых устройств</string>
+    <string name="loc_empty_body">Сначала сопрягите семейное устройство — его местоположение в реальном времени появится здесь с явного согласия владельца.</string>
+    <string name="loc_list_title">Выберите устройство</string>
     <string name="set_section_account">Аккаунт</string>
     <string name="set_profile_title">Профиль</string>
     <string name="set_profile_sub">Имя и почта этого аккаунта</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Сопряжённые телефоны</string>
     <string name="set_dev_entry_d">Живой статус, действия поддержки и отзыв доступа</string>
     <string name="set_loc_status">Живая геолокация планируется в одном из будущих релизов. Сегодня никакая геолокация не собирается и не сохраняется.</string>
+    <string name="set_loc_now">Делитесь местоположением этого телефона в реальном времени с сопряжёнными семейными устройствами. Хранится только последнее положение — никогда не история.</string>
     <string name="set_guest_note">Гостевые ссылки временные (до 3 часов) и никогда не становятся постоянными семейными связками.</string>
 </resources>
