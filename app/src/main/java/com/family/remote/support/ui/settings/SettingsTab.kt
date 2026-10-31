@@ -3,6 +3,12 @@ package com.family.remote.support.ui.settings
 // M3 (v0.31.0) — verbatim extraction of the Settings tab + recent-activity
 // feed from MainActivity (FRONTEND_ARCHITECTURE §3/§10 W2). Behavior-identical:
 // the only change is private → internal visibility on the ten moved items.
+// M4 (v0.32.0) — restructured into the EIGHT partitions of the master
+// instruction PART 7 (Account · Appearance · Device Management · Location &
+// Privacy · Remote Support · Guest Access · Security · About — real features
+// only). ActivityTab/ActivityFeed GRADUATED to the home/sessions route
+// (ui/home/ActivityScreens.kt) and the paired phones to home/family; the
+// devices list moved from Account into Device Management.
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -41,6 +47,7 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -60,13 +67,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,28 +91,17 @@ import com.family.remote.support.Fb
 import com.family.remote.support.MainActivity
 import com.family.remote.support.PermChecklist
 import com.family.remote.support.R
-import com.family.remote.support.REL_KIND_GUEST
-import com.family.remote.support.RelationshipView
-import com.family.remote.support.SessionView
 import com.family.remote.support.StatusRow
 import com.family.remote.support.describeFirestoreError
-import com.family.remote.support.getSession
-import com.family.remote.support.mmss
-import com.family.remote.support.watchRelationships
-import com.family.remote.support.watchSessions
 import com.family.remote.support.ui.LangPrefBus
 import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.ThemePreview
 import com.family.remote.support.ui.components.AppListTile
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.EmptyState
-import com.family.remote.support.ui.components.PresenceBadge
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.SettingsTile
 import com.family.remote.support.ui.components.WideOutlinedButton
-import com.family.remote.support.ui.components.sessionBadgeKind
-import com.family.remote.support.ui.components.sessionStatus
-import com.family.remote.support.ui.components.statusChipColors
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -116,217 +111,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
-@Composable
-internal fun ActivityTab(user: FirebaseUser?) {
-    if (user == null) {
-            SectionCard(title = stringResource(R.string.act_title), icon = Icons.Filled.List) {
-            EmptyState(
-                icon = Icons.Filled.Person,
-                    title = stringResource(R.string.act_signin_title),
-                    hint = stringResource(R.string.act_signin_hint),
-            )
-        }
-        return
-    }
-    ActivityFeed(user)
-}
-
-@Composable
-internal fun ActivityFeed(user: FirebaseUser) {
-    var sessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
-    var sessionSyncError by remember { mutableStateOf<String?>(null) }
-    var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
-    var relSyncError by remember { mutableStateOf<String?>(null) }
-    // The last session that closed — fetched once when it leaves the open set.
-    var lastFinished by remember { mutableStateOf<SessionView?>(null) }
-    var lastOpenId by remember { mutableStateOf<String?>(null) }
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    val context = LocalContext.current
-
-    LaunchedEffect(user.uid) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(1000)
-        }
-    }
-    DisposableEffect(user.uid) {
-        val stop = watchSessions(
-            user,
-            onUpdate = { sessionSyncError = null; sessions = it },
-            onError = { sessionSyncError = describeFirestoreError(context, it) }
-        )
-        onDispose { stop() }
-    }
-    DisposableEffect(user.uid) {
-        val stop = watchRelationships(
-            user,
-            onUpdate = { relSyncError = null; relationships = it },
-            onError = { relSyncError = describeFirestoreError(context, it) }
-        )
-        onDispose { stop() }
-    }
-
-    val openSession = sessions.firstOrNull {
-        it.status == "REQUESTED" || it.status == "ACTIVE"
-    }
-    LaunchedEffect(sessions) {
-        val currentOpenId = openSession?.id
-        val prevOpenId = lastOpenId
-        if (prevOpenId != null && prevOpenId != currentOpenId) {
-            try {
-                lastFinished = getSession(prevOpenId)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // best effort — the history line is informational only
-            }
-        }
-        lastOpenId = currentOpenId
-    }
-
-    SectionCard(
-            title = stringResource(R.string.feed_title),
-        icon = Icons.Filled.Notifications,
-            infoText = stringResource(R.string.feed_info),
-    ) {
-        if (openSession == null && lastFinished == null) {
-            EmptyState(
-                icon = Icons.Filled.Notifications,
-                    title = stringResource(R.string.feed_empty_title),
-                    hint = stringResource(R.string.feed_empty_hint),
-                illustrationRes = R.drawable.ic_empty_activity
-            )
-        }
-        openSession?.let { s ->
-            val secondsLeft = when (s.status) {
-                "REQUESTED" -> ((s.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
-                else -> ((s.sessionEndsAtMillis - nowMillis) / 1000).coerceAtLeast(0)
-            }
-            AppListTile(
-                title = when {
-                    s.status == "REQUESTED" && s.recipientUid == user.uid ->
-                            stringResource(R.string.feed_req_received, s.helperEmail.ifBlank { "Someone" })
-                    s.status == "REQUESTED" ->
-                            stringResource(R.string.feed_req_sent, s.recipientEmail)
-                    s.status == "ACTIVE" && s.helperUid == user.uid ->
-                            stringResource(R.string.feed_active_theirs, s.recipientEmail)
-                    else ->
-                            stringResource(R.string.feed_active_mine, s.helperEmail.ifBlank { "Someone" })
-                },
-                subtitle = when {
-                    s.status == "REQUESTED" && s.recipientUid == user.uid ->
-                            stringResource(R.string.feed_need_decision, mmss(secondsLeft))
-                    s.status == "REQUESTED" ->
-                            stringResource(R.string.feed_awaiting, mmss(secondsLeft))
-                    else ->
-                            stringResource(R.string.feed_in_progress, mmss(secondsLeft))
-                },
-                icon = if (s.status == "ACTIVE") Icons.Filled.CheckCircle else Icons.Filled.Send,
-                avatarContainer = if (s.status == "ACTIVE") {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.tertiaryContainer
-                },
-                avatarContent = if (s.status == "ACTIVE") {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                },
-                chip = if (s.kind == "guest") "Guest" else sessionStatus(context, s.status),
-                chipContainer = if (s.kind == "guest") {
-                    MaterialTheme.colorScheme.tertiaryContainer
-                } else {
-                    statusChipColors(sessionBadgeKind(s.status)).first
-                },
-                chipContent = if (s.kind == "guest") {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                } else {
-                    statusChipColors(sessionBadgeKind(s.status)).second
-                }
-            )
-        }
-        lastFinished?.let { s ->
-            HorizontalDivider()
-            AppListTile(
-                    title = stringResource(R.string.feed_last_title),
-                    subtitle = stringResource(R.string.feed_last_sub, s.helperEmail.ifBlank { "?" }, s.recipientEmail) +
-                    (s.endedBy?.let { context.getString(R.string.feed_ended_by, it) } ?: ""),
-                icon = Icons.Filled.CheckCircle,
-                avatarContainer = MaterialTheme.colorScheme.surfaceVariant,
-                avatarContent = MaterialTheme.colorScheme.onSurfaceVariant,
-                    chip = sessionStatus(context, s.status),
-                chipContainer = statusChipColors(sessionBadgeKind(s.status)).first,
-                chipContent = statusChipColors(sessionBadgeKind(s.status)).second
-            )
-        }
-        if (sessionSyncError != null) {
-            Text(
-                text = sessionSyncError!!,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-    }
-
-    SectionCard(
-            title = stringResource(R.string.devices_title),
-        icon = Icons.Filled.Phone,
-            infoText = stringResource(R.string.devices_info),
-    ) {
-        if (relSyncError != null) {
-            Text(
-                text = relSyncError!!,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-        if (relationships.isEmpty() && relSyncError == null) {
-            EmptyState(
-                icon = Icons.Filled.Phone,
-                    title = stringResource(R.string.devices_empty_title),
-                    hint = stringResource(R.string.devices_empty_hint),
-                illustrationRes = R.drawable.ic_empty_devices
-            )
-        }
-        Column {
-            relationships.forEachIndexed { index, rel ->
-                if (index > 0) HorizontalDivider()
-                val iHelp = rel.helperUid == user.uid
-                val otherEmail =
-                    (if (iHelp) rel.recipientEmail else rel.helperEmail).ifBlank { "(no email)" }
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    AppListTile(
-                        title = otherEmail,
-                        initials = otherEmail.take(1).ifBlank { "?" },
-                        subtitle = buildString {
-                                append(if (iHelp) stringResource(R.string.rel_you_help) else stringResource(R.string.rel_helping))
-                            if (rel.recipientDeviceModel.isNotBlank()) {
-                                append(" · ${rel.recipientDeviceModel}")
-                            }
-                        },
-                        chip = if (rel.kind == REL_KIND_GUEST) "Guest" else "Family",
-                        chipContainer = if (rel.status == "ACTIVE") {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.errorContainer
-                        },
-                        chipContent = if (rel.status == "ACTIVE") {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        }
-                    )
-                    if (iHelp && rel.recipientDeviceId.isNotBlank()) {
-                        Box(modifier = Modifier.padding(start = 56.dp)) {
-                            PresenceBadge(uid = rel.recipientUid, deviceId = rel.recipientDeviceId)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 /** Phase 11.6 — one appearance choice row with a mini theme-preview dot. */
 @Composable
@@ -423,16 +207,28 @@ internal fun SettingsTab(
     permSummary: PermChecklist,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
-    onOpenWizard: () -> Unit
+    onOpenWizard: () -> Unit,
+    // M4 (v0.32.0) — the Device Management / Guest Access partitions point
+    // into the Home family subtree (NAVIGATION_MAP §2: settings/devices
+    // reuses home/family — paired phones, support actions, revocation).
+    onOpenFamily: () -> Unit = {}
 ) {
     val context = LocalContext.current
     // Phase 16 — full-screen policy documents (privacy / rules) rendered
     // as overlays; null = none open.
     var showDoc by remember { mutableStateOf<String?>(null) }
 
-    // ── ১. Account + PROFILE (Owner: "সেটিংস ট্যাব এর ভিতরে একটি ইউজার
-    // প্রোফাইল creat করেন") — name is editable, updates the Firebase
-    // profile AND the users/{uid} doc the rest of the app already reads.
+    // ── M4 (v0.32.0) — THE EIGHT PARTITIONS (master instruction PART 7;
+    // NAVIGATION_MAP §2 "settings" grouped list): Account · Appearance ·
+    // Device Management · Location & Privacy · Remote Support · Guest
+    // Access · Security · About — real features only, nothing fabricated.
+    // The old §6 Activity section graduated to the home/sessions route
+    // (RecentActivityScreen); the paired phones now live behind the Device
+    // Management entry (home/family). Sign-out stays LAST at the bottom
+    // (the Owner's standing Phase-16 order — a recorded deviation from the
+    // map's settings/account sketch).
+
+    // ── ১. ACCOUNT — profile + auth status (+ editable name).
     var showEditName by remember { mutableStateOf(false) }
     SectionCard(title = stringResource(R.string.set_section_account), icon = Icons.Filled.Person) {
         if (!webClientConfigured) {
@@ -482,31 +278,6 @@ internal fun SettingsTab(
                     )
                 }
             )
-            HorizontalDivider()
-            Text(
-                text = stringResource(R.string.set_devices_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            if (deviceList.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.set_no_devices),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Column {
-                    deviceList.forEachIndexed { index, entry ->
-                        if (index > 0) HorizontalDivider()
-                        val parts = entry.split(" · ")
-                        AppListTile(
-                            title = parts.getOrNull(0) ?: entry,
-                            subtitle = parts.drop(1).joinToString(" · ").ifBlank { " " },
-                            icon = Icons.Filled.Phone
-                        )
-                    }
-                }
-            }
         }
         statusMessage?.let {
             Text(
@@ -517,40 +288,8 @@ internal fun SettingsTab(
         }
     }
 
-    // ── ২. Setup & permissions (unchanged logic; + the honest TEST
-    // notification probe below — Owner: "নোটিফিকেশন আসে না").
-    SectionCard(
-        title = stringResource(R.string.set_section_setup),
-        icon = Icons.Filled.Lock,
-            infoText = stringResource(R.string.set_perm_info),
-    ) {
-        SettingsTile(
-            icon = Icons.Filled.Lock,
-                title = stringResource(R.string.pw_title),
-            description = if (permSummary.allDone) {
-                    stringResource(R.string.set_perm_alldone)
-            } else {
-                stringResource(R.string.pw_progress, permSummary.doneCount, permSummary.missingNames(context))
-            },
-            onClick = onOpenWizard,
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-        HorizontalDivider()
-        SettingsNotifTile()
-        HorizontalDivider()
-        TestNotifRow()
-        HorizontalDivider()
-        SettingsAssistTile()
-    }
-
-    // ── ৩. Appearance (unchanged logic).
+    // ── ২. APPEARANCE — theme (3 options) + language (15) in ONE partition
+    // (NAVIGATION_MAP §2: settings/appearance covers both).
     SectionCard(
         title = stringResource(R.string.set_section_look),
         icon = Icons.Filled.Settings,
@@ -577,16 +316,12 @@ internal fun SettingsTab(
             preview = 2,
             onClick = { ThemePrefBus.set(context, ThemePrefBus.DARK) }
         )
-    }
-
-    // ── ৪. LANGUAGE (Owner: "প্রধান ভাষা ইংলিশ হবে… পপুলার কয়েকটা ভাষা
-    // যোগ করো 10 15 টি") — 15 languages; English is the default on a fresh
-    // install; changing it recreates the activity so EVERYTHING repaints.
-    SectionCard(
-        title = stringResource(R.string.set_section_lang),
-        icon = Icons.Filled.List,
-            infoText = stringResource(R.string.set_lang_info)
-    ) {
+        HorizontalDivider()
+        Text(
+            text = stringResource(R.string.set_section_lang),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
         Text(
             text = stringResource(R.string.set_lang_sub),
             style = MaterialTheme.typography.bodySmall,
@@ -601,12 +336,53 @@ internal fun SettingsTab(
         }
     }
 
-    // ── ৫. RULES & PRIVACY (Owner: "নীতিমালা ও প্রাইভেসি পলিসি এই ফিচারস
-    // গুলো উন্মুক্ত ও অ্যাপ এ থাকা উচিত") — full documents INSIDE the app.
-    SectionCard(
-        title = stringResource(R.string.set_section_rules),
-        icon = Icons.Filled.Lock
-    ) {
+    // ── ৩. DEVICE MANAGEMENT — paired phones (the home/family route) +
+    // this account's own registered devices (users/{uid}/devices).
+    SectionCard(title = stringResource(R.string.set_section_devices), icon = Icons.Filled.Phone) {
+        SettingsTile(
+            icon = Icons.Filled.Phone,
+            title = stringResource(R.string.set_dev_entry_t),
+            description = stringResource(R.string.set_dev_entry_d),
+            onClick = onOpenFamily,
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+        if (deviceList.isNotEmpty()) {
+            HorizontalDivider()
+            Text(
+                text = stringResource(R.string.set_devices_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Column {
+                deviceList.forEachIndexed { index, entry ->
+                    if (index > 0) HorizontalDivider()
+                    val parts = entry.split(" · ")
+                    AppListTile(
+                        title = parts.getOrNull(0) ?: entry,
+                        subtitle = parts.drop(1).joinToString(" · ").ifBlank { " " },
+                        icon = Icons.Filled.Phone
+                    )
+                }
+            }
+        }
+    }
+
+    // ── ৪. LOCATION & PRIVACY — the honest M5 status note + both policy
+    // documents (Owner: "নীতিমালা ও প্রাইভেসি পলিসি এই ফিচারস গুলো উন্মুক্ত ও
+    // অ্যাপ এ থাকা উচিত")।
+    SectionCard(title = stringResource(R.string.set_section_location), icon = Icons.Filled.LocationOn) {
+        Text(
+            text = stringResource(R.string.set_loc_status),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         SettingsTile(
             icon = Icons.Filled.Lock,
             title = stringResource(R.string.set_privacy),
@@ -638,11 +414,61 @@ internal fun SettingsTab(
         )
     }
 
-    // ── ৬. ACTIVITY — the old একটিভিটি tab merged here (Owner request):
-    // session activity + paired phones with live online status.
-    ActivityTab(user = signedInUser)
+    // ── ৫. REMOTE SUPPORT — session-request delivery + the assist setup.
+    SectionCard(title = stringResource(R.string.set_section_remote), icon = Icons.Filled.Send) {
+        SettingsNotifTile()
+        HorizontalDivider()
+        TestNotifRow()
+        HorizontalDivider()
+        SettingsAssistTile()
+    }
 
-    // ── ৭. About — FIXED (Owner: "About অপশন টি ঠিক নাই, সেখানে Firebase
+    // ── ৬. GUEST ACCESS — the honest temporary-window note; the live guest
+    // links (countdowns, removal) live in the Family Devices screen.
+    SectionCard(title = stringResource(R.string.set_section_guest), icon = Icons.Filled.Person) {
+        Text(
+            text = stringResource(R.string.set_guest_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        WideOutlinedButton(onClick = onOpenFamily) {
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Text("  " + stringResource(R.string.fam_title))
+        }
+    }
+
+    // ── ৭. SECURITY — the permission wizard (notifications · camera ·
+    // assist · battery — the app's whole permission posture in one place).
+    SectionCard(
+        title = stringResource(R.string.set_section_security),
+        icon = Icons.Filled.Lock,
+            infoText = stringResource(R.string.set_perm_info),
+    ) {
+        SettingsTile(
+            icon = Icons.Filled.Lock,
+                title = stringResource(R.string.pw_title),
+            description = if (permSummary.allDone) {
+                    stringResource(R.string.set_perm_alldone)
+            } else {
+                stringResource(R.string.pw_progress, permSummary.doneCount, permSummary.missingNames(context))
+            },
+            onClick = onOpenWizard,
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+    }
+
+    // ── ৮. About — FIXED (Owner: "About অপশন টি ঠিক নাই, সেখানে Firebase
     // এর তথ্য গুলো দেখা যাচ্ছে। এটা তো প্রাইভেসি হলো না"): version + package
     // only, plus a plain-language storage note and the two policy docs.
     SectionCard(title = stringResource(R.string.set_section_about), icon = Icons.Filled.Info) {
@@ -698,7 +524,7 @@ internal fun SettingsTab(
         }
     }
 
-    // ── ৮. Sign-out LAST (Owner: "লগআউট করার অপশন টি নিচের দিকে থাকলে ভালো")।
+    // ── Sign-out LAST (Owner: "লগআউট করার অপশন টি নিচের দিকে থাকলে ভালো")।
     if (signedInUser != null) {
         WideOutlinedButton(enabled = !busy, onClick = onSignOut) {
             Icon(
