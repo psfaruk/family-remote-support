@@ -474,6 +474,9 @@
     <string name="set_section_remote">Assistance à distance</string>
     <string name="set_section_guest">Accès invité</string>
     <string name="set_section_security">Sécurité</string>
+    <string name="set_section_privacysec">Confidentialité et sécurité</string>
+    <string name="set_section_prefs">Préférences</string>
+    <string name="set_section_about_session">À propos et session</string>
     <string name="set_dev_entry_t">Téléphones appariés</string>
     <string name="set_dev_entry_d">Statut en direct, actions de support et révocation</string>
     <string name="set_loc_status">La localisation en direct est prévue pour une prochaine version. Aucune localisation n\'est collectée ni stockée aujourd\'hui.</string>
