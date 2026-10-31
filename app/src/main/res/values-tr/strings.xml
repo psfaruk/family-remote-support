@@ -39,6 +39,39 @@
     <string name="loc_title">Canlı konum</string>
     <string name="loc_coming_title">Gelecek bir güncellemede</string>
     <string name="loc_coming_body">Ailenin canlı konumu burada görünecek — her zaman karşı tarafın açık onayıyla. Bugün hiçbir şey toplanmıyor ve paylaşılmıyor.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Bu telefonun konumunu paylaş</string>
+    <string name="loc_share_body">Paylaşım açık kaldığı sürece eşleştirdiğiniz aile üyesi bu telefonun canlı konumunu haritada görür. Yalnızca en son konum tutulur — asla geçmiş tutulmaz — ve dilediğiniz an durdurabilirsiniz.</string>
+    <string name="loc_share_start">Paylaşımı başlat</string>
+    <string name="loc_share_stop">Paylaşımı durdur</string>
+    <string name="loc_share_on">Konum paylaşımı AÇIK</string>
+    <string name="loc_share_off">Konum paylaşımı kapalı</string>
+    <string name="loc_banner_on">Şu anda bu telefonun konumunu paylaşıyorsunuz</string>
+    <string name="loc_banner_off">Paylaşım kapalı — bu telefonun konumu gönderilmiyor</string>
+    <string name="loc_interval_label">Güncelleme aralığı</string>
+    <string name="loc_interval_30s">Her 30 saniyede bir</string>
+    <string name="loc_interval_1m">Her dakika</string>
+    <string name="loc_interval_5m">Her 5 dakikada bir</string>
+    <string name="loc_notif_title">Konum paylaşımı açık</string>
+    <string name="loc_notif_body">Uygulamayı açıp paylaşımı durdurmak için dokunun.</string>
+    <string name="loc_fresh_live">Canlı</string>
+    <string name="loc_fresh_stale">Eski</string>
+    <string name="loc_fresh_offline">Çevrim dışı</string>
+    <string name="loc_last_known">Son bilinen — %1$s</string>
+    <string name="loc_never">Hiç paylaşılmadı</string>
+    <string name="loc_no_fix">İlk konum belirlenmesi bekleniyor…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Güncellendi %1$s</string>
+    <string name="loc_details">Konum ayrıntıları</string>
+    <string name="loc_open_maps">Haritalar uygulamasında aç</string>
+    <string name="loc_perm_title">Konum izni gerekiyor</string>
+    <string name="loc_perm_body">Konum izni, paylaşmayı seçtiğiniz sürece ailenizin bu telefonun konumunu görmesini sağlar. Yalnızca görünür paylaşım bildirimi gösterilirken kullanılır.</string>
+    <string name="loc_denied_title">Konum erişimi reddedildi</string>
+    <string name="loc_denied_body">Konum izni reddedildi. Sistem ayarlarında izin verilene kadar paylaşım başlatılamaz.</string>
+    <string name="loc_empty_title">Henüz eşleştirilmiş cihaz yok</string>
+    <string name="loc_empty_body">Önce bir aile cihazı eşleştirin — canlı konumu, sahibinin açık onayıyla burada görünecek.</string>
+    <string name="loc_list_title">Bir cihaz seçin</string>
     <string name="set_section_account">Hesap</string>
     <string name="set_profile_title">Profil</string>
     <string name="set_profile_sub">Bu hesabın adı ve e-postası</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Eşleştirilmiş telefonlar</string>
     <string name="set_dev_entry_d">Canlı durum, destek eylemleri ve erişim iptali</string>
     <string name="set_loc_status">Canlı konum gelecek bir sürüm için planlanmıştır. Bugün hiçbir konum toplanmamakta veya saklanmamaktadır.</string>
+    <string name="set_loc_now">Bu telefonun canlı konumunu eşleştirilmiş aile cihazlarıyla paylaşın. Yalnızca en son konum tutulur — asla geçmiş tutulmaz.</string>
     <string name="set_guest_note">Misafir bağlantıları geçicidir (en fazla 3 saat) ve asla kalıcı aile eşleştirmesine dönüşmez.</string>
 </resources>
