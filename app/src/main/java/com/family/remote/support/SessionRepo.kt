@@ -29,7 +29,39 @@ import kotlinx.coroutines.CancellationException
  * Firestore collection: supportSessions
  */
 
-class SessionException(message: String) : Exception(message)
+/**
+ * M8 (v0.34.0) — user-visible failures carry a stable [code] (+ [args]) so
+ * the UI can render them through localizedMessage(context) in the app
+ * language; [message] stays the honest English fallback for logs and any
+ * caller that has not migrated yet.
+ */
+class SessionException(
+    message: String,
+    val code: String? = null,
+    val args: List<String> = emptyList()
+) : Exception(message)
+
+/**
+ * M8 (v0.34.0) — map a SessionException's stable code to the matching
+ * values/strings.xml key (app language via the LangPrefBus-wrapped Activity
+ * context the UI already holds). Unknown/no code (e.g. the bilingual
+ * request-blocked messages) falls back to the raw English message.
+ */
+fun SessionException.localizedMessage(context: android.content.Context): String {
+    val res = when (code) {
+        "session_gone" -> R.string.err_session_gone
+        "session_unreadable" -> R.string.err_session_unreadable
+        "session_unreadable_resend" -> R.string.err_session_unreadable_resend
+        "only_recipient_allow" -> R.string.err_only_recipient_allow
+        "only_recipient_deny" -> R.string.err_only_recipient_deny
+        "only_helper_cancel" -> R.string.err_only_helper_cancel
+        "already_answered" -> R.string.err_already_answered
+        "already_answered_status" -> R.string.err_already_answered_status
+        "session_expired_resend" -> R.string.err_session_expired_resend
+        else -> return message
+    }
+    return context.getString(res, *args.toTypedArray())
+}
 
 internal const val SESSION_COLLECTION = "supportSessions"
 
@@ -255,19 +287,32 @@ suspend fun grantSession(sessionId: String, uid: String): SessionView {
         val ref = db.collection(SESSION_COLLECTION).document(sessionId)
         val snap = tx.get(ref)
         if (!snap.exists()) {
-            throw SessionException("This request no longer exists.")
+            throw SessionException("This request no longer exists.", "session_gone")
         }
         val session = snap.toSessionView()
-            ?: throw SessionException("This request is unreadable — ask the helper to resend.")
+            ?: throw SessionException(
+                "This request is unreadable — ask the helper to resend.",
+                "session_unreadable_resend"
+            )
         if (session.recipientUid != uid) {
-            throw SessionException("Only the phone that was asked can allow this session.")
+            throw SessionException(
+                "Only the phone that was asked can allow this session.",
+                "only_recipient_allow"
+            )
         }
         if (session.status != "REQUESTED") {
-            throw SessionException("This request was already answered (${session.status}).")
+            throw SessionException(
+                "This request was already answered (${session.status}).",
+                "already_answered_status",
+                listOf(session.status)
+            )
         }
         // 5 s of grace for small clock skew; the rules re-check with server time.
         if (System.currentTimeMillis() > session.respondDeadlineMillis + 5000) {
-            throw SessionException("This request already expired — ask the helper to send a new one.")
+            throw SessionException(
+                "This request already expired — ask the helper to send a new one.",
+                "session_expired_resend"
+            )
         }
 
         // ---------- lifetime: 15 min, capped by a live guest window ----------
@@ -304,15 +349,18 @@ suspend fun denySession(sessionId: String, uid: String) {
         val ref = db.collection(SESSION_COLLECTION).document(sessionId)
         val snap = tx.get(ref)
         if (!snap.exists()) {
-            throw SessionException("This request no longer exists.")
+            throw SessionException("This request no longer exists.", "session_gone")
         }
         val session = snap.toSessionView()
-            ?: throw SessionException("This request is unreadable.")
+            ?: throw SessionException("This request is unreadable.", "session_unreadable")
         if (session.recipientUid != uid) {
-            throw SessionException("Only the phone that was asked can deny this request.")
+            throw SessionException(
+                "Only the phone that was asked can deny this request.",
+                "only_recipient_deny"
+            )
         }
         if (session.status != "REQUESTED") {
-            throw SessionException("This request was already answered.")
+            throw SessionException("This request was already answered.", "already_answered")
         }
 
         // ---------- write ----------
@@ -336,15 +384,18 @@ suspend fun cancelSession(sessionId: String, uid: String) {
         val ref = db.collection(SESSION_COLLECTION).document(sessionId)
         val snap = tx.get(ref)
         if (!snap.exists()) {
-            throw SessionException("This request no longer exists.")
+            throw SessionException("This request no longer exists.", "session_gone")
         }
         val session = snap.toSessionView()
-            ?: throw SessionException("This request is unreadable.")
+            ?: throw SessionException("This request is unreadable.", "session_unreadable")
         if (session.helperUid != uid) {
-            throw SessionException("Only the helper can cancel their own request.")
+            throw SessionException(
+                "Only the helper can cancel their own request.",
+                "only_helper_cancel"
+            )
         }
         if (session.status != "REQUESTED") {
-            throw SessionException("This request was already answered.")
+            throw SessionException("This request was already answered.", "already_answered")
         }
 
         // ---------- write ----------
