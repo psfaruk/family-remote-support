@@ -100,12 +100,22 @@ data class PermChecklist(
     }
 }
 
-/** Reads the current permission state (cheap — safe to poll). */
-fun readPermChecklist(context: Context): PermChecklist {
-    val notifications = Build.VERSION.SDK_INT < 33 ||
+/**
+ * v0.37.0 (dedupe wave) — ONE POST_NOTIFICATIONS granted check (was 5
+ * copies: readPermChecklist below, SettingsTab's test probe + toggle
+ * state/poll, and the notifier's own gate). Pre-TIRAMISU (< 33) devices
+ * have no runtime notification permission — granted by definition.
+ */
+fun isNotifGranted(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(
             context, Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
+
+/** Reads the current permission state (cheap — safe to poll). */
+fun readPermChecklist(context: Context): PermChecklist {
+    // v0.37.0 (dedupe wave) — the shared granted check (was an inline copy).
+    val notifications = isNotifGranted(context)
     val camera = ContextCompat.checkSelfPermission(
         context, Manifest.permission.CAMERA
     ) == PackageManager.PERMISSION_GRANTED
