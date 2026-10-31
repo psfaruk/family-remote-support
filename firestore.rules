@@ -587,6 +587,62 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ---------- Phase 22 (M5): live location sharing ----------
+    match /liveLocations/{docId} {
+      // Phase 22/M5 — consent-based live location sharing (architecture doc §4).
+      // One MUTABLE doc per device, update-in-place, deleted on stop — history is
+      // deliberately NOT implemented (master plan PART 6). Writer = the device
+      // owner only; reader = own doc OR the paired counterpart of an ACTIVE
+      // relationship (guest: live window) while sharingEnabled == true. Field
+      // set, ranges and updatedAt freshness are all enforced server-side.
+
+      function myPairing(deviceUid) {
+        return (
+          (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid))
+            && get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.status == 'ACTIVE'
+            && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data)
+                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.guestExpiresAt > request.time))
+          || (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid))
+            && get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.status == 'ACTIVE'
+            && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data)
+                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.guestExpiresAt > request.time))
+        );
+      }
+
+      allow get: if signedIn()
+        && (resource.data.uid == request.auth.uid
+            || (myPairing(resource.data.uid) && resource.data.sharingEnabled == true));
+      allow list: if signedIn()
+        && (resource.data.uid == request.auth.uid
+            || (myPairing(resource.data.uid) && resource.data.sharingEnabled == true));
+
+      allow create, update: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && docId.matches(request.auth.uid + '_[0-9a-f]{24}')
+        && request.resource.data.keys().hasOnly(
+          ['uid', 'deviceId', 'lat', 'lng', 'accuracyMeters', 'sharingEnabled', 'updatedAt', 'appVersionCode']
+        )
+        && request.resource.data.uid is string
+        && request.resource.data.deviceId is string
+        && request.resource.data.deviceId.size() < 128
+        && request.resource.data.lat is number
+        && request.resource.data.lat >= -90.0 && request.resource.data.lat <= 90.0
+        && request.resource.data.lng is number
+        && request.resource.data.lng >= -180.0 && request.resource.data.lng <= 180.0
+        && request.resource.data.accuracyMeters is int
+        && request.resource.data.accuracyMeters >= 0
+        && request.resource.data.accuracyMeters <= 100000
+        && request.resource.data.sharingEnabled is bool
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt > request.time - duration.value(5, 'm')
+        && request.resource.data.updatedAt < request.time + duration.value(5, 'm')
+        && request.resource.data.appVersionCode is int
+        && request.resource.data.appVersionCode >= 1
+        && request.resource.data.appVersionCode <= 1000000;
+
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // Catch-all: deny everything not matched above.
     match /{document=**} {
       allow read, write: if false;
