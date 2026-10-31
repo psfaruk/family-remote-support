@@ -474,6 +474,9 @@
     <string name="set_section_remote">Soporte remoto</string>
     <string name="set_section_guest">Acceso de invitados</string>
     <string name="set_section_security">Seguridad</string>
+    <string name="set_section_privacysec">Privacidad y seguridad</string>
+    <string name="set_section_prefs">Preferencias</string>
+    <string name="set_section_about_session">Acerca de y sesión</string>
     <string name="set_dev_entry_t">Teléfonos emparejados</string>
     <string name="set_dev_entry_d">Estado en vivo, acciones de soporte y revocación</string>
     <string name="set_loc_status">La ubicación en vivo está prevista para una próxima versión. Hoy no se recopila ni almacena ninguna ubicación.</string>
