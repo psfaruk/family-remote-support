@@ -62,8 +62,8 @@ object AppRoutes {
 
 /**
  * M4 — which tab "owns" a route, for honest bottom-bar selection: the
- * nested home/* detail routes keep the HOME tab selected (you are still
- * inside the Home area); notifications stays deliberately unselected
+ * nested Home-subtree detail routes keep the HOME tab selected (you are
+ * still inside the Home area); notifications stays deliberately unselected
  * (no fake selection). Null = no tab highlighted.
  */
 fun AppRoutes.tabForRoute(route: String?): String? = when {
