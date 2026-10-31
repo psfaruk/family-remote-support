@@ -5,6 +5,48 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
+- **🟢 RELEASE-READY — M10 closed (2026-10-31, docs-only; release build = v0.35.0, versionCode 54):**
+  All master-plan milestones **M0–M10 ✅** + the Owner's Pre-M10 polish pass. The final
+  report lives in **`docs/RELEASE_NOTES.md`** (features, install, build-from-source,
+  known-limits ledger, maintenance runbook, milestone ledger). Highlights of the
+  milestones this README had not yet recorded:
+  - **M6 ✅ (docs-only, v0.33.0/52):** Family/Guest authorization verified live — full
+    probe battery 4/4 green (pairing round-trip + claim fences; session-FSM audit
+    A0–A21; negative P0–N18 + G1/G2 guest-window/kind fences; liveLocations 12/12),
+    synthetic fixtures self-cleaned. Worklog §69.
+  - **M7 ✅ (docs-only, v0.33.0/52):** 2-agent remote-support integration audit —
+    WebRTC/session/signaling + assist/FCM/kill-push chains all intact, zero refactor
+    regressions; 3 honest findings recorded (stale sandbox sweep copy re-synced;
+    CLOUDFLARE_SETUP "app-side instant call shipped v0.19.0" claim retracted — never
+    implemented; Worker secret still false = Owner-blocked then). Worklog §70.
+  - **M8 ✅ (v0.34.0/53 — code):** notifications LOCAL persisted events store (G2:
+    filesDir JSON, cap 100, zero extra Firestore reads, cleared at sign-out) +
+    accessibility labels + i18n completion (default↔bn inversion fixed — 209 swaps;
+    526 keys × 15 locales, per-locale verification matrices PASS) + per-second
+    recomposition isolated (TickingBlock). Worklog §71.
+  - **M9 ✅ (docs-only, v0.34.0/53):** TEST_PLAN execution — every AUTO row re-run
+    live 4/4 green; security review (full 615-commit history scan: zero secrets;
+    workflows least-privilege; manifest posture re-checked); Firebase verified
+    end-to-end (Firestore REST read 200 → FCM send 200 + message_id to the live
+    phone); quota budget documented (TEST_PLAN §1a). Worklog §72.
+  - **Pre-M10 ✅ (v0.35.0/54 — code, current release):** Owner polish pass — Settings
+    re-partitioned into five cards top-to-bottom (Account → Device Management →
+    Privacy & Security → Preferences → About & session, red-outlined sign-out last),
+    Language became ONE row opening a capped+scrollable 15-language picker dialog,
+    bell→Settings "content dropped below" root-caused and fixed (top-level tabs now
+    enter at top), keyboard/IME ride-up fixed (`adjustResize` + ime inset padding),
+    signed-out Family blank screen fixed, large-font tile titles 2-line. Worklog §73.
+  - **M10 ✅ (docs-only, APK unchanged v0.35.0/54):** release-readiness closed —
+    `docs/RELEASE_NOTES.md` added; **the last open infra item resolved:** the Owner
+    unlocked the Cloudflare API token (allow-all edit) → `FIREBASE_SA_JSON` set as a
+    runtime Secret via the REST secrets API (HTTP 201) → `/health` `true` → cron
+    proven firing every minute with 2 subrequests per sweep (OAuth + Firestore) —
+    **all three kill-push tiers simultaneously operational for the first time.**
+    Worklog §74.
+  - **Owner's remaining actions are device-side only:** reinstall both phones on
+    v0.35.0/54 and run the device checklists (TEST_PLAN device rows + §71/§73 quick
+    regressions). Everything automatable is verified green.
+
 - **Phase 18.1–18.8 ✅ (v0.22.0→v0.26.0, versionCode 41→45) — DEEP-AUDIT SERIES, 8 rounds:**
   Owner-ordered audit chain: pairing/session lifecycle + reboot-reconnect hardening (18.1, v0.22.0/41),
   fullscreen session-bar UX fix (18.2, v0.23.0/42), streaming touch-latency fix (18.3, v0.24.0/43),
