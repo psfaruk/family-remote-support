@@ -28,24 +28,37 @@ import kotlinx.coroutines.delay
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * Re-composes [content] once per second with the current wall-clock time.
+ * Re-composes [content] on a fixed clock with the current wall-clock time.
+ *
+ * v0.37.0 (dedupe wave) — [intervalMillis] generalizes the block beyond its
+ * original 1-second countdown cadence: the five 30-second relationship
+ * freshness loops and Badges' 10-second presence loops now share THIS one
+ * implementation instead of each screen carrying its own
+ * `LaunchedEffect { while (true) { …; delay(N) } }` copy.
  *
  * @param key restarts the clock (and resets the timestamp) when the identity
  *           of the thing being counted down changes — session id, invite id,
  *           … — mirroring the old `LaunchedEffect(session.id)` keys so a new
  *           countdown never starts from a stale instant.
+ * @param intervalMillis how often the timestamp refreshes (default 1 s for
+ *           countdowns; use 30_000 for relationship freshness, 10_000 for
+ *           presence age).
  * @param content the time-dependent block; receives `nowMillis` and should
  *           stay as small as possible (wrap ONLY the composable(s) that read
- *           the time — siblings must keep their one-second peace).
+ *           the time — siblings must keep their tick-interval peace).
  */
 @Composable
-fun TickingBlock(key: Any? = null, content: @Composable (nowMillis: Long) -> Unit) {
+fun TickingBlock(
+    key: Any? = null,
+    intervalMillis: Long = 1000,
+    content: @Composable (nowMillis: Long) -> Unit
+) {
     var nowMillis by remember(key) { mutableStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(key) {
         while (true) {
             nowMillis = System.currentTimeMillis()
-            delay(1000)
+            delay(intervalMillis)
         }
     }
 
