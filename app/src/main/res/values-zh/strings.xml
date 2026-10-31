@@ -473,6 +473,9 @@
     <string name="set_section_remote">远程支持</string>
     <string name="set_section_guest">访客访问</string>
     <string name="set_section_security">安全</string>
+    <string name="set_section_privacysec">隐私与安全</string>
+    <string name="set_section_prefs">偏好设置</string>
+    <string name="set_section_about_session">关于与会话</string>
     <string name="set_dev_entry_t">已配对的手机</string>
     <string name="set_dev_entry_d">实时状态、支持操作与撤销访问</string>
     <string name="set_loc_status">实时位置计划在未来的版本中推出。目前不会收集或存储任何位置信息。</string>
