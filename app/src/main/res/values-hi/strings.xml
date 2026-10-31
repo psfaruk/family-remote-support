@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">फिर से कोशिश करें</string>
     <string name="states_open_settings">सिस्टम सेटिंग्स खोलें</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">फ़ैमिली डिवाइस</string>
+    <string name="fam_empty_t">अभी कोई फ़ोन जोड़ा नहीं गया</string>
+    <string name="fam_empty_h">Add Device टैब से एक फ़ोन जोड़ें — वह यहाँ अपनी लाइव स्थिति के साथ दिखेगा।</string>
+    <string name="fam_not_found">यह पेयरिंग नहीं मिली।</string>
+    <string name="fam_not_found_h">शायद इसे रद्द कर दिया गया हो या इस खाते से हटा दिया गया हो।</string>
+    <string name="actv_title">हाल की गतिविधि</string>
+    <string name="actv_tile_d">चालू और हाल में समाप्त सहायता सत्र</string>
+    <string name="actv_empty_t">अभी कोई सत्र नहीं</string>
+    <string name="actv_empty_h">सहायता सत्र चलने के दौरान और समाप्त होने के ठीक बाद यहाँ दिखते हैं।</string>
+    <string name="sess_title">सत्र विवरण</string>
+    <string name="sess_not_found">यह सत्र नहीं मिला।</string>
+    <string name="sess_not_found_h">नवीनतम सत्र देखने के लिए हाल की गतिविधि खोलें।</string>
+    <string name="sess_state">स्थिति</string>
+    <string name="sess_kind">प्रकार</string>
+    <string name="sess_helper">सहायक</string>
+    <string name="sess_recipient">प्राप्तकर्ता</string>
+    <string name="sess_duration">अवधि</string>
+    <string name="sess_endedby">समाप्त किया</string>
+    <string name="sess_family">फ़ैमिली</string>
+    <string name="sess_guest">अतिथि</string>
+    <string name="cd_back">वापस जाएँ</string>
+    <string name="set_section_devices">डिवाइस प्रबंधन</string>
+    <string name="set_section_location">स्थान और गोपनीयता</string>
+    <string name="set_section_remote">रिमोट सहायता</string>
+    <string name="set_section_guest">अतिथि पहुँच</string>
+    <string name="set_section_security">सुरक्षा</string>
+    <string name="set_dev_entry_t">जोड़े गए फ़ोन</string>
+    <string name="set_dev_entry_d">लाइव स्थिति, सहायता क्रियाएँ और पहुँच रद्द करना</string>
+    <string name="set_loc_status">लाइव स्थान एक आगामी रिलीज़ के लिए योजित है। आज कोई स्थान एकत्र या संग्रहीत नहीं किया जाता।</string>
+    <string name="set_guest_note">अतिथि लिंक अस्थायी होते हैं (अधिकतम ३ घंटे)। ये कभी भी स्थायी फ़ैमिली पेयरिंग नहीं बनते।</string>
 </resources>
