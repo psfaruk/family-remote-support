@@ -80,7 +80,7 @@ Signal subcollection: writable only while ACTIVE and sessionEndsAt > now (server
 | # | Delta | Where |
 |---|---|---|
 | G1 | Location = new row in §3 matrix + consent sheet copy + rules `liveLocations` block | ✅ M5 shipped — rules LIVE (ruleset d1a38d5e), probe 12/12 re-verified in M6 |
-| G2 | Notifications for relationship/session/sharing events (real events only) | ⛔ M8 pending (by design — out of M6 scope; the M2 notifications surface holds real in-memory events meanwhile) |
+| G2 | Notifications for relationship/session/sharing events (real events only) | ✅ **M8 shipped (v0.34.0/53)** — LOCAL persisted events store (`NotificationsLog.kt`): session asked/started/ended + sharing on/off recorded from EXISTING observations (zero extra Firestore reads/listeners), JSON in filesDir capped at 100, NO coordinates ever, cleared at sign-out; "Recent events" section on the notifications surface, hint copy honest ×15. Design decision recorded: local, not Firestore (Phase-20 free-quota discipline) |
 | G3 | Settings "Security" subsection surfacing authorization states (read-only truth) | ✅ closed-as-covered (M6 verdict): OS-permission posture + assist-service state → Security permission wizard (`PermChecklist`, `AssistSetup.isAssistEnabled`, verified in code); relationship/guest-window states → Device Management → home/family (M4); location-sharing state → Settings Location & Privacy + Tracking own-sharing banner (M5). No fabricated surface added. |
 | G4 | Fix manifest/assist-config doc drift (`canRetrieveWindowContent`) in privacy copy | ✅ M4 fixed — comment re-verified truthful in M6 (`AndroidManifest.xml` remote-assist comment) |
 
