@@ -41,6 +41,13 @@
   shipped v0.19.0" claim retracted. Docs-only; APK unchanged (v0.33.0/52). Device-side
   remote-support scenarios **#19/#20/#21 remain Owner manual** (M7 verified code-level
   only). Recorded in worklog §70.
+- **M8 (2026-10-31, v0.34.0/53 — CODE milestone, reinstall both phones):** notifications
+  local persisted events store (G2) + accessibility labels + i18n completion (default↔bn
+  inversion fixed: 209 swaps; 74 new keys ×15; 526 keys per locale, verification matrices
+  PASS) + per-second recomposition isolated (TickingBlock). New device checks for the
+  Owner: (a) language বাংলা across the UI; (b) bell → "Recent events" section shows real
+  events and survives app restart; (c) sign-out clears the events list; (d) session/share
+  flows unchanged otherwise. Recorded in worklog §71.
 
 ## 2. Scenario matrix (master list → method)
 
