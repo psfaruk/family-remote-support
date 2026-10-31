@@ -2793,3 +2793,13 @@ SettingsTile 标题 maxLines 1→2（大字号下 “Device Management” 类标
 AndroidManifest.xml（adjustResize）、app/build.gradle.kts（54/0.35.0）、res/values*
 15 文件（+3 键）、docs/NAVIGATION_MAP.md（§2/§3）、docs/UI_UX_DESIGN_SYSTEM.md（§10-K）、
 docs/IMPLEMENTATION_STATUS.md（Pre-M10 行）、本 §73。
+
+**CI 记录（本波收口，诚实——0 修复轮）：**
+- 本波 25 个推送中前 24 个 run 被工作流并发设置自动取消（正常，以最终 HEAD 为准）。
+- 最终 HEAD `de1b5d81f5` run **41209795128 SUCCESS**（2026-10-31 14:31 UTC 前后完成）。
+- Release-APK 验证门 **PASS**：code=54（INT_DEC）、name="0.35.0"、v2 签名块在、
+  stale 0.34.0 缺席 → `download/family-remote-support-v0.35.0-code54.apk`（39.5 MB）。
+- 附加带证据：二进制 AXML 字串池含 `windowSoftInputMode`（adjustResize 随包）、
+  resources.arsc 含 `set_section_privacysec` 键与 bn 值"প্রাইভেসি ও সিকিউরিটি"。
+- 本 CI-record 补记提交自身的 run 结果由下一里程碑（M10）的“推送前校验”承接记录
+  （§72 先例同）。
