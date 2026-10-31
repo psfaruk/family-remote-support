@@ -1,34 +1,36 @@
 package com.family.remote.support
 
 import android.content.Context
-import android.os.Build
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.messaging.FirebaseMessaging
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
 /**
  * Phase 5 — device presence + FCM token registry.
  *
  * Presence = a tiny heartbeat document per device. It answers exactly one
- * question: "was this device around recently?" — nothing more. A heartbeat is
- * written immediately whenever the app comes to the foreground, plus every
- * 15 minutes from WorkManager while the device is online.
+ * question: "was this device around recently?" — nothing more.
+ *
+ * v0.36.0 (Owner quota directive — "read/write only when the user acts,
+ * auto-updates off, requests only from the app"): the heartbeat is
+ * FOREGROUND-ONLY now. A heartbeat is written when the app opens / signs in,
+ * every 5 minutes while the activity is RESUMED, and once more on ON_STOP
+ * (the user leaving IS a user action). The 15-minute WorkManager worker —
+ * the app's only Firebase write that ran with the app fully closed — is
+ * retired; [cancelPeriodicHeartbeat] purges the periodic work persisted by
+ * older installs (WorkManager survives app updates and reboots).
  *
  * The badge shown in the UI is computed from the READER's clock, so the
  * windows are deliberately generous (a few minutes of clock skew between
- * family phones is normal and harmless here).
+ * family phones is normal and harmless here). "Online" therefore decays
+ * ~20 min after the counterpart last actually used their phone — an honest
+ * "around recently" signal, by design.
  */
 
 private const val PRESENCE_COLLECTION = "devicePresence"
@@ -194,37 +196,25 @@ suspend fun deleteOwnPresenceAndToken(uid: String, deviceId: String): Boolean {
 }
 
 /**
- * Background heartbeat worker. WorkManager's periodic floor is 15 minutes;
- * the app also heartbeats on every foreground, which keeps the badge fresh
- * during real use.
+ * v0.36.0 (Owner quota directive): RETIRED as a writer. Kept ONLY so the
+ * periodic work persisted by older installs terminates itself cleanly —
+ * [Result.failure] is terminal for periodic work (no further runs), and
+ * [cancelPeriodicHeartbeat] removes even that on the first v0.36.0 open.
+ * Do NOT re-schedule this worker without re-reading worklog §75 (the
+ * foreground-only ticker in MainActivity owns presence now).
  */
 class HeartbeatWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
-        val user = FirebaseAuth.getInstance().currentUser ?: return Result.success()
-        return try {
-            sendHeartbeat(user.uid, stableDeviceId(applicationContext), Build.MODEL)
-            Result.success()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            // Network hiccups are routine — let WorkManager back off and retry.
-            Result.retry()
-        }
-    }
+    override suspend fun doWork(): Result = Result.failure()
 }
 
-/** Idempotent: schedules the periodic heartbeat (KEEP — no duplicates). */
-fun schedulePeriodicHeartbeat(context: Context) {
-    val request = PeriodicWorkRequestBuilder<HeartbeatWorker>(15, TimeUnit.MINUTES)
-        .setConstraints(
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        )
-        .build()
-    WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-        "device-heartbeat",
-        ExistingPeriodicWorkPolicy.KEEP,
-        request
-    )
+/**
+ * v0.36.0 — cancels any "device-heartbeat" periodic work persisted by older
+ * installs (WorkManager state survives app updates and reboots, so simply
+ * stopping the enqueue would leave old phones heartbeating for weeks).
+ * Idempotent; called once per app open.
+ */
+fun cancelPeriodicHeartbeat(context: Context) {
+    WorkManager.getInstance(context).cancelUniqueWork("device-heartbeat")
 }
