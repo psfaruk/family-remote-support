@@ -87,6 +87,10 @@ object SessionNotifier {
             .collection(SESSION_COLLECTION)
             .whereEqualTo("recipientUid", uid)
             .whereEqualTo("status", "REQUESTED")
+            // v0.36.0 (quota hardening): cap the listener query like
+            // watchSessions does — a runaway accumulation of stale REQUESTED
+            // docs could bill an unbounded initial snapshot every attach.
+            .limit(10)
             .addSnapshotListener { snap, error ->
                 if (error != null || snap == null) return@addSnapshotListener
                 val app = context.applicationContext as App
