@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Попробовать снова</string>
     <string name="states_open_settings">Открыть настройки системы</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">Устройства семьи</string>
+    <string name="fam_empty_t">Пока нет сопряжённых телефонов</string>
+    <string name="fam_empty_h">Сопрягите телефон на вкладке «Добавить устройство» — он появится здесь со своим живым статусом.</string>
+    <string name="fam_not_found">Эта связка не найдена.</string>
+    <string name="fam_not_found_h">Возможно, она была отозвана или удалена из этого аккаунта.</string>
+    <string name="actv_title">Недавняя активность</string>
+    <string name="actv_tile_d">Активные и недавно завершённые сеансы поддержки</string>
+    <string name="actv_empty_t">Пока нет сеансов</string>
+    <string name="actv_empty_h">Сеансы поддержки появляются здесь во время работы и сразу после завершения.</string>
+    <string name="sess_title">Детали сеанса</string>
+    <string name="sess_not_found">Этот сеанс не найден.</string>
+    <string name="sess_not_found_h">Откройте «Недавнюю активность», чтобы увидеть последние сеансы.</string>
+    <string name="sess_state">Статус</string>
+    <string name="sess_kind">Тип</string>
+    <string name="sess_helper">Помощник</string>
+    <string name="sess_recipient">Получатель</string>
+    <string name="sess_duration">Длительность</string>
+    <string name="sess_endedby">Завершил</string>
+    <string name="sess_family">Семья</string>
+    <string name="sess_guest">Гость</string>
+    <string name="cd_back">Назад</string>
+    <string name="set_section_devices">Управление устройствами</string>
+    <string name="set_section_location">Геолокация и конфиденциальность</string>
+    <string name="set_section_remote">Удалённая поддержка</string>
+    <string name="set_section_guest">Гостевой доступ</string>
+    <string name="set_section_security">Безопасность</string>
+    <string name="set_dev_entry_t">Сопряжённые телефоны</string>
+    <string name="set_dev_entry_d">Живой статус, действия поддержки и отзыв доступа</string>
+    <string name="set_loc_status">Живая геолокация планируется в одном из будущих релизов. Сегодня никакая геолокация не собирается и не сохраняется.</string>
+    <string name="set_guest_note">Гостевые ссылки временные (до 3 часов) и никогда не становятся постоянными семейными связками.</string>
 </resources>
