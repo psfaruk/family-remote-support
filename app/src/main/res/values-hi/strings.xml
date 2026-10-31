@@ -474,6 +474,9 @@
     <string name="set_section_remote">रिमोट सहायता</string>
     <string name="set_section_guest">अतिथि पहुँच</string>
     <string name="set_section_security">सुरक्षा</string>
+    <string name="set_section_privacysec">गोपनीयता और सुरक्षा</string>
+    <string name="set_section_prefs">प्राथमिकताएँ</string>
+    <string name="set_section_about_session">ऐप के बारे में और सेशन</string>
     <string name="set_dev_entry_t">जोड़े गए फ़ोन</string>
     <string name="set_dev_entry_d">लाइव स्थिति, सहायता क्रियाएँ और पहुँच रद्द करना</string>
     <string name="set_loc_status">लाइव स्थान एक आगामी रिलीज़ के लिए योजित है। आज कोई स्थान एकत्र या संग्रहीत नहीं किया जाता।</string>
