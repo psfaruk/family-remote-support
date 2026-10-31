@@ -31,6 +31,16 @@
 - **M6 (2026-10-31): FULL battery re-run LIVE — 4/4 green** (pairing · audit A0–A21 ·
   negative 16-hostile Family/Guest · liveLocations 12/12) — the Family/Guest authorization
   verification milestone; recorded in worklog §69. APK unchanged (v0.33.0/52).
+- **M7 (2026-10-31): remote-support integration audit** — 2 real parallel read-only agents
+  (M7-A WebRTC/session/signaling · M7-B assist/FCM-routing/kill-push) + coordinator
+  verification: all chains **INTACT** (code-level; zero refactor regressions). Ops findings:
+  sandbox instant tier re-synced + restarted (stale-script regression fixed in-sandbox);
+  GH Actions backstop last run SUCCESS (3 prior failures = Firestore 429 quota, verified
+  from logs — self-healing, not code); Worker `/health` FIREBASE_SA_JSON still `false`
+  (permanent tier remains Owner-blocked). CLOUDFLARE_SETUP.md false "app-side instant call
+  shipped v0.19.0" claim retracted. Docs-only; APK unchanged (v0.33.0/52). Device-side
+  remote-support scenarios **#19/#20/#21 remain Owner manual** (M7 verified code-level
+  only). Recorded in worklog §70.
 
 ## 2. Scenario matrix (master list → method)
 
