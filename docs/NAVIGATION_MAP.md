@@ -1,19 +1,21 @@
 # NAVIGATION_MAP — Target Hierarchy (Master-Plan PART 3)
 
 > Status: **M2 SHELL IMPLEMENTED (v0.30.0/49); M3 SCREENS EXTRACTED (v0.31.0/50);
-> M4 NESTED HOME SUBTREE + SETTINGS 8 PARTITIONS IMPLEMENTED (v0.32.0/51).** The 4 tabs +
-> notifications route run on Navigation-Compose (Decision C3 ADOPTED — `ui/nav/AppNav.kt`
-> routes + bars, crossfade 120 ms, saveState/restoreState). M4 made the **home/ subtree of §2
-> REAL**: `home/family` (Family Overview), `home/family/{relId}` (Member Details — the old
-> paired-phone action sheet promoted to a route), `home/sessions` (Recent Activity) and
-> `home/sessions/{id}` (Session Details); nested routes slide ≈200 ms honoring the system
-> Animator duration scale; the Home tab stays selected on its nested routes
-> (`AppRoutes.tabForRoute`) and system back pops them (§3). Settings is the master's 8
-> partition grouped list (devices/guest entries route into home/family). **Still open by
-> design:** `add/*` stays MODAL per §3 (QR scanner / role preview / permission wizard are
-> dialogs/sheets — Back dismisses them without leaving the flow); `tracking/*` (map +
-> `tracking/{relId}`) waits for M5; `settings/*` sub-ROUTES beyond the devices entry remain
-> later waves (M6/M8).
+> M4 NESTED HOME SUBTREE + SETTINGS 8 PARTITIONS IMPLEMENTED (v0.32.0/51);
+> M5 TRACKING SUBTREE IMPLEMENTED (v0.33.0/52).** The 4 tabs + notifications route run
+> on Navigation-Compose (Decision C3 ADOPTED — `ui/nav/AppNav.kt` routes + bars,
+> crossfade 120 ms, saveState/restoreState). M4 made the **home/ subtree of §2 REAL**
+> (family overview / member details / recent activity / session detail). **M5 made the
+> tracking/ subtree REAL:** the Tracking tab is the osmdroid map with authorized markers,
+> freshness badges and the own-sharing consent card; `tracking/{relId}` is the Location
+> Details screen (read-only counterpart status, open-in-maps). Nested routes slide ≈200 ms
+> honoring the system Animator duration scale; the owning tab stays selected on its nested
+> routes (`AppRoutes.tabForRoute`); system back pops them (§3). Settings is the master's 8
+> partition grouped list (devices/guest entries route into home/family; the Location
+> partition is REAL since M5: sharing toggle + interval). **Still open by design:** `add/*`
+> stays MODAL per §3 (QR scanner / role preview / permission wizard are dialogs/sheets —
+> Back dismisses them without leaving the flow); `settings/*` sub-ROUTES beyond the devices
+> entry remain later waves (M6/M8).
 
 ## 1. Decision C1/C2 — primary tabs (exactly four, per master instruction)
 
@@ -64,12 +66,12 @@ RootShell (Scaffold: AppTopBar + NavHost + BottomNav, tab state saved/restored)
 │                                 (add/scan + add/progress + add/permissions = today's
 │                                 QrScanDialog / ScannedRoleSheet / PermissionWizard,
 │                                 intentionally modal — see §3)
-├── Tab TRACKING (M5)
-│   ├── tracking                  map (osmdroid) + authorized markers + device selector sheet
-│   │                             + freshness (live/stale/offline) + sharing-status banner
+├── Tab TRACKING (✅ M5, v0.33.0/52)
+│   ├── tracking                  ✅ M5: osmdroid map + authorized markers + device selector sheet
+│   │                             + freshness (live/stale/offline) + own-sharing consent card
 │   │                             + loading/permission-denied/error/empty states
-│   └── tracking/{relId}          Location Details: last update time, accuracy, staleness,
-│                                 sharing on/off (owner), open-in-maps action, revoke/sharing controls
+│   └── tracking/{relId}          ✅ M5: Location Details: last update time, accuracy, staleness,
+│                                 sharing on/off (counterpart read-only), open-in-maps action
 ├── Tab SETTINGS
 │   ├── settings                  ✅ M4: the master's 8 partition grouped list (Account ·
 │   │                             Appearance(theme+language) · Device Management · Location &
@@ -78,7 +80,8 @@ RootShell (Scaffold: AppTopBar + NavHost + BottomNav, tab state saved/restored)
 │   ├── settings/appearance       (theme + language rows inside the Appearance partition)
 │   ├── settings/devices          ✅ M4 as an ENTRY: routes into home/family (the map's
 │   │                             "reuse home/family/{relId}" rule); registry list stays here
-│   ├── settings/location         (honest M5-planned note + policy docs in the partition)
+│   ├── settings/location         ✅ M5 REAL: sharing toggle + 30 s/1 min/5 min interval rows
+│   │                             + policy docs (privacy/rules) in the partition
 │   ├── settings/remote           (notif/assist/test tiles inside the Remote Support partition)
 │   ├── settings/guest            ✅ M4 as a NOTE+ENTRY: routes into home/family (guest links
 │   │                             with countdowns/removal live there)
