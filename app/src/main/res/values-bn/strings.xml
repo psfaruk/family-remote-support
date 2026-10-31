@@ -414,4 +414,8 @@
     <string name="notif_empty_title">এই মুহূর্তে আপনার কিছু দরকার নেই</string>
     <string name="notif_empty_body">সহায়তার অনুরোধ, চলমান সেশন ও সেটআপ সতর্কতা ঘটনার মুহূর্তেই এখানে দেখা যাবে।</string>
     <string name="notif_hint">শুধুমাত্র সত্যিকারের বর্তমান ঘটনা — কিছু বানানো হয় না, ইতিহাস হিসেবেও জমা রাখা হয় না।</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">আবার চেষ্টা করুন</string>
+    <string name="states_open_settings">সিস্টেম সেটিংস খুলুন</string>
 </resources>
