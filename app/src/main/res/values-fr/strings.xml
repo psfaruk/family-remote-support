@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s vous aide actuellement</string>
     <string name="notif_empty_title">Rien n\'attend votre attention</string>
     <string name="notif_empty_body">Les demandes d\'assistance, sessions en cours et alertes de configuration apparaissent ici dès qu\'elles surviennent.</string>
-    <string name="notif_hint">Uniquement des événements réels et actuels — rien d\'inventé, aucun historique.</string>
+    <string name="notif_hint">Uniquement des événements réels — conservés sur cet appareil uniquement (les 100 plus récents), jamais téléversés, et effacés à la déconnexion.</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Réessayer</string>
@@ -479,4 +479,84 @@
     <string name="set_loc_status">La localisation en direct est prévue pour une prochaine version. Aucune localisation n\'est collectée ni stockée aujourd\'hui.</string>
     <string name="set_loc_now">Partagez la position en direct de ce téléphone avec les appareils familiaux appariés. Seule la dernière position est conservée — jamais un historique.</string>
     <string name="set_guest_note">Les liens invité sont temporaires (jusqu\'à 3 heures) et ne deviennent jamais des appariements familiaux permanents.</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">Événements récents</string>
+    <string name="notif_ev_asked">Demande d\'aide de %1$s</string>
+    <string name="notif_ev_started">Session d\'assistance démarrée avec %1$s</string>
+    <string name="notif_ev_ended">Session d\'assistance avec %1$s terminée</string>
+    <string name="notif_ev_sharing_on">Partage de position activé</string>
+    <string name="notif_ev_sharing_off">Partage de position désactivé</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">Cette demande n\'existe plus.</string>
+    <string name="err_session_unreadable">Cette demande est illisible.</string>
+    <string name="err_session_unreadable_resend">Cette demande est illisible — demandez à l\'aide de la renvoyer.</string>
+    <string name="err_only_recipient_allow">Seul le téléphone sollicité peut autoriser cette session.</string>
+    <string name="err_only_recipient_deny">Seul le téléphone sollicité peut refuser cette demande.</string>
+    <string name="err_only_helper_cancel">Seul l\'aide peut annuler sa propre demande.</string>
+    <string name="err_already_answered">Cette demande a déjà reçu une réponse.</string>
+    <string name="err_already_answered_status">Cette demande a déjà reçu une réponse (%1$s).</string>
+    <string name="err_session_expired_resend">Cette demande a déjà expiré — demandez à l\'aide d\'en envoyer une nouvelle.</string>
+    <string name="setup_not_checked">Pas encore vérifié</string>
+    <string name="setup_not_sent">Pas encore envoyé</string>
+    <string name="setup_not_setup">Pas encore configuré</string>
+    <string name="share_channel_name">Partage d\'écran</string>
+    <string name="share_channel_desc">Affiché pendant que votre écran est partagé avec une aide.</string>
+    <string name="share_notif_title">Partage d\'écran actif</string>
+    <string name="share_notif_body">Une aide regarde l\'écran de ce téléphone. Touchez pour ouvrir.</string>
+    <string name="qr_share_chooser_title">Partager le code d\'appariement</string>
+    <string name="qr_share_text">Code d\'appariement Family Remote Support : %1$s\nOuvrez l\'appli Family Remote Support sur l\'autre téléphone, touchez « Scan QR » ou tapez ce code. Valable 5 minutes.</string>
+    <string name="ss_info_live_receiving">En direct — réception de l\'écran ✓</string>
+    <string name="ss_info_preparing_share">Préparation du partage d\'écran…</string>
+    <string name="ss_info_capture_ready">Capture d\'écran prête — en attente que l\'aide touche « Voir l\'écran ».</string>
+    <string name="ss_info_preparing_viewer">Préparation de la visionneuse…</string>
+    <string name="ss_info_asked">Écran demandé au téléphone du destinataire — connexion…</string>
+    <string name="ss_info_video_ready">Canal vidéo prêt — en attente de la connexion…</string>
+    <string name="ss_info_connected">Connexion établie — démarrage de la vidéo…</string>
+    <string name="ss_info_live_share">En direct — l\'aide peut voir cet écran.</string>
+    <string name="ss_info_interrupted">Connexion interrompue — tentative de rétablissement…</string>
+    <string name="ss_info_watch_received">L\'aide a demandé à voir — envoi de l\'écran…</string>
+    <string name="ss_info_share_stopped">Le destinataire a arrêté le partage.</string>
+    <string name="ss_info_view_closed">L\'aide a fermé la vue.</string>
+    <string name="ss_info_offer_sent">Offre envoyée — en attente de la réponse de l\'aide…</string>
+    <string name="ss_info_offer_failed">Impossible de préparer l\'offre d\'écran — l\'aide réessaiera automatiquement.</string>
+    <string name="ss_info_answer_sent">Réponse envoyée — connexion de la vidéo…</string>
+    <string name="ss_info_negotiation_done">Négociation terminée — connexion à l\'aide…</string>
+    <string name="ss_retry_no_response">Aucune réponse du téléphone du destinataire — vérifiez que « Partager l\'écran » y est ACTIVÉ.</string>
+    <string name="ss_retry_no_answer">La réponse du destinataire n\'est jamais arrivée.</string>
+    <string name="ss_retry_link_failed">Les deux téléphones n\'ont pas pu se raccorder.</string>
+    <string name="ss_retry_conn_failed">La tentative de connexion a échoué</string>
+    <string name="ss_retry_answer_failed">Impossible de répondre à l\'offre du destinataire</string>
+    <string name="ss_retry_apply_failed">Impossible d\'appliquer l\'offre du destinataire</string>
+    <string name="ss_retrying_auto">%1$s — nouvel essai automatique…</string>
+    <string name="ss_retried_watch">%1$s — nouvelle demande au téléphone du destinataire…</string>
+    <string name="ss_recover_conn_failed">La connexion à l\'aide a échoué — le partage reste prêt. Demandez à l\'aide de toucher à nouveau « Voir l\'écran ».</string>
+    <string name="ss_recover_answer_failed">Impossible de répondre — l\'aide réessaiera automatiquement.</string>
+    <string name="ss_recover_apply_failed">Impossible d\'appliquer la réponse de l\'aide — l\'aide réessaiera.</string>
+    <string name="ss_fail_projection_stopped">La projection de l\'écran a été arrêtée par le système — touchez à nouveau « Partager l\'écran ».</string>
+    <string name="ss_fail_capture">Échec de la capture d\'écran : %1$s</string>
+    <string name="ss_fail_watch">Impossible de demander à voir : %1$s</string>
+    <string name="ss_fail_viewer">Impossible de démarrer la visionneuse : %1$s</string>
+    <string name="ss_fail_conn_stopped">Connexion échouée — touchez « Arrêter le partage », puis partagez à nouveau.</string>
+    <string name="ss_fail_no_engine">Impossible de créer le moteur WebRTC sur ce téléphone.</string>
+    <string name="ss_fail_signal">Erreur du canal de signalisation : %1$s</string>
+    <string name="ss_fail_conn_retry">Connexion échouée — les deux téléphones n\'ont pas pu se raccorder. Touchez à nouveau « Voir l\'écran » ; si cela continue d\'échouer, mettez les deux téléphones sur le même réseau Wi-Fi (ou sur le point d\'accès de l\'un d\'eux).</string>
+    <string name="ss_fail_offer">Impossible d\'envoyer l\'offre : %1$s</string>
+    <string name="ss_fail_answer">Impossible d\'envoyer la réponse : %1$s</string>
+    <string name="ss_fail_apply">Impossible d\'appliquer la réponse de l\'aide.</string>
+    <string name="ss_ack_back">Retour transmis ✓</string>
+    <string name="ss_ack_home">Accueil transmis ✓</string>
+    <string name="ss_ack_recents">Récents transmis ✓</string>
+    <string name="ss_ack_swipe">Balayage transmis ✓</string>
+    <string name="ss_ack_long">Appui long transmis ✓</string>
+    <string name="ss_ack_tap">Toucher transmis ✓</string>
+    <string name="ph_save_perm_needed">L\'autorisation de stockage est nécessaire pour enregistrer l\'image QR.</string>
+    <string name="fallback_someone">Quelqu\'un</string>
+    <string name="fallback_helper">l\'aide</string>
+    <string name="cd_pairing_qr">Code QR d\'appariement</string>
+    <string name="so_signout_failed">Échec de la déconnexion : %1$s</string>
+    <string name="cd_clear_messages">Effacer les messages</string>
 </resources>
