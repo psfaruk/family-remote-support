@@ -13,12 +13,12 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        // v0.30.0 (Phase 21/M2 — first master-plan implementation release:
-        // shared shell on Navigation-Compose, C1 tab rename, notifications
-        // surface). NAVIGATION_MAP §6: v0.30.0/49 is the first-implementation
-        // version; each later M-milestone increments from here.
-        versionCode = 49
-        versionName = "0.30.0"
+        // v0.31.0 (Phase 21/M3 — frontend redesign: 4 tab screens + detail
+        // composables extracted to ui/*, ViewModel layer added, component
+        // library completed). NAVIGATION_MAP §6: v0.30.0/49 was the first-
+        // implementation version; each later M-milestone increments from there.
+        versionCode = 50
+        versionName = "0.31.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
@@ -108,6 +108,12 @@ dependencies {
     // lifecycle-viewmodel-compose deliberately NOT added yet — ViewModels
     // arrive with M3 screen extraction; minimal-deps discipline (C4).
     implementation("androidx.navigation:navigation-compose:2.8.2")
+
+    // M3 (v0.31.0) — ViewModel layer (FRONTEND_ARCHITECTURE §4): one
+    // ViewModel per screen area owning StateFlow<UiState>. First consumer:
+    // the root-scoped SessionWatchViewModel (routed listener errors).
+    // 2.8.6 matches the lifecycle-runtime-ktx line already in use.
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 
     // Firebase (Phase 2) — BoM keeps all Firebase versions in sync
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
