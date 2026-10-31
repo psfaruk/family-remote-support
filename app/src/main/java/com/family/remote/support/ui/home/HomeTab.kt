@@ -36,12 +36,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -52,13 +50,8 @@ import androidx.compose.ui.unit.dp
 import com.family.remote.support.BuildConfig
 import com.family.remote.support.PermChecklist
 import com.family.remote.support.R
-import com.family.remote.support.SessionException
 import com.family.remote.support.SessionUiBus
 import com.family.remote.support.SessionView
-import com.family.remote.support.denySession
-import com.family.remote.support.describeFirestoreError
-import com.family.remote.support.grantSession
-import com.family.remote.support.localizedMessage
 import com.family.remote.support.mmss
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.ErrorPanel
@@ -68,9 +61,7 @@ import com.family.remote.support.ui.components.StatusBadge
 import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════════════════
 // M3 (v0.31.0) — the Home tab's own file (FRONTEND_ARCHITECTURE §3
@@ -82,6 +73,10 @@ import kotlinx.coroutines.launch
 // a LoadingSkeleton while the session watch's first snapshot has not
 // arrived, and a routed ErrorPanel (with retry) when the listener fails
 // before any snapshot (NAVIGATION_MAP §5; SessionWatchViewModel).
+//
+// v0.37.0 (dedupe wave) — HomeConsentCard + HomeConsentDialog no longer
+// carry their own grant/deny bodies: both use the ONE shared holder
+// SessionActions.rememberAnswerSession (audit duplicate cluster #1).
 // ═══════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -546,10 +541,9 @@ internal fun HomeLiveHintCard(session: SessionView, myUid: String) {
  */
 @Composable
 internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
+    // v0.37.0 (dedupe wave) — the grant/deny body lives in ONE place now:
+    // SessionActions.rememberAnswerSession (audit duplicate cluster #1).
+    val answer = rememberAnswerSession(user)
 
     Card(
         colors = CardDefaults.cardColors(
@@ -601,7 +595,7 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            message?.let {
+            answer.message?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
@@ -614,24 +608,8 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    enabled = !busy,
-                    onClick = {
-                        busy = true
-                        scope.launch {
-                            try {
-                                grantSession(session.id, user.uid)
-                                    message = context.getString(R.string.msg_allow_ok)
-                            } catch (e: SessionException) {
-                                message = e.localizedMessage(context)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                    message = context.getString(R.string.msg_allow_fail, describeFirestoreError(context, e))
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    },
+                    enabled = !answer.busy,
+                    onClick = { answer.allow(session) },
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 52.dp)
@@ -639,24 +617,8 @@ internal fun HomeConsentCard(session: SessionView, user: FirebaseUser) {
                         Text(stringResource(R.string.btn_allow), fontWeight = FontWeight.Bold)
                 }
                 OutlinedButton(
-                    enabled = !busy,
-                    onClick = {
-                        busy = true
-                        scope.launch {
-                            try {
-                                denySession(session.id, user.uid)
-                                    message = context.getString(R.string.msg_deny_ok)
-                            } catch (e: SessionException) {
-                                message = e.localizedMessage(context)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                    message = context.getString(R.string.msg_deny_fail, describeFirestoreError(context, e))
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    },
+                    enabled = !answer.busy,
+                    onClick = { answer.deny(session) },
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 52.dp)
@@ -684,10 +646,11 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
         mutableStateOf(session.id !in SessionUiBus.shownAsks)
     }
     if (!show) return
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
+    // v0.37.0 (dedupe wave) — same ONE grant/deny body as the card
+    // (SessionActions.rememberAnswerSession, audit duplicate cluster #1);
+    // the dialog keeps only its own post-success behavior (mark the ask
+    // shown → hold the result 600 ms → close).
+    val answer = rememberAnswerSession(user)
     AlertDialog(
         onDismissRequest = {
             SessionUiBus.shownAsks.add(session.id)
@@ -720,7 +683,7 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                message?.let {
+                answer.message?.let {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
@@ -735,50 +698,24 @@ internal fun HomeConsentDialog(session: SessionView, user: FirebaseUser) {
         },
         confirmButton = {
             Button(
-                enabled = !busy,
+                enabled = !answer.busy,
                 onClick = {
-                    busy = true
-                    scope.launch {
-                        try {
-                            grantSession(session.id, user.uid)
-                                message = context.getString(R.string.msg_allow_ok)
-                            SessionUiBus.shownAsks.add(session.id)
-                            delay(600)
-                            show = false
-                        } catch (e: SessionException) {
-                            message = e.localizedMessage(context)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                                message = context.getString(R.string.msg_allow_fail, describeFirestoreError(context, e))
-                        } finally {
-                            busy = false
-                        }
+                    answer.allow(session) {
+                        SessionUiBus.shownAsks.add(session.id)
+                        delay(600)
+                        show = false
                     }
                 }
                 ) { Text(stringResource(R.string.btn_allow), fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
             OutlinedButton(
-                enabled = !busy,
+                enabled = !answer.busy,
                 onClick = {
-                    busy = true
-                    scope.launch {
-                        try {
-                            denySession(session.id, user.uid)
-                                message = context.getString(R.string.msg_deny_ok)
-                            SessionUiBus.shownAsks.add(session.id)
-                            delay(600)
-                            show = false
-                        } catch (e: SessionException) {
-                            message = e.localizedMessage(context)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                                message = context.getString(R.string.msg_deny_fail, describeFirestoreError(context, e))
-                        } finally {
-                            busy = false
-                        }
+                    answer.deny(session) {
+                        SessionUiBus.shownAsks.add(session.id)
+                        delay(600)
+                        show = false
                     }
                 }
                 ) { Text(stringResource(R.string.btn_deny), fontWeight = FontWeight.Bold) }
