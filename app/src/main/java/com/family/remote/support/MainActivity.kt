@@ -262,6 +262,11 @@ class MainActivity : ComponentActivity() {
         // Loaded synchronously BEFORE setContent so the very first frame
         // already wears the right theme — no flash, no wrong-theme repaint.
         ThemePrefBus.loadSync(this)
+        // M8 (v0.34.0) — load the local notifications events log (JSON in
+        // filesDir) BEFORE composition, so the "Recent events" section
+        // renders from the very first frame. Plain call, no new lifecycle
+        // dependency; a missing/corrupt file just starts empty.
+        NotificationsLog.load(this)
         setContent {
             FamilyRemoteSupportTheme(themePref = ThemePrefBus.pref) {
                 HomeScreen()
@@ -386,11 +391,17 @@ fun HomeScreen() {
     // success text for the login/sign-up/reset attempts.
     var authMessage by remember { mutableStateOf<String?>(null) }
     var authNotice by remember { mutableStateOf<String?>(null) }
-    var deviceStatus by remember { mutableStateOf("Not checked yet") }
+    // M8 (v0.34.0) — initial setup-state lines resolve from values/strings.xml
+    // (app language). NOTE: the in-flight variants ("Registering…", "Registered ✓",
+    // "Online ✓…", "Push notifications ready ✓") stay literal on purpose —
+    // HomeTab's setup strip still PREFIX-PARSES them (startsWith), so
+    // localizing those needs the deviceOk/presenceOk/pushOk flags plumbed
+    // through instead (follow-up).
+    var deviceStatus by remember { mutableStateOf(context.getString(R.string.setup_not_checked)) }
     var deviceList by remember { mutableStateOf<List<String>>(emptyList()) }
     var registerRetryKey by remember { mutableStateOf(0) }
-    var presenceStatus by remember { mutableStateOf("Not sent yet") }
-    var pushStatus by remember { mutableStateOf("Not set up yet") }
+    var presenceStatus by remember { mutableStateOf(context.getString(R.string.setup_not_sent)) }
+    var pushStatus by remember { mutableStateOf(context.getString(R.string.setup_not_setup)) }
     // Phase 11 — this device's id, for the top-bar presence chip.
     var ownDeviceId by remember { mutableStateOf("") }
 
@@ -493,6 +504,21 @@ fun HomeScreen() {
                 // server sweep perform exactly these transitions too
             }
         }
+    }
+
+    // M8 (v0.34.0) — the notifications events log (G2): diff the session
+    // snapshots the shell's watch ALREADY receives and record the three
+    // observable transitions (asked / started / ended) into the LOCAL
+    // NotificationsLog — zero extra listeners, zero extra reads, never any
+    // coordinates. The prev map is remembered PER USER so a stale snapshot
+    // of the previous account can never fabricate an event for the next
+    // one, mirroring the zombie sweep's guard style above.
+    val notifPrevSessions = remember(signedInUser?.uid) { mutableMapOf<String, SessionView>() }
+    LaunchedEffect(signedInUser?.uid, homeSessions) {
+        val user = signedInUser ?: return@LaunchedEffect
+        NotificationsLog.recordSessionTransitions(
+            context, user.uid, notifPrevSessions, homeSessions
+        )
     }
 
     // Phase 15 — fresh viewer state per session id (moved from the Phones
@@ -1004,8 +1030,17 @@ fun HomeScreen() {
                                 } catch (_: Exception) {
                                     // clearing credential state is best-effort
                                 }
+                                // M8 (v0.34.0) — the local events log holds
+                                // counterpart emails: it must not survive the
+                                // account. Cleared AFTER signOut() on purpose:
+                                // the location service's stop event (queued on
+                                // the main thread by stopLocationSharing above)
+                                // is either recorded before this wipe or
+                                // blocked by its own signed-in guard — never
+                                // re-recorded behind it.
+                                NotificationsLog.clear(context)
                                 signedInUser = null
-                                deviceStatus = "Not checked yet"
+                                deviceStatus = context.getString(R.string.setup_not_checked)
                                 deviceList = emptyList()
                                 presenceStatus = "Signed out"
                                 pushStatus = "Signed out"
@@ -1017,7 +1052,9 @@ fun HomeScreen() {
                                 authNotice = cleanupNote
                                         ?: context.getString(R.string.so_cleanup_ok)
                             } catch (e: Exception) {
-                                statusMessage = "Sign-out failed: ${e.message}"
+                                statusMessage = context.getString(
+                                    R.string.so_signout_failed, friendlyError(context, e)
+                                )
                             } finally {
                                 busy = false
                             }
@@ -1247,6 +1284,11 @@ private fun SessionKey(glyph: String, label: String, enabled: Boolean, onClick: 
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
+            // M8 (v0.34.0, a11y) — the label (sk_* stringResource) was plumbed
+            // but never wired into semantics: every session key was a glyph-only
+            // unlabeled button for screen readers. The box itself carries the
+            // description so TalkBack announces the ACTION, not the glyph.
+            .semantics { contentDescription = label }
             .background(
                 if (enabled) {
                     MaterialTheme.colorScheme.primaryContainer
