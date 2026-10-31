@@ -439,7 +439,7 @@
     <string name="notif_sess_active_other">%1$s 正在支持您</string>
     <string name="notif_empty_title">目前没有需要您处理的事项</string>
     <string name="notif_empty_body">支持请求、进行中的会话和设置警告一旦发生就会显示在这里。</string>
-    <string name="notif_hint">仅显示真实的当前事件 — 不虚构，也不保存历史。</string>
+    <string name="notif_hint">仅记录真实事件 — 只保存在本设备上（最近 100 条），绝不上传，退出登录时会自动清除。</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">重试</string>
@@ -478,4 +478,84 @@
     <string name="set_loc_status">实时位置计划在未来的版本中推出。目前不会收集或存储任何位置信息。</string>
     <string name="set_loc_now">与已配对的家人设备共享此手机的实时位置。仅保留最新位置 — 绝不保存历史记录。</string>
     <string name="set_guest_note">访客链接是临时的（最多 3 小时），绝不会变成永久家庭配对。</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">最近事件</string>
+    <string name="notif_ev_asked">来自 %1$s 的帮助请求</string>
+    <string name="notif_ev_started">与 %1$s 的支持会话已开始</string>
+    <string name="notif_ev_ended">与 %1$s 的支持会话已结束</string>
+    <string name="notif_ev_sharing_on">位置共享已开启</string>
+    <string name="notif_ev_sharing_off">位置共享已关闭</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">该请求已不存在。</string>
+    <string name="err_session_unreadable">该请求无法读取。</string>
+    <string name="err_session_unreadable_resend">该请求无法读取 — 请让帮助者重新发送。</string>
+    <string name="err_only_recipient_allow">只有被请求的手机才能允许此会话。</string>
+    <string name="err_only_recipient_deny">只有被请求的手机才能拒绝该请求。</string>
+    <string name="err_only_helper_cancel">只有帮助者本人才能取消自己的请求。</string>
+    <string name="err_already_answered">该请求已被答复。</string>
+    <string name="err_already_answered_status">该请求已被答复（%1$s）。</string>
+    <string name="err_session_expired_resend">该请求已过期 — 请让帮助者发送新的请求。</string>
+    <string name="setup_not_checked">尚未检查</string>
+    <string name="setup_not_sent">尚未发送</string>
+    <string name="setup_not_setup">尚未设置</string>
+    <string name="share_channel_name">屏幕共享</string>
+    <string name="share_channel_desc">在您的屏幕共享给帮助者期间显示。</string>
+    <string name="share_notif_title">屏幕共享进行中</string>
+    <string name="share_notif_body">帮助者正在查看此手机的屏幕。点按即可打开。</string>
+    <string name="qr_share_chooser_title">分享配对码</string>
+    <string name="qr_share_text">Family Remote Support 配对码：%1$s\n请在对方手机上打开 Family Remote Support 应用，点按「扫码」或输入此代码。有效期 5 分钟。</string>
+    <string name="ss_info_live_receiving">进行中 — 正在接收屏幕 ✓</string>
+    <string name="ss_info_preparing_share">正在准备屏幕共享…</string>
+    <string name="ss_info_capture_ready">屏幕捕获已就绪 — 正在等待帮助者点按「观看屏幕」。</string>
+    <string name="ss_info_preparing_viewer">正在准备查看器…</string>
+    <string name="ss_info_asked">已向受助方的手机请求屏幕 — 正在连接…</string>
+    <string name="ss_info_video_ready">视频通道已就绪 — 正在等待连接…</string>
+    <string name="ss_info_connected">连接已建立 — 正在启动视频…</string>
+    <string name="ss_info_live_share">进行中 — 帮助者可以看到此屏幕。</string>
+    <string name="ss_info_interrupted">连接已中断 — 正在尝试恢复…</string>
+    <string name="ss_info_watch_received">帮助者请求观看 — 正在发送屏幕…</string>
+    <string name="ss_info_share_stopped">受助方已停止共享。</string>
+    <string name="ss_info_view_closed">帮助者已关闭查看窗口。</string>
+    <string name="ss_info_offer_sent">连接提议已发送 — 正在等待帮助者的应答…</string>
+    <string name="ss_info_offer_failed">无法准备屏幕共享提议 — 帮助者将自动重试。</string>
+    <string name="ss_info_answer_sent">应答已发送 — 正在连接视频…</string>
+    <string name="ss_info_negotiation_done">协商完成 — 正在连接帮助者…</string>
+    <string name="ss_retry_no_response">受助方的手机没有响应 — 请确认那边的「共享屏幕」已开启。</string>
+    <string name="ss_retry_no_answer">始终未收到受助方的应答。</string>
+    <string name="ss_retry_link_failed">两部手机未能完成连接。</string>
+    <string name="ss_retry_conn_failed">连接尝试失败</string>
+    <string name="ss_retry_answer_failed">无法应答受助方的提议</string>
+    <string name="ss_retry_apply_failed">无法应用受助方的提议</string>
+    <string name="ss_retrying_auto">%1$s — 正在自动重试…</string>
+    <string name="ss_retried_watch">%1$s — 已再次请求受助方的手机…</string>
+    <string name="ss_recover_conn_failed">与帮助者的连接失败 — 共享仍处于就绪状态。请让帮助者再次点按「观看屏幕」。</string>
+    <string name="ss_recover_answer_failed">无法应答 — 帮助者将自动重试。</string>
+    <string name="ss_recover_apply_failed">无法应用帮助者的应答 — 帮助者将重试。</string>
+    <string name="ss_fail_projection_stopped">系统已停止屏幕投影 — 请再次点按「共享屏幕」。</string>
+    <string name="ss_fail_capture">屏幕捕获失败：%1$s</string>
+    <string name="ss_fail_watch">无法请求观看：%1$s</string>
+    <string name="ss_fail_viewer">无法启动查看器：%1$s</string>
+    <string name="ss_fail_conn_stopped">连接失败 — 请点按「停止共享」，然后重新共享。</string>
+    <string name="ss_fail_no_engine">无法在此手机上创建 WebRTC 引擎。</string>
+    <string name="ss_fail_signal">信令通道错误：%1$s</string>
+    <string name="ss_fail_conn_retry">连接失败 — 两部手机未能建立连接。请再次点按「观看屏幕」；如果仍然失败，请将两部手机连接到同一个 Wi-Fi 网络（或其中一部手机的热点）。</string>
+    <string name="ss_fail_offer">无法发送连接提议：%1$s</string>
+    <string name="ss_fail_answer">无法发送应答：%1$s</string>
+    <string name="ss_fail_apply">无法应用帮助者的应答。</string>
+    <string name="ss_ack_back">「返回」已送达 ✓</string>
+    <string name="ss_ack_home">「主页」已送达 ✓</string>
+    <string name="ss_ack_recents">「最近任务」已送达 ✓</string>
+    <string name="ss_ack_swipe">滑动已送达 ✓</string>
+    <string name="ss_ack_long">长按已送达 ✓</string>
+    <string name="ss_ack_tap">点按已送达 ✓</string>
+    <string name="ph_save_perm_needed">需要存储权限才能保存二维码图片。</string>
+    <string name="fallback_someone">某人</string>
+    <string name="fallback_helper">帮助者</string>
+    <string name="cd_pairing_qr">配对二维码</string>
+    <string name="so_signout_failed">退出登录失败：%1$s</string>
+    <string name="cd_clear_messages">清除消息</string>
 </resources>
