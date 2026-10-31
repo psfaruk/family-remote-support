@@ -39,6 +39,39 @@
     <string name="loc_title">Ubicación en vivo</string>
     <string name="loc_coming_title">Llegará en una próxima actualización</string>
     <string name="loc_coming_body">Aquí se verá la ubicación en vivo de la familia — siempre con el consentimiento explícito de la otra persona. Hoy no se recoge ni se comparte nada.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Compartir la ubicación de este teléfono</string>
+    <string name="loc_share_body">Tu familiar emparejado verá la posición en vivo de este teléfono en un mapa mientras el uso compartido esté activado. Solo se guarda la última posición — nunca un historial — y puedes detenerlo en cualquier momento.</string>
+    <string name="loc_share_start">Comenzar a compartir</string>
+    <string name="loc_share_stop">Dejar de compartir</string>
+    <string name="loc_share_on">El uso compartido de la ubicación está ACTIVADO</string>
+    <string name="loc_share_off">El uso compartido de la ubicación está desactivado</string>
+    <string name="loc_banner_on">Estás compartiendo la ubicación de este teléfono ahora</string>
+    <string name="loc_banner_off">El uso compartido está desactivado — la posición de este teléfono no se está enviando</string>
+    <string name="loc_interval_label">Frecuencia de actualización</string>
+    <string name="loc_interval_30s">Cada 30 segundos</string>
+    <string name="loc_interval_1m">Cada minuto</string>
+    <string name="loc_interval_5m">Cada 5 minutos</string>
+    <string name="loc_notif_title">El uso compartido de la ubicación está activado</string>
+    <string name="loc_notif_body">Toca para abrir la app y dejar de compartir.</string>
+    <string name="loc_fresh_live">En vivo</string>
+    <string name="loc_fresh_stale">Antigua</string>
+    <string name="loc_fresh_offline">Desconectado</string>
+    <string name="loc_last_known">Última conocida — %1$s</string>
+    <string name="loc_never">Nunca compartida</string>
+    <string name="loc_no_fix">Esperando la primera posición…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Actualizada %1$s</string>
+    <string name="loc_details">Detalles de la ubicación</string>
+    <string name="loc_open_maps">Abrir en la app de mapas</string>
+    <string name="loc_perm_title">Se necesita permiso de ubicación</string>
+    <string name="loc_perm_body">El permiso de ubicación permite que tu familia vea la posición de este teléfono mientras tú decidas compartirla. Solo se usa mientras se muestra la notificación visible de uso compartido.</string>
+    <string name="loc_denied_title">Acceso a la ubicación denegado</string>
+    <string name="loc_denied_body">El permiso de ubicación fue denegado. No se puede comenzar a compartir hasta que se conceda en los ajustes del sistema.</string>
+    <string name="loc_empty_title">Aún no hay dispositivos emparejados</string>
+    <string name="loc_empty_body">Empareja primero un dispositivo familiar — su posición en vivo aparecerá aquí con el consentimiento explícito de su dueño.</string>
+    <string name="loc_list_title">Elige un dispositivo</string>
     <string name="set_section_account">Cuenta</string>
     <string name="set_profile_title">Perfil</string>
     <string name="set_profile_sub">Nombre y correo de esta cuenta</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Teléfonos emparejados</string>
     <string name="set_dev_entry_d">Estado en vivo, acciones de soporte y revocación</string>
     <string name="set_loc_status">La ubicación en vivo está prevista para una próxima versión. Hoy no se recopila ni almacena ninguna ubicación.</string>
+    <string name="set_loc_now">Comparte la ubicación en vivo de este teléfono con los dispositivos familiares emparejados. Solo se guarda la última posición — nunca un historial.</string>
     <string name="set_guest_note">Los enlaces de invitado son temporales (hasta 3 horas) y nunca se convierten en emparejamientos familiares permanentes.</string>
 </resources>
