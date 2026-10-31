@@ -1,9 +1,19 @@
 /**
- * Family Remote Support — Phase 14: kill-push PERMANENT tier (Cloudflare Worker).
+ * Family Remote Support — Phase 14: kill-push tier (Cloudflare Worker).
  *
- * Free-plan Worker (no card required) that keeps the FCM kill-push alive even
- * when the sandbox is recycled or GitHub schedules are delayed. It runs the
- * SAME sweep as scripts/fcm-kill-push.mjs (the proven Node implementation):
+ * ⛔ POSTURE CHANGE (2026-10-31, post-M10 Owner quota directive): DORMANT —
+ * the every-minute Cron Trigger is REMOVED (wrangler.toml `crons = []`, kept
+ * explicit so every deploy re-syncs to zero triggers). The Owner ordered:
+ * Firestore read/write only when the user acts; requests only from the app;
+ * zero requests from the sandbox. The auto-polling tiers (sandbox 5 s —
+ * observed running as TWO instances ≈ 69k read attempts/day — this Worker's
+ * 1,440 queries/day, GH Actions' 288/day) together far exceeded the
+ * 50,000/day free read quota → the recurring evening RESOURCE_EXHAUSTED
+ * errors. The Worker stays deployed, secrets intact, as an ON-DEMAND sweeper.
+ * RE-ARM: set crons = ["* * * * *"] in wrangler.toml and push to main.
+ *
+ * It runs the SAME sweep as scripts/fcm-kill-push.mjs (the proven Node
+ * implementation):
  *
  *   1. Firestore runQuery: supportSessions where status == "REQUESTED"
  *   2. keep only FRESH asks (respondDeadline still in the future, requested
@@ -15,12 +25,10 @@
  *      UNREGISTERED tokens (dead registry entries)
  *
  * Triggers:
- *   - Cron Trigger "* * * * *" (every minute, set in the dashboard) — the
- *     permanent tier: worst-case push latency ~60 s, inside the 2-minute
- *     answer window, forever, for free.
- *   - POST /sweep with "Authorization: Bearer <KILL_TOKEN>" — manual sweep
- *     (and, in a later phase, the helper app calls this right after creating
- *     a session doc for a true instant tier).
+ *   - POST /sweep with "Authorization: Bearer <KILL_TOKEN>" — ON-DEMAND
+ *     manual/diagnostic sweep. (A helper-app call right after session
+ *     creation remains a documented future option with its bearer-token-
+ *     in-APK trade-off — see worklog §70 finding 2 / §75.)
  *   - GET /health — open liveness + last sweep summary (never any secret).
  *
  * Auth posture (Owner decision, Phase 14): start with a simple shared token;
@@ -30,7 +38,7 @@
  * Firestore REST v1, FCM HTTP v1 — identical endpoints, message shape and
  * constants as the Node implementation, so the two tiers can never drift.
  *
- * Dashboard secrets (Worker → Settings → Variables and Secrets):
+ * Runtime Secrets (set once via the REST secrets API — they survive deploys):
  *   FIREBASE_SA_JSON  full Firebase service-account JSON (client_email,
  *                     private_key, project_id are used)
  *   KILL_TOKEN        shared bearer token for POST /sweep
