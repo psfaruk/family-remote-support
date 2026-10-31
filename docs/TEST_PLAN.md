@@ -36,7 +36,7 @@ supportSessions); quota-budget probe (documented reads during a scripted day).
 | 5 | Expired/reused pairing code | rules enforce TTL+single-use (probe 403/409); Owner manual expiry case |
 | 6 | Guest session create + expiry | rules window + sweeps (auto); Owner manual |
 | 7 | Bottom-nav switching | Owner manual; W1 code review |
-| 8 | Nested navigation + back behavior | Owner manual (per NAVIGATION_MAP §3) |
+| 8 | Nested navigation + back behavior | Owner manual (per NAVIGATION_MAP §3) — **M4 (v0.32.0): REAL nested routes exist now**: Home → Family Devices → member row → Member Details → back (row button AND system back); Home → Recent Activity → session row → Session Details → back; Home tab stays selected on nested routes; add/* stays modal (Back dismisses the sheet/dialog without leaving the flow) |
 | 9 | Light/dark themes | Owner manual (screenshot pairs) |
 | 10 | Location permission granted | Owner manual (M5) |
 | 11 | Location permission denied | Owner manual (M5, explanation state) |
