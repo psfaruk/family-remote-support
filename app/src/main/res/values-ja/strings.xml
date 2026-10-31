@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s があなたをサポートしています</string>
     <string name="notif_empty_title">今は対応が必要なものはありません</string>
     <string name="notif_empty_body">サポート依頼・実行中のセッション・セットアップの警告は、発生次第ここに表示されます。</string>
-    <string name="notif_hint">実際の現在のイベントのみを表示します。捏造や履歴保存はありません。</string>
+    <string name="notif_hint">実際のイベントだけを記録 — この端末内にのみ保存され（最新100件）、アップロードされることはなく、ログアウトすると消去されます。</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">再試行</string>
@@ -479,4 +479,84 @@
     <string name="set_loc_status">ライブ位置情報は今後のリリースで予定されています。現時点では位置情報の収集や保存は一切ありません。</string>
     <string name="set_loc_now">この端末のライブ位置情報をペアリング済みの家族端末と共有します。保存されるのは最新の位置だけ — 履歴は決して残りません。</string>
     <string name="set_guest_note">ゲストリンクは一時的です（最大3時間）。永続的なファミリーのペアリングになることはありません。</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">最近のイベント</string>
+    <string name="notif_ev_asked">%1$s からのサポート依頼</string>
+    <string name="notif_ev_started">%1$s とのサポートセッションを開始しました</string>
+    <string name="notif_ev_ended">%1$s とのサポートセッションが終了しました</string>
+    <string name="notif_ev_sharing_on">位置情報の共有をオンにしました</string>
+    <string name="notif_ev_sharing_off">位置情報の共有をオフにしました</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">この依頼はすでに存在しません。</string>
+    <string name="err_session_unreadable">この依頼は読み取れません。</string>
+    <string name="err_session_unreadable_resend">この依頼は読み取れません — ヘルパーに再送をお願いしてください。</string>
+    <string name="err_only_recipient_allow">このセッションを許可できるのは、依頼された端末だけです。</string>
+    <string name="err_only_recipient_deny">この依頼を拒否できるのは、依頼された端末だけです。</string>
+    <string name="err_only_helper_cancel">依頼をキャンセルできるのは、それを送ったヘルパー本人だけです。</string>
+    <string name="err_already_answered">この依頼はすでに回答済みです。</string>
+    <string name="err_already_answered_status">この依頼はすでに回答済みです（%1$s）。</string>
+    <string name="err_session_expired_resend">この依頼はすでに期限切れです — ヘルパーに新しい依頼の送信をお願いしてください。</string>
+    <string name="setup_not_checked">未確認</string>
+    <string name="setup_not_sent">未送信</string>
+    <string name="setup_not_setup">未セットアップ</string>
+    <string name="share_channel_name">画面共有</string>
+    <string name="share_channel_desc">画面がヘルパーと共有されている間に表示されます。</string>
+    <string name="share_notif_title">画面共有中</string>
+    <string name="share_notif_body">ヘルパーがこのスマホの画面を見ています。タップで開きます。</string>
+    <string name="qr_share_chooser_title">ペアリングコードを共有</string>
+    <string name="qr_share_text">Family Remote Supportのペアリングコード: %1$s\n相手のスマホでFamily Remote Supportアプリを開き、「QRスキャン」をタップするか、このコードを入力してください。有効期限は5分です。</string>
+    <string name="ss_info_live_receiving">ライブ — 画面を受信中 ✓</string>
+    <string name="ss_info_preparing_share">画面共有を準備しています…</string>
+    <string name="ss_info_capture_ready">画面キャプチャの準備ができました — ヘルパーが「画面を見る」をタップするのを待っています。</string>
+    <string name="ss_info_preparing_viewer">ビューアーを準備しています…</string>
+    <string name="ss_info_asked">支援を受ける側のスマホに画面を要求しました — 接続中…</string>
+    <string name="ss_info_video_ready">映像チャネルの準備ができました — 接続を待っています…</string>
+    <string name="ss_info_connected">接続が確立しました — 映像を開始しています…</string>
+    <string name="ss_info_live_share">ライブ — ヘルパーがこの画面を見られます。</string>
+    <string name="ss_info_interrupted">接続が中断されました — 復旧を試みています…</string>
+    <string name="ss_info_watch_received">ヘルパーが視聴を依頼しました — 画面を送信しています…</string>
+    <string name="ss_info_share_stopped">支援を受ける側が共有を停止しました。</string>
+    <string name="ss_info_view_closed">ヘルパーが表示を閉じました。</string>
+    <string name="ss_info_offer_sent">オファーを送信しました — ヘルパーのアンサーを待っています…</string>
+    <string name="ss_info_offer_failed">画面のオファーを準備できませんでした — ヘルパーが自動的に再試行します。</string>
+    <string name="ss_info_answer_sent">アンサーを送信しました — 映像に接続中…</string>
+    <string name="ss_info_negotiation_done">ネゴシエーションが完了しました — ヘルパーに接続中…</string>
+    <string name="ss_retry_no_response">支援を受ける側のスマホから応答がありません — そちらで「画面を共有」がオンになっているか確認してください。</string>
+    <string name="ss_retry_no_answer">支援を受ける側のアンサーが届きませんでした。</string>
+    <string name="ss_retry_link_failed">2台のスマホを接続できませんでした。</string>
+    <string name="ss_retry_conn_failed">接続の試行に失敗しました</string>
+    <string name="ss_retry_answer_failed">支援を受ける側のオファーに応答できませんでした</string>
+    <string name="ss_retry_apply_failed">支援を受ける側のオファーを適用できませんでした</string>
+    <string name="ss_retrying_auto">%1$s — 自動的に再試行しています…</string>
+    <string name="ss_retried_watch">%1$s — 支援を受ける側のスマホに再度依頼しました…</string>
+    <string name="ss_recover_conn_failed">ヘルパーとの接続に失敗しました — 共有は準備完了のままです。ヘルパーにもう一度「画面を見る」をタップしてもらってください。</string>
+    <string name="ss_recover_answer_failed">応答できませんでした — ヘルパーが自動的に再試行します。</string>
+    <string name="ss_recover_apply_failed">ヘルパーのアンサーを適用できませんでした — ヘルパーが再試行します。</string>
+    <string name="ss_fail_projection_stopped">システムによって画面のプロジェクションが停止されました — もう一度「画面を共有」をタップしてください。</string>
+    <string name="ss_fail_capture">画面キャプチャに失敗しました: %1$s</string>
+    <string name="ss_fail_watch">視聴を依頼できませんでした: %1$s</string>
+    <string name="ss_fail_viewer">ビューアーを開始できませんでした: %1$s</string>
+    <string name="ss_fail_conn_stopped">接続に失敗しました — 「共有を停止」をタップして、もう一度共有してください。</string>
+    <string name="ss_fail_no_engine">このスマホでWebRTCエンジンを作成できませんでした。</string>
+    <string name="ss_fail_signal">シグナリングチャネルのエラー: %1$s</string>
+    <string name="ss_fail_conn_retry">接続に失敗しました — 2台のスマホが接続できませんでした。もう一度「画面を見る」をタップしてください。それでも失敗する場合は、2台を同じWi-Fiネットワーク（またはどちらか一方のスマホのアクセスポイント）に接続してください。</string>
+    <string name="ss_fail_offer">オファーを送信できませんでした: %1$s</string>
+    <string name="ss_fail_answer">アンサーを送信できませんでした: %1$s</string>
+    <string name="ss_fail_apply">ヘルパーのアンサーを適用できませんでした。</string>
+    <string name="ss_ack_back">「戻る」が届きました ✓</string>
+    <string name="ss_ack_home">「ホーム」が届きました ✓</string>
+    <string name="ss_ack_recents">「最近のアプリ」が届きました ✓</string>
+    <string name="ss_ack_swipe">スワイプが届きました ✓</string>
+    <string name="ss_ack_long">長押しが届きました ✓</string>
+    <string name="ss_ack_tap">タップが届きました ✓</string>
+    <string name="ph_save_perm_needed">QR画像の保存にはストレージ権限が必要です。</string>
+    <string name="fallback_someone">誰か</string>
+    <string name="fallback_helper">ヘルパー</string>
+    <string name="cd_pairing_qr">ペアリング用QRコード</string>
+    <string name="so_signout_failed">ログアウトに失敗しました: %1$s</string>
+    <string name="cd_clear_messages">メッセージを消去</string>
 </resources>
