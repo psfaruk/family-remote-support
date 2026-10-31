@@ -408,4 +408,8 @@
     <string name="notif_empty_title">لا شيء يحتاج انتباهك الآن</string>
     <string name="notif_empty_body">تظهر طلبات الدعم والجلسات الجارية وتحذيرات الإعداد هنا فور حدوثها.</string>
     <string name="notif_hint">الأحداث الحقيقية الحالية فقط — لا شيء مُختلَق ولا يُحفظ كسجل.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">حاول مرة أخرى</string>
+    <string name="states_open_settings">افتح إعدادات النظام</string>
 </resources>
