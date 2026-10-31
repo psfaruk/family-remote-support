@@ -1,7 +1,9 @@
 package com.family.remote.support
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
@@ -196,6 +198,19 @@ object LocationSharingPrefs {
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
+
+/**
+ * v0.37.0 (dedupe wave) — ONE "fine || coarse" check (was 3 copies:
+ * TrackingTab's private helper, SettingsTab's inline sharing-toggle gate,
+ * and the service-side re-check). Either while-in-use grant is enough to
+ * share a position — §5 deliberately counts an "Approximate" (coarse
+ * only) grant as a start.
+ */
+fun hasAnyLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED
 
 /**
  * Owner turned sharing ON. Consent is recorded FIRST (a crash between the
