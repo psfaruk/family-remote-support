@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s يساعدك الآن</string>
     <string name="notif_empty_title">لا شيء يحتاج انتباهك الآن</string>
     <string name="notif_empty_body">تظهر طلبات الدعم والجلسات الجارية وتحذيرات الإعداد هنا فور حدوثها.</string>
-    <string name="notif_hint">الأحداث الحقيقية الحالية فقط — لا شيء مُختلَق ولا يُحفظ كسجل.</string>
+    <string name="notif_hint">أحداث حقيقية فقط — تُحفظ محليًا على هذا الجهاز فقط (الأحدث ١٠٠)، ولا تُرفع أبدًا، وتُمسح عند تسجيل الخروج.</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">حاول مرة أخرى</string>
@@ -479,4 +479,85 @@
     <string name="set_loc_status">الموقع المباشر مخطط له في إصدار قادم. لا يتم جمع أي موقع أو تخزينه اليوم.</string>
     <string name="set_loc_now">شارك الموقع المباشر لهذا الهاتف مع أجهزة العائلة المقترنة. يُحتفظ فقط بآخر موقع — وليس سجلّ المواضع أبدًا.</string>
     <string name="set_guest_note">روابط الضيوف مؤقتة (حتى ٣ ساعات) ولا تتحول أبدًا إلى اقتران عائلي دائم.</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">الأحداث الأخيرة</string>
+    <string name="notif_ev_asked">طلب مساعدة من %1$s</string>
+    <string name="notif_ev_started">بدأت جلسة الدعم مع %1$s</string>
+    <string name="notif_ev_ended">انتهت جلسة الدعم مع %1$s</string>
+    <string name="notif_ev_sharing_on">تم تشغيل مشاركة الموقع</string>
+    <string name="notif_ev_sharing_off">تم إيقاف مشاركة الموقع</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">هذا الطلب لم يعد موجودًا.</string>
+    <string name="err_session_unreadable">لا يمكن قراءة هذا الطلب.</string>
+    <string name="err_session_unreadable_resend">لا يمكن قراءة هذا الطلب — اطلب من المساعد إعادة إرساله.</string>
+    <string name="err_only_recipient_allow">الهاتف الذي طُلب منه فقط هو من يمكنه السماح بهذه الجلسة.</string>
+    <string name="err_only_recipient_deny">الهاتف الذي طُلب منه فقط هو من يمكنه رفض هذا الطلب.</string>
+    <string name="err_only_helper_cancel">المساعد وحده هو من يمكنه إلغاء طلبه.</string>
+    <string name="err_already_answered">سبقت الإجابة على هذا الطلب.</string>
+    <string name="err_already_answered_status">سبقت الإجابة على هذا الطلب (%1$s).</string>
+    <string name="err_session_expired_resend">انتهت صلاحية هذا الطلب بالفعل — اطلب من المساعد إرسال طلب جديد.</string>
+    <string name="setup_not_checked">لم يتم التحقق بعد</string>
+    <string name="setup_not_sent">لم يُرسَل بعد</string>
+    <string name="setup_not_setup">لم يتم الإعداد بعد</string>
+    <string name="share_channel_name">مشاركة الشاشة</string>
+    <string name="share_channel_desc">يظهر أثناء مشاركة شاشتك مع أحد المساعدين.</string>
+    <string name="share_notif_title">مشاركة الشاشة نشطة</string>
+    <string name="share_notif_body">أحد المساعدين يشاهد شاشة هذا الهاتف. انقر للفتح.</string>
+    <string name="qr_share_chooser_title">مشاركة رمز الاقتران</string>
+    <string name="qr_share_text">رمز اقتران Family Remote Support: %1$s\nافتح تطبيق Family Remote Support على الهاتف الآخر، وانقر على مسح QR أو اكتب هذا الرمز. صالح لمدة ٥ دقائق.</string>
+    <string name="ss_info_live_receiving">مباشر — يتم استقبال الشاشة ✓</string>
+    <string name="ss_info_preparing_share">جارٍ تجهيز مشاركة الشاشة…</string>
+    <string name="ss_info_capture_ready">التقاط الشاشة جاهز — في انتظار نقر المساعد على «شاهد الشاشة».</string>
+    <string name="ss_info_preparing_viewer">جارٍ تجهيز العارض…</string>
+    <string name="ss_info_asked">طُلبت الشاشة من هاتف المستفيد — جارٍ الاتصال…</string>
+    <string name="ss_info_video_ready">قناة الفيديو جاهزة — في انتظار الاتصال…</string>
+    <string name="ss_info_connected">تم الاتصال — يبدأ الفيديو الآن…</string>
+    <string name="ss_info_live_share">مباشر — يمكن للمساعد رؤية هذه الشاشة.</string>
+    <string name="ss_info_interrupted">انقطع الاتصال — جارٍ محاولة الاستعادة…</string>
+    <string name="ss_info_watch_received">طلب المساعد المشاهدة — جارٍ إرسال الشاشة…</string>
+    <string name="ss_info_share_stopped">أوقف المستفيد المشاركة.</string>
+    <string name="ss_info_view_closed">أغلق المساعد العرض.</string>
+    <string name="ss_info_offer_sent">أُرسل العرض — في انتظار ردّ المساعد…</string>
+    <string name="ss_info_offer_failed">تعذّر تجهيز عرض الشاشة — سيعيد المساعد المحاولة تلقائيًا.</string>
+    <string name="ss_info_answer_sent">أُرسل الرد — جارٍ اتصال الفيديو…</string>
+    <string name="ss_info_negotiation_done">اكتمل التفاوض — جارٍ الاتصال بالمساعد…</string>
+    <string name="ss_retry_no_response">لا استجابة من هاتف المستفيد — تأكّد من أن «شارك الشاشة» مفعّل هناك.</string>
+    <string name="ss_retry_no_answer">لم يصل ردّ المستفيد إطلاقًا.</string>
+    <string name="ss_retry_link_failed">تعذّر على الهاتفين إتمام الربط.</string>
+    <string name="ss_retry_conn_failed">فشلت محاولة الاتصال</string>
+    <string name="ss_retry_answer_failed">تعذّر الرد على عرض المستفيد</string>
+    <string name="ss_retry_apply_failed">تعذّر تطبيق عرض المستفيد</string>
+    <string name="ss_retrying_auto">%1$s — تُجرى محاولة أخرى تلقائيًا…</string>
+    <string name="ss_retried_watch">%1$s — جرى سؤال هاتف المستفيد مجددًا…</string>
+    <string name="ss_recover_conn_failed">فشل الاتصال بالمساعد — تبقى المشاركة جاهزة. اطلب من المساعد النقر على «شاهد الشاشة» مجددًا.</string>
+    <string name="ss_recover_answer_failed">تعذّر الرد — سيعيد المساعد المحاولة تلقائيًا.</string>
+    <string name="ss_recover_apply_failed">تعذّر تطبيق ردّ المساعد — سيعيد المساعد المحاولة.</string>
+    <string name="ss_fail_projection_stopped">أوقف النظام عرض الشاشة — انقر «شارك الشاشة» مجددًا.</string>
+    <string name="ss_fail_capture">فشل التقاط الشاشة: %1$s</string>
+    <string name="ss_fail_watch">تعذّر طلب المشاهدة: %1$s</string>
+    <string name="ss_fail_viewer">تعذّر تشغيل العارض: %1$s</string>
+    <string name="ss_fail_conn_stopped">فشل الاتصال — انقر «إيقاف المشاركة» ثم شارك مجددًا.</string>
+    <string name="ss_fail_no_engine">تعذّر إنشاء محرك WebRTC على هذا الهاتف.</string>
+    <string name="ss_fail_signal">خطأ في قناة الإشارة: %1$s</string>
+    <string name="ss_fail_conn_retry">فشل الاتصال — تعذّر على الهاتفين الارتباط ببعضهما. انقر «شاهد الشاشة» مجددًا؛ إن استمر الفشل فضع الهاتفين على شبكة Wi-Fi نفسها (أو نقطة اتصال أحدهما).</string>
+    <string name="ss_fail_offer">تعذّر إرسال العرض: %1$s</string>
+    <string name="ss_fail_answer">تعذّر إرسال الرد: %1$s</string>
+    <string name="ss_fail_apply">تعذّر تطبيق ردّ المساعد.</string>
+    <string name="ss_ack_back">تم إيصال «الرجوع» ✓</string>
+    <string name="ss_ack_home">تم إيصال «الرئيسية» ✓</string>
+    <string name="ss_ack_recents">تم إيصال «التطبيقات الأخيرة» ✓</string>
+    <string name="ss_ack_swipe">تم إيصال السحب ✓</string>
+    <string name="ss_ack_long">تم إيصال الضغط المطوّل ✓</string>
+    <string name="ss_ack_tap">تم إيصال النقر ✓</string>
+    <string name="ph_save_perm_needed">إذن التخزين مطلوب لحفظ صورة QR.</string>
+    <string name="fallback_someone">شخص ما</string>
+    <string name="fallback_helper">مساعد</string>
+    <string name="cd_pairing_qr">رمز QR للاقتران</string>
+    <string name="so_signout_failed">فشل تسجيل الخروج: %1$s</string>
+    <string name="cd_clear_messages">مسح الرسائل</string>
+
 </resources>
