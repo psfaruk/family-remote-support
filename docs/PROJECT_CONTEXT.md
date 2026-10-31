@@ -1,9 +1,11 @@
 # PROJECT_CONTEXT — Remote Family Support & Device Assistance Platform
 
 > Master-plan shared-context document (required by the coordinated multi-agent workflow).
-> **Status: IMPLEMENTATION (Phase 21 / master-plan M4 shipped 2026-10-31 — nested navigation
-> wave 1 + Settings 8 partitions; the Owner drives each milestone with an explicit command).**
-> Created: 2026-10-31 (Asia/Dhaka) · Build now: **v0.32.0 (versionCode 51)**
+> **Status: IMPLEMENTATION (Phase 22 / master-plan M5 shipped 2026-10-31 — Live Location:
+> engine + FGS + osmdroid Tracking tab + tracking/{relId} + Settings Location partition;
+> liveLocations rules LIVE + probe 12/12; the Owner drives each milestone with an explicit
+> command).**
+> Created: 2026-10-31 (Asia/Dhaka) · Build now: **v0.33.0 (versionCode 52)**
 > Repo: `psfaruk/family-remote-support` (public, branch `main`, sole committer pipeline: Contents-API push + readback-verify)
 
 ---
@@ -18,11 +20,11 @@ is a hard design constraint.
 
 | Item | Verified state |
 |---|---|
-| Phases completed | 0–14.1, 15, 16 (4-tab shell restructure), 17, 18.1–18.9 (deep-audit series), 19.1–19.2 (full i18n), 20 (Firestore quota incident fix) |
-| Master-plan milestones | M0 audit · M1 docs · M2 shell · M3 screen extraction + ViewModel · **M4 nested Home subtree + Settings 8 partitions (v0.32.0/51)** — all shipped 2026-10-31 |
-| Current build | v0.32.0 / versionCode 51 (CI AXML-gated) |
-| Live location | Tab exists as an **honest placeholder** ("coming soon"); zero location code/permissions today — M5 |
-| Owner pending | (1) install v0.32.0/51 on both phones after CI SUCCESS (TEST_PLAN #7/#8/#24); (2) set Cloudflare `FIREBASE_SA_JSON` secret (permanent kill-push tier still inactive) |
+| Phases completed | 0–14.1, 15, 16 (4-tab shell restructure), 17, 18.1–18.9 (deep-audit series), 19.1–19.2 (full i18n), 20 (Firestore quota incident fix), 21 (M0–M4), 22 (M5 Live Location) |
+| Master-plan milestones | M0 audit · M1 docs · M2 shell · M3 screen extraction + ViewModel · M4 nested Home subtree + Settings 8 partitions · **M5 Live Location (v0.33.0/52)** — all shipped 2026-10-31 |
+| Current build | v0.33.0 / versionCode 52 (CI AXML-gated) |
+| Live location | ✅ **shipped M5**: consent sheet + FGS engine + osmdroid map + freshness states + detail route; rules LIVE + probe 12/12 (no background permission in v1; no history by design) |
+| Owner pending | (1) install v0.33.0/52 on both phones after CI SUCCESS (TEST_PLAN #10–#15 + visual pass); (2) set Cloudflare `FIREBASE_SA_JSON` secret (permanent kill-push tier still inactive) |
 
 ## 2. Repository structure
 
@@ -132,7 +134,7 @@ server-bounded window, guest-only delete, kind fence prevents guest→family upg
 | Persistent pairing, no re-scan | ✅ ACTIVE until revoked | n/a (temporary) |
 | Screen-share sessions | ✅ owner consent each session | ✅ inside live window only |
 | Remote interaction (accessibility gestures) | ✅ assist setup + per-session | ✅ inside live window only |
-| Location sharing | 🔜 planned M5 (owner opt-in) | 🔜 planned M5 (same rules fence) |
+| Location sharing | ✅ **M5 (v0.33.0)** — owner opt-in, consent sheet, visible FGS, one-tap stop ×3 | ✅ same rules fence (live window only) |
 | Revocation controls | ✅ device list + settings | ✅ auto-expiry + delete + termination |
 
 ## 9. Screen sharing & remote interaction (as-is)
@@ -175,25 +177,26 @@ that doc; gaps tracked in IMPLEMENTATION_STATUS.md.
 
 Manifest permissions: `INTERNET`, `CAMERA`, `WRITE_EXTERNAL_STORAGE` (maxSdk 28),
 `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PROJECTION`,
-`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`. Services: `ScreenShareService` (FGS mediaProjection),
+`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, **`ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION` +
+`FOREGROUND_SERVICE_LOCATION` (M5, v0.33.0 — while-in-use only, NO background permission in
+v1)**. Services: `ScreenShareService` (FGS mediaProjection), **`LocationShareService` (FGS
+location, M5 — persistent coordinate-free notification, no reboot auto-restart)**,
 `AssistService` (accessibility), `PushTokenService` (FCM), `HeartbeatWorker` (WorkManager),
-`FileProvider`. **No location permissions yet.** Full matrix + proposals:
-ANDROID_PERMISSION_MATRIX.md.
+`FileProvider`. Full matrix: ANDROID_PERMISSION_MATRIX.md.
 
 ## 13. Dependencies & versions (pinned)
 
 AGP 8.5.2 · Kotlin 2.0.20 (+compose plugin) · Compose BOM 2024.09.03 · Firebase BoM 33.4.0
-(auth/firestore/messaging only) · Credential Manager 1.3.0 + googleid 1.1.1 · **navigation-compose 2.8.2 (added M2)** · CameraX 1.3.4 ·
+(auth/firestore/messaging only) · Credential Manager 1.3.0 + googleid 1.1.1 · navigation-compose 2.8.2 (M2) · CameraX 1.3.4 ·
 ML Kit barcode 17.2.0 · zxing 3.5.3 · stream-webrtc-android 1.3.8 · work-runtime 2.9.1 ·
+**play-services-location 21.3.0 + osmdroid-android 6.1.18 (M5, v0.33.0 — approved with the
+Owner's M5 start command, C4 decision recorded in build.gradle)** ·
 minSdk 26 / targetSdk 34 / compileSdk 34 / JDK 17 · ABIs armv7+arm64 · `isMinifyEnabled=false`
-(no R8), **no test source set**. `androidx.navigation:navigation-compose:2.8.2` ADDED in M2
-(approved via the Owner's M2-start command; C4 minimal-deps note recorded in build.gradle).
-Remaining planned additions: `lifecycle-viewmodel-compose` (M3), `play-services-location`,
-`org.osmdroid:osmdroid-android` (M5, require approval).
+(no R8), **no test source set**.
 
 ## 14. Known bugs, debt & incomplete features (audit-verified)
 
-1. Live location tab = placeholder promise with permanent nav slot (`MainActivity.kt:3038-3046`).
+1. ~~Live location tab = placeholder promise with permanent nav slot~~ **FIXED M5 (v0.33.0)** — real osmdroid map + engine + rules; probe-verified.
 2. ~15 user-visible hardcoded Bengali/English string lines outside resources (assist-ack toasts,
    session status lines, service channel text, 2 a11y labels) — top-bar title fixed in M2.
 3. ~~Manifest/assist-config documentation drift~~ **FIXED M4 (v0.32.0):** the manifest comment now tells the truth (`canRetrieveWindowContent=true` since Phase 8.3 — ACTION_SET_TEXT typing only).
@@ -216,14 +219,17 @@ always with visible session indicators and owner stop controls. Location (M5) is
 owner-visible (FGS notification), revocable, no history, coordinates never in lock-screen
 notifications. Catch-all deny rules; new collections get explicit match blocks + probes.
 
-## 16. Planned Live Location architecture (summary)
+## 16. Live Location architecture (shipped M5, v0.33.0)
 
-Consent-based, update-in-place, quota-bounded: FusedLocation + `location`-type FGS →
-distance/time-gated writes to a single doc `liveLocations/{uid}_{devId}` (≥30–60 s cadence,
-~1.4–2.9K writes/day/stream) → counterpart-only listener → osmdroid (OSM tiles, attribution)
-map with fresh/stale/offline states. No background-location permission in v1; no history;
-server-side fence reuses the ACTIVE-relationship + guest-window logic. Full plan:
-`docs/LIVE_LOCATION_ARCHITECTURE.md`.
+Consent-based, update-in-place, quota-bounded — shipped as planned: FusedLocation (+
+LocationManager fallback) + `location`-type FGS (`LocationShareService`, coordinate-free
+persistent notification, one-tap stop ×3) → distance/time/accuracy-gated writes to a single
+doc `liveLocations/{uid}_{devId}` (≥30–60 s cadence, stationary back-off, ~1.4–2.9K
+writes/day/stream) → counterpart-only listener → osmdroid OSM map (mandatory attribution,
+app User-Agent) with LIVE/STALE/OFFLINE freshness + "Last known" lines. No
+background-location permission in v1; no history (deleted on stop/sign-out); server-side
+fence reuses the ACTIVE-relationship + guest-window logic — **rules LIVE + runtime probe
+12/12 PASS**. Full plan: `docs/LIVE_LOCATION_ARCHITECTURE.md`.
 
 ## 17. Multi-agent execution model (honest report)
 
@@ -267,7 +273,7 @@ W3 live location (10–13) · W4 remote-support & compat (14, 15, 20) · W5 test
 | C1 | Master instruction tabs = Home/**Add Device**/**Tracking**/Settings vs current Home/Phone/**Live location**/Settings | Adopt instruction labels (strings-only rename; same 4 slots). No 5th tab; Devices/Sessions live under Home + Settings | ✅ **Implemented M2** (nav_add_device/nav_tracking ×15; PersonAdd icon; 7 tab-pointing copy keys fixed per locale) |
 | C2 | Master section 7 alternative nav (Home/Devices/Sessions/Settings) conflicts with PART 3's four tabs | PART 3 (explicit "exactly four") wins; Devices/Sessions become nested screens + Home sections | Resolved |
 | C3 | Navigation-Compose vs manual state machine | Recommend Navigation-Compose (type-safe routes, back-stack, restoration); fallback = structured manual nested state if migration risk proves high in W1 spike | ✅ **Resolved M2: ADOPTED** — the W1 spike gate items verified by code inspection (cold-start: no intent logic existed; wizard: app-level overlay; fullscreen: Dialog inside tab content, same unmount semantics as the old when(tab)); Owner device check = TEST_PLAN #7/#8/#24. `lifecycle-viewmodel-compose` deliberately deferred to M3 |
-| C4 | New dependencies (maps/location) vs minimal-deps discipline | Justified: no map/location library exists; osmdroid is Apache-2.0, quota-safe; documented in LIVE_LOCATION_ARCHITECTURE.md | Pending approval |
+| C4 | New dependencies (maps/location) vs minimal-deps discipline | Justified: no map/location library existed; osmdroid is Apache-2.0, quota-safe; documented in LIVE_LOCATION_ARCHITECTURE.md | ✅ **Resolved M5 (v0.33.0)** — play-services-location 21.3.0 + osmdroid-android 6.1.18 added, approved with the Owner's M5 start command (same precedent as navigation-compose with M2) |
 | C5 | Read-quota discipline vs feature richness | Location = update-in-place single doc, ≥30 s cadence, excluded from sweeps; budget table in LIVE_LOCATION_ARCHITECTURE.md | Resolved |
 | C6 | UI_UX_DESIGN_SYSTEM.md staleness vs duplication ban | Update-in-place: appended §26 reconciliation; no duplicate design doc | Done (this push) |
 
