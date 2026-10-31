@@ -69,7 +69,11 @@ fun SettingsTile(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
+                // Pre-M10 (v0.35.0) — was maxLines = 1: at large font scales
+                // (senior phones) titles like "Device Management" truncated
+                // into ellipsis soup. Two lines + ellipsis keeps every row
+                // readable without redesigning the row for normal scales.
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
