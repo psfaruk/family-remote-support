@@ -408,4 +408,8 @@
     <string name="notif_empty_title">अहिले कुछ पनि आवश्यक छैन</string>
     <string name="notif_empty_body">सहयोग अनुरोध, चलिरहेका सेसन र सेटअप चेतावनी भएको क्षणमै यहाँ देखिन्छ।</string>
     <string name="notif_hint">वास्तविक, हालका घटना मात्र — कुछ पनि बनाइएको वा इतिहासमा राखिएको हुँदैन।</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">फेरि प्रयास गर्नुहोस्</string>
+    <string name="states_open_settings">सिस्टम सेटिङ खोल्नुहोस्</string>
 </resources>
