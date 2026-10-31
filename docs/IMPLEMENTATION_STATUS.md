@@ -1,10 +1,10 @@
 # IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **IMPLEMENTATION checkpoint — M2 shipped.** Reconciles the ORIGINAL phase history
+> Status: **IMPLEMENTATION checkpoint — M3 shipped.** Reconciles the ORIGINAL phase history
 > (Phase 0–20) with the NEW master-plan phases (M0–M10). The stale §12 table inside
 > `docs/PHASE-0.md` is superseded by this file from now on (PHASE-0 remains the append-only
 > narrative record).
-> Build at writing: **v0.30.0 (versionCode 49)** · HEAD `9bdc8a0` · CI: Android Build **SUCCESS** (run 41122154745, AXML gate incl.).
+> Build at writing: **v0.31.0 (versionCode 50)** · HEAD `<this push>` · CI: Android Build **SUCCESS** (pending final run — M2's run 41122154745 was the previous gate).
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
@@ -29,10 +29,10 @@
 | M0 | Repository audit (3 parallel agents: frontend / backend-infra / docs-tracker) + state verification | ✅ 2026-10-31 (this push) |
 | M1 | Architecture & design specification: 8 new docs + UI_UX §26 reconciliation + PROJECT_CONTEXT | ✅ 2026-10-31 (this push) |
 | **⛔ APPROVAL GATE** | Owner review of the M1 document set | ✅ **APPROVED 2026-10-31 — Owner's explicit "M2 শুরু করো" command** |
-| M2 | Shared application shell: header polish, notifications surface, 4-tab rename (C1), theme foundation, nested navigation (C3 spike) | ✅ **2026-10-31 (this push, v0.30.0/49)** — C3 spike: Navigation-Compose **ADOPTED** for the shell (routes+bars extracted to `ui/nav/AppNav.kt`; crossfade 120 ms; saveState/restoreState tab switching). C1 rename ×15 locales (+ the 7 tab-pointing copy keys per locale fixed). Dedicated notifications surface (real events, in-memory). Components promoted verbatim: SectionCard/AppListTile/EmptyState/WideOutlinedButton → `ui/components/Core.kt`. Theme foundation: tokens verified — already master-palette-exact (no delta needed). Version note: per NAVIGATION_MAP §6, v0.30.0/49 IS the first implementation release; later milestones increment from here (the earlier M5-row projection is superseded). |
-| M3 | Frontend redesign: Home, Add Device, Tracking, Settings + detail screens with real states; ViewModel layer (`lifecycle-viewmodel-compose`) + component-library completion | ⛔ |
+| M2 | Shared application shell: header polish, notifications surface, 4-tab rename (C1), theme foundation, nested navigation (C3 spike) | ✅ 2026-10-31 (v0.30.0/49) — C3 spike: Navigation-Compose **ADOPTED** for the shell (routes+bars extracted to `ui/nav/AppNav.kt`; crossfade 120 ms; saveState/restoreState tab switching). C1 rename ×15 locales (+ the 7 tab-pointing copy keys per locale fixed). Dedicated notifications surface (real events, in-memory). Components promoted verbatim: SectionCard/AppListTile/EmptyState/WideOutlinedButton → `ui/components/Core.kt`. Theme foundation: tokens verified — already master-palette-exact (no delta needed). |
+| M3 | Frontend redesign: Home, Add Device, Tracking, Settings + detail screens with real states; ViewModel layer (`lifecycle-viewmodel-compose`) + component-library completion | ✅ **2026-10-31 (this push, v0.31.0/50)** — **Screen extraction (W2):** HomeTab (`ui/home/HomeTab.kt`, incl. consent card/dialog + feature tiles), AddDeviceTab (`ui/pairing/AddDeviceTab.kt`, 1,760 lines incl. PairingSections/role sheet), SettingsTab (`ui/settings/SettingsTab.kt`, 1,091 lines incl. activity feed), TrackingTab (`ui/tracking/TrackingTab.kt`, placeholder renamed) — all VERBATIM moves (byte-identical bodies, visibility-only changes; 2 real parallel extraction agents + coordinator surgery per PROJECT_CONTEXT §18 file ownership). MainActivity 5,683 → ~2,000 lines (shell + root session effects + session surfaces). **ViewModel layer:** `lifecycle-viewmodel-compose` 2.8.6 added; `ui/home/SessionWatchViewModel.kt` owns the session watch as `StateFlow<SessionsUiState>` — listener errors ROUTED into state (closes audit risk #5's root-level swallowed `onError`), Home shows `LoadingSkeleton` before first snapshot + `ErrorPanel`(retry) on pre-snapshot failure; root-scoped above the NavHost ON PURPOSE (zombie-sweep/stop guarantees must keep running on every tab). **Component library complete (§6):** Cards.kt (SettingsTile/IconStatusTile/QuickActionTile) · Buttons.kt (BigButton) · Badges.kt (StatusBadge/sessionStatus/sessionBadgeKind/statusChipColors/PresenceBadge/PresenceChip) · States.kt (LoadingSkeleton/ErrorPanel/PermissionDeniedPanel — canonical; permission panel wired M4/M5) — all verbatim promotions, one variant per widget. **Strings:** +2 keys (`states_retry`, `states_open_settings`) ×15 locales = 30 translations. **Honest deltas:** (1) NAVIGATION_MAP §2 nested detail routes (home/family/{relId}, home/sessions/{id}, settings/*, add/*, tracking/{relId}) NOT built here — tab-level extraction first, route-tree expansion = M4 wave; (2) collection via `collectAsState` (shell-always-composed scope ≙ repeatOnLifecycle in effect; no runtime-compose dep — C4); (3) no user-visible behavior change except the new honest loading/error states on Home. |
 | M4 | Existing-feature integration checks (pairing, sessions, revocation) + drift fixes | ⛔ |
-| M5 | Live location implementation (engine, map, rules, probes) — v0.30.0/49 | ⛔ |
+| M5 | Live location implementation (engine, map, rules, probes) | ⛔ |
 | M6 | Family/Guest authorization verification + G1–G4 deltas | ⛔ |
 | M7 | Remote support integration audit (no regression to WebRTC/assist) | ⛔ |
 | M8 | Notifications, accessibility, i18n completion, polish | ⛔ |
@@ -55,9 +55,10 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | Remote interaction (accessibility gestures + typing) | ✅ | `AssistService.kt`, `AssistSetup.kt` |
 | Sessions + signaling + zombie guards + quota errors | ✅ | `SessionRepo.kt`, `SignalingRepo.kt`, §63 |
 | 15-language i18n + theme persistence | ✅ (≈3 keys/locale parity gap; ~16 stray literals) | `ui/Lang.kt`, strings ×15 |
-| **Live location** | 🔜 **planned M5** (placeholder tab today) | `MainActivity.kt:3038-3046` |
+| **Live location** | 🔜 **planned M5** (honest placeholder tab today) | `ui/tracking/TrackingTab.kt` (moved from MainActivity in M3) |
 | Notifications screen (dedicated) | ✅ **M2** — bell → real-events surface (in-memory; persisted store = M8 decision) | `ui/notifications/NotificationsScreen.kt` |
-| Navigation-Compose shell | ✅ **M2** (Decision C3 ADOPTED — navigation 2.8.2; ViewModels + full component library = M3) | `ui/nav/AppNav.kt`, `ui/components/Core.kt` |
+| Navigation-Compose shell | ✅ **M2** (Decision C3 ADOPTED — navigation 2.8.2) · **M3: all 4 tab screens + detail composables extracted to `ui/home` / `ui/pairing` / `ui/settings` / `ui/tracking` (verbatim); nested §2 detail routes = M4 wave** | `ui/nav/AppNav.kt`, `ui/components/Core.kt`, `ui/*/*Tab.kt` |
+| ViewModel layer | ✅ **M3** — `lifecycle-viewmodel-compose` 2.8.6; `SessionWatchViewModel` (root-scoped StateFlow<UiState>, routed errors). Pairing/settings keep their interactive listeners (already error-routed — audited during extraction) | `ui/home/SessionWatchViewModel.kt` |
 | Tests (unit/UI) | ❌ none (probes + CI + Owner manual only) | TEST_PLAN §0 |
 
 ## 4. Known open issues (from audits — each mapped to a phase)
@@ -68,7 +69,7 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 | ~16 hardcoded user-visible strings + parity gap | M4/M8 (Agent 19) |
 | Manifest assist-config doc drift | M4 |
 | Bell → Settings instead of notifications surface | ✅ fixed M2 |
-| Swallowed listener errors / ad-hoc error states | M3 (States components) |
+| Swallowed listener errors / ad-hoc error states | ✅ **fixed M3** — root session-watch `onError` now ROUTED into `SessionWatchViewModel` state (keeps last list per v0.21.0, surfaces pre-snapshot failure as `ErrorPanel`); pairing/settings listeners audited during extraction — already error-routed; `States.kt` = canonical panels | ✅ M3 |
 | **NEW (M2 discovery):** default↔bn locale inversion — ~203 legacy keys carry Bengali text in
   `values/` (whose declared design is default=English) while `values-bn/` carries their English;
   both language settings see mixed language on legacy screens. Recorded untouched (scope
@@ -80,11 +81,10 @@ Rule honored: no later phase starts before its prerequisites are verified (maste
 
 ## 5. Owner pending actions (unchanged + new)
 
-1. Install **v0.29.0 (code 48)** on both phones (after the day's quota reset) — closes the
-   RESOURCE_EXHAUSTED screens captured in the 23:00–23:31 screenshots.
+1. Install **v0.31.0 (code 50)** on both phones after CI SUCCESS (same version on both) —
+   M3 changes no database/rules; device checks = TEST_PLAN #7 (tab switching), #8 (nested
+   navigation + back) and #24 (state restoration) plus a visual pass over Home's new honest
+   loading/error states. (v0.29.0→v0.30.0 quota/kill-push notes from §63–65 remain in force.)
 2. Set Cloudflare secret `FIREBASE_SA_JSON` (dashboard → Worker → Variables and Secrets) —
-   activates the permanent kill-push tier.
-3. **Install v0.30.0 (code 49) on both phones and device-verify M2** — TEST_PLAN #7 (tab
-   switching), #8 (nested navigation + back; NOTE the documented delta: back from a non-start
-   tab now returns Home first, platform-standard) and #24 (state restoration).
-4. Set Cloudflare secret `FIREBASE_SA_JSON` (permanent kill-push tier still inactive).
+   activates the permanent kill-push tier (pending since §60).
+3. Device-verify **v0.30.0 (code 49)** items if not yet done, then move to v0.31.0: TEST_PLAN #7/#8/#24.
