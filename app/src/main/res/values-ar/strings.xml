@@ -39,6 +39,39 @@
     <string name="loc_title">الموقع المباشر</string>
     <string name="loc_coming_title">قادم في تحديث قادم</string>
     <string name="loc_coming_body">سيظهر هنا الموقع المباشر للعائلة — دائمًا بموافقة صريحة من الشخص الآخر. اليوم لا يُجمع أي شيء ولا يُشارك أي شيء.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">مشاركة موقع هذا الهاتف</string>
+    <string name="loc_share_body">سيرى فرد العائلة المقترن معك موقع هذا الهاتف المباشر على الخريطة طالما كانت المشاركة مفعّلة. يُحتفظ فقط بآخر موقع — وليس سجلّ المواضع أبدًا — ويمكنك الإيقاف في أي وقت.</string>
+    <string name="loc_share_start">بدء المشاركة</string>
+    <string name="loc_share_stop">إيقاف المشاركة</string>
+    <string name="loc_share_on">مشاركة الموقع مفعّلة</string>
+    <string name="loc_share_off">مشاركة الموقع متوقفة</string>
+    <string name="loc_banner_on">أنت تشارك موقع هذا الهاتف الآن</string>
+    <string name="loc_banner_off">المشاركة متوقفة — لا يتم إرسال موقع هذا الهاتف</string>
+    <string name="loc_interval_label">فترة التحديث</string>
+    <string name="loc_interval_30s">كل ٣٠ ثانية</string>
+    <string name="loc_interval_1m">كل ١ دقيقة</string>
+    <string name="loc_interval_5m">كل ٥ دقائق</string>
+    <string name="loc_notif_title">مشاركة الموقع مفعّلة</string>
+    <string name="loc_notif_body">انقر لفتح التطبيق وإيقاف المشاركة.</string>
+    <string name="loc_fresh_live">مباشر</string>
+    <string name="loc_fresh_stale">قديم</string>
+    <string name="loc_fresh_offline">غير متصل</string>
+    <string name="loc_last_known">آخر موقع معروف — %1$s</string>
+    <string name="loc_never">لم تتم المشاركة من قبل</string>
+    <string name="loc_no_fix">في انتظار تحديد الموقع الأول…</string>
+    <string name="loc_acc_m">±%1$d متر</string>
+    <string name="loc_updated">آخر تحديث %1$s</string>
+    <string name="loc_details">تفاصيل الموقع</string>
+    <string name="loc_open_maps">فتح في تطبيق الخرائط</string>
+    <string name="loc_perm_title">إذن الموقع مطلوب</string>
+    <string name="loc_perm_body">إذن الموقع يتيح لعائلتك رؤية موقع هذا الهاتف أثناء اختيارك مشاركته. ويُستخدم فقط أثناء ظهور إشعار المشاركة المرئي.</string>
+    <string name="loc_denied_title">تم رفض الوصول إلى الموقع</string>
+    <string name="loc_denied_body">تم رفض إذن الموقع. لا يمكن بدء المشاركة حتى يُمنح الإذن من إعدادات النظام.</string>
+    <string name="loc_empty_title">لا توجد أجهزة مقترنة بعد</string>
+    <string name="loc_empty_body">اربط جهازًا للعائلة أولًا — سيظهر موقعه المباشر هنا بموافقة صريحة من مالكه.</string>
+    <string name="loc_list_title">اختر جهازًا</string>
     <string name="set_section_account">الحساب</string>
     <string name="set_profile_title">الملف الشخصي</string>
     <string name="set_profile_sub">الاسم والبريد الإلكتروني لهذا الحساب</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">الهواتف المقترنة</string>
     <string name="set_dev_entry_d">الحالة المباشرة وإجراءات الدعم وإلغاء الوصول</string>
     <string name="set_loc_status">الموقع المباشر مخطط له في إصدار قادم. لا يتم جمع أي موقع أو تخزينه اليوم.</string>
+    <string name="set_loc_now">شارك الموقع المباشر لهذا الهاتف مع أجهزة العائلة المقترنة. يُحتفظ فقط بآخر موقع — وليس سجلّ المواضع أبدًا.</string>
     <string name="set_guest_note">روابط الضيوف مؤقتة (حتى ٣ ساعات) ولا تتحول أبدًا إلى اقتران عائلي دائم.</string>
 </resources>
