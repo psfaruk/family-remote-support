@@ -474,6 +474,9 @@
     <string name="set_section_remote">リモートサポート</string>
     <string name="set_section_guest">ゲストアクセス</string>
     <string name="set_section_security">セキュリティ</string>
+    <string name="set_section_privacysec">プライバシーとセキュリティ</string>
+    <string name="set_section_prefs">環境設定</string>
+    <string name="set_section_about_session">このアプリについてとセッション</string>
     <string name="set_dev_entry_t">ペアリング済みの電話</string>
     <string name="set_dev_entry_d">ライブ状況、サポート操作、アクセスの取り消し</string>
     <string name="set_loc_status">ライブ位置情報は今後のリリースで予定されています。現時点では位置情報の収集や保存は一切ありません。</string>
