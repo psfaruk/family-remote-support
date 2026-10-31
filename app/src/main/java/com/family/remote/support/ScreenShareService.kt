@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.family.remote.support.ui.LangPrefBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -84,14 +85,18 @@ class ScreenShareService : Service() {
 
     private fun startInForeground() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        // M8 (v0.34.0) — channel name/description + title/body resolve through
+        // LangPrefBus (the SessionNotifier pattern), so a non-English user
+        // reads the ongoing share notification in their app language.
+        val lc = LangPrefBus.wrap(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "Screen sharing",
+                    lc.getString(R.string.share_channel_name),
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
-                    description = "Shown while your screen is being shared with a helper."
+                    description = lc.getString(R.string.share_channel_desc)
                 }
             )
         }
@@ -101,10 +106,10 @@ class ScreenShareService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(lc, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notify)
-            .setContentTitle("Screen sharing active")
-            .setContentText("A helper is watching this phone's screen. Tap to open.")
+            .setContentTitle(lc.getString(R.string.share_notif_title))
+            .setContentText(lc.getString(R.string.share_notif_body))
             .setOngoing(true)
             .setContentIntent(tapIntent)
             .build()
