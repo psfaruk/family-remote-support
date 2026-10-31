@@ -25,26 +25,20 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -58,12 +52,13 @@ import com.family.remote.support.RelationshipView
 import com.family.remote.support.describeFirestoreError
 import com.family.remote.support.watchLiveLocation
 import com.family.remote.support.watchRelationships
+import com.family.remote.support.ui.components.BackTitleRow
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.ErrorPanel
 import com.family.remote.support.ui.components.LoadingSkeleton
+import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -136,9 +131,10 @@ private class LocationDetailViewModel : ViewModel() {
     private fun syncLocationWatch(describeError: (Exception) -> String) {
         val rel = currentRel()
         val uid = myUid
-        val key = if (rel != null && uid != null && rel.status == "ACTIVE" && rel.guestLive &&
-            rel.recipientUid != uid && rel.recipientDeviceId.isNotBlank()
-        ) {
+        // v0.37.0 (dedupe wave) — ONE counterpart-trackable predicate
+        // (TrackingViewModel.isTrackableCounterpart): was a drifting copy
+        // of the same 4 conditions the tab's filter uses.
+        val key = if (rel != null && uid != null && rel.isTrackableCounterpart(uid)) {
             rel.recipientUid to rel.recipientDeviceId
         } else {
             null
@@ -209,16 +205,6 @@ internal fun LocationDetailScreen(user: FirebaseUser?, relId: String, onBack: ()
     }
     val state by vm.state.collectAsState()
 
-    // Freshness is clock-based — tick every 30 s (PresenceBadge cadence)
-    // so the LIVE/STALE/OFFLINE line stays honest while the screen is open.
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(30_000)
-        }
-    }
-
     // Canonical states (NAVIGATION_MAP §5) — same priority as the tab.
     val routedError = state.error?.takeIf { !state.loaded }
     when {
@@ -253,12 +239,19 @@ internal fun LocationDetailScreen(user: FirebaseUser?, relId: String, onBack: ()
                 )
                 OwnSharingCard()
             } else {
-                CounterpartDetailBody(
-                    rel = rel,
-                    location = state.location,
-                    nowMillis = nowMillis,
-                    onBack = onBack
-                )
+                // v0.37.0 (dedupe wave) — the 30 s freshness clock
+                // (PresenceBadge cadence) now lives in TickingBlock instead
+                // of a screen-level while(true) loop: only the detail body
+                // reads it, so the LIVE/STALE/OFFLINE line stays honest
+                // while the screen is open without whole-screen churn.
+                TickingBlock(intervalMillis = 30_000) { nowMillis ->
+                    CounterpartDetailBody(
+                        rel = rel,
+                        location = state.location,
+                        nowMillis = nowMillis,
+                        onBack = onBack
+                    )
+                }
             }
         }
     }
@@ -370,20 +363,6 @@ private fun openInMaps(context: Context, location: LiveLocationView) {
     }
 }
 
-/** The M4 detail-screen header: back arrow + screen title (MemberDetailScreen style). */
-@Composable
-private fun BackTitleRow(title: String, onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.cd_back)
-            )
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
+// v0.37.0 (dedupe wave) — the M4 detail-screen header now lives in the
+// design system (ui/components/Core.kt BackTitleRow, promoted VERBATIM from
+// this file's private copy); the four call sites above use the shared one.
