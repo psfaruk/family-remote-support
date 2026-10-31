@@ -22,8 +22,20 @@ android {
         // + runtime probe — docs/LIVE_LOCATION_ARCHITECTURE.md).
         // NAVIGATION_MAP §6: v0.30.0/49 was the first-implementation version;
         // each later M-milestone increments from there.
-        versionCode = 53
-        versionName = "0.34.0"
+        // Pre-M10 (v0.35.0) — the Owner's Settings hierarchy rework + the
+        // tab/keyboard robustness pass: Settings re-partitioned into the
+        // five Owner-ordered cards (Account · Device Management · Privacy
+        // & Security · Preferences · About & session), the 15-language
+        // list moved from an inline radio wall into a capped+scrollable
+        // picker dialog, Sign-out became the red-OUTLINED last row, the
+        // top-level tabs now open at scroll-top on every entry (the
+        // bell→Settings "functions fell down" report — NavHost was
+        // restoring a mid-page scroll), the shell became IME-aware
+        // (adjustResize + ime-padded bottom bar: nothing hides
+        // behind the keyboard), SettingsTile survives large font scales
+        // and the signed-out Family route shows an honest empty state.
+        versionCode = 54
+        versionName = "0.35.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
