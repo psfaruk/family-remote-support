@@ -408,4 +408,8 @@
     <string name="notif_empty_title">ابھی آپ سے کچھ نہیں کہا جا رہا</string>
     <string name="notif_empty_body">مدد کی درخواستیں، جاری سیشن اور سیٹ اپ وارننگ یہاں فوراً نظر آتی ہیں۔</string>
     <string name="notif_hint">صرف حقیقی، موجودہ واقعات — کچھ بھی گھڑا نہیں جاتا، تاریخ میں محفوظ نہیں ہوتا۔</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">دوبارہ کوشش کریں</string>
+    <string name="states_open_settings">سسٹم کی ترتیبات کھولیں</string>
 </resources>
