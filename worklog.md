@@ -2950,10 +2950,21 @@ invocation 采样复核（见下）。当日残余 429 于 13:00 达卡重置后
 **推送与验证记录：** 本波推送顺序刻意为 wrangler.toml 最先（使后续每次 deploy 都用
 crons=[] 配置，避免旧配置在 deploy 间重挂 cron）。全部经 readback-verify 管线（11 推送）。
 **CI 记录（0 修复轮）：**
-- 本波推送中前 10 个 run 被工作流并发设置自动取消（正常，以最终 HEAD 为准）。
-- 最终 HEAD `（待补）` run **（待补）**——v0.36.0/55 的 Release-APK 验证门预期
-  code=55/name="0.36.0"/stale 0.35.0 缺席。
-- 停靠复核：推送后 Worker deploy 再触发（docs 波亦触发 deploy）——schedules 仍 []、
-  secrets 双 true；GraphQL invocation 采样窗内无固定秒位分钟节奏行（cron 止息）；
-  GH Actions kill-push 无新 scheduled run；沙盒 :3020 关闭无进程。上述复核结果补记于
-  最终报告（chat）与下一节（若有）。
+- 本波 13 个推送（wrangler.toml 最先、worklog §75 最后）中前 12 个 run 被工作流并发
+  设置自动取消（正常，以最终 HEAD 为准）。
+- 最终 HEAD `5928bf9fb1` run **41220455335 SUCCESS**（2026-10-31 16:39 UTC 完成验证）。
+  **Release-APK 验证门 PASS（日志亲验）**：✓ APK read 39.5 MB · ✓ manifest parsed ·
+  ✓ versionCode = 55 (INT_DEC) — expected 55 · ✓ versionName = "0.36.0" — expected
+  "0.36.0" · ✓ stale 检查（version-shaped strings 仅 [0.36.0]，0.35.0 缺席）· v2 签名
+  门随步骤 success（脚本任一失败即 exit 1）。Artifacts：`app-release-apk`（27.7 MB，
+  id 13049164675）+ `app-debug-apk`（32.5 MB）——v0.36.0/55 双机安装源。
+- **停靠复核（实测，全绿）：** ①Worker——docs 波再触发 deploy（16:38:21Z）后
+  `schedules: []` ✓、bindings 双 `secret_text` ✓、/health 语义保留；②**cron 止息证据
+  （诚实细节）**：清空 deploy 于 16:25:50Z 落地，但固定秒位 `:11`+subreq=2 的分钟节奏
+  行持续到 **16:32:11Z** 才停（Cloudflare cron 调度器的 ~6.5 分钟传播滞后——已入队事件
+  照常执行）；此后 9+ 分钟采样窗内零节奏行，仅零星 subreq=0 单发（部署后探针/偶发
+  liveness，无 Firestore 出站）；③GH Actions——kill-push 最后一条 scheduled run 仍为
+  13:50:59Z，schedule 停用后的应到槽位（16:25/16:30/…）全部静默通过；④沙盒——:3020
+  无监听、仅剩 Next.js 包装进程（cwd=/home/z/my-project）。
+- 本 CI-record 补记提交自身的 run 结果由协调者核验后在最终报告中向 Owner 报告
+  （§74 同例的末端处理）。
