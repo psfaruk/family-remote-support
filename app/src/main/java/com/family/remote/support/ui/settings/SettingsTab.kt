@@ -88,11 +88,15 @@ import com.family.remote.support.AssistSetup
 import com.family.remote.support.AssistSetupGuide
 import com.family.remote.support.BuildConfig
 import com.family.remote.support.Fb
+import com.family.remote.support.LocationSharingPrefs
 import com.family.remote.support.MainActivity
 import com.family.remote.support.PermChecklist
 import com.family.remote.support.R
 import com.family.remote.support.StatusRow
 import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.isLocationSharingRunning
+import com.family.remote.support.startLocationSharing
+import com.family.remote.support.stopLocationSharing
 import com.family.remote.support.ui.LangPrefBus
 import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.ThemePreview
@@ -378,11 +382,11 @@ internal fun SettingsTab(
     // documents (Owner: "নীতিমালা ও প্রাইভেসি পলিসি এই ফিচারস গুলো উন্মুক্ত ও
     // অ্যাপ এ থাকা উচিত")।
     SectionCard(title = stringResource(R.string.set_section_location), icon = Icons.Filled.LocationOn) {
-        Text(
-            text = stringResource(R.string.set_loc_status),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // M5 (v0.33.0) — the "planned" note is replaced by the real
+        // controls: sharing toggle (+ runtime permission gate) and the
+        // update-interval choice; the two policy documents stay.
+        LocationSharingControls()
+        HorizontalDivider()
         SettingsTile(
             icon = Icons.Filled.Lock,
             title = stringResource(R.string.set_privacy),
@@ -789,6 +793,208 @@ internal fun DocOverlay(
                 )
             }
         }
+    }
+}
+
+/**
+ * M5 (v0.33.0) — the Location & Privacy partition's live-sharing controls:
+ * the owner's standing ON/OFF toggle (+ the runtime while-in-use location
+ * permission gate — Android 14's location-FGS rule) and the update-interval
+ * choice (30 s / 1 min / 5 min, LIVE_LOCATION_ARCHITECTURE §6). The same
+ * LocationSharingPrefs / start-stop path the Tracking tab's OwnSharingCard
+ * drives; the Tracking tab adds the consent SHEET before a first start,
+ * here the toggle doubles as the always-available off-switch (stop is one
+ * tap by design — mirroring the sharing notification's stop affordance).
+ */
+@Composable
+private fun LocationSharingControls() {
+    val context = LocalContext.current
+    var sharingOn by remember {
+        mutableStateOf(LocationSharingPrefs.isSharingEnabled(context))
+    }
+    var intervalMillis by remember {
+        mutableStateOf(LocationSharingPrefs.intervalMillis(context))
+    }
+    var showIntervalDialog by remember { mutableStateOf(false) }
+
+    // Turning sharing ON needs the while-in-use grant first (the FGS cannot
+    // legally start without it on Android 14). The system dialog only ever
+    // appears AFTER this row has spelled out what the permission is for.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val fine = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarse = grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fine || coarse) {
+            startLocationSharing(context)
+            sharingOn = true
+        } else {
+            // Honest denial: nothing starts; the toast explains why.
+            Toast.makeText(context, R.string.loc_denied_body, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    SettingsTile(
+        icon = Icons.Filled.LocationOn,
+        title = stringResource(
+            if (sharingOn) R.string.loc_share_on else R.string.loc_share_off
+        ),
+        description = stringResource(
+            if (sharingOn) R.string.loc_banner_on else R.string.loc_banner_off
+        ),
+        trailing = {
+            Switch(
+                checked = sharingOn,
+                onCheckedChange = { wantOn ->
+                    if (wantOn) {
+                        val fine = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                        val coarse = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (fine || coarse) {
+                            startLocationSharing(context)
+                            sharingOn = true
+                        } else {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        }
+                    } else {
+                        // Stop is ALWAYS one tap — no confirmation sheet for
+                        // ending sharing (the owner's standing privacy rule).
+                        stopLocationSharing(context)
+                        sharingOn = false
+                    }
+                }
+            )
+        }
+    )
+    HorizontalDivider()
+    SettingsTile(
+        icon = Icons.Filled.List,
+        title = stringResource(R.string.loc_interval_label),
+        description = intervalChoiceLabel(intervalMillis),
+        onClick = { showIntervalDialog = true }
+    )
+
+    if (showIntervalDialog) {
+        AlertDialog(
+            onDismissRequest = { showIntervalDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.loc_interval_label),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IntervalChoiceRow(
+                        label = stringResource(R.string.loc_interval_30s),
+                        value = LocationSharingPrefs.INTERVAL_30S,
+                        currentMillis = intervalMillis,
+                        onPick = {
+                            applyIntervalChoice(it)
+                            intervalMillis = it
+                            showIntervalDialog = false
+                        },
+                        applyIntervalChoice = { picked ->
+                            LocationSharingPrefs.setIntervalMillis(context, picked)
+                            // The service reads the interval at start; restart
+                            // it so a LIVE change takes effect immediately.
+                            // The stop path deletes the shared doc once and
+                            // the fresh start republishes on the next accepted
+                            // fix — freshness stays honest throughout (never
+                            // "live" during the gap).
+                            if (sharingOn && isLocationSharingRunning(context)) {
+                                stopLocationSharing(context)
+                                startLocationSharing(context)
+                            }
+                        }
+                    )
+                    IntervalChoiceRow(
+                        label = stringResource(R.string.loc_interval_1m),
+                        value = LocationSharingPrefs.INTERVAL_1M,
+                        currentMillis = intervalMillis,
+                        onPick = {
+                            applyIntervalChoice(it)
+                            intervalMillis = it
+                            showIntervalDialog = false
+                        },
+                        applyIntervalChoice = { picked ->
+                            LocationSharingPrefs.setIntervalMillis(context, picked)
+                            if (sharingOn && isLocationSharingRunning(context)) {
+                                stopLocationSharing(context)
+                                startLocationSharing(context)
+                            }
+                        }
+                    )
+                    IntervalChoiceRow(
+                        label = stringResource(R.string.loc_interval_5m),
+                        value = LocationSharingPrefs.INTERVAL_5M,
+                        currentMillis = intervalMillis,
+                        onPick = {
+                            applyIntervalChoice(it)
+                            intervalMillis = it
+                            showIntervalDialog = false
+                        },
+                        applyIntervalChoice = { picked ->
+                            LocationSharingPrefs.setIntervalMillis(context, picked)
+                            if (sharingOn && isLocationSharingRunning(context)) {
+                                stopLocationSharing(context)
+                                startLocationSharing(context)
+                            }
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showIntervalDialog = false }) {
+                    Text(stringResource(R.string.set_cancel))
+                }
+            }
+        )
+    }
+}
+
+/** Localized label for the currently configured interval. */
+@Composable
+private fun intervalChoiceLabel(millis: Long): String = when (millis) {
+    LocationSharingPrefs.INTERVAL_30S -> stringResource(R.string.loc_interval_30s)
+    LocationSharingPrefs.INTERVAL_5M -> stringResource(R.string.loc_interval_5m)
+    else -> stringResource(R.string.loc_interval_1m)
+}
+
+/** One radio row of the interval dialog (the language dialog's row style). */
+@Composable
+private fun IntervalChoiceRow(
+    label: String,
+    value: Long,
+    currentMillis: Long,
+    onPick: (Long) -> Unit,
+    applyIntervalChoice: (Long) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                applyIntervalChoice(value)
+                onPick(value)
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = currentMillis == value,
+            onClick = {
+                applyIntervalChoice(value)
+                onPick(value)
+            }
+        )
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
