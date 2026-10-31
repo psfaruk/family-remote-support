@@ -2387,3 +2387,60 @@ revoke করলে লোকেশন-অ্যাক্সেস তাৎক�
 - **দাবির সীমা (সৎ):** "কাজ করছে" = CI-সফল + Owner-এর ফোন-টেস্টের পরেই — স্যান্ডবক্সে
   Gradle/emulator নেই। ফিক্স-রাউন্ডটি এই সেশনের ভুল (কোঅর্ডিনেটরের হাতের লেখা), ডকুমেন্টে
   লুকানো নয়।
+
+
+## §69 — Phase 22/M6（v0.33.0/52 不变）：Family/Guest 授权验证 + G1–G4 对账（2026-10-31）
+
+> **语言切换记录：** 自本条起，worklog 新条目改用中文（Owner 当日明确指示"孟加拉语看不懂，
+> 不要再用孟加拉语"）。历史条目（§1–§68）保持原样，不回改。
+
+**触发：** Owner 的 **"M6"** 指令（= §68 承诺的"পরবর্তী = M6 — Family/Guest authorization
+verification + G1–G4 deltas"）+ 语言指示（此后交流与新条目用中文）。
+
+**推送前校验（诚实）：** 远端 `psfaruk/family-remote-support` main，HEAD `7811ef5`（M5
+CI 记录推送）；CI run 41180972665 SUCCESS；本地镜像 97/97 blob-SHA 全匹配（零漂移）。
+另记：本会话继承摘要再次声称"M 体系不存在"——远端证据（commit 消息、CI run、
+IMPLEMENTATION_STATUS）再次否定；真实账号 `psfaruk`（摘要中 `psfarfarfaruk` 为拼写漂移，
+§68 已记录过一次）。
+
+**多代理（诚实）：** 1 个真实只读 Explore 子代理（本地镜像架构清点）+ 协调者本人执行
+验证与文档。M6 为验证型里程碑，无需并行编码代理。
+
+**验证（全部 LIVE、自清理，4/4 绿）：**
+1. `rules-pairing-probe.mjs` ✅ — P1a/P1b 兑换往返 200；N1/N2（无/错 claimToken）403。
+2. `rules-audit-probe.mjs` ✅ — A0–A21 全符合（FSM 越侧/越步/超上限、载荷上限、类型
+   围栏、post-END 信号、presence/fcm schema 伪造全拒）。
+3. `rules-negative-probe.mjs` ✅ — P0/N1–N10 + P10/N11–N18/G1/G2/N12–N16b：kind 围栏
+   （family↔guest 互转/互用拒绝）、10h 访客窗拒、过期后 ask 拒、静默延期拒、lazy
+   EXPIRED 与参与者删除按设计放行。
+4. `rules-liveLocations-probe.mjs` ✅ 12/12 重跑（现行 ruleset d1a38d5e）。
+
+**G1–G4 对账：**
+- G1 ✅ M5 已交付：liveLocations 规则 LIVE + 同意页 + FAMILY_GUEST §3 矩阵行（该文档
+  本次 PLANNING → VERIFIED）。
+- G2 ⛔ M8 待办（按里程碑纪律，非 M6 范围）。
+- G3 ✅ 以"分布覆盖"关闭：OS 权限姿态 + assist 服务状态 → Security 权限向导
+  （`PermChecklist` / `AssistSetup.isAssistEnabled`，今日代码亲验）；关系/访客窗状态 →
+  home/family（M4）；共享状态 → Settings Location & Privacy + Tracking 横幅（M5）。
+  未新增任何虚构界面。
+- G4 ✅ M4 已修：manifest assist 注释今日亲验为真（canRetrieveWindowContent=true since
+  Phase 8.3，仅 ACTION_SET_TEXT）。
+
+**验收（FAMILY_GUEST §7 五条）：** ①电池重跑 4/4 绿；②撤销即时切断（N3/A21 探针证明）；
+③访客窗服务端可观测过期（N15/N16a）；④无 UI 可触发规则拒绝的操作（负向探针）；
+⑤同意界面 ×15 本地化（M5 静态门 + 今日 97/97 零漂移复核）。
+
+**变更范围（仅文档，4 个文件）：** FAMILY_GUEST_AUTHORIZATION.md（PLANNING→VERIFIED +
+§3/§6/§7 证据化）、IMPLEMENTATION_STATUS.md（M6 行 ✅ + 头部 + Owner 动作）、
+TEST_PLAN.md（§1 电池重跑记录）、本 worklog §69。**无任何代码/规则/依赖/字符串变更；
+两机继续 v0.33.0/52。**
+
+**验证边界（诚实）：** 沙盒无 Gradle/模拟器——探针是真实运行时规则证明，但设备端 UX
+仍属 Owner 手机实测（TEST_PLAN #10–#15 未变）。
+
+**推送：** readback-verify 管线（GET sha → PUT → GET download → SHA256 对比）。
+CI 记录推送后补记于本节（诚实：SUCCESS 才写）。
+
+**Owner 动作：** (1) 无需重装（APK 未变）；未做完的 TEST_PLAN #10–#15/#7/#8/#24 继续；
+(2) Cloudflare `FIREBASE_SA_JSON`（自 §60 悬置）；(3) **下一步 = M7** —— 远程支持集成
+审计（WebRTC 屏幕共享 / assist 无回归）。
