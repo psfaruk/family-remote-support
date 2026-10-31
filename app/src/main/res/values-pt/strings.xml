@@ -39,6 +39,39 @@
     <string name="loc_title">Localização ao vivo</string>
     <string name="loc_coming_title">Chegará em uma atualização futura</string>
     <string name="loc_coming_body">A localização ao vivo da família aparecerá aqui — sempre com o consentimento explícito da outra pessoa. Hoje nada é coletado nem compartilhado.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Compartilhar a localização deste telefone</string>
+    <string name="loc_share_body">Seu familiar emparelhado verá a posição ao vivo deste telefone em um mapa enquanto o compartilhamento estiver ativado. Só a última posição é guardada — nunca um histórico — e você pode parar a qualquer momento.</string>
+    <string name="loc_share_start">Começar a compartilhar</string>
+    <string name="loc_share_stop">Parar de compartilhar</string>
+    <string name="loc_share_on">O compartilhamento de localização está ATIVADO</string>
+    <string name="loc_share_off">O compartilhamento de localização está desativado</string>
+    <string name="loc_banner_on">Você está compartilhando a localização deste telefone agora</string>
+    <string name="loc_banner_off">O compartilhamento está desativado — a posição deste telefone não está sendo enviada</string>
+    <string name="loc_interval_label">Intervalo de atualização</string>
+    <string name="loc_interval_30s">A cada 30 segundos</string>
+    <string name="loc_interval_1m">A cada minuto</string>
+    <string name="loc_interval_5m">A cada 5 minutos</string>
+    <string name="loc_notif_title">O compartilhamento de localização está ativado</string>
+    <string name="loc_notif_body">Toque para abrir o app e parar de compartilhar.</string>
+    <string name="loc_fresh_live">Ao vivo</string>
+    <string name="loc_fresh_stale">Desatualizada</string>
+    <string name="loc_fresh_offline">Off-line</string>
+    <string name="loc_last_known">Última conhecida — %1$s</string>
+    <string name="loc_never">Nunca compartilhada</string>
+    <string name="loc_no_fix">Aguardando a primeira posição…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Atualizada %1$s</string>
+    <string name="loc_details">Detalhes da localização</string>
+    <string name="loc_open_maps">Abrir no app de mapas</string>
+    <string name="loc_perm_title">É preciso permissão de localização</string>
+    <string name="loc_perm_body">A permissão de localização permite que sua família veja a posição deste telefone enquanto você escolher compartilhá-la. Ela só é usada enquanto a notificação visível de compartilhamento estiver sendo exibida.</string>
+    <string name="loc_denied_title">Acesso à localização negado</string>
+    <string name="loc_denied_body">A permissão de localização foi negada. O compartilhamento não pode começar até que ela seja concedida nos ajustes do sistema.</string>
+    <string name="loc_empty_title">Ainda não há dispositivos emparelhados</string>
+    <string name="loc_empty_body">Emparelhe primeiro um dispositivo da família — a posição ao vivo dele aparecerá aqui com o consentimento explícito do dono.</string>
+    <string name="loc_list_title">Escolha um dispositivo</string>
     <string name="set_section_account">Conta</string>
     <string name="set_profile_title">Perfil</string>
     <string name="set_profile_sub">Nome e e-mail desta conta</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Telefones emparelhados</string>
     <string name="set_dev_entry_d">Status em tempo real, ações de suporte e revogação</string>
     <string name="set_loc_status">A localização em tempo real está planejada para uma próxima versão. Hoje nenhum local é coletado ou armazenado.</string>
+    <string name="set_loc_now">Compartilhe a localização ao vivo deste telefone com os dispositivos da família emparelhados. Só a última posição é guardada — nunca um histórico.</string>
     <string name="set_guest_note">Os links de convidado são temporários (até 3 horas) e nunca se tornam emparelhamentos familiares permanentes.</string>
 </resources>
