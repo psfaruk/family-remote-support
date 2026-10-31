@@ -1,8 +1,14 @@
 # LIVE_LOCATION_ARCHITECTURE — Consent-Based Family Location Sharing (Master-Plan M5)
 
-> Status: **PLANNING — awaiting Owner approval.** Today the app has **zero** location code:
-> no permissions, no library, no map (Agent 2-b audit). The "Live location" tab is a
-> placeholder (`MainActivity.kt:3038-3046`). Everything below is the design to be approved.
+> Status: **IMPLEMENTED — M5 shipped (v0.33.0 / versionCode 52, 2026-10-31).** The design
+> below was executed as specified: engine + FGS (M5.a/b), Tracking tab map + detail route
+> (M5.c), Settings partition + consent + i18n ×15 (M5.d), rules block **published live +
+> runtime probe 12/12 PASS** (`scripts/rules-liveLocations-probe.mjs`), CI gate + TEST_PLAN
+> location scenarios (M5.e). The original placeholder-era audit note is kept below for the
+> record: at planning time the app had **zero** location code — no permissions, no library,
+> no map (Agent 2-b audit); the "Live location" tab was a placeholder
+> (`MainActivity.kt:3038-3046` then). Remaining honest limits: no background-location
+> permission in v1 (§5), tile policy at family scale only (§8), no offline map packaging.
 
 ## 1. Repository & architecture assessment (why existing infra suffices)
 
