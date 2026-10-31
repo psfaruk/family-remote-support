@@ -171,6 +171,21 @@ import com.family.remote.support.ui.home.SessionWatchViewModel
 import com.family.remote.support.ui.pairing.PairingCard
 import com.family.remote.support.ui.settings.SettingsTab
 import com.family.remote.support.ui.tracking.TrackingTab
+// M4 (v0.32.0) — nested Home detail routes (NAVIGATION_MAP §2: home/family,
+// home/family/{relId}, home/sessions, home/sessions/{id}) and their motion
+// (map §4: forward slide ≈200 ms honoring the system Animator scale).
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.family.remote.support.ui.home.FamilyOverviewScreen
+import com.family.remote.support.ui.home.MemberDetailScreen
+import com.family.remote.support.ui.home.RecentActivityScreen
+import com.family.remote.support.ui.home.SessionDetailScreen
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.FamilyRemoteSupportTheme
@@ -676,6 +691,31 @@ fun HomeScreen() {
     // inside the session card, same unmount semantics as the old when(tab)).
     // Crossfade ≤150 ms between destinations per NAVIGATION_MAP §4.
     val navController = rememberNavController()
+    // M4 (v0.32.0) — nested detail-route motion (NAVIGATION_MAP §4):
+    // forward slide ≈200 ms (fade-tinted), pop slides back out. The duration
+    // honors the system Animator duration scale — a user who disabled
+    // animations gets instant transitions (tween(0)), the honest
+    // reduced-motion behavior. The tab crossfade stays 120 ms as in M2.
+    val nestedDur = remember {
+        val scale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f
+        )
+        (200 * scale).toInt()
+    }
+    val nestedEnter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+        slideInHorizontally(tween(nestedDur)) { it / 3 } + fadeIn(tween(nestedDur))
+    }
+    val nestedExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+        fadeOut(tween(nestedDur / 2))
+    }
+    val nestedPopEnter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+        fadeIn(tween(nestedDur / 2))
+    }
+    val nestedPopExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+        slideOutHorizontally(tween(nestedDur)) { it / 3 } + fadeOut(tween(nestedDur))
+    }
     Scaffold(
         topBar = {
             AppTopBar(
@@ -727,12 +767,103 @@ fun HomeScreen() {
                         onOpenWizard = { showWizard = true },
                         onRetryRegistration = { registerRetryKey++ },
                         onGoPairing = { navController.goTab(AppRoutes.ADD) },
+                        // M4 — nested-navigation entry points (NAVIGATION_MAP
+                        // §2): Family Overview + Recent Activity live UNDER
+                        // Home as detail routes, not extra tabs (C2).
+                        onOpenFamily = {
+                            navController.navigate(AppRoutes.HOME_FAMILY) { launchSingleTop = true }
+                        },
+                        onOpenActivity = {
+                            navController.navigate(AppRoutes.HOME_SESSIONS) { launchSingleTop = true }
+                        },
                         busy = busy,
                         onSignIn = startSignIn,
                         // M3 — real session-watch states (SessionWatchViewModel)
                         sessionsError = homeSessionsState.error?.takeIf { !homeSessionsLoaded },
                         sessionsLoading = !homeSessionsLoaded,
                         onRetrySessions = { sessionRetryKey++ }
+                    )
+                }
+            }
+            // ── M4 (v0.32.0) — NESTED HOME ROUTES (NAVIGATION_MAP §2) ──────
+            // The Family Overview list, its Member Detail screen (the old
+            // paired-phone action bottom-sheet, promoted), the Recent
+            // Activity list and the Session Detail screen. System back pops
+            // them (map §3); the Home tab stays selected (tabForRoute).
+            composable(
+                AppRoutes.HOME_FAMILY,
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) {
+                ShellTabColumn {
+                    val user = signedInUser
+                    if (user != null) {
+                        FamilyOverviewScreen(
+                            user = user,
+                            onOpenMember = { relId ->
+                                navController.navigate("home/family/$relId") { launchSingleTop = true }
+                            },
+                            onGoAddDevice = { navController.goTab(AppRoutes.ADD) }
+                        )
+                    }
+                }
+            }
+            composable(
+                AppRoutes.HOME_FAMILY_ARG,
+                arguments = listOf(navArgument("relId") { type = NavType.StringType }),
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) { entry ->
+                ShellTabColumn {
+                    val user = signedInUser
+                    val relId = entry.arguments?.getString("relId").orEmpty()
+                    if (user != null) {
+                        MemberDetailScreen(
+                            user = user,
+                            relId = relId,
+                            openSession = openSession,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+            }
+            composable(
+                AppRoutes.HOME_SESSIONS,
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) {
+                ShellTabColumn {
+                    RecentActivityScreen(
+                        user = signedInUser,
+                        sessions = homeSessions,
+                        sessionsLoaded = homeSessionsLoaded,
+                        sessionsError = homeSessionsState.error?.takeIf { !homeSessionsLoaded },
+                        onRetrySessions = { sessionRetryKey++ },
+                        onOpenSession = { id ->
+                            navController.navigate("home/sessions/$id") { launchSingleTop = true }
+                        }
+                    )
+                }
+            }
+            composable(
+                AppRoutes.HOME_SESSION_ARG,
+                arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) { entry ->
+                ShellTabColumn {
+                    SessionDetailScreen(
+                        sessionId = entry.arguments?.getString("id").orEmpty(),
+                        liveSessions = homeSessions,
+                        onBack = { navController.popBackStack() }
                     )
                 }
             }
@@ -837,7 +968,13 @@ fun HomeScreen() {
                             }
                         }
                     },
-                    onOpenWizard = { showWizard = true }
+                    onOpenWizard = { showWizard = true },
+                    // M4 — the Settings Device Management / Guest Access
+                    // partitions point into the Home family subtree
+                    // (NAVIGATION_MAP §2: settings/devices reuses home/family).
+                    onOpenFamily = {
+                        navController.navigate(AppRoutes.HOME_FAMILY) { launchSingleTop = true }
+                    }
                     )
                 }
             }
