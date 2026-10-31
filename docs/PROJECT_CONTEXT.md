@@ -1,8 +1,9 @@
 # PROJECT_CONTEXT — Remote Family Support & Device Assistance Platform
 
 > Master-plan shared-context document (required by the coordinated multi-agent workflow).
-> **Status: IMPLEMENTATION (Phase 21 / master-plan M2 shipped 2026-10-31 — the Owner approved the M1 doc set with the "M2 শুরু করো" command).**
-> Created: 2026-10-31 (Asia/Dhaka) · HEAD at creation: `cf87601` · Build now: **v0.30.0 (versionCode 49)** — first master-plan implementation release (NAVIGATION_MAP §6)
+> **Status: IMPLEMENTATION (Phase 21 / master-plan M4 shipped 2026-10-31 — nested navigation
+> wave 1 + Settings 8 partitions; the Owner drives each milestone with an explicit command).**
+> Created: 2026-10-31 (Asia/Dhaka) · Build now: **v0.32.0 (versionCode 51)**
 > Repo: `psfaruk/family-remote-support` (public, branch `main`, sole committer pipeline: Contents-API push + readback-verify)
 
 ---
@@ -18,9 +19,10 @@ is a hard design constraint.
 | Item | Verified state |
 |---|---|
 | Phases completed | 0–14.1, 15, 16 (4-tab shell restructure), 17, 18.1–18.9 (deep-audit series), 19.1–19.2 (full i18n), 20 (Firestore quota incident fix) |
-| Current build | v0.29.0 / versionCode 48 (CI AXML-gated) |
-| Live location | Tab exists as an **honest placeholder** ("coming soon"); zero location code/permissions today |
-| Owner pending | (1) install v0.29.0 on both phones after quota reset; (2) set Cloudflare `FIREBASE_SA_JSON` secret (permanent kill-push tier still inactive) |
+| Master-plan milestones | M0 audit · M1 docs · M2 shell · M3 screen extraction + ViewModel · **M4 nested Home subtree + Settings 8 partitions (v0.32.0/51)** — all shipped 2026-10-31 |
+| Current build | v0.32.0 / versionCode 51 (CI AXML-gated) |
+| Live location | Tab exists as an **honest placeholder** ("coming soon"); zero location code/permissions today — M5 |
+| Owner pending | (1) install v0.32.0/51 on both phones after CI SUCCESS (TEST_PLAN #7/#8/#24); (2) set Cloudflare `FIREBASE_SA_JSON` secret (permanent kill-push tier still inactive) |
 
 ## 2. Repository structure
 
@@ -140,22 +142,26 @@ singleton): helper/recipient roles, MediaProjection capture, WebRTC publish/subs
 assist-cmd dispatch, diagnostics. Recipient sees a persistent session bar + fullscreen
 viewer; consent modal + stop controls always visible. Remote interaction =
 `AssistService` (AccessibilityService, gesture injection taps/swipes/global-nav + typing via
-`ACTION_SET_TEXT`), guided setup `AssistSetup.kt`. **Known doc drift:** manifest comment claims
-`canRetrieveWindowContent=false` but `assist_service_config.xml` sets `true` — privacy copy
-must be corrected in M2 (Agent 2-a risk #9). Android re-consent behavior documented in
+`ACTION_SET_TEXT`), guided setup `AssistSetup.kt`. **Doc drift FIXED M4 (v0.32.0):** the manifest comment now matches
+`assist_service_config.xml` (`canRetrieveWindowContent=true` since Phase 8.3 — its only
+consumer is the ACTION_SET_TEXT typing command; node text is never read, logged or stored).
+Android re-consent behavior documented in
 ANDROID_PERMISSION_MATRIX.md; no bypass of system dialogs anywhere.
 
-## 10. Navigation structure (current, post-M2) — NAVIGATION_MAP.md is the target map
+## 10. Navigation structure (current, post-M4) — NAVIGATION_MAP.md is the target map
 
 **Navigation-Compose shell (Decision C3 adopted at the M2 spike):** `MainActivity` composes a
 `NavHost` with the 4 tab destinations (home / add / tracking / settings) + a `notifications`
-route; routes, `goTab` (saveState/restoreState) and the top/bottom bars live in
-`ui/nav/AppNav.kt`; per-destination scroll columns preserve Phase-11.6 behavior. Bell →
-notifications surface (`ui/notifications/NotificationsScreen.kt`, real events only, in-memory).
-Overlays (wizard, pair sheet, consent modal, session dialogs, fullscreen viewer) keep their
-pre-M2 composition sites. Deliberate delta: system back from a non-start tab returns Home
-before exiting (platform-standard). Remaining manual parts (session/assistant flows, screens)
-extract progressively M3+.
+route **+ the M4 nested Home subtree**: `home/family` (Family Overview — the trusted-device
+list), `home/family/{relId}` (Member Details — the old action sheet: request-session, revoke,
+guest remove), `home/sessions` (Recent Activity) and `home/sessions/{id}` (Session Details).
+Routes, `goTab` (saveState/restoreState) and the top/bottom bars live in `ui/nav/AppNav.kt`
+(`AppRoutes.tabForRoute` keeps the Home tab selected on nested routes); nested routes slide
+≈200 ms honoring the system Animator duration scale; system back pops them. Settings is the
+master's 8-partition grouped list (devices/guest entries route into home/family). The add/*
+flow stays modal ON PURPOSE (map §3). Overlays (wizard, pair sheet, consent modal, session
+dialogs, fullscreen viewer) keep their pre-M2 composition sites. Remaining route work:
+tracking/* = M5; settings/* sub-routes = later waves.
 
 ## 11. Design system (current)
 
@@ -190,7 +196,7 @@ Remaining planned additions: `lifecycle-viewmodel-compose` (M3), `play-services-
 1. Live location tab = placeholder promise with permanent nav slot (`MainActivity.kt:3038-3046`).
 2. ~15 user-visible hardcoded Bengali/English string lines outside resources (assist-ack toasts,
    session status lines, service channel text, 2 a11y labels) — top-bar title fixed in M2.
-3. Manifest/assist-config documentation drift (`canRetrieveWindowContent`).
+3. ~~Manifest/assist-config documentation drift~~ **FIXED M4 (v0.32.0):** the manifest comment now tells the truth (`canRetrieveWindowContent=true` since Phase 8.3 — ACTION_SET_TEXT typing only).
 4. ~~Bell routes to Settings~~ FIXED M2: bell opens the dedicated notifications surface.
 5. Several listeners swallow errors (`onError = {}`); no uniform loading/error component.
 6. ~3 untranslated keys per locale; emoji-glyph session keys don't localize.
