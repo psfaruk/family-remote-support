@@ -25,7 +25,7 @@ A trusted family member helps fix another family phone — always with the recei
   quota-aware backoff (≈ 11.5%), the shared sweep EXPIRES deadline-less zombie REQUESTED docs
   instead of re-reading them forever, RESOURCE_EXHAUSTED now shows an honest localized message
   (err_quota × 15 locales) instead of a raw English dump, and the presence badge/chip labels
-  are localized too. **Current build: v0.32.0 (versionCode 51)** — full records in
+  are localized too. **Current build: v0.33.0 (versionCode 52)** — full records in
   `worklog.md` §63.
 
 - **Phase 21 / M1 ✅ (docs only, APK unchanged v0.29.0/48):** full repository audit by 3 parallel
@@ -33,6 +33,26 @@ A trusted family member helps fix another family phone — always with the recei
   LIVE_LOCATION_ARCHITECTURE, FAMILY_GUEST_AUTHORIZATION, ANDROID_PERMISSION_MATRIX, TEST_PLAN,
   IMPLEMENTATION_STATUS + UI_UX §26 reconciliation). Live location graduates from placeholder to
   a consent-based, quota-bounded Firestore design at M5.
+- **Phase 22 / M5 ✅ (v0.33.0, versionCode 52) — LIVE LOCATION (Owner's "M5" command):**
+  The Tracking tab is real now — consent-based family location sharing exactly per
+  `docs/LIVE_LOCATION_ARCHITECTURE.md`: osmdroid OSM map (Apache-2.0, mandatory on-map
+  attribution, app User-Agent per OSMF tile policy) with one marker per authorized
+  counterpart, LIVE/STALE/OFFLINE freshness (an old coordinate is NEVER labeled live;
+  "Last known — HH:MM ±N m" always visible), device selector sheet, consent sheet →
+  runtime FINE/COARSE grant → location-type FGS with a persistent coordinate-free
+  notification (stop is one tap, in three places: notification / Tracking / Settings).
+  Engine: FusedLocation with LocationManager fallback, Δt/Δd/accuracy gates (≥interval,
+  ≥25 m, ≤100 m), stationary back-off ×2→5 min, update-in-place single doc
+  `liveLocations/{uid}_{devId}` — never a history (deleted on stop/sign-out; the sweeps
+  can never touch the collection). Rules: counterpart-of-ACTIVE-relationship only (guest
+  window honored) + sharingEnabled + field/range/±5-min-freshness enforcement —
+  **probe-verified live: 12/12 cases** (deny stranger / sharing-off / revoked /
+  post-window-guest / forged-fields / out-of-range / stale-timestamp / impersonated-write /
+  list; allow ACTIVE counterpart + live guest). `tracking/{relId}` Location Details route
+  (read-only counterpart status + open-in-maps). Settings Location partition made real
+  (toggle + 30 s/1 min/5 min interval). 2 real parallel agents (M5-A engine / M5-C map UI)
+  + coordinator surgery; i18n +32 keys × 15 locales. Full record in `worklog.md` §68.
+
 - **Phase 21 / M2 ✅ (v0.30.0, versionCode 49) — SHARED APPLICATION SHELL (Owner approved the M1
   doc set with the "M2 শুরু করো" command):**
   • Decision C3 spike ADOPTED — the shell now runs on **Navigation-Compose 2.8.2**: 4 tab
