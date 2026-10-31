@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">حاول مرة أخرى</string>
     <string name="states_open_settings">افتح إعدادات النظام</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">أجهزة العائلة</string>
+    <string name="fam_empty_t">لا توجد هواتف مقترنة بعد</string>
+    <string name="fam_empty_h">اقرن هاتفًا من تبويب إضافة جهاز — وسيظهر هنا مع حالته المباشرة.</string>
+    <string name="fam_not_found">لم يتم العثور على هذا الاقتران.</string>
+    <string name="fam_not_found_h">ربما تم إلغاؤه أو إزالته من هذا الحساب.</string>
+    <string name="actv_title">النشاط الأخير</string>
+    <string name="actv_tile_d">جلسات الدعم الجارية والمنتهية حديثًا</string>
+    <string name="actv_empty_t">لا توجد جلسات بعد</string>
+    <string name="actv_empty_h">تظهر جلسات الدعم هنا أثناء تشغيلها وبعد انتهائها مباشرة.</string>
+    <string name="sess_title">تفاصيل الجلسة</string>
+    <string name="sess_not_found">لم يتم العثور على هذه الجلسة.</string>
+    <string name="sess_not_found_h">افتح النشاط الأخير لرؤية أحدث الجلسات.</string>
+    <string name="sess_state">الحالة</string>
+    <string name="sess_kind">النوع</string>
+    <string name="sess_helper">المساعد</string>
+    <string name="sess_recipient">المستفيد</string>
+    <string name="sess_duration">المدة</string>
+    <string name="sess_endedby">أنهاها</string>
+    <string name="sess_family">عائلة</string>
+    <string name="sess_guest">ضيف</string>
+    <string name="cd_back">رجوع</string>
+    <string name="set_section_devices">إدارة الأجهزة</string>
+    <string name="set_section_location">الموقع والخصوصية</string>
+    <string name="set_section_remote">الدعم عن بُعد</string>
+    <string name="set_section_guest">وصول الضيوف</string>
+    <string name="set_section_security">الأمان</string>
+    <string name="set_dev_entry_t">الهواتف المقترنة</string>
+    <string name="set_dev_entry_d">الحالة المباشرة وإجراءات الدعم وإلغاء الوصول</string>
+    <string name="set_loc_status">الموقع المباشر مخطط له في إصدار قادم. لا يتم جمع أي موقع أو تخزينه اليوم.</string>
+    <string name="set_guest_note">روابط الضيوف مؤقتة (حتى ٣ ساعات) ولا تتحول أبدًا إلى اقتران عائلي دائم.</string>
 </resources>
