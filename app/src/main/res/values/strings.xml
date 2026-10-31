@@ -440,4 +440,8 @@
     <string name="notif_empty_title">Nothing needs you right now</string>
     <string name="notif_empty_body">Support requests, live sessions and setup warnings appear here the moment they happen.</string>
     <string name="notif_hint">Only real, current events — nothing is invented and nothing is stored as history.</string>
+
+    <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
+    <string name="states_retry">Try again</string>
+    <string name="states_open_settings">Open system settings</string>
 </resources>
