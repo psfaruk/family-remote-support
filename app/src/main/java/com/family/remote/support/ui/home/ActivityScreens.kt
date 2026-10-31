@@ -20,7 +20,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,13 +38,13 @@ import com.family.remote.support.ui.components.AppListTile
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.ErrorPanel
 import com.family.remote.support.ui.components.LoadingSkeleton
+import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.family.remote.support.ui.components.sessionBadgeKind
 import com.family.remote.support.ui.components.sessionStatus
 import com.family.remote.support.ui.components.statusChipColors
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 
 // ═══════════════════════════════════════════════════════════════════════
 // M4 (v0.32.0) — the nested Home destinations (NAVIGATION_MAP §2):
@@ -89,16 +88,8 @@ internal fun RecentActivityScreen(
     // via one one-shot getSession of the id that just disappeared).
     var lastFinished by remember { mutableStateOf<SessionView?>(null) }
     var lastOpenId by remember { mutableStateOf<String?>(null) }
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     val context = LocalContext.current
     val meUid = user?.uid
-
-    LaunchedEffect(user?.uid) {
-        while (true) {
-            nowMillis = System.currentTimeMillis()
-            delay(1000)
-        }
-    }
 
     val openSession = sessions.firstOrNull {
         it.status == "REQUESTED" || it.status == "ACTIVE"
@@ -147,58 +138,69 @@ internal fun RecentActivityScreen(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         sessions.forEachIndexed { index, s ->
             if (index > 0) HorizontalDivider()
-            val secondsLeft = when (s.status) {
-                "REQUESTED" -> ((s.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0)
-                else -> ((s.sessionEndsAtMillis - nowMillis) / 1000).coerceAtLeast(0)
+            // M8 (v0.34.0) perf pass — the countdown lives inside the row's
+            // own TickingBlock, so ONLY that row re-renders each second (the
+            // screen heading, states and last-finished row stay still).
+            TickingBlock(key = s.id) { now ->
+                val secondsLeft = when (s.status) {
+                    "REQUESTED" -> ((s.respondDeadlineMillis - now) / 1000).coerceAtLeast(0)
+                    else -> ((s.sessionEndsAtMillis - now) / 1000).coerceAtLeast(0)
+                }
+                AppListTile(
+                    title = when {
+                        s.status == "REQUESTED" && s.recipientUid == meUid ->
+                            stringResource(
+                                R.string.feed_req_received,
+                                s.helperEmail.ifBlank { stringResource(R.string.fallback_someone) }
+                            )
+                        s.status == "REQUESTED" ->
+                            stringResource(R.string.feed_req_sent, s.recipientEmail)
+                        s.status == "ACTIVE" && s.helperUid == meUid ->
+                            stringResource(R.string.feed_active_theirs, s.recipientEmail)
+                        else ->
+                            stringResource(
+                                R.string.feed_active_mine,
+                                s.helperEmail.ifBlank { stringResource(R.string.fallback_someone) }
+                            )
+                    },
+                    subtitle = when {
+                        s.status == "REQUESTED" && s.recipientUid == meUid ->
+                            stringResource(R.string.feed_need_decision, mmss(secondsLeft))
+                        s.status == "REQUESTED" ->
+                            stringResource(R.string.feed_awaiting, mmss(secondsLeft))
+                        else ->
+                            stringResource(R.string.feed_in_progress, mmss(secondsLeft))
+                    },
+                    icon = if (s.status == "ACTIVE") Icons.Filled.CheckCircle else Icons.Filled.Send,
+                    avatarContainer = if (s.status == "ACTIVE") {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    },
+                    avatarContent = if (s.status == "ACTIVE") {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    },
+                    chip = if (s.kind == "guest") {
+                        stringResource(R.string.sess_guest)
+                    } else {
+                        sessionStatus(context, s.status)
+                    },
+                    chipContainer = if (s.kind == "guest") {
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    } else {
+                        statusChipColors(sessionBadgeKind(s.status)).first
+                    },
+                    chipContent = if (s.kind == "guest") {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    } else {
+                        statusChipColors(sessionBadgeKind(s.status)).second
+                    },
+                    onClick = { onOpenSession(s.id) },
+                    trailingIcon = Icons.Filled.KeyboardArrowRight
+                )
             }
-            AppListTile(
-                title = when {
-                    s.status == "REQUESTED" && s.recipientUid == meUid ->
-                        stringResource(R.string.feed_req_received, s.helperEmail.ifBlank { "Someone" })
-                    s.status == "REQUESTED" ->
-                        stringResource(R.string.feed_req_sent, s.recipientEmail)
-                    s.status == "ACTIVE" && s.helperUid == meUid ->
-                        stringResource(R.string.feed_active_theirs, s.recipientEmail)
-                    else ->
-                        stringResource(R.string.feed_active_mine, s.helperEmail.ifBlank { "Someone" })
-                },
-                subtitle = when {
-                    s.status == "REQUESTED" && s.recipientUid == meUid ->
-                        stringResource(R.string.feed_need_decision, mmss(secondsLeft))
-                    s.status == "REQUESTED" ->
-                        stringResource(R.string.feed_awaiting, mmss(secondsLeft))
-                    else ->
-                        stringResource(R.string.feed_in_progress, mmss(secondsLeft))
-                },
-                icon = if (s.status == "ACTIVE") Icons.Filled.CheckCircle else Icons.Filled.Send,
-                avatarContainer = if (s.status == "ACTIVE") {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.tertiaryContainer
-                },
-                avatarContent = if (s.status == "ACTIVE") {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                },
-                chip = if (s.kind == "guest") {
-                    stringResource(R.string.sess_guest)
-                } else {
-                    sessionStatus(context, s.status)
-                },
-                chipContainer = if (s.kind == "guest") {
-                    MaterialTheme.colorScheme.tertiaryContainer
-                } else {
-                    statusChipColors(sessionBadgeKind(s.status)).first
-                },
-                chipContent = if (s.kind == "guest") {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                } else {
-                    statusChipColors(sessionBadgeKind(s.status)).second
-                },
-                onClick = { onOpenSession(s.id) },
-                trailingIcon = Icons.Filled.KeyboardArrowRight
-            )
         }
         lastFinished?.let { s ->
             // Divider between the open rows and the last-finished row when
@@ -293,33 +295,20 @@ internal fun SessionDetailScreen(
         else -> {
             val s = live ?: fetched!!
 
-            // 1-second tick — ONLY while the shown session is still open
-            // (the REQUESTED answer countdown is the number that moves;
-            // same tick pattern the feed cards use).
-            var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-            LaunchedEffect(s.id, s.status) {
-                if (s.status == "REQUESTED" || s.status == "ACTIVE") {
-                    while (true) {
-                        nowMillis = System.currentTimeMillis()
-                        delay(1000)
-                    }
-                }
-            }
-
             // For a final session sessionEndsAtMillis holds the end; for
             // REQUESTED the interesting number is the answer countdown —
             // mirrors how the Home/Pairing cards show their mmss numbers.
+            // M8 (v0.34.0) perf pass — the countdown Text carries its own
+            // TickingBlock now, so the whole detail screen stops
+            // recomposing every second. A FINAL session has no moving
+            // number at all, so its duration row stays completely static
+            // (the old code ticked for ACTIVE rows too, pointlessly).
             val endRef = if (s.status == "ACTIVE") {
                 s.sessionEndsAtMillis
             } else if (s.status == "REQUESTED") {
                 s.respondDeadlineMillis
             } else {
                 s.sessionEndsAtMillis
-            }
-            val shownDuration = if (s.status == "REQUESTED") {
-                mmss(((s.respondDeadlineMillis - nowMillis) / 1000).coerceAtLeast(0))
-            } else {
-                mmss(((endRef - s.requestedAtMillis) / 1000).coerceAtLeast(0))
             }
 
             // Ended-by — the working mapping from the pairing card
@@ -342,7 +331,19 @@ internal fun SessionDetailScreen(
                 )
                 StatusRow(stringResource(R.string.sess_helper), s.helperEmail.ifBlank { "—" })
                 StatusRow(stringResource(R.string.sess_recipient), s.recipientEmail.ifBlank { "—" })
-                StatusRow(stringResource(R.string.sess_duration), shownDuration)
+                if (s.status == "REQUESTED") {
+                    TickingBlock(key = s.id) { now ->
+                        StatusRow(
+                            stringResource(R.string.sess_duration),
+                            mmss(((s.respondDeadlineMillis - now) / 1000).coerceAtLeast(0))
+                        )
+                    }
+                } else {
+                    StatusRow(
+                        stringResource(R.string.sess_duration),
+                        mmss(((endRef - s.requestedAtMillis) / 1000).coerceAtLeast(0))
+                    )
+                }
                 if (endedByLabel.isNotBlank()) {
                     StatusRow(stringResource(R.string.sess_endedby), endedByLabel)
                 }
