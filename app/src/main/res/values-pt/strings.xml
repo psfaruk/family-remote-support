@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Tentar novamente</string>
     <string name="states_open_settings">Abrir configurações do sistema</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">Dispositivos da Família</string>
+    <string name="fam_empty_t">Ainda não há telefones emparelhados</string>
+    <string name="fam_empty_h">Emparelhe um telefone em Adicionar Dispositivo — ele aparecerá aqui com seu status em tempo real.</string>
+    <string name="fam_not_found">Este emparelhamento não foi encontrado.</string>
+    <string name="fam_not_found_h">Pode ter sido revogado ou removido desta conta.</string>
+    <string name="actv_title">Atividade Recente</string>
+    <string name="actv_tile_d">Sessões de suporte em andamento e recém-encerradas</string>
+    <string name="actv_empty_t">Ainda não há sessões</string>
+    <string name="actv_empty_h">As sessões de suporte aparecem aqui durante a execução e logo após terminarem.</string>
+    <string name="sess_title">Detalhes da Sessão</string>
+    <string name="sess_not_found">Esta sessão não foi encontrada.</string>
+    <string name="sess_not_found_h">Abra a Atividade Recente para ver as sessões mais recentes.</string>
+    <string name="sess_state">Status</string>
+    <string name="sess_kind">Tipo</string>
+    <string name="sess_helper">Ajudante</string>
+    <string name="sess_recipient">Destinatário</string>
+    <string name="sess_duration">Duração</string>
+    <string name="sess_endedby">Encerrada por</string>
+    <string name="sess_family">Família</string>
+    <string name="sess_guest">Convidado</string>
+    <string name="cd_back">Voltar</string>
+    <string name="set_section_devices">Gerenciamento de Dispositivos</string>
+    <string name="set_section_location">Localização e Privacidade</string>
+    <string name="set_section_remote">Suporte Remoto</string>
+    <string name="set_section_guest">Acesso de Convidado</string>
+    <string name="set_section_security">Segurança</string>
+    <string name="set_dev_entry_t">Telefones emparelhados</string>
+    <string name="set_dev_entry_d">Status em tempo real, ações de suporte e revogação</string>
+    <string name="set_loc_status">A localização em tempo real está planejada para uma próxima versão. Hoje nenhum local é coletado ou armazenado.</string>
+    <string name="set_guest_note">Os links de convidado são temporários (até 3 horas) e nunca se tornam emparelhamentos familiares permanentes.</string>
 </resources>
