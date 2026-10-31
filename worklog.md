@@ -2163,3 +2163,14 @@ CI রেকর্ড পুশ-পরে এই সেকশনে যোগ �
 **Owner-অ্যাকশন:** (১) CI SUCCESS দেখে দুই ফোনে **v0.31.0 (code 50)** — TEST_PLAN #7/#8/#24 +
 Home-এর নতুন loading/error অবস্থা চোখে দেখা; (২) Cloudflare `FIREBASE_SA_JSON` (§60 থেকে ঝুলে
 আছে); (৩) **পরবর্তী = M4** — বিদ্যমান-ফিচার ইন্টিগ্রেশন যাচাই + drift ফিক্স + nested detail রুট।
+
+**CI রেকর্ড (§66-এর প্রতিশ্রুতি অনুযায়ী, সৎ):** প্রথম রান **FAILED** — ২টি কম্পাইল-এরর, দুটোই
+AddDeviceTab.kt-এ (M3-A-এর নিষ্কাশনের সূক্ষ্ম ভুল): (১) অব্যবহৃত `friendlyError` import —
+MainActivity-এ সেটি file-private, অন্য ফাইল থেকে import করা যায় না; (২) `internal fun
+ScannedRoleSheet(scan: ScannedCode…)` file-private `ScannedCode` টাইপ expose করছিল। ১-রাউন্ড
+ফিক্স: import বাদ + ScannedRoleSheet `private` (কলার PairingSections একই ফাইলেই)। রি-পুশ
+(readback MATCH) → ফাইনাল HEAD `f9045b9`: Android Build **SUCCESS** — run **41161846658**,
+AXML গেটসহ: `✓ versionCode = 50` · `✓ versionName = "0.31.0"` (scripts/verify-apk-axml.mjs)।
+আর্টিফ্যাক্ট: app-release-apk + app-debug-apk আপলোডেড। ২টি intermediate run concurrency-তে
+বাতিল (প্রত্যাশিত)। **দাবির সীমা:** "কাজ করছে" = CI-সফল + Owner-এর ফোন-টেস্টের পরেই —
+স্যান্ডবক্সে Gradle/emulator নেই।
