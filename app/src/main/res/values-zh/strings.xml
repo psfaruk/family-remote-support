@@ -39,6 +39,38 @@
     <string name="loc_title">实时位置</string>
     <string name="loc_coming_title">将在未来更新中推出</string>
     <string name="loc_coming_body">这里将显示家人的实时位置 — 始终征得对方明确同意。目前不收集也不共享任何信息。</string>
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">共享此手机的位置</string>
+    <string name="loc_share_body">共享开启期间，已配对的家人会在地图上看到此手机的实时位置。仅保留最新位置 — 绝不保存历史记录 — 您随时可以停止。</string>
+    <string name="loc_share_start">开始共享</string>
+    <string name="loc_share_stop">停止共享</string>
+    <string name="loc_share_on">位置共享已开启</string>
+    <string name="loc_share_off">位置共享已关闭</string>
+    <string name="loc_banner_on">您正在共享此手机的位置</string>
+    <string name="loc_banner_off">共享已关闭 — 此手机的位置不会被发送</string>
+    <string name="loc_interval_label">更新间隔</string>
+    <string name="loc_interval_30s">每 30 秒</string>
+    <string name="loc_interval_1m">每 1 分钟</string>
+    <string name="loc_interval_5m">每 5 分钟</string>
+    <string name="loc_notif_title">位置共享已开启</string>
+    <string name="loc_notif_body">点按可打开应用并停止共享。</string>
+    <string name="loc_fresh_live">实时</string>
+    <string name="loc_fresh_stale">已滞后</string>
+    <string name="loc_fresh_offline">离线</string>
+    <string name="loc_last_known">最后已知位置 — %1$s</string>
+    <string name="loc_never">从未共享</string>
+    <string name="loc_no_fix">正在等待第一个定位结果…</string>
+    <string name="loc_acc_m">±%1$d 米</string>
+    <string name="loc_updated">更新于 %1$s</string>
+    <string name="loc_details">位置详情</string>
+    <string name="loc_open_maps">在地图应用中打开</string>
+    <string name="loc_perm_title">需要位置权限</string>
+    <string name="loc_perm_body">位置权限让家人在您选择共享时看到此手机的位置。仅在显示共享通知期间使用。</string>
+    <string name="loc_denied_title">位置权限已被拒绝</string>
+    <string name="loc_denied_body">位置权限已被拒绝。在系统设置中授予权限后才能开始共享。</string>
+    <string name="loc_empty_title">还没有已配对的设备</string>
+    <string name="loc_empty_body">请先配对一台家人设备 — 在对方明确同意后，其实时位置将显示在这里。</string>
+    <string name="loc_list_title">选择设备</string>
     <string name="set_section_account">账户</string>
     <string name="set_profile_title">个人资料</string>
     <string name="set_profile_sub">此账户的姓名和邮箱</string>
@@ -444,5 +476,6 @@
     <string name="set_dev_entry_t">已配对的手机</string>
     <string name="set_dev_entry_d">实时状态、支持操作与撤销访问</string>
     <string name="set_loc_status">实时位置计划在未来的版本中推出。目前不会收集或存储任何位置信息。</string>
+    <string name="set_loc_now">与已配对的家人设备共享此手机的实时位置。仅保留最新位置 — 绝不保存历史记录。</string>
     <string name="set_guest_note">访客链接是临时的（最多 3 小时），绝不会变成永久家庭配对。</string>
 </resources>
