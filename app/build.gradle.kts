@@ -13,12 +13,15 @@ android {
         applicationId = "com.family.remote.support"
         minSdk = 26
         targetSdk = 34
-        // v0.31.0 (Phase 21/M3 — frontend redesign: 4 tab screens + detail
-        // composables extracted to ui/*, ViewModel layer added, component
-        // library completed). NAVIGATION_MAP §6: v0.30.0/49 was the first-
-        // implementation version; each later M-milestone increments from there.
-        versionCode = 50
-        versionName = "0.31.0"
+        // v0.32.0 (Phase 21/M4 — nested navigation wave: home/family +
+        // home/family/{relId} + home/sessions + home/sessions/{id} routes;
+        // Settings restructured into the 8 master-instruction partitions;
+        // paired-phone list + action sheet promoted to routes; manifest
+        // assist-config doc-drift fixed). NAVIGATION_MAP §6: v0.30.0/49 was
+        // the first-implementation version; each later M-milestone
+        // increments from there.
+        versionCode = 51
+        versionName = "0.32.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
