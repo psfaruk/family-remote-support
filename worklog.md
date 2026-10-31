@@ -2626,3 +2626,15 @@ APK 从 Actions artifacts 获取；(2) 重装后快速回归：语言切到 ব�
 （倒置修复最直观验证）、通知铃铛 → Recent events 分区、登出后事件清空、TEST_PLAN
 既有设备项；(3) Cloudflare `FIREBASE_SA_JSON` 仍悬置（§70 发现 3，未变）；(4)
 **下一步 = M9** —— TEST_PLAN 全量执行 + 安全审查。
+
+**CI 记录（按本节承诺补记，诚实）：**
+- 代码阶段（30 个代码/资源推送）最终 HEAD `8e168de` run 41200332480 **FAILURE** ——
+  编译错误 ×3（如实记录）：① `SessionRepo.kt:61` localizedMessage 的 `return message`
+  可空性（Exception.message: String?）；② `ActivityScreens.kt` 缺 `LaunchedEffect`
+  import（agent 迁移 TickingBlock 时误删，两处一次性 getSession 加载仍需要它，连带
+  suspend-作用域报错）。**修复轮 1**（2 文件）：`ab9e666`/`b18b8d4` → run
+  **41200611179 SUCCESS**。
+- 文档阶段（5 个文档推送）最终 HEAD `6bfca0d` → run **41200879853 SUCCESS**。
+- 逐文件推送的中间 run 按并发设置自动取消（正常）。
+- **声明边界（诚实）：** "工作正常" = CI 编译+AXML 门 SUCCESS + 上述协调者本地静态验证；
+  设备级体验仍属 Owner 实测（本节 Owner 动作清单）。
