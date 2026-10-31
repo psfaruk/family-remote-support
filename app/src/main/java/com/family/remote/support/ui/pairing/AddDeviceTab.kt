@@ -17,6 +17,14 @@
 // + MemberDetailScreen — the NAVIGATION_MAP §2 home/family routes; the
 // sheet's revoke/remove/request-session actions now live on the Member
 // Detail screen). This file keeps the pairing FLOW only.
+//
+// v0.37.0 (dedupe wave) — THREE copies left this file: the dead answerSession
+// grant/deny body (cluster #1 → SessionActions.rememberAnswerSession), the
+// relationship listener + 30 s tick (cluster #2 → the shared
+// ui.home.rememberRelationshipWatch) and the tab-LOCAL watchSessions listener
+// (cluster #15 → the root shell's SessionWatchViewModel feeds the new
+// PairingCard/PairingSections parameters). The byWhom when-map became
+// components.endedByLabel (cluster #4).
 // ═══════════════════════════════════════════════════════════════════════
 package com.family.remote.support.ui.pairing
 
@@ -56,7 +64,6 @@ import com.family.remote.support.QrScanDialog
 import com.family.remote.support.REL_KIND_FAMILY
 import com.family.remote.support.REL_KIND_GUEST
 import com.family.remote.support.RedemptionException
-import com.family.remote.support.RelationshipView
 import com.family.remote.support.R
 import com.family.remote.support.ScreenSharePanel
 import com.family.remote.support.SessionException
@@ -67,12 +74,10 @@ import com.family.remote.support.cancelSession
 import com.family.remote.support.copyToClipboard
 import com.family.remote.support.createInvitation
 import com.family.remote.support.describeFirestoreError
-import com.family.remote.support.denySession
 import com.family.remote.support.endSession
 import com.family.remote.support.expireGuestRelationship
 import com.family.remote.support.expireSession
 import com.family.remote.support.getSession
-import com.family.remote.support.grantSession
 import com.family.remote.support.isStaleOpen
 import com.family.remote.support.localizedMessage
 import com.family.remote.support.mmss
@@ -81,16 +86,18 @@ import com.family.remote.support.redeemCode
 import com.family.remote.support.saveQrToDownloads
 import com.family.remote.support.stableDeviceId
 import com.family.remote.support.watchInvitation
-import com.family.remote.support.watchRelationships
-import com.family.remote.support.watchSessions
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.components.ErrorPanel
+import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.StatusBadge
 import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
+import com.family.remote.support.ui.components.endedByLabel
 import com.family.remote.support.ui.components.sessionStatus
 import com.family.remote.support.ui.home.HomeConsentCard
+import com.family.remote.support.ui.home.rememberRelationshipWatch
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -110,7 +117,14 @@ fun PairingCard(
     signedInUser: FirebaseUser?,
     showPairSheet: Boolean,
     onDismissPairSheet: () -> Unit,
-    onOpenPairSheet: () -> Unit
+    onOpenPairSheet: () -> Unit,
+    // v0.37.0 (dedupe wave, cluster #15) — the root shell's session-watch
+    // state replaces this tab's OWN watchSessions listener (defaults keep
+    // any unwired call site compiling; the root shell wires the real values).
+    sessions: List<SessionView> = emptyList(),
+    sessionsLoaded: Boolean = false,
+    sessionsError: String? = null,
+    onRetrySessions: (() -> Unit)? = null
 ) {
     if (signedInUser == null) {
             SectionCard(title = stringResource(R.string.phone_title), icon = Icons.Filled.Phone) {
@@ -125,7 +139,11 @@ fun PairingCard(
             user = signedInUser,
             showPairSheet = showPairSheet,
             onDismissPairSheet = onDismissPairSheet,
-            onOpenPairSheet = onOpenPairSheet
+            onOpenPairSheet = onOpenPairSheet,
+            sessions = sessions,
+            sessionsLoaded = sessionsLoaded,
+            sessionsError = sessionsError,
+            onRetrySessions = onRetrySessions
         )
     }
 }
@@ -136,7 +154,16 @@ internal fun PairingSections(
     user: FirebaseUser,
     showPairSheet: Boolean,
     onDismissPairSheet: () -> Unit,
-    onOpenPairSheet: () -> Unit
+    onOpenPairSheet: () -> Unit,
+    // v0.37.0 (dedupe wave, cluster #15) — the root shell's session-watch
+    // state (SessionWatchViewModel) replaces the tab-LOCAL watchSessions
+    // listener that used to live here: the root already watches the same
+    // query, so this tab consumes it as parameters now (defaults keep any
+    // unwired call site compiling).
+    sessions: List<SessionView> = emptyList(),
+    sessionsLoaded: Boolean = false,
+    sessionsError: String? = null,
+    onRetrySessions: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -151,8 +178,6 @@ internal fun PairingSections(
     var codeInput by remember { mutableStateOf("") }
     var redeeming by remember { mutableStateOf(false) }
     var redeemMessage by remember { mutableStateOf<String?>(null) }
-    var relationships by remember { mutableStateOf<List<RelationshipView>>(emptyList()) }
-    var relationshipsSyncError by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
     // Phase 12 — the code waiting in the role-setup sheet (scan → preview →
     // confirm → redeem → success, one automatic journey).
@@ -161,9 +186,10 @@ internal fun PairingSections(
     // success view; null while nothing redeemed yet).
     var redeemedKind by remember { mutableStateOf<String?>(null) }
 
-    // Phase 6 — support session state.
-    var sessions by remember { mutableStateOf<List<SessionView>>(emptyList()) }
-    var sessionSyncError by remember { mutableStateOf<String?>(null) }
+    // Phase 6 — support session action state (busy/message for the
+    // cancel/end buttons). The session LIST itself arrives as parameters
+    // from the root shell's SessionWatchViewModel (v0.37.0 dedupe wave,
+    // cluster #15 — this tab no longer registers its own watchSessions).
     var sessionBusy by remember { mutableStateOf(false) }
     var sessionMessage by remember { mutableStateOf<String?>(null) }
     // The last session that closed (ended/denied/cancelled/expired) — kept in
@@ -203,29 +229,17 @@ internal fun PairingSections(
         onDispose { registration?.remove() }
     }
 
-    // Live list of trusted relationships (both directions).
-    DisposableEffect(user.uid) {
-        val stopWatching = watchRelationships(
-            user,
-            onUpdate = { relationshipsSyncError = null; relationships = it },
-            onError = { e -> relationshipsSyncError = describeFirestoreError(context, e) }
-        )
-        onDispose { stopWatching() }
-    }
+    // v0.37.0 (dedupe wave, cluster #2) — the relationship listener + the
+    // 30 s freshness tick moved to the ONE shared holder
+    // (ui.home.rememberRelationshipWatch, the canonical FamilyScreens
+    // shape). This UPGRADES this tab from the older no-loaded-flag copy;
+    // the loaded/error flags simply have no list UI to drive here (the
+    // paired-phone list itself lives on the family routes), and retryKey
+    // stays 0 — this tab has no retry surface.
+    val relWatch = rememberRelationshipWatch(user, retryKey = 0)
+    val relationships = relWatch.relationships
+    val relNow = relWatch.relNow
 
-    // Phase 10 — relNow ticks every 30 s while any guest link exists, so
-    // the "বাকি সময়" countdowns stay honest without a per-second churn.
-    var relNow by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(relationships) {
-        if (relationships.any { it.kind == REL_KIND_GUEST }) {
-            while (true) {
-                relNow = System.currentTimeMillis()
-                delay(30_000)
-            }
-        } else {
-            relNow = System.currentTimeMillis()
-        }
-    }
     // Phase 10 — lazy cleanup: the first app that notices an over-time
     // guest link writes ACTIVE -> EXPIRED (the rules allow exactly this).
     LaunchedEffect(relationships, relNow) {
@@ -245,15 +259,9 @@ internal fun PairingSections(
             }
     }
 
-    // Phase 6 — live list of this account's support sessions (both roles).
-    DisposableEffect(user.uid) {
-        val stopWatching = watchSessions(
-            user,
-            onUpdate = { sessionSyncError = null; sessions = it },
-            onError = { e -> sessionSyncError = describeFirestoreError(context, e) }
-        )
-        onDispose { stopWatching() }
-    }
+    // v0.37.0 (dedupe wave, cluster #15) — the tab-LOCAL watchSessions
+    // DisposableEffect is GONE: the root shell's SessionWatchViewModel
+    // already watches the same query and feeds the [sessions] parameters.
 
     val openSession = sessions.firstOrNull {
         it.status == "REQUESTED" || it.status == "ACTIVE"
@@ -330,30 +338,12 @@ internal fun PairingSections(
         }
     }
 
-    val answerSession: (SessionView, Boolean) -> Unit = { s, allow ->
-        scope.launch {
-            sessionBusy = true
-            sessionMessage = null
-            try {
-                if (allow) {
-                    grantSession(s.id, user.uid)
-                    sessionMessage =
-                            context.getString(R.string.ph_allowed_15m)
-                } else {
-                    denySession(s.id, user.uid)
-                        sessionMessage = context.getString(R.string.ph_denied_short)
-                }
-            } catch (e: SessionException) {
-                sessionMessage = e.localizedMessage(context)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                sessionMessage = context.getString(R.string.err_answer_failed, describeFirestoreError(context, e))
-            } finally {
-                sessionBusy = false
-            }
-        }
-    }
+    // v0.37.0 (dedupe wave, cluster #1) — the tab-local answerSession
+    // (grant/deny) body is DELETED. It was dead code (nothing called it —
+    // this tab's consent case renders HomeConsentCard, which owns its own
+    // answer state) and carried the drifted ph_allowed_15m /
+    // ph_denied_short / err_answer_failed strings. The ONE implementation
+    // is SessionActions.rememberAnswerSession (ui/home).
 
     val finishSession: (SessionView) -> Unit = { s ->
         scope.launch {
@@ -591,13 +581,10 @@ internal fun PairingSections(
         }
         else -> {
             lastFinishedSession?.let { lastFinished ->
-                    val byWhom = when (lastFinished.endedBy) {
-                    null, "" -> ""
-                    "timeout" -> context.getString(R.string.ended_auto)
-                    lastFinished.helperUid -> context.getString(R.string.ended_by_helper)
-                    lastFinished.recipientUid -> context.getString(R.string.ended_by_recipient)
-                    else -> ""
-                }
+                // v0.37.0 (dedupe wave, cluster #4) — the "who ended it"
+                // suffix is the shared components.endedByLabel now (was this
+                // tab's own drifting byWhom when-map).
+                val byWhom = endedByLabel(context, lastFinished)
                 Text(
                         text = stringResource(R.string.ph_last_session_line, sessionStatus(context, lastFinished.status)) + byWhom,
                     style = MaterialTheme.typography.bodySmall,
@@ -607,12 +594,15 @@ internal fun PairingSections(
         }
     }
 
-    if (sessionSyncError != null) {
-        Text(
-            text = sessionSyncError!!,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error
-        )
+    // v0.37.0 (dedupe wave, cluster #15) — real states for the ROOT session
+    // watch, mirroring HomeTab: an honest skeleton until the first snapshot
+    // arrives, and a retryable ErrorPanel on failure (the retry button only
+    // when onRetrySessions != null AND an error is routed in).
+    if (!sessionsLoaded) {
+        LoadingSkeleton(rows = 2)
+    }
+    sessionsError?.let { err ->
+        ErrorPanel(message = err, onRetry = onRetrySessions)
     }
     sessionMessage?.let {
         Text(text = it, style = MaterialTheme.typography.bodySmall)
