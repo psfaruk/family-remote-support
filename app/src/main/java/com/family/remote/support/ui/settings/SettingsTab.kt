@@ -4,11 +4,28 @@ package com.family.remote.support.ui.settings
 // feed from MainActivity (FRONTEND_ARCHITECTURE §3/§10 W2). Behavior-identical:
 // the only change is private → internal visibility on the ten moved items.
 // M4 (v0.32.0) — restructured into the EIGHT partitions of the master
-// instruction PART 7 (Account · Appearance · Device Management · Location &
-// Privacy · Remote Support · Guest Access · Security · About — real features
-// only). ActivityTab/ActivityFeed GRADUATED to the home/sessions route
-// (ui/home/ActivityScreens.kt) and the paired phones to home/family; the
-// devices list moved from Account into Device Management.
+// instruction PART 7. ActivityTab/ActivityFeed GRADUATED to the
+// home/sessions route; the paired phones to home/family.
+//
+// Pre-M10 (v0.35.0) — the Owner's five-partition hierarchy, top to bottom:
+//   ১. Account (profile card)          — name, email, edit name
+//   ২. Device Management                — paired phones, this account's
+//                                         phones, remote assist status
+//   ৩. Privacy & Security               — location sharing (+ interval),
+//                                         guest access, permission check,
+//                                         privacy policy, usage rules
+//   ৪. Preferences                      — theme, LANGUAGE (now one row that
+//                                         opens a capped+scrollable dialog —
+//                                         the old inline 15-language radio
+//                                         list is what made the page 4-5
+//                                         screens tall), notifications
+//   ৫. About & session                  — version/about + the red-OUTLINED
+//                                         Sign-out LAST (Owner: "একবারে নিচে
+//                                         Red Bordered বা Outlined Style-এ")
+// The old Remote Support / Security / Guest Access / Appearance partitions
+// merged into these five (assist status → Device Management; notif controls
+// → Preferences; guest + wizard + docs → Privacy & Security; theme + language
+// → Preferences). Same real features, nothing fabricated, nothing dropped.
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -43,7 +60,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Create
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.List
@@ -52,7 +68,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -105,7 +120,7 @@ import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.SettingsTile
-import com.family.remote.support.ui.components.WideOutlinedButton
+import com.family.remote.support.ui.components.SignOutButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -221,16 +236,10 @@ internal fun SettingsTab(
     // Phase 16 — full-screen policy documents (privacy / rules) rendered
     // as overlays; null = none open.
     var showDoc by remember { mutableStateOf<String?>(null) }
-
-    // ── M4 (v0.32.0) — THE EIGHT PARTITIONS (master instruction PART 7;
-    // NAVIGATION_MAP §2 "settings" grouped list): Account · Appearance ·
-    // Device Management · Location & Privacy · Remote Support · Guest
-    // Access · Security · About — real features only, nothing fabricated.
-    // The old §6 Activity section graduated to the home/sessions route
-    // (RecentActivityScreen); the paired phones now live behind the Device
-    // Management entry (home/family). Sign-out stays LAST at the bottom
-    // (the Owner's standing Phase-16 order — a recorded deviation from the
-    // map's settings/account sketch).
+    // Pre-M10 (v0.35.0) — the language list now lives in a dialog, not an
+    // inline radio wall (Owner: "সব ভাষা সরাসরি স্ক্রিনে লম্বা রেডিও
+    // লিস্ট হিসেবে দেখানোতে পেইজটি অতিরিক্ত লম্বা হয়ে গেছে").
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     // ── ১. ACCOUNT — profile + auth status (+ editable name).
     var showEditName by remember { mutableStateOf(false) }
@@ -292,56 +301,10 @@ internal fun SettingsTab(
         }
     }
 
-    // ── ২. APPEARANCE — theme (3 options) + language (15) in ONE partition
-    // (NAVIGATION_MAP §2: settings/appearance covers both).
-    SectionCard(
-        title = stringResource(R.string.set_section_look),
-        icon = Icons.Filled.Settings,
-            infoText = stringResource(R.string.set_theme_info),
-    ) {
-        ThemeOptionRow(
-                label = stringResource(R.string.th_system),
-                subtitle = stringResource(R.string.th_system_sub),
-            selected = ThemePrefBus.pref == ThemePrefBus.SYSTEM,
-            preview = 0,
-            onClick = { ThemePrefBus.set(context, ThemePrefBus.SYSTEM) }
-        )
-        ThemeOptionRow(
-                label = stringResource(R.string.th_light),
-                subtitle = stringResource(R.string.th_light_sub),
-            selected = ThemePrefBus.pref == ThemePrefBus.LIGHT,
-            preview = 1,
-            onClick = { ThemePrefBus.set(context, ThemePrefBus.LIGHT) }
-        )
-        ThemeOptionRow(
-                label = stringResource(R.string.th_dark),
-                subtitle = stringResource(R.string.th_dark_sub),
-            selected = ThemePrefBus.pref == ThemePrefBus.DARK,
-            preview = 2,
-            onClick = { ThemePrefBus.set(context, ThemePrefBus.DARK) }
-        )
-        HorizontalDivider()
-        Text(
-            text = stringResource(R.string.set_section_lang),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = stringResource(R.string.set_lang_sub),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        LangPrefBus.supported.forEach { (code, nativeName) ->
-            LangOptionRow(
-                label = nativeName,
-                selected = LangPrefBus.code == code,
-                onClick = { LangPrefBus.set(context, code) }
-            )
-        }
-    }
-
-    // ── ৩. DEVICE MANAGEMENT — paired phones (the home/family route) +
-    // this account's own registered devices (users/{uid}/devices).
+    // ── ২. DEVICE MANAGEMENT — paired phones (the home/family route),
+    // this account's own registered devices (users/{uid}/devices) and the
+    // remote-assist status tile (device-bound, so it lives here — Owner's
+    // pre-M10 hierarchy).
     SectionCard(title = stringResource(R.string.set_section_devices), icon = Icons.Filled.Phone) {
         SettingsTile(
             icon = Icons.Filled.Phone,
@@ -376,16 +339,54 @@ internal fun SettingsTab(
                 }
             }
         }
+        HorizontalDivider()
+        SettingsAssistTile()
     }
 
-    // ── ৪. LOCATION & PRIVACY — the honest M5 status note + both policy
-    // documents (Owner: "নীতিমালা ও প্রাইভেসি পলিসি এই ফিচারস গুলো উন্মুক্ত ও
-    // অ্যাপ এ থাকা উচিত")।
-    SectionCard(title = stringResource(R.string.set_section_location), icon = Icons.Filled.LocationOn) {
-        // M5 (v0.33.0) — the "planned" note is replaced by the real
-        // controls: sharing toggle (+ runtime permission gate) and the
-        // update-interval choice; the two policy documents stay.
+    // ── ৩. PRIVACY & SECURITY — location sharing (+ interval), guest
+    // access, the permission wizard and both policy documents (Owner:
+    // "নীতিমালা ও প্রাইভেসি পলিসি এই ফিচারস গুলো উন্মুক্ত ও অ্যাপ এ থাকা
+    // উচিত") — one security posture in one place.
+    SectionCard(
+        title = stringResource(R.string.set_section_privacysec),
+        icon = Icons.Filled.Lock,
+            infoText = stringResource(R.string.set_perm_info),
+    ) {
         LocationSharingControls()
+        HorizontalDivider()
+        SettingsTile(
+            icon = Icons.Filled.Person,
+            title = stringResource(R.string.set_section_guest),
+            description = stringResource(R.string.set_guest_note),
+            onClick = onOpenFamily,
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+        HorizontalDivider()
+        SettingsTile(
+            icon = Icons.Filled.Lock,
+                title = stringResource(R.string.pw_title),
+            description = if (permSummary.allDone) {
+                    stringResource(R.string.set_perm_alldone)
+            } else {
+                stringResource(R.string.pw_progress, permSummary.doneCount, permSummary.missingNames(context))
+            },
+            onClick = onOpenWizard,
+            trailing = {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
         HorizontalDivider()
         SettingsTile(
             icon = Icons.Filled.Lock,
@@ -418,64 +419,76 @@ internal fun SettingsTab(
         )
     }
 
-    // ── ৫. REMOTE SUPPORT — session-request delivery + the assist setup.
-    SectionCard(title = stringResource(R.string.set_section_remote), icon = Icons.Filled.Send) {
+    // ── ৪. PREFERENCES — the app's personal settings: theme (3 options),
+    // LANGUAGE as ONE clickable row that opens a dialog (Owner: "Language ->
+    // Selected Language (English) এভাবে একটি ক্লিকেবল আইটেম হিসেবে রাখুন"),
+    // and the notification controls (permission toggle + the honest test
+    // probe) that used to sit in the old Remote Support partition.
+    SectionCard(
+        title = stringResource(R.string.set_section_prefs),
+        icon = Icons.Filled.Settings,
+            infoText = stringResource(R.string.set_theme_info),
+    ) {
+        ThemeOptionRow(
+                label = stringResource(R.string.th_system),
+                subtitle = stringResource(R.string.th_system_sub),
+            selected = ThemePrefBus.pref == ThemePrefBus.SYSTEM,
+            preview = 0,
+            onClick = { ThemePrefBus.set(context, ThemePrefBus.SYSTEM) }
+        )
+        ThemeOptionRow(
+                label = stringResource(R.string.th_light),
+                subtitle = stringResource(R.string.th_light_sub),
+            selected = ThemePrefBus.pref == ThemePrefBus.LIGHT,
+            preview = 1,
+            onClick = { ThemePrefBus.set(context, ThemePrefBus.LIGHT) }
+        )
+        ThemeOptionRow(
+                label = stringResource(R.string.th_dark),
+                subtitle = stringResource(R.string.th_dark_sub),
+            selected = ThemePrefBus.pref == ThemePrefBus.DARK,
+            preview = 2,
+            onClick = { ThemePrefBus.set(context, ThemePrefBus.DARK) }
+        )
+        HorizontalDivider()
+        val currentLanguageName = LangPrefBus.supported
+            .firstOrNull { it.first == LangPrefBus.code }?.second
+            ?: LangPrefBus.supported.first().second
+        SettingsTile(
+            icon = Icons.Filled.List,
+            title = stringResource(R.string.set_section_lang),
+            description = stringResource(R.string.set_lang_sub),
+            onClick = { showLanguageDialog = true },
+            trailing = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = currentLanguageName,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        )
+        HorizontalDivider()
         SettingsNotifTile()
         HorizontalDivider()
         TestNotifRow()
-        HorizontalDivider()
-        SettingsAssistTile()
     }
 
-    // ── ৬. GUEST ACCESS — the honest temporary-window note; the live guest
-    // links (countdowns, removal) live in the Family Devices screen.
-    SectionCard(title = stringResource(R.string.set_section_guest), icon = Icons.Filled.Person) {
-        Text(
-            text = stringResource(R.string.set_guest_note),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        WideOutlinedButton(onClick = onOpenFamily) {
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Text("  " + stringResource(R.string.fam_title))
-        }
-    }
-
-    // ── ৭. SECURITY — the permission wizard (notifications · camera ·
-    // assist · battery — the app's whole permission posture in one place).
-    SectionCard(
-        title = stringResource(R.string.set_section_security),
-        icon = Icons.Filled.Lock,
-            infoText = stringResource(R.string.set_perm_info),
-    ) {
-        SettingsTile(
-            icon = Icons.Filled.Lock,
-                title = stringResource(R.string.pw_title),
-            description = if (permSummary.allDone) {
-                    stringResource(R.string.set_perm_alldone)
-            } else {
-                stringResource(R.string.pw_progress, permSummary.doneCount, permSummary.missingNames(context))
-            },
-            onClick = onOpenWizard,
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-    }
-
-    // ── ৮. About — FIXED (Owner: "About অপশন টি ঠিক নাই, সেখানে Firebase
-    // এর তথ্য গুলো দেখা যাচ্ছে। এটা তো প্রাইভেসি হলো না"): version + package
-    // only, plus a plain-language storage note and the two policy docs.
-    SectionCard(title = stringResource(R.string.set_section_about), icon = Icons.Filled.Info) {
+    // ── ৫. ABOUT & SESSION — version/package only (plus the plain-language
+    // storage note and the two policy links), and the Sign-out LAST in the
+    // red-OUTLINED style (Owner: pre-M10 hierarchy step ৫).
+    SectionCard(title = stringResource(R.string.set_section_about_session), icon = Icons.Filled.Info) {
         var showAbout by remember { mutableStateOf(false) }
         SettingsTile(
             icon = Icons.Filled.Info,
@@ -491,6 +504,14 @@ internal fun SettingsTab(
                 )
             }
         )
+        if (signedInUser != null) {
+            HorizontalDivider()
+            SignOutButton(
+                text = stringResource(R.string.set_sign_out),
+                enabled = !busy,
+                onClick = onSignOut
+            )
+        }
         if (showAbout) {
             AlertDialog(
                 onDismissRequest = { showAbout = false },
@@ -528,18 +549,6 @@ internal fun SettingsTab(
         }
     }
 
-    // ── Sign-out LAST (Owner: "লগআউট করার অপশন টি নিচের দিকে থাকলে ভালো")।
-    if (signedInUser != null) {
-        WideOutlinedButton(enabled = !busy, onClick = onSignOut) {
-            Icon(
-                imageVector = Icons.Filled.ExitToApp,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Text("  " + stringResource(R.string.set_sign_out))
-        }
-    }
-
     // Full-screen policy document overlays.
     when (showDoc) {
         "privacy" -> DocOverlay(
@@ -550,6 +559,14 @@ internal fun SettingsTab(
             title = stringResource(R.string.rules_title),
             body = stringResource(R.string.rules_body)
         ) { showDoc = null }
+    }
+
+    // Pre-M10 (v0.35.0) — the language picker dialog (capped + scrollable).
+    if (showLanguageDialog) {
+        LanguagePickerDialog(
+            currentCode = LangPrefBus.code,
+            onDismiss = { showLanguageDialog = false }
+        )
     }
 
     // Edit-name dialog (profile).
@@ -677,6 +694,61 @@ internal fun LangOptionRow(
 }
 
 /**
+ * Pre-M10 (v0.35.0) — the language picker dialog. The 15-language list is
+ * height-capped and scrollable so the dialog always fits small screens and
+ * large font scales; picking a language persists it and recreates the
+ * Activity (the whole UI repaints — same engine as the theme choice).
+ * The honest caption (set_lang_info) names the default and every choice.
+ */
+@Composable
+private fun LanguagePickerDialog(
+    currentCode: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.set_section_lang),
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 440.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                LangPrefBus.supported.forEach { (code, nativeName) ->
+                    LangOptionRow(
+                        label = nativeName,
+                        selected = currentCode == code,
+                        onClick = {
+                            onDismiss()
+                            if (code != currentCode) {
+                                LangPrefBus.set(context, code)
+                            }
+                        }
+                    )
+                }
+                HorizontalDivider()
+                Text(
+                    text = stringResource(R.string.set_lang_info),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.set_cancel))
+            }
+        }
+    )
+}
+
+/**
  * Phase 16 — TEST NOTIFICATION (Owner: "নোটিফিকেশন আসে না") — an honest
  * one-tap probe: posts a REAL notification on the SAME channel the session
  * requests use, so channel + permission are verified instantly without
@@ -797,7 +869,7 @@ internal fun DocOverlay(
 }
 
 /**
- * M5 (v0.33.0) — the Location & Privacy partition's live-sharing controls:
+ * M5 (v0.33.0) — the Privacy & Security partition's live-sharing controls:
  * the owner's standing ON/OFF toggle (+ the runtime while-in-use location
  * permission gate — Android 14's location-FGS rule) and the update-interval
  * choice (30 s / 1 min / 5 min, LIVE_LOCATION_ARCHITECTURE §6). The same
@@ -1070,6 +1142,9 @@ internal fun SettingsNotifTile() {
 /**
  * v0.14.0 — Remote assist স্ট্যাটাস টাইল (সৎ পোল ১.৫ সে): চালু থাকলে ✓,
  * বন্ধ থাকলে 'সেটআপ' বোতাম — বাংলা ধাপে-ধাপে গাইড ডায়ালগ (AssistSetupGuide)।
+ * Pre-M10 (v0.35.0) — lives in the Device Management partition (Owner's
+ * hierarchy: it is a device-bound capability, so it reads next to the
+ * paired-phones entry and this account's device list).
  */
 @Composable
 internal fun SettingsAssistTile() {
