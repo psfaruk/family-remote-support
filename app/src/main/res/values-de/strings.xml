@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Erneut versuchen</string>
     <string name="states_open_settings">Systemeinstellungen öffnen</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">Familien-Geräte</string>
+    <string name="fam_empty_t">Noch keine gekoppelten Telefone</string>
+    <string name="fam_empty_h">Kopple ein Telefon über „Gerät hinzufügen“ — es erscheint hier mit seinem Live-Status.</string>
+    <string name="fam_not_found">Diese Kopplung wurde nicht gefunden.</string>
+    <string name="fam_not_found_h">Sie wurde möglicherweise widerrufen oder aus diesem Konto entfernt.</string>
+    <string name="actv_title">Letzte Aktivität</string>
+    <string name="actv_tile_d">Laufende und kürzlich beendete Sitzungen</string>
+    <string name="actv_empty_t">Noch keine Sitzungen</string>
+    <string name="actv_empty_h">Sitzungen erscheinen hier, während sie laufen, und direkt nach ihrem Ende.</string>
+    <string name="sess_title">Sitzungsdetails</string>
+    <string name="sess_not_found">Diese Sitzung wurde nicht gefunden.</string>
+    <string name="sess_not_found_h">Öffne die letzte Aktivität, um die neuesten Sitzungen zu sehen.</string>
+    <string name="sess_state">Status</string>
+    <string name="sess_kind">Typ</string>
+    <string name="sess_helper">Helfer</string>
+    <string name="sess_recipient">Empfänger</string>
+    <string name="sess_duration">Dauer</string>
+    <string name="sess_endedby">Beendet von</string>
+    <string name="sess_family">Familie</string>
+    <string name="sess_guest">Gast</string>
+    <string name="cd_back">Zurück</string>
+    <string name="set_section_devices">Geräteverwaltung</string>
+    <string name="set_section_location">Standort &amp; Datenschutz</string>
+    <string name="set_section_remote">Fernunterstützung</string>
+    <string name="set_section_guest">Gastzugriff</string>
+    <string name="set_section_security">Sicherheit</string>
+    <string name="set_dev_entry_t">Gekoppelte Telefone</string>
+    <string name="set_dev_entry_d">Live-Status, Unterstützungsaktionen und Widerruf</string>
+    <string name="set_loc_status">Live-Standort ist für ein kommendes Release geplant. Heute wird kein Standort erfasst oder gespeichert.</string>
+    <string name="set_guest_note">Gast-Verknüpfungen sind temporär (bis zu 3 Stunden) und werden niemals dauerhafte Familien-Kopplungen.</string>
 </resources>
