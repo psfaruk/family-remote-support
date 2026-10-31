@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -279,4 +280,28 @@ fun WideOutlinedButton(
             .heightIn(min = 48.dp),
         content = content
     )
+}
+
+/**
+ * v0.37.0 (dedupe wave) — the M4 detail-screen header, promoted from
+ * LocationDetailScreen's private copy into the design system so ALL detail
+ * screens share ONE back-arrow row (LocationDetailScreen, MemberDetailScreen
+ * and SessionDetailScreen used to carry three identical copies — the audit's
+ * duplicate cluster #5). Verbatim body, only the visibility moved.
+ */
+@Composable
+fun BackTitleRow(title: String, onBack: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.cd_back)
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+    }
 }
