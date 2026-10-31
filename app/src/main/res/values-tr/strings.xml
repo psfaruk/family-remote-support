@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s şu anda size yardım ediyor</string>
     <string name="notif_empty_title">Şu anda sizi bekleyen bir şey yok</string>
     <string name="notif_empty_body">Destek istekleri, aktif oturumlar ve kurulum uyarıları oluşur oluşmaz burada görünür.</string>
-    <string name="notif_hint">Yalnızca gerçek, güncel olaylar — uydurma yok, geçmiş kaydı yok.</string>
+    <string name="notif_hint">Yalnızca gerçek olaylar — yalnızca bu cihazda yerel olarak saklanır (en yeni 100), asla yüklenmez ve çıkış yaptığınızda temizlenir.</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Tekrar dene</string>
@@ -479,4 +479,85 @@
     <string name="set_loc_status">Canlı konum gelecek bir sürüm için planlanmıştır. Bugün hiçbir konum toplanmamakta veya saklanmamaktadır.</string>
     <string name="set_loc_now">Bu telefonun canlı konumunu eşleştirilmiş aile cihazlarıyla paylaşın. Yalnızca en son konum tutulur — asla geçmiş tutulmaz.</string>
     <string name="set_guest_note">Misafir bağlantıları geçicidir (en fazla 3 saat) ve asla kalıcı aile eşleştirmesine dönüşmez.</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">Son olaylar</string>
+    <string name="notif_ev_asked">%1$s kişisinden yardım isteği</string>
+    <string name="notif_ev_started">%1$s ile destek oturumu başladı</string>
+    <string name="notif_ev_ended">%1$s ile destek oturumu sona erdi</string>
+    <string name="notif_ev_sharing_on">Konum paylaşımı açıldı</string>
+    <string name="notif_ev_sharing_off">Konum paylaşımı kapatıldı</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">Bu istek artık mevcut değil.</string>
+    <string name="err_session_unreadable">Bu istek okunamıyor.</string>
+    <string name="err_session_unreadable_resend">Bu istek okunamıyor — yardımcıdan yeniden göndermesini isteyin.</string>
+    <string name="err_only_recipient_allow">Bu oturuma yalnızca kendisinden izin istenen telefon izin verebilir.</string>
+    <string name="err_only_recipient_deny">Bu isteği yalnızca kendisinden izin istenen telefon reddedebilir.</string>
+    <string name="err_only_helper_cancel">Kendi isteğini yalnızca yardımcı iptal edebilir.</string>
+    <string name="err_already_answered">Bu isteğe zaten yanıt verildi.</string>
+    <string name="err_already_answered_status">Bu isteğe zaten yanıt verildi (%1$s).</string>
+    <string name="err_session_expired_resend">Bu isteğin süresi zaten doldu — yardımcıdan yeni bir istek göndermesini isteyin.</string>
+    <string name="setup_not_checked">Henüz kontrol edilmedi</string>
+    <string name="setup_not_sent">Henüz gönderilmedi</string>
+    <string name="setup_not_setup">Henüz kurulmadı</string>
+    <string name="share_channel_name">Ekran paylaşımı</string>
+    <string name="share_channel_desc">Ekranınız bir yardımcıyla paylaşılırken gösterilir.</string>
+    <string name="share_notif_title">Ekran paylaşımı etkin</string>
+    <string name="share_notif_body">Bir yardımcı bu telefonun ekranını izliyor. Açmak için dokunun.</string>
+    <string name="qr_share_chooser_title">Eşleştirme kodunu paylaş</string>
+    <string name="qr_share_text">Family Remote Support eşleştirme kodu: %1$s\nDiğer telefonda Family Remote Support uygulamasını açın, QR Tara seçeneğine dokunun veya bu kodu yazın. 5 dakika geçerlidir.</string>
+    <string name="ss_info_live_receiving">Canlı — ekran alınıyor ✓</string>
+    <string name="ss_info_preparing_share">Ekran paylaşımı hazırlanıyor…</string>
+    <string name="ss_info_capture_ready">Ekran yakalama hazır — yardımcının \"Ekranı izle\" düğmesine dokunması bekleniyor.</string>
+    <string name="ss_info_preparing_viewer">Görüntüleyici hazırlanıyor…</string>
+    <string name="ss_info_asked">Ekran için alıcının telefonundan istekte bulunuldu — bağlanılıyor…</string>
+    <string name="ss_info_video_ready">Video kanalı hazır — bağlantı bekleniyor…</string>
+    <string name="ss_info_connected">Bağlantı kuruldu — video başlatılıyor…</string>
+    <string name="ss_info_live_share">Canlı — yardımcı bu ekranı görebiliyor.</string>
+    <string name="ss_info_interrupted">Bağlantı kesildi — yeniden kurulmaya çalışılıyor…</string>
+    <string name="ss_info_watch_received">Yardımcı izlemek istedi — ekran gönderiliyor…</string>
+    <string name="ss_info_share_stopped">Alıcı paylaşımı durdurdu.</string>
+    <string name="ss_info_view_closed">Yardımcı görünümü kapattı.</string>
+    <string name="ss_info_offer_sent">Teklif gönderildi — yardımcının yanıtı bekleniyor…</string>
+    <string name="ss_info_offer_failed">Ekran teklifi hazırlanamadı — yardımcı otomatik olarak yeniden deneyecek.</string>
+    <string name="ss_info_answer_sent">Yanıt gönderildi — video bağlanıyor…</string>
+    <string name="ss_info_negotiation_done">Müzakere tamamlandı — yardımcıya bağlanılıyor…</string>
+    <string name="ss_retry_no_response">Alıcının telefonundan yanıt gelmiyor — orada \"Ekranı paylaş\" seçeneğinin açık olduğundan emin olun.</string>
+    <string name="ss_retry_no_answer">Alıcının yanıtı hiç gelmedi.</string>
+    <string name="ss_retry_link_failed">İki telefon bağlantıyı tamamlayamadı.</string>
+    <string name="ss_retry_conn_failed">Bağlantı denemesi başarısız oldu</string>
+    <string name="ss_retry_answer_failed">Alıcının teklifine yanıt verilemedi</string>
+    <string name="ss_retry_apply_failed">Alıcının teklifi uygulanamadı</string>
+    <string name="ss_retrying_auto">%1$s — otomatik olarak yeniden deneniyor…</string>
+    <string name="ss_retried_watch">%1$s — alıcının telefonuna yeniden soruldu…</string>
+    <string name="ss_recover_conn_failed">Yardımcıyla bağlantı kurulamadı — paylaşım hazır bekliyor. Yardımcıdan \"Ekranı izle\" düğmesine yeniden dokunmasını isteyin.</string>
+    <string name="ss_recover_answer_failed">Yanıt verilemedi — yardımcı otomatik olarak yeniden deneyecek.</string>
+    <string name="ss_recover_apply_failed">Yardımcının yanıtı uygulanamadı — yardımcı yeniden deneyecek.</string>
+    <string name="ss_fail_projection_stopped">Ekran yansıtma sistem tarafından durduruldu — \"Ekranı paylaş\" düğmesine yeniden dokunun.</string>
+    <string name="ss_fail_capture">Ekran yakalanamadı: %1$s</string>
+    <string name="ss_fail_watch">İzleme isteği gönderilemedi: %1$s</string>
+    <string name="ss_fail_viewer">Görüntüleyici başlatılamadı: %1$s</string>
+    <string name="ss_fail_conn_stopped">Bağlantı kurulamadı — \"Paylaşımı durdur\" düğmesine dokunun, sonra yeniden paylaşın.</string>
+    <string name="ss_fail_no_engine">Bu telefonda WebRTC motoru oluşturulamadı.</string>
+    <string name="ss_fail_signal">Sinyal kanalı hatası: %1$s</string>
+    <string name="ss_fail_conn_retry">Bağlantı kurulamadı — iki telefon birbirine bağlanamadı. \"Ekranı izle\" düğmesine yeniden dokunun; sürerse iki telefonu da aynı Wi-Fi ağına alın (ya da bir telefonun erişim noktasına).</string>
+    <string name="ss_fail_offer">Teklif gönderilemedi: %1$s</string>
+    <string name="ss_fail_answer">Yanıt gönderilemedi: %1$s</string>
+    <string name="ss_fail_apply">Yardımcının yanıtı uygulanamadı.</string>
+    <string name="ss_ack_back">Geri iletildi ✓</string>
+    <string name="ss_ack_home">Ana ekran iletildi ✓</string>
+    <string name="ss_ack_recents">Son uygulamalar iletildi ✓</string>
+    <string name="ss_ack_swipe">Kaydırma iletildi ✓</string>
+    <string name="ss_ack_long">Basılı tutma iletildi ✓</string>
+    <string name="ss_ack_tap">Dokunma iletildi ✓</string>
+    <string name="ph_save_perm_needed">QR görselini kaydetmek için depolama izni gerekir.</string>
+    <string name="fallback_someone">Birisi</string>
+    <string name="fallback_helper">yardımcı</string>
+    <string name="cd_pairing_qr">Eşleştirme QR kodu</string>
+    <string name="so_signout_failed">Çıkış başarısız: %1$s</string>
+    <string name="cd_clear_messages">Mesajları temizle</string>
+
 </resources>
