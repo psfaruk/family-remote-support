@@ -2731,3 +2731,65 @@ WorkManager 15min 底频 ≤96 写/日/机、位置共享 30s–5min+25m 双闸�
   注释变更，零修复轮次。
 - 本 CI-record 补记提交自身的 run 结果由下一里程碑（M10）的"推送前校验"承接记录
   （M7→M8 先例同）。
+
+## §73 — Pre-M10（v0.35.0/54）：Owner 打磨波 — Settings 五卡片层级重排 + 语言选择对话框 + 铃铛→设置“内容下坠”根因修复 + 键盘/IME 感知外壳（2026-10-31）
+
+Owner 指令（M10 前的检查波）：Settings 页“乱”的两大原因——① 15 种语言以内联单选墙直
+铺（页面被拉到 4–5 屏高、卡片连续性断裂）；② 逻辑分组无层级顺序。Owner 给出精确的五段
+式 UI Layout Order，并报两个行为类问题：铃铛→设置后“设置标签的功能掉到下面去了”、键盘
+弹出时功能被遮挡——要求“深挖同类问题一并解决”。
+
+**Settings 重排（SettingsTab.kt 重构，严格按 Owner 的 Top→Bottom 顺序）：**
+1. Account（资料卡：姓名/邮箱/编辑姓名；未登录时登录态与入口不变）；
+2. Device Management（配对手机入口 + 本账号设备清单 + 远程协助状态瓦片——按 Owner 指示
+   “与设备相关，放这里”迁入）；
+3. Privacy & Security（新键 set_section_privacysec）：位置共享开关 + 更新间隔（含
+   interval 对话框）、Guest Access 行（→home/family）、权限检查行（向导）、隐私政策、
+   使用规则——原 Location&Privacy/Guest/Security 三卡合并为一；
+4. Preferences（新键 set_section_prefs）：主题三选（不动）+ **Language 单行化**（“Language
+   → English ›”可点击行，尾部显示当前语言原生名+箭头；点击弹出 heightIn(max=440dp)+
+   verticalScroll 的 15 语言单选对话框，附 set_lang_info 诚实脚注）+ 通知开关 + 测试通知
+   探针（原 Remote Support 卡解散：assist 状态→设备管理，通知两项→偏好设置）；
+5. About & session（新键 set_section_about_session）：版本行（About 对话框不变）+
+   **红色描边 SignOutButton（Buttons.kt 新组件：1.5dp error 边框、error 文字色、≥48dp、
+   全宽、卡内最末）**——落实“একবারে নিচে Red Bordered বা Outlined Style-এ”。
+卡片间距 = ShellTabColumn spacedBy(16dp) 恒定（Owner 的 16–20dp 等距要求已满足）。
+
+**“功能下坠”根因修复（MainActivity ShellTabColumn）：** NavHost saveState/restoreState 会
+忠实地还原标签的 rememberScrollState——旧设置页 4–5 屏高，用户从铃铛回来时落在页面中
+部，顶部功能“掉到下面”。双层修复：①本重排把页面砍半；②五个顶级面（Home/Add/Tracking/
+Settings/Notifications）改为**故意不可保存**的滚动状态（topOnReentry=true → remember{
+ScrollState(0) }），每次进入标签必在顶部；嵌套详情路由仍用可保存的 rememberScrollState
+（系统返回保留列表位置——NAVIGATION_MAP §3 的意图在真正重要的地方依然成立）。§3 文档
+同步改写。
+
+**键盘/IME 修复（Owner：“Keybord চাপলে যেনো অ্যাপ এর ফাংশন গুলো লুকিয়ে না থাকে”）：**
+① Manifest MainActivity 增加 `android:windowSoftInputMode="adjustResize"`——原来
+unspecified 模式下系统对可滚动内容走 adjustPan，整个窗口被键盘顶上去、底部标签栏与下部
+内容全被盖住；② 外壳底部栏 Box 以 `windowInsetsPadding(WindowInsets.ime)` 包裹（刻意不用
+ime∪navigationBars union——NavigationBar 自身的 navigationBars 内边距保持未消费，键盘
+关闭时的观感与原先逐字节一致）——键盘开时整个标签栏骑到键盘上方，Scaffold
+innerPadding 随之收缩=内容区也在键盘之上。onSizeChanged 置于 padding 之前继续量测
+动态总高（含 IME），辅助会话键条（SessionKeyBar）的避让也随之正确。
+AuthGate/配对 sheet 原有 imePadding 保持不变。
+
+**同类问题清剿（Owner 要求“更多此类问题”）：** ① 登出态打开设置“配对手机”→home/family
+原本渲染**空白屏**（user==null 时无内容）→补诚实 EmptyState（未登录+提示）；②
+SettingsTile 标题 maxLines 1→2（大字号下 “Device Management” 类标题截成省略号）；
+③ 语言对话框本身若不加高度上限，小屏/大字号会溢出——已用 440dp 上限+滚动（这正是旧内联
+墙的问题在对话框形态下的防复发）。
+
+**i18n：** 新增 3 键（set_section_privacysec / set_section_prefs / set_section_about_session）
+×15 locale=45 条（协调者一次写入，XML 全量解析 VALID；ru/de/tr/id 的“偏好设置”刻意避开
+与 nav_settings 同词——Персонализация/Personalisierung/Kişiselleştirme/Preferensi）。
+未新增依赖/监听/查询/规则。版本 53→54、0.34.0→0.35.0（build.gradle 注释含变更摘要）。
+
+**验证边界（诚实）：** 沙盒无 Gradle——本轮 Kotlin 为静态核验（括号/引用平衡、导入清
+单、call-site 全列）+ CI 编译门；真机行为（五卡顺序观感、对话框滚动、键盘上浮、标签
+顶部进入）属 Owner 装机实测。两台手机需装 v0.35.0/54。
+
+**文件：** SettingsTab.kt（重构）、MainActivity.kt（ShellTabColumn/bottomBar/Family 空
+态）、Buttons.kt（+SignOutButton）、Cards.kt（SettingsTile maxLines）、
+AndroidManifest.xml（adjustResize）、app/build.gradle.kts（54/0.35.0）、res/values*
+15 文件（+3 键）、docs/NAVIGATION_MAP.md（§2/§3）、docs/UI_UX_DESIGN_SYSTEM.md（§10-K）、
+docs/IMPLEMENTATION_STATUS.md（Pre-M10 行）、本 §73。
