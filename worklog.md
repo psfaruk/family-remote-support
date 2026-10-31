@@ -2968,3 +2968,87 @@ crons=[] 配置，避免旧配置在 deploy 间重挂 cron）。全部经 readba
   无监听、仅剩 Next.js 包装进程（cwd=/home/z/my-project）。
 - 本 CI-record 补记提交自身的 run 结果由协调者核验后在最终报告中向 Owner 报告
   （§74 同例的末端处理）。
+
+## §76 — QA 与去重波（v0.37.0/56）：Owner 全面后端测试指令 — 六路深审 + 崩溃边沿修复 + 14/15 重复簇单一源化 + 沙盒清理 + 预览刷新（2026-10-31）
+
+**触发：** Owner 指令 "এখন তোমি অ্যাপ টি ব্যাক টেস্ট করবে"——①登录/登出延迟与问题；
+②逐个触碰功能 + 崩溃检查；③Family/Guest 加设备、revoke 后能否再以 family 连接、
+屏幕共享触控与画质/延迟；④地图显示与缩放；⑤路线图/站点序列、前端重复函数"সিঙ্গেল
+করেন"、后端机密安全核验；⑥删除死代码与文件、清理沙盒数据、更新沙盒预览。
+
+**先灭火（配额纪律维护）：** 沙盒 17:09 回收后 kill-push 服务**又**自动重启为 2 实例
+（.zscripts/dev.sh 扫描 mini-services/* 自动拉起），日志实测 17:32 仍每 5 秒撞 429——
+即 §75 指令被环境级违反。处置：双实例 kill + **删除 mini-services/kill-push-service/
+目录**（自动启动路径不复存在，结构性根除）。沙盒自此对 Firebase 零请求。本地克隆以
+远端 main HEAD tarball 重建（旧克隆停在 §72 时代）。
+
+**六路并行深审（Explore 只读 agent，全部完整读档）：**
+- **1-a 认证流：** 无 Firebase 匿名认证（实为 email+Google Credential Manager）；
+  首帧 0 网络往返；登出清理异常彻底（无监听器泄漏、无旧 UID 订阅）。9 项发现
+  （0 HIGH）：缺 UI 级 AuthStateListener（服务端吊销→僵尸 shell）、登出/登录吞
+  CancellationException、5 处 auth await 无超时（对照本项目 30s Firestore 纪律）、
+  注册链 5 步纯串行（最坏 150s）。
+- **1-b 配对/撤销：** **revoke→再以 family 连接 = 设计即通**（rules 的 ACTIVE 分支
+  不查旧 status；REVOKED→ACTIVE 经新 PAIRED 邀请合法）——唯一门槛是邀请码单次使用
+  + 2 分钟 claim 窗口；guest 文档存在时挡 family 方向（需先 Remove）。3 项 MED：
+  revoke 不终止在飞 ACTIVE 会话（§7.2 已录）、pairingInvitations 永存裸 token、
+  REVOKED family 文档永久 PII 残留。
+- **1-c 屏幕共享：** 触控走 WebRTC DataChannel（~50–150ms，Firestore cmd 为后备
+  200ms–1s）；坐标三重钳制无溢出。MED：TURN+quality 串行取（双端各 5s+5s）、
+  rendererTarget 无 @Volatile（native 崩溃面）、helperRestartRound 的 createPeer()
+  无守卫（主线程未捕获）、15 分钟 TTL 不在 p2p 层强制。
+- **1-d 地图：** osmdroid+OSM（无 API key）；pinch+库默认按钮缩放可用；fitKey 守卫
+  正确防"镜头打架"；MED：后台/跨 tab 监听器存活（写侧已 foreground-only，读侧
+  ≈5.8k/日已入预算）、remember{} 不可保存（重进/旋转丢缩放）。
+- **1-e 导航/重复：** 4-tab 序列与 NAVIGATION_MAP 一致；**15 个重复簇**坐实
+  （answerSession×3 漂移文案、relationship watcher×3、30s 时钟×5+10s×2、
+  BackTitleRow×3、endedBy×2、friendlyError 漂移映射、Add tab 重复 session 监听、
+  POST_NOTIFICATIONS×5、fine/coarse×3、可追踪谓词×2、Presence 双胞胎、chevron×8、
+  radio 行×2、冗余 pref 双写、VM 结构性重复）；另发现 home/family/{relId} 登出态
+  白屏。
+- **1-f 崩溃面：** 无 runBlocking、24 处 launch 全有守卫；**2 项边沿崩溃**：
+  LocationShareService 无权限路径跳过 startForeground（5 秒契约→FGS 超时崩溃）、
+  helperRestartRound 的 createPeer 未守卫；429 降级诚实（无风暴无崩溃）；死代码
+  cancelNotification（定义即唯一命中）；TODO/FIXME 零。
+
+**机密审计：** 仓库全扫描零硬编码密钥；google-services.json 仅 Android client key；
+SA 只经 GitHub Secrets/env；Worker runtime Secret。**VLM 截图核验（Owner 最新 6 张）：**
+确认全部 RESOURCE_EXHAUSTED 屏均为 v0.36.0 之前版本（配额根因已由 §75 修复）、
+pairing Permission denied 屏在案、Settings 屏健康。
+
+**修复（v0.37.0/56，20 文件，协调者 + 2 个 general-purpose 实现代理并行）：**
+- **崩溃边沿：** LocationShareService 无权限路径以 type-0 startForeground 满足 5 秒
+  契约（+TOCTOU SecurityException 回退）；helperRestartRound createPeer 加守卫；
+  rendererTarget/previewTarget @Volatile；ScreenShareService 单收集器标志；
+  SessionNotifier 安全转型 as? App。
+- **延迟：** TURN+quality 双端并行取（首帧约快 10s）；注册 3 写并发（最坏 150s→30s
+  量级）；5 处 auth await 20s 超时；friendlyError 删除漂移的 Firestore 分支（全权
+  委托 describeFirestoreError）。
+- **认证加固：** AuthStateListener 接入 UI（服务端吊销→诚实回登录门）；登出/登录
+  处理器补 CancellationException 重抛；home/family/{relId} 登出态白屏补 EmptyState。
+- **去重 14/15 簇：** SessionActions.kt（answerSession 单源，AddDeviceTab 副本实为
+  死代码径删）；rememberRelationshipWatch（watcher+30s tick 单源，Add tab 升级
+  canonical 形态）；TickingBlock 增 intervalMillis（30s/10s 循环×7 全收）；Core.kt
+  BackTitleRow；Badges.kt endedByLabel + rememberPresenceState（Presence 双胞胎共用
+  状态）；isNotifGranted（PermissionWizard）×5 收敛；hasAnyLocationPermission
+  （LiveLocationRepo）×3；isTrackableCounterpart 扩展×2；SettingsChevron×8；
+  RadioOptionRow 统一；冗余 setSharingEnabled 双写删除；**Add tab 重复
+  watchSessions 监听器移除**——PairingCard 新增 sessions/sessionsLoaded/
+  sessionsError/onRetrySessions 参数，消费根 SessionWatchViewModel 状态（M4 模式，
+  MainActivity 已接线）。第 15 簇（last-finished getSession 双拷贝）有意保留
+  （异构状态宿主，§7.3 记录）。
+- **死代码/清理：** cancelNotification 删除；沙盒 315+MB 清除（download/ 旧 APK
+  264MB、upload/ 旧截图 45MB、tool-results 4.9MB、tmp/ 调试脚本、killpush 日志）；
+  download/README.md 改指 CI artifact。**预览重写：** page.tsx 从 "Phase 4 · v0.5.1"
+  古董指南重写为 QA/发布仪表盘（孟语，shadcn 组件，3 tab：测试结果/功能/路线图
+  与限制 + Owner 下一步）；phase0-plan.tsx、phase1-guide.tsx、home-tabs.tsx、
+  public/phase1-files.json、bootstrap.sh.txt 删除。
+
+**验证：** 41 个 .kt 文件括号平衡全过；跨文件集成点核对（PairingCard 新签名 ↔
+MainActivity 接线、homeSessions 状态名、字符串资源存在性、import 用净）；两实现代理
+自报同款校验。20 文件全部经 readback-verify 管线推送（SHA256 逐文件核验）。CI 以
+最终 HEAD run 为准（前序 run 并发自动取消属常态）；构建门结果由协调者核验后在此补记。
+
+**Owner 动作：** 双机改装 **v0.37.0/56**（§5 QA-wave 版检查单：登录超时语义、Add tab
+无重复监听、revoke→family 需新码——旧码复用是"连不上"第一因；其余 §71/§73 检查单
+不变）。
