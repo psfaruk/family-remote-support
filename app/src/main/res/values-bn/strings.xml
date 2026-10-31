@@ -418,4 +418,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">আবার চেষ্টা করুন</string>
     <string name="states_open_settings">সিস্টেম সেটিংস খুলুন</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">ফ্যামিলি ডিভাইস</string>
+    <string name="fam_empty_t">এখনও কোনো ফোন যুক্ত নেই</string>
+    <string name="fam_empty_h">Add Device ট্যাব থেকে একটি ফোন যুক্ত করুন — সেটি এখানে লাইভ স্ট্যাটাস-সহ দেখা যাবে।</string>
+    <string name="fam_not_found">এই পেয়ারিংটি খুঁজে পাওয়া যায়নি।</string>
+    <string name="fam_not_found_h">সম্ভবত এটি বাতিল (revoke) বা এই অ্যাকাউন্ট থেকে সরানো হয়েছে।</string>
+    <string name="actv_title">সাম্প্রতিক কার্যক্রম</string>
+    <string name="actv_tile_d">চলমান ও সদ্য-সমাপ্ত সাপোর্ট সেশন</string>
+    <string name="actv_empty_t">এখনও কোনো সেশন নেই</string>
+    <string name="actv_empty_h">সাপোর্ট সেশন চলাকালীন এবং শেষ হওয়ার ঠিক পরেই এখানে দেখা যাবে।</string>
+    <string name="sess_title">সেশনের বিবরণ</string>
+    <string name="sess_not_found">এই সেশনটি খুঁজে পাওয়া যায়নি।</string>
+    <string name="sess_not_found_h">সর্বশেষ সেশনগুলো দেখতে Recent Activity খুলুন।</string>
+    <string name="sess_state">স্ট্যাটাস</string>
+    <string name="sess_kind">ধরন</string>
+    <string name="sess_helper">সহায়তাকারী</string>
+    <string name="sess_recipient">সহায়তা গ্রহণকারী</string>
+    <string name="sess_duration">স্থিতিকাল</string>
+    <string name="sess_endedby">শেষ করেছেন</string>
+    <string name="sess_family">ফ্যামিলি</string>
+    <string name="sess_guest">গেস্ট</string>
+    <string name="cd_back">ফিরে যান</string>
+    <string name="set_section_devices">ডিভাইস ম্যানেজমেন্ট</string>
+    <string name="set_section_location">লোকেশন ও প্রাইভেসি</string>
+    <string name="set_section_remote">রিমোট সাপোর্ট</string>
+    <string name="set_section_guest">গেস্ট অ্যাক্সেস</string>
+    <string name="set_section_security">সিকিউরিটি</string>
+    <string name="set_dev_entry_t">যুক্ত ফোনগুলো</string>
+    <string name="set_dev_entry_d">লাইভ স্ট্যাটাস, সাপোর্ট অ্যাকশন ও অ্যাক্সেস বাতিল</string>
+    <string name="set_loc_status">লাইভ লোকেশন আসন্ন একটি রিলিজে আসছে। আজ কোনো লোকেশন সংগ্রহ বা সংরক্ষণ করা হয় না।</string>
+    <string name="set_guest_note">গেস্ট লিংক সাময়িক (সর্বোচ্চ ৩ ঘণ্টা)। এগুলো কখনোই স্থায়ী ফ্যামিলি পেয়ারিং হয়ে যায় না।</string>
 </resources>
