@@ -39,6 +39,39 @@
     <string name="loc_title">लाइभ लोकेशन</string>
     <string name="loc_coming_title">आउँदो अपडेटमा आउँदैछ</string>
     <string name="loc_coming_body">यहाँ परिवारको लाइभ लोकेशन देखिनेछ — सधैं अर्को व्यक्तिको खुला सहमतिसहित। आज केही पनि सङ्कलन वा सेयर गरिँदैन।</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">यस फोनको लोकेशन सेयर गर्नुहोस्</string>
+    <string name="loc_share_body">सेयर चालु रहुञ्जेल तपाईंले जोड्नुभएको परिवारको सदस्यले नक्सामा यस फोनको लाइभ स्थान देख्न पाउनुहुनेछ। ताजा स्थान मात्र राखिन्छ — कहिल्यै पूरा इतिहास होइन — र तपाईं जुनसुकै बेला रोक्न सक्नुहुन्छ।</string>
+    <string name="loc_share_start">सेयर सुरु गर्नुहोस्</string>
+    <string name="loc_share_stop">सेयर रोक्नुहोस्</string>
+    <string name="loc_share_on">लोकेशन सेयर चालु छ</string>
+    <string name="loc_share_off">लोकेशन सेयर बन्द छ</string>
+    <string name="loc_banner_on">तपाईं अहिले यस फोनको लोकेशन सेयर गर्दै हुनुहुन्छ</string>
+    <string name="loc_banner_off">सेयर बन्द छ — यस फोनको स्थान पठाइँदैन</string>
+    <string name="loc_interval_label">अपडेटको अन्तराल</string>
+    <string name="loc_interval_30s">हरेक ३० सेकेन्ड</string>
+    <string name="loc_interval_1m">हरेक १ मिनेट</string>
+    <string name="loc_interval_5m">हरेक ५ मिनेट</string>
+    <string name="loc_notif_title">लोकेशन सेयर चालु छ</string>
+    <string name="loc_notif_body">एप खोल्न र सेयर रोक्न ट्याप गर्नुहोस्।</string>
+    <string name="loc_fresh_live">लाइभ</string>
+    <string name="loc_fresh_stale">पुरानो</string>
+    <string name="loc_fresh_offline">अफलाइन</string>
+    <string name="loc_last_known">अन्तिम जानिएको — %1$s</string>
+    <string name="loc_never">कहिल्यै सेयर भएको छैन</string>
+    <string name="loc_no_fix">पहिलो स्थानको प्रतीक्षामा…</string>
+    <string name="loc_acc_m">±%1$d मिटर</string>
+    <string name="loc_updated">अपडेट: %1$s</string>
+    <string name="loc_details">लोकेशन विवरण</string>
+    <string name="loc_open_maps">नक्सा एपमा खोल्नुहोस्</string>
+    <string name="loc_perm_title">लोकेशन अनुमति चाहिन्छ</string>
+    <string name="loc_perm_body">लोकेशन अनुमतिले तपाईं सेयर गर्दै हुँदा तपाईंको परिवारले यस फोनको स्थान देख्न पाउँछ। यो देखिने सेयर सूचना देखाइँदै रहुञ्जेल मात्र प्रयोग गरिन्छ।</string>
+    <string name="loc_denied_title">लोकेशन पहुँच अस्वीकृत भयो</string>
+    <string name="loc_denied_body">लोकेशन अनुमति अस्वीकार भयो। प्रणाली सेटिङ्समा अनुमति नदिइञ्जेल सेयर सुरु हुन सक्दैन।</string>
+    <string name="loc_empty_title">अझै कुनै जोडिएको डिभाइस छैन</string>
+    <string name="loc_empty_body">पहिले परिवारको डिभाइस जोड्नुहोस् — मालिकको खुला सहमतिसहित उसको लाइभ स्थान यहाँ देखिनेछ।</string>
+    <string name="loc_list_title">एउटा डिभाइस छान्नुहोस्</string>
     <string name="set_section_account">खाता</string>
     <string name="set_profile_title">प्रोफाइल</string>
     <string name="set_profile_sub">यो खाताको नाम र इमेल</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">जोडिएका फोनहरू</string>
     <string name="set_dev_entry_d">लाइभ स्थिति, सहयोग कार्यहरू र पहुँच रद्द</string>
     <string name="set_loc_status">लाइभ स्थान आगामी रिलिजमा आउने योजनामा छ। आज कुनै स्थान सङ्कलन वा भण्डारण गरिँदैन।</string>
+    <string name="set_loc_now">जोडिएका पारिवारिक डिभाइसहरूसँग यस फोनको लाइभ लोकेशन सेयर गर्नुहोस्। ताजा स्थान मात्र राखिन्छ — कहिल्यै पूरा इतिहास होइन।</string>
     <string name="set_guest_note">गेस्ट लिङ्कहरू अस्थायी हुन्छन् (अधिकतम ३ घण्टा)। तिनीहरू कहिल्यै स्थायी फमिली पेयरिङ बन्दैनन्।</string>
 </resources>
