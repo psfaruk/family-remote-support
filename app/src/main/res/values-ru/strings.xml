@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s сейчас помогает вам</string>
     <string name="notif_empty_title">Сейчас ничего не требует вашего внимания</string>
     <string name="notif_empty_body">Запросы на поддержку, активные сессии и предупреждения настройки появляются здесь сразу.</string>
-    <string name="notif_hint">Только реальные текущие события — ничего выдуманного, без истории.</string>
+    <string name="notif_hint">Только реальные события — хранятся локально и только на этом устройстве (последние 100), никогда никуда не выгружаются и удаляются при выходе из аккаунта.</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Попробовать снова</string>
@@ -479,4 +479,85 @@
     <string name="set_loc_status">Живая геолокация планируется в одном из будущих релизов. Сегодня никакая геолокация не собирается и не сохраняется.</string>
     <string name="set_loc_now">Делитесь местоположением этого телефона в реальном времени с сопряжёнными семейными устройствами. Хранится только последнее положение — никогда не история.</string>
     <string name="set_guest_note">Гостевые ссылки временные (до 3 часов) и никогда не становятся постоянными семейными связками.</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">Недавние события</string>
+    <string name="notif_ev_asked">Запрос помощи от %1$s</string>
+    <string name="notif_ev_started">Началась сессия поддержки с %1$s</string>
+    <string name="notif_ev_ended">Сессия поддержки с %1$s завершилась</string>
+    <string name="notif_ev_sharing_on">Передача местоположения включена</string>
+    <string name="notif_ev_sharing_off">Передача местоположения выключена</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">Этого запроса больше не существует.</string>
+    <string name="err_session_unreadable">Этот запрос нечитаем.</string>
+    <string name="err_session_unreadable_resend">Этот запрос нечитаем — попросите помощника отправить его заново.</string>
+    <string name="err_only_recipient_allow">Разрешить эту сессию может только тот телефон, у которого спросили.</string>
+    <string name="err_only_recipient_deny">Отклонить этот запрос может только тот телефон, у которого спросили.</string>
+    <string name="err_only_helper_cancel">Отменить свой запрос может только сам помощник.</string>
+    <string name="err_already_answered">На этот запрос уже ответили.</string>
+    <string name="err_already_answered_status">На этот запрос уже ответили (%1$s).</string>
+    <string name="err_session_expired_resend">Срок действия этого запроса уже истёк — попросите помощника отправить новый.</string>
+    <string name="setup_not_checked">Ещё не проверено</string>
+    <string name="setup_not_sent">Ещё не отправлено</string>
+    <string name="setup_not_setup">Ещё не настроено</string>
+    <string name="share_channel_name">Передача экрана</string>
+    <string name="share_channel_desc">Показывается, пока ваш экран передаётся помощнику.</string>
+    <string name="share_notif_title">Передача экрана активна</string>
+    <string name="share_notif_body">Помощник видит экран этого телефона. Нажмите, чтобы открыть.</string>
+    <string name="qr_share_chooser_title">Поделиться кодом сопряжения</string>
+    <string name="qr_share_text">Код сопряжения Family Remote Support: %1$s\nОткройте приложение Family Remote Support на другом телефоне, нажмите «Сканировать QR» или введите этот код. Действует 5 минут.</string>
+    <string name="ss_info_live_receiving">В эфире — экран принимается ✓</string>
+    <string name="ss_info_preparing_share">Готовим передачу экрана…</string>
+    <string name="ss_info_capture_ready">Захват экрана готов — ждём, пока помощник нажмёт «Смотреть экран».</string>
+    <string name="ss_info_preparing_viewer">Готовим окно просмотра…</string>
+    <string name="ss_info_asked">Запросили экран у телефона получателя — соединяем…</string>
+    <string name="ss_info_video_ready">Видеоканал готов — ждём соединения…</string>
+    <string name="ss_info_connected">Соединение установлено — запускаем видео…</string>
+    <string name="ss_info_live_share">В эфире — помощник видит этот экран.</string>
+    <string name="ss_info_interrupted">Соединение прервано — пытаемся восстановить…</string>
+    <string name="ss_info_watch_received">Помощник запросил просмотр — отправляем экран…</string>
+    <string name="ss_info_share_stopped">Получатель прекратил передачу экрана.</string>
+    <string name="ss_info_view_closed">Помощник закрыл просмотр.</string>
+    <string name="ss_info_offer_sent">Предложение отправлено — ждём ответа помощника…</string>
+    <string name="ss_info_offer_failed">Не удалось подготовить предложение экрана — помощник повторит попытку автоматически.</string>
+    <string name="ss_info_answer_sent">Ответ отправлен — соединяем видео…</string>
+    <string name="ss_info_negotiation_done">Согласование завершено — подключаемся к помощнику…</string>
+    <string name="ss_retry_no_response">Телефон получателя не отвечает — убедитесь, что на нём включён «Показать экран».</string>
+    <string name="ss_retry_no_answer">Ответ получателя так и не пришёл.</string>
+    <string name="ss_retry_link_failed">Двум телефонам не удалось связаться.</string>
+    <string name="ss_retry_conn_failed">Попытка соединения не удалась</string>
+    <string name="ss_retry_answer_failed">Не удалось ответить на предложение получателя</string>
+    <string name="ss_retry_apply_failed">Не удалось применить предложение получателя</string>
+    <string name="ss_retrying_auto">%1$s — повторяем попытку автоматически…</string>
+    <string name="ss_retried_watch">%1$s — снова запросили экран у телефона получателя…</string>
+    <string name="ss_recover_conn_failed">Соединиться с помощником не удалось — передача экрана остаётся готовой. Попросите помощника снова нажать «Смотреть экран».</string>
+    <string name="ss_recover_answer_failed">Не удалось ответить — помощник повторит попытку автоматически.</string>
+    <string name="ss_recover_apply_failed">Не удалось применить ответ помощника — помощник повторит попытку.</string>
+    <string name="ss_fail_projection_stopped">Проецирование экрана остановлено системой — нажмите «Показать экран» ещё раз.</string>
+    <string name="ss_fail_capture">Не удалось захватить экран: %1$s</string>
+    <string name="ss_fail_watch">Не удалось запросить просмотр: %1$s</string>
+    <string name="ss_fail_viewer">Не удалось запустить окно просмотра: %1$s</string>
+    <string name="ss_fail_conn_stopped">Соединение не удалось — нажмите «Прекратить показ», затем передайте экран снова.</string>
+    <string name="ss_fail_no_engine">Не удалось создать движок WebRTC на этом телефоне.</string>
+    <string name="ss_fail_signal">Ошибка канала сигнализации: %1$s</string>
+    <string name="ss_fail_conn_retry">Соединение не удалось — телефонам не удалось связаться друг с другом. Нажмите «Смотреть экран» ещё раз; если не помогает, подключите оба телефона к одной сети Wi-Fi (или к точке доступа одного из них).</string>
+    <string name="ss_fail_offer">Не удалось отправить предложение: %1$s</string>
+    <string name="ss_fail_answer">Не удалось отправить ответ: %1$s</string>
+    <string name="ss_fail_apply">Не удалось применить ответ помощника.</string>
+    <string name="ss_ack_back">Команда «Назад» доставлена ✓</string>
+    <string name="ss_ack_home">Команда «Домой» доставлена ✓</string>
+    <string name="ss_ack_recents">Команда «Недавние» доставлена ✓</string>
+    <string name="ss_ack_swipe">Свайп доставлен ✓</string>
+    <string name="ss_ack_long">Долгое нажатие доставлено ✓</string>
+    <string name="ss_ack_tap">Касание доставлено ✓</string>
+    <string name="ph_save_perm_needed">Для сохранения изображения QR-кода нужно разрешение на доступ к хранилищу.</string>
+    <string name="fallback_someone">Кто-то</string>
+    <string name="fallback_helper">помощник</string>
+    <string name="cd_pairing_qr">QR-код сопряжения</string>
+    <string name="so_signout_failed">Не удалось выполнить выход: %1$s</string>
+    <string name="cd_clear_messages">Очистить сообщения</string>
+
 </resources>
