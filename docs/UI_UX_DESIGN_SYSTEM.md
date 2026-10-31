@@ -614,3 +614,31 @@ friendlyErrorBn-এ ৬-ম্যাপ (অ্যাকাউন্ট-নে�
    কোনো ডেল্টা দরকার হয়নি।
 6. **স্বচ্ছ নোট:** ~২০৩ লিগ্যাসি কী-তে default↔bn ইনভার্সন আবিষ্কৃত (§1-এর "default = English"
    ঘোষণার বিপরীতে) — এই মাইলস্টোনে ধরা হয়নি; M4/M8 i18n-ওয়েভের জন্য রেকর্ড করা।
+
+
+## §২৬.২ M3 বাস্তবায়ন রেকর্ড (২০২৬-১০-৩১, v0.31.0/50)
+
+§২৬.১-এর ধারাবাহিকতা — Owner-এর "M3" নির্দেশ। ডিজাইন-সিস্টেমের দৃষ্টিতে এই পুশে যা ঘটল:
+
+1. **কম্পোনেন্ট-লাইব্রেরি সম্পূর্ণ (§6-এর প্রতিশ্রুতি পূরণ):** `ui/components/`-এ এখন সম্পূর্ণ
+   পরিবার — Core.kt (M2: SectionCard/AppListTile/EmptyState/WideOutlinedButton) + **Cards.kt**
+   (SettingsTile/IconStatusTile/QuickActionTile) + **Buttons.kt** (BigButton) + **Badges.kt**
+   (StatusBadge/sessionStatus/sessionBadgeKind/statusChipColors/PresenceBadge/PresenceChip) +
+   **States.kt** (LoadingSkeleton/ErrorPanel/PermissionDeniedPanel)। সবাই MainActivity থেকে
+   **হুবহু** উন্নীত (private→public/internal; কোনো ভিজ্যুয়াল পরিবর্তন নেই) — §7-এর "এক উইজেটের
+   একটাই বাস্তবায়ন" নিয়ম এখন পুরো স্ক্রিন-সেটে প্রযোজ্য।
+2. **State-কম্পোনেন্ট (NAVIGATION_MAP §5 অনুযায়ী canonical):** LoadingSkeleton (প্রথম snapshot-
+   এর আগে সৎ স্কেলেটন — কোনো spinner-ঝলক নয়, বানানো ডেটা নয়), ErrorPanel (routed, স্থানীয়কৃত
+   বার্তা + retry — §12-এর "animation/অনুমান কখনো সাফল্য নির্দেশ করবে না" নিয়ম মেনে), 
+   PermissionDeniedPanel (উদ্দেশ্য-ব্যাখ্যা + সিস্টেম-সেটিংস হ্যান্ড-অফ; wire-up M4/M5)। M3-তে
+   ওয়্যারিং: Home-এর সেশন-ওয়াচ (loading → skeleton; pre-snapshot ব্যর্থতা → ErrorPanel)।
+3. **স্ক্রিন-নিষ্কাশন (§18-এর "প্রভাবিত ফাইল" ম্যাপ বাস্তব):** HomeTab → `ui/home/HomeTab.kt`,
+   Add Device → `ui/pairing/AddDeviceTab.kt`, Settings (+activity) → `ui/settings/SettingsTab.kt`,
+   Tracking → `ui/tracking/TrackingTab.kt`, ViewModel → `ui/home/SessionWatchViewModel.kt`।
+   কোনো নতুন রঙ/টাইপ/স্পেসিং টোকেন লাগেনি — সব স্ক্রিন §4–§6-এর টোকেনেই; থিম-ফাইল অস্পৃশ্য।
+4. **অ্যাক্সেসিবিলিটি (§15) অটুট:** ErrorPanel টেক্সট-রঙ onErrorContainer-এ (কনট্রাস্ট টোকেন-নির্ধারিত),
+   রঙ-একা-নয় (আইকন + শব্দ), touch-target বদলায়নি, নতুন ২ কী ×১৫ ভাষা (`states_retry`,
+   `states_open_settings`) — bn/ar/ru/hi/id/tr/ur/es/ja/de/ne/pt/zh/fr সহ XML-যাচাই।
+5. **স্বচ্ছ নোট:** §2-এর "স্ক্রিন-প্রতি ডিজাইন চাহিদা"-র nested detail-রুট অংশ (member details,
+   settings subsections ইত্যাদি) এই মাইলস্টোনে নয় — M4 wave; ট্যাব-লেভেল রিডিজাইন + নিষ্কাশন আগে
+   (FRONTEND_ARCHITECTURE §2-এর "incremental, never big-bang" নীতি অনুযায়ী)।
