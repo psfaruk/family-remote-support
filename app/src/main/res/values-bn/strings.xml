@@ -479,6 +479,9 @@
     <string name="set_section_remote">রিমোট সাপোর্ট</string>
     <string name="set_section_guest">গেস্ট অ্যাক্সেস</string>
     <string name="set_section_security">সিকিউরিটি</string>
+    <string name="set_section_privacysec">প্রাইভেসি ও সিকিউরিটি</string>
+    <string name="set_section_prefs">পছন্দসমূহ</string>
+    <string name="set_section_about_session">অ্যাপ সম্পর্কে ও সেশন</string>
     <string name="set_dev_entry_t">যুক্ত ফোনগুলো</string>
     <string name="set_dev_entry_d">লাইভ স্ট্যাটাস, সাপোর্ট অ্যাকশন ও অ্যাক্সেস বাতিল</string>
     <string name="set_loc_status">লাইভ লোকেশন আসন্ন একটি রিলিজে আসছে। আজ কোনো লোকেশন সংগ্রহ বা সংরক্ষণ করা হয় না।</string>
