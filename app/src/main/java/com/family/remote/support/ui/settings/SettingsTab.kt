@@ -33,7 +33,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
@@ -98,7 +97,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import com.family.remote.support.AssistSetup
 import com.family.remote.support.AssistSetupGuide
 import com.family.remote.support.BuildConfig
@@ -109,7 +107,9 @@ import com.family.remote.support.PermChecklist
 import com.family.remote.support.R
 import com.family.remote.support.StatusRow
 import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.hasAnyLocationPermission
 import com.family.remote.support.isLocationSharingRunning
+import com.family.remote.support.isNotifGranted
 import com.family.remote.support.startLocationSharing
 import com.family.remote.support.stopLocationSharing
 import com.family.remote.support.ui.LangPrefBus
@@ -130,6 +130,22 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+
+/**
+ * v0.37.0 (dedupe wave) — the pure chevron trailing of a clickable
+ * SettingsTile (was pasted 8×: KeyboardArrowRight, onSurfaceVariant tint,
+ * 20 dp). Rows with DIFFERENT trailing content (switch, value text, check)
+ * keep their own lambda and embed this where their chevron appears.
+ */
+@Composable
+private fun SettingsChevron() {
+    Icon(
+        imageVector = Icons.Filled.KeyboardArrowRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(20.dp)
+    )
+}
 
 /** Phase 11.6 — one appearance choice row with a mini theme-preview dot. */
 @Composable
@@ -282,14 +298,8 @@ internal fun SettingsTab(
                 title = stringResource(R.string.set_edit_name),
                 description = stringResource(R.string.set_profile_sub),
                 onClick = { showEditName = true },
-                trailing = {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+                trailing = { SettingsChevron() }
             )
         }
         statusMessage?.let {
@@ -311,14 +321,8 @@ internal fun SettingsTab(
             title = stringResource(R.string.set_dev_entry_t),
             description = stringResource(R.string.set_dev_entry_d),
             onClick = onOpenFamily,
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+            trailing = { SettingsChevron() }
         )
         if (deviceList.isNotEmpty()) {
             HorizontalDivider()
@@ -359,14 +363,8 @@ internal fun SettingsTab(
             title = stringResource(R.string.set_section_guest),
             description = stringResource(R.string.set_guest_note),
             onClick = onOpenFamily,
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+            trailing = { SettingsChevron() }
         )
         HorizontalDivider()
         SettingsTile(
@@ -378,14 +376,8 @@ internal fun SettingsTab(
                 stringResource(R.string.pw_progress, permSummary.doneCount, permSummary.missingNames(context))
             },
             onClick = onOpenWizard,
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+            trailing = { SettingsChevron() }
         )
         HorizontalDivider()
         SettingsTile(
@@ -393,14 +385,8 @@ internal fun SettingsTab(
             title = stringResource(R.string.set_privacy),
             description = stringResource(R.string.set_privacy_sub),
             onClick = { showDoc = "privacy" },
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+            trailing = { SettingsChevron() }
         )
         HorizontalDivider()
         SettingsTile(
@@ -408,14 +394,8 @@ internal fun SettingsTab(
             title = stringResource(R.string.set_rules),
             description = stringResource(R.string.set_rules_sub),
             onClick = { showDoc = "rules" },
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+            trailing = { SettingsChevron() }
         )
     }
 
@@ -470,12 +450,10 @@ internal fun SettingsTab(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    // v0.37.0 (dedupe wave) — the chevron half of this
+                    // trailing is the shared one; the language NAME text
+                    // stays (different content → lambda kept).
+                    SettingsChevron()
                 }
             }
         )
@@ -495,14 +473,8 @@ internal fun SettingsTab(
             title = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
             description = stringResource(R.string.set_about_sub),
             onClick = { showAbout = true },
-            trailing = {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
+            trailing = { SettingsChevron() }
         )
         if (signedInUser != null) {
             HorizontalDivider()
@@ -666,12 +638,13 @@ internal fun EditNameDialog(
 }
 
 /**
- * Phase 16 — language option row: the language's OWN native name + a radio
- * check. Native names never translate — each language shows as it calls
- * itself, exactly like every mainstream app does.
+ * v0.37.0 (dedupe wave) — ONE radio option row (was 2 drifting copies:
+ * LangOptionRow here and IntervalChoiceRow below, same idea with drifting
+ * visuals). Canonical LangOptionRow visual: RadioButton + label,
+ * bold-when-selected, 6 dp vertical padding, 10 dp spacing.
  */
 @Composable
-internal fun LangOptionRow(
+private fun RadioOptionRow(
     label: String,
     selected: Boolean,
     onClick: () -> Unit
@@ -721,7 +694,7 @@ private fun LanguagePickerDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 LangPrefBus.supported.forEach { (code, nativeName) ->
-                    LangOptionRow(
+                    RadioOptionRow(
                         label = nativeName,
                         selected = currentCode == code,
                         onClick = {
@@ -764,10 +737,9 @@ internal fun TestNotifRow() {
         title = stringResource(R.string.set_test_notif),
             description = feedback ?: stringResource(R.string.tnotif_desc),
         onClick = {
-            val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
+            // v0.37.0 (dedupe wave) — ONE granted check (PermissionWizard's
+            // isNotifGranted; was an inline SDK/ContextCompat copy).
+            val granted = isNotifGranted(context)
             if (!granted) {
                 feedback = context.getString(R.string.set_test_notif_blocked)
                 return@SettingsTile
@@ -919,13 +891,10 @@ private fun LocationSharingControls() {
                 checked = sharingOn,
                 onCheckedChange = { wantOn ->
                     if (wantOn) {
-                        val fine = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.ACCESS_FINE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED
-                        val coarse = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.ACCESS_COARSE_LOCATION
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (fine || coarse) {
+                        // v0.37.0 (dedupe wave) — ONE "fine || coarse" check
+                        // (LiveLocationRepo.hasAnyLocationPermission; was the
+                        // inline fine/coarse pair here).
+                        if (hasAnyLocationPermission(context)) {
                             startLocationSharing(context)
                             sharingOn = true
                         } else {
@@ -965,59 +934,39 @@ private fun LocationSharingControls() {
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IntervalChoiceRow(
+                    // v0.37.0 (dedupe wave) — ONE pick action + ONE radio row
+                    // for all three cadences (was IntervalChoiceRow with the
+                    // same apply closure pasted into each of the three call
+                    // sites; the row is now the shared RadioOptionRow).
+                    val pickInterval: (Long) -> Unit = { picked ->
+                        LocationSharingPrefs.setIntervalMillis(context, picked)
+                        // The service reads the interval at start; restart
+                        // it so a LIVE change takes effect immediately.
+                        // The stop path deletes the shared doc once and
+                        // the fresh start republishes on the next accepted
+                        // fix — freshness stays honest throughout (never
+                        // "live" during the gap).
+                        if (sharingOn && isLocationSharingRunning(context)) {
+                            stopLocationSharing(context)
+                            startLocationSharing(context)
+                        }
+                        intervalMillis = picked
+                        showIntervalDialog = false
+                    }
+                    RadioOptionRow(
                         label = stringResource(R.string.loc_interval_30s),
-                        value = LocationSharingPrefs.INTERVAL_30S,
-                        currentMillis = intervalMillis,
-                        onPick = {
-                            intervalMillis = it
-                            showIntervalDialog = false
-                        },
-                        applyIntervalChoice = { picked ->
-                            LocationSharingPrefs.setIntervalMillis(context, picked)
-                            // The service reads the interval at start; restart
-                            // it so a LIVE change takes effect immediately.
-                            // The stop path deletes the shared doc once and
-                            // the fresh start republishes on the next accepted
-                            // fix — freshness stays honest throughout (never
-                            // "live" during the gap).
-                            if (sharingOn && isLocationSharingRunning(context)) {
-                                stopLocationSharing(context)
-                                startLocationSharing(context)
-                            }
-                        }
+                        selected = intervalMillis == LocationSharingPrefs.INTERVAL_30S,
+                        onClick = { pickInterval(LocationSharingPrefs.INTERVAL_30S) }
                     )
-                    IntervalChoiceRow(
+                    RadioOptionRow(
                         label = stringResource(R.string.loc_interval_1m),
-                        value = LocationSharingPrefs.INTERVAL_1M,
-                        currentMillis = intervalMillis,
-                        onPick = {
-                            intervalMillis = it
-                            showIntervalDialog = false
-                        },
-                        applyIntervalChoice = { picked ->
-                            LocationSharingPrefs.setIntervalMillis(context, picked)
-                            if (sharingOn && isLocationSharingRunning(context)) {
-                                stopLocationSharing(context)
-                                startLocationSharing(context)
-                            }
-                        }
+                        selected = intervalMillis == LocationSharingPrefs.INTERVAL_1M,
+                        onClick = { pickInterval(LocationSharingPrefs.INTERVAL_1M) }
                     )
-                    IntervalChoiceRow(
+                    RadioOptionRow(
                         label = stringResource(R.string.loc_interval_5m),
-                        value = LocationSharingPrefs.INTERVAL_5M,
-                        currentMillis = intervalMillis,
-                        onPick = {
-                            intervalMillis = it
-                            showIntervalDialog = false
-                        },
-                        applyIntervalChoice = { picked ->
-                            LocationSharingPrefs.setIntervalMillis(context, picked)
-                            if (sharingOn && isLocationSharingRunning(context)) {
-                                stopLocationSharing(context)
-                                startLocationSharing(context)
-                            }
-                        }
+                        selected = intervalMillis == LocationSharingPrefs.INTERVAL_5M,
+                        onClick = { pickInterval(LocationSharingPrefs.INTERVAL_5M) }
                     )
                 }
             },
@@ -1038,34 +987,9 @@ private fun intervalChoiceLabel(millis: Long): String = when (millis) {
     else -> stringResource(R.string.loc_interval_1m)
 }
 
-/** One radio row of the interval dialog (the language dialog's row style). */
-@Composable
-private fun IntervalChoiceRow(
-    label: String,
-    value: Long,
-    currentMillis: Long,
-    onPick: (Long) -> Unit,
-    applyIntervalChoice: (Long) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                applyIntervalChoice(value)
-                onPick(value)
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = currentMillis == value,
-            onClick = {
-                applyIntervalChoice(value)
-                onPick(value)
-            }
-        )
-        Text(text = label, style = MaterialTheme.typography.bodyMedium)
-    }
-}
+// v0.37.0 (dedupe wave) — IntervalChoiceRow is gone: the interval dialog
+// uses the shared RadioOptionRow + ONE pickInterval closure above (it was
+// this file's second, visually drifting radio-row copy of LangOptionRow).
 
 /**
  * v0.14.0 — নোটিফিকেশন টগল (আসল Switch): চালু/বন্ধ অবস্থা সিস্টেম থেকে পড়া
@@ -1076,14 +1000,7 @@ private fun IntervalChoiceRow(
 @Composable
 internal fun SettingsNotifTile() {
     val context = LocalContext.current
-    var notifGranted by remember {
-        mutableStateOf(
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
+    var notifGranted by remember { mutableStateOf(isNotifGranted(context)) }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -1091,11 +1008,9 @@ internal fun SettingsNotifTile() {
     }
     LaunchedEffect(Unit) {
         while (true) {
-            notifGranted =
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                    ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
+            // v0.37.0 (dedupe wave) — ONE granted check (PermissionWizard's
+            // isNotifGranted; was an inline SDK/ContextCompat copy).
+            notifGranted = isNotifGranted(context)
             delay(1500)
         }
     }
