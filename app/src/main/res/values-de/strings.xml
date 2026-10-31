@@ -39,6 +39,39 @@
     <string name="loc_title">Live-Standort</string>
     <string name="loc_coming_title">Kommt in einem künftigen Update</string>
     <string name="loc_coming_body">Hier erscheint der Live-Standort der Familie — immer mit ausdrücklicher Zustimmung der anderen Person. Heute wird nichts erfasst und nichts geteilt.</string>
+
+    <!-- Phase 22/M5 — live location (consent-based sharing) -->
+    <string name="loc_share_title">Standort dieses Telefons teilen</string>
+    <string name="loc_share_body">Ihr gekoppeltes Familienmitglied sieht den Live-Standort dieses Telefons auf einer Karte, solange das Teilen läuft. Es wird nur die jeweils letzte Position behalten — nie ein Verlauf — und Sie können jederzeit aufhören.</string>
+    <string name="loc_share_start">Teilen starten</string>
+    <string name="loc_share_stop">Teilen stoppen</string>
+    <string name="loc_share_on">Standort-Freigabe ist AN</string>
+    <string name="loc_share_off">Standort-Freigabe ist aus</string>
+    <string name="loc_banner_on">Sie teilen gerade den Standort dieses Telefons</string>
+    <string name="loc_banner_off">Freigabe ist aus — die Position dieses Telefons wird nicht gesendet</string>
+    <string name="loc_interval_label">Aktualisierungsintervall</string>
+    <string name="loc_interval_30s">Alle 30 Sekunden</string>
+    <string name="loc_interval_1m">Jede Minute</string>
+    <string name="loc_interval_5m">Alle 5 Minuten</string>
+    <string name="loc_notif_title">Standort-Freigabe ist aktiv</string>
+    <string name="loc_notif_body">Tippen Sie, um die App zu öffnen und das Teilen zu stoppen.</string>
+    <string name="loc_fresh_live">Live</string>
+    <string name="loc_fresh_stale">Veraltet</string>
+    <string name="loc_fresh_offline">Offline</string>
+    <string name="loc_last_known">Zuletzt bekannt — %1$s</string>
+    <string name="loc_never">Nie geteilt</string>
+    <string name="loc_no_fix">Warten auf die erste Positionsbestimmung…</string>
+    <string name="loc_acc_m">±%1$d m</string>
+    <string name="loc_updated">Aktualisiert: %1$s</string>
+    <string name="loc_details">Standortdetails</string>
+    <string name="loc_open_maps">In der Karten-App öffnen</string>
+    <string name="loc_perm_title">Standortberechtigung erforderlich</string>
+    <string name="loc_perm_body">Mit der Standortberechtigung kann Ihre Familie den Standort dieses Telefons sehen, solange Sie ihn freigeben. Sie wird nur verwendet, während die sichtbare Freigabe-Benachrichtigung zu sehen ist.</string>
+    <string name="loc_denied_title">Standortzugriff verweigert</string>
+    <string name="loc_denied_body">Die Standortberechtigung wurde verweigert. Das Teilen kann erst beginnen, wenn sie in den Systemeinstellungen erteilt wird.</string>
+    <string name="loc_empty_title">Noch keine gekoppelten Geräte</string>
+    <string name="loc_empty_body">Koppeln Sie zuerst ein Familiengerät — seine Live-Position erscheint hier mit der ausdrücklichen Zustimmung des Besitzers.</string>
+    <string name="loc_list_title">Gerät auswählen</string>
     <string name="set_section_account">Konto</string>
     <string name="set_profile_title">Profil</string>
     <string name="set_profile_sub">Name und E-Mail dieses Kontos</string>
@@ -444,5 +477,6 @@
     <string name="set_dev_entry_t">Gekoppelte Telefone</string>
     <string name="set_dev_entry_d">Live-Status, Unterstützungsaktionen und Widerruf</string>
     <string name="set_loc_status">Live-Standort ist für ein kommendes Release geplant. Heute wird kein Standort erfasst oder gespeichert.</string>
+    <string name="set_loc_now">Teilen Sie den Live-Standort dieses Telefons mit den gekoppelten Familien-Geräten. Es wird nur die jeweils letzte Position behalten — nie ein Verlauf.</string>
     <string name="set_guest_note">Gast-Verknüpfungen sind temporär (bis zu 3 Stunden) und werden niemals dauerhafte Familien-Kopplungen.</string>
 </resources>
