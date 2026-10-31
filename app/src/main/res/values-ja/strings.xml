@@ -412,4 +412,37 @@
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">再試行</string>
     <string name="states_open_settings">システム設定を開く</string>
+    <!-- M4 (v0.32.0) — nested-navigation wave: home/family,
+         home/family/{relId}, home/sessions, home/sessions/{id},
+         Settings 8 partitions, session detail labels. -->
+    <string name="fam_title">ファミリー端末</string>
+    <string name="fam_empty_t">まだペアリング済みの電話はありません</string>
+    <string name="fam_empty_h">「デバイスを追加」タブから電話をペアリングすると、ここにライブ状況とともに表示されます。</string>
+    <string name="fam_not_found">このペアリングは見つかりませんでした。</string>
+    <string name="fam_not_found_h">取り消されたか、このアカウントから削除された可能性があります。</string>
+    <string name="actv_title">最近のアクティビティ</string>
+    <string name="actv_tile_d">実行中および最近終了したサポートセッション</string>
+    <string name="actv_empty_t">まだセッションはありません</string>
+    <string name="actv_empty_h">サポートセッションは実行中と終了直後にここに表示されます。</string>
+    <string name="sess_title">セッションの詳細</string>
+    <string name="sess_not_found">このセッションは見つかりませんでした。</string>
+    <string name="sess_not_found_h">最新のセッションを見るには最近のアクティビティを開いてください。</string>
+    <string name="sess_state">状態</string>
+    <string name="sess_kind">種類</string>
+    <string name="sess_helper">支援者</string>
+    <string name="sess_recipient">支援を受ける人</string>
+    <string name="sess_duration">所要時間</string>
+    <string name="sess_endedby">終了者</string>
+    <string name="sess_family">ファミリー</string>
+    <string name="sess_guest">ゲスト</string>
+    <string name="cd_back">戻る</string>
+    <string name="set_section_devices">端末の管理</string>
+    <string name="set_section_location">位置情報とプライバシー</string>
+    <string name="set_section_remote">リモートサポート</string>
+    <string name="set_section_guest">ゲストアクセス</string>
+    <string name="set_section_security">セキュリティ</string>
+    <string name="set_dev_entry_t">ペアリング済みの電話</string>
+    <string name="set_dev_entry_d">ライブ状況、サポート操作、アクセスの取り消し</string>
+    <string name="set_loc_status">ライブ位置情報は今後のリリースで予定されています。現時点では位置情報の収集や保存は一切ありません。</string>
+    <string name="set_guest_note">ゲストリンクは一時的です（最大3時間）。永続的なファミリーのペアリングになることはありません。</string>
 </resources>
