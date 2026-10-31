@@ -898,7 +898,6 @@ private fun LocationSharingControls() {
                         value = LocationSharingPrefs.INTERVAL_30S,
                         currentMillis = intervalMillis,
                         onPick = {
-                            applyIntervalChoice(it)
                             intervalMillis = it
                             showIntervalDialog = false
                         },
@@ -921,7 +920,6 @@ private fun LocationSharingControls() {
                         value = LocationSharingPrefs.INTERVAL_1M,
                         currentMillis = intervalMillis,
                         onPick = {
-                            applyIntervalChoice(it)
                             intervalMillis = it
                             showIntervalDialog = false
                         },
@@ -938,7 +936,6 @@ private fun LocationSharingControls() {
                         value = LocationSharingPrefs.INTERVAL_5M,
                         currentMillis = intervalMillis,
                         onPick = {
-                            applyIntervalChoice(it)
                             intervalMillis = it
                             showIntervalDialog = false
                         },
