@@ -74,6 +74,7 @@ import com.family.remote.support.expireSession
 import com.family.remote.support.getSession
 import com.family.remote.support.grantSession
 import com.family.remote.support.isStaleOpen
+import com.family.remote.support.localizedMessage
 import com.family.remote.support.mmss
 import com.family.remote.support.qrBitmap
 import com.family.remote.support.redeemCode
@@ -86,6 +87,7 @@ import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.StatusBadge
+import com.family.remote.support.ui.components.TickingBlock
 import com.family.remote.support.ui.components.WideOutlinedButton
 import com.family.remote.support.ui.components.sessionStatus
 import com.family.remote.support.ui.home.HomeConsentCard
@@ -144,7 +146,6 @@ internal fun PairingSections(
     var inviteStatus by remember { mutableStateOf<String?>(null) }
     var claimerEmail by remember { mutableStateOf<String?>(null) }
     var inviteSyncError by remember { mutableStateOf<String?>(null) }
-    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var creatingKind by remember { mutableStateOf<String?>(null) }
     var pairingError by remember { mutableStateOf<String?>(null) }
     var codeInput by remember { mutableStateOf("") }
@@ -165,7 +166,6 @@ internal fun PairingSections(
     var sessionSyncError by remember { mutableStateOf<String?>(null) }
     var sessionBusy by remember { mutableStateOf(false) }
     var sessionMessage by remember { mutableStateOf<String?>(null) }
-    var sessionNow by remember { mutableStateOf(System.currentTimeMillis()) }
     // The last session that closed (ended/denied/cancelled/expired) — kept in
     // memory for the "Last session:" line. The live watches only track OPEN
     // sessions (index-free + rules-provable), so when one disappears from the
@@ -173,14 +173,18 @@ internal fun PairingSections(
     var lastFinishedSession by remember { mutableStateOf<SessionView?>(null) }
     var lastOpenSessionId by remember { mutableStateOf<String?>(null) }
 
-    // Ticks the countdown once per second while an invitation exists.
-    LaunchedEffect(invite?.invitationId) {
-        if (invite != null) {
-            while (true) {
-                nowMillis = System.currentTimeMillis()
-                delay(1000)
-            }
-        }
+    // M8 (v0.34.0) perf pass — the per-second screen-level tick is GONE. The
+    // invite's time-driven expiry flip is now one precise delayed flip at
+    // the window's end (zero recompositions until then), and the visible
+    // countdown lives inside its own TickingBlock further below — the rest
+    // of the tab no longer recomposes every second.
+    var inviteExpired by remember { mutableStateOf(false) }
+    LaunchedEffect(invite?.invitationId, invite?.expiresAtMillis) {
+        inviteExpired = false
+        val expiresAt = invite?.expiresAtMillis ?: return@LaunchedEffect
+        val wait = expiresAt - System.currentTimeMillis()
+        if (wait > 0) delay(wait)
+        inviteExpired = true
     }
 
     // Live status of the invitation we created (waiting → paired/cancelled).
@@ -278,36 +282,35 @@ internal fun PairingSections(
     // Phones tab was composed — and the teardown fired on the empty
     // pre-snapshot loading state, killing live shares on tab switches).
 
-    // Ticks once per second while a session is open so countdowns stay live.
-    LaunchedEffect(openSession?.id, openSession?.status) {
-        if (openSession != null) {
-            while (true) {
-                sessionNow = System.currentTimeMillis()
-                delay(1000)
-            }
-        } else {
-            sessionNow = System.currentTimeMillis()
-        }
-    }
-
     // Lazy server-less expiry: a stale ask turns EXPIRED, an over-time active
     // session turns ENDED("timeout"). Whichever app notices first does it.
     // v0.22.0 (Phase 18.1): sweeps EVERY open session, not just the newest —
     // repeated reboots used to leave older zombies behind forever (they filled
     // the capped watch window and could push a fresh ask out of it). The same
     // isStaleOpen(+4 s grace) rule the request-side self-heal applies.
-    LaunchedEffect(sessions.size, openSession?.id, openSession?.status, sessionNow) {
-        if (sessions.isEmpty()) return@LaunchedEffect
-        sessions.filter { it.isStaleOpen(sessionNow) }.forEach { s ->
-            try {
-                if (s.status == "REQUESTED") expireSession(s.id)
-                else endSession(s.id, user.uid, byTimeout = true)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // best effort — the ROOT sweep and the server sweep also
-                // perform exactly these transitions
+    // M8 (v0.34.0) perf pass — the sweep used to ride a per-second SCREEN-level
+    // state write (sessionNow), recomposing the whole tab every second. It now
+    // ticks inside its own effect; rememberUpdatedState keeps the session list
+    // fresh on every pass without relaunching (the old key set included
+    // sessionNow purely to re-read `sessions`).
+    val liveSessions by rememberUpdatedState(sessions)
+    LaunchedEffect(sessions.size, openSession?.id, openSession?.status) {
+        while (true) {
+            val open = liveSessions
+            if (open.isEmpty()) break
+            val now = System.currentTimeMillis()
+            open.filter { it.isStaleOpen(now) }.forEach { s ->
+                try {
+                    if (s.status == "REQUESTED") expireSession(s.id)
+                    else endSession(s.id, user.uid, byTimeout = true)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // best effort — the ROOT sweep and the server sweep also
+                    // perform exactly these transitions
+                }
             }
+            delay(1000)
         }
     }
 
@@ -341,7 +344,7 @@ internal fun PairingSections(
                         sessionMessage = context.getString(R.string.ph_denied_short)
                 }
             } catch (e: SessionException) {
-                sessionMessage = e.message
+                sessionMessage = e.localizedMessage(context)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -359,7 +362,7 @@ internal fun PairingSections(
                 endSession(s.id, user.uid)
                     sessionMessage = context.getString(R.string.ph_session_ended)
             } catch (e: SessionException) {
-                sessionMessage = e.message
+                sessionMessage = e.localizedMessage(context)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -400,7 +403,7 @@ internal fun PairingSections(
 
     val currentInvite = invite
     val expired = currentInvite != null &&
-        (nowMillis >= currentInvite.expiresAtMillis ||
+        (inviteExpired ||
             (inviteStatus != null && inviteStatus != "PENDING"))
     val showCode = currentInvite != null && !expired
 
@@ -435,8 +438,6 @@ internal fun PairingSections(
         }
         currentSession != null && currentSession.status == "REQUESTED" -> {
             // Helper waiting for the answer.
-            val secondsLeft =
-                ((currentSession.respondDeadlineMillis - sessionNow) / 1000).coerceAtLeast(0)
             Card {
                 Column(
                     modifier = Modifier
@@ -460,18 +461,25 @@ internal fun PairingSections(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
-                        Text(
-                            text = mmss(secondsLeft),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer,
-                                    RoundedCornerShape(999.dp)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        // M8 (v0.34.0) perf pass — the 2-minute countdown
+                        // chip carries its own clock; nothing else on the tab
+                        // recomposes per second.
+                        TickingBlock(key = currentSession.id) { now ->
+                            val secondsLeft =
+                                ((currentSession.respondDeadlineMillis - now) / 1000).coerceAtLeast(0)
+                            Text(
+                                text = mmss(secondsLeft),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        RoundedCornerShape(999.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                     Text(
                             text = stringResource(R.string.ph_wait_allow),
@@ -487,7 +495,7 @@ internal fun PairingSections(
                                     cancelSession(currentSession.id, user.uid)
                                         sessionMessage = context.getString(R.string.ph_cancelled_msg)
                                 } catch (e: SessionException) {
-                                    sessionMessage = e.message
+                                    sessionMessage = e.localizedMessage(context)
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (e: Exception) {
@@ -506,8 +514,6 @@ internal fun PairingSections(
         }
         currentSession != null && currentSession.status == "ACTIVE" -> {
             // Live session on either side.
-            val secondsLeft =
-                ((currentSession.sessionEndsAtMillis - sessionNow) / 1000).coerceAtLeast(0)
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -540,18 +546,24 @@ internal fun PairingSections(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.weight(1f)
                         )
-                        Text(
-                            text = mmss(secondsLeft),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
-                                    RoundedCornerShape(999.dp)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        // M8 (v0.34.0) perf pass — same isolation: only this
+                        // 15-minute countdown chip recomposes per second.
+                        TickingBlock(key = currentSession.id) { now ->
+                            val secondsLeft =
+                                ((currentSession.sessionEndsAtMillis - now) / 1000).coerceAtLeast(0)
+                            Text(
+                                text = mmss(secondsLeft),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                                        RoundedCornerShape(999.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                     Text(
                             text = stringResource(R.string.ph_auto_end_note),
@@ -708,7 +720,7 @@ internal fun PairingSections(
                         saveTrigger += 1
                     } else {
                         saveFeedback =
-                            "Storage permission is needed to save the QR image."
+                            context.getString(R.string.ph_save_perm_needed)
                     }
                 }
 
@@ -726,14 +738,14 @@ internal fun PairingSections(
                     // a saved QR now TELLS you it was saved (toast), plus the
                     // inline note stays on the card.
                     if (savedNote != null) {
-                        saveFeedback = "Saved ✓ $savedNote"
+                        saveFeedback = context.getString(R.string.toast_saved, savedNote)
                         Toast.makeText(
                             context,
                             context.getString(R.string.toast_saved, savedNote),
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
-                        saveFeedback = "Could not save the QR image."
+                        saveFeedback = context.getString(R.string.toast_save_failed)
                         Toast.makeText(
                             context,
                             context.getString(R.string.toast_save_failed),
@@ -824,7 +836,7 @@ internal fun PairingSections(
                                     val q = qr
                                     if (q == null) {
                                         saveFeedback =
-                                            "Could not prepare the QR image for sharing."
+                                            context.getString(R.string.toast_share_prep_failed)
                                         Toast.makeText(
                                             context,
                                             context.getString(R.string.toast_share_prep_failed),
@@ -838,7 +850,7 @@ internal fun PairingSections(
                                             try {
                                                 context.startActivity(intent)
                                             } catch (_: Exception) {
-                                                saveFeedback = "No app available for sharing."
+                                                saveFeedback = context.getString(R.string.toast_share_no_app)
                                                 Toast.makeText(
                                                     context,
                                                     context.getString(R.string.toast_share_no_app),
@@ -847,7 +859,7 @@ internal fun PairingSections(
                                             }
                                         } else {
                                             saveFeedback =
-                                                "Could not prepare the QR image for sharing."
+                                                context.getString(R.string.toast_share_prep_failed)
                                             Toast.makeText(
                                                 context,
                                                 context.getString(R.string.toast_share_prep_failed),
@@ -876,21 +888,27 @@ internal fun PairingSections(
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
-                val totalSeconds = (currentInvite.expiresAtMillis - nowMillis) / 1000
-                Text(
-                        text = stringResource(R.string.ph_countdown, totalSeconds / 60, (totalSeconds % 60).toString().padStart(2, '0')),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    // Phase 11.6 — the last 30 s also turns warning-colored
-                    // (color + the words, never color alone — docs §4.3).
-                    color = if (totalSeconds >= 1 && totalSeconds <= 30) {
-                        AppWarningColor()
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
+                // M8 (v0.34.0) perf pass — the 5-minute invite countdown is the
+                // card's only time-dependent piece; its TickingBlock keeps the
+                // per-second recomposition inside this one Text (the QR image,
+                // dropdown and save/share actions stay still).
+                TickingBlock(key = currentInvite.invitationId) { now ->
+                    val totalSeconds = (currentInvite.expiresAtMillis - now) / 1000
+                    Text(
+                            text = stringResource(R.string.ph_countdown, totalSeconds / 60, (totalSeconds % 60).toString().padStart(2, '0')),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        // Phase 11.6 — the last 30 s also turns warning-colored
+                        // (color + the words, never color alone — docs §4.3).
+                        color = if (totalSeconds >= 1 && totalSeconds <= 30) {
+                            AppWarningColor()
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
                 if (qr != null) {
                     // Phase 11.6 — big QR on a white plate: scanning stays
                     // reliable in BOTH themes (docs §4.4).
@@ -903,7 +921,7 @@ internal fun PairingSections(
                     ) {
                         Image(
                             bitmap = qr.asImageBitmap(),
-                            contentDescription = "Pairing QR code",
+                            contentDescription = stringResource(R.string.cd_pairing_qr),
                             modifier = Modifier.size(200.dp)
                         )
                     }
@@ -936,7 +954,7 @@ internal fun PairingSections(
                 }
                 if (inviteStatus == "PAIRED") {
                     Text(
-                            text = stringResource(R.string.ph_claimed_prefix, claimerEmail ?: "helper") +
+                            text = stringResource(R.string.ph_claimed_prefix, claimerEmail ?: stringResource(R.string.fallback_helper)) +
                             if (kindIsGuest) {
                                 stringResource(R.string.ph_kind_guest_short)
                             } else {
@@ -978,7 +996,7 @@ internal fun PairingSections(
         }
     } else if (currentInvite != null) {
             val statusText = when (inviteStatus) {
-            "PAIRED" -> stringResource(R.string.ph_inv_paired, claimerEmail ?: "helper")
+            "PAIRED" -> stringResource(R.string.ph_inv_paired, claimerEmail ?: stringResource(R.string.fallback_helper))
             "CANCELLED" -> stringResource(R.string.ph_inv_cancelled)
             else -> stringResource(R.string.ph_inv_expired)
         }
