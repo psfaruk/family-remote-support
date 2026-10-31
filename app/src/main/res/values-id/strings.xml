@@ -440,7 +440,7 @@
     <string name="notif_sess_active_other">%1$s sedang membantu Anda</string>
     <string name="notif_empty_title">Tidak ada yang perlu Anda lakukan</string>
     <string name="notif_empty_body">Permintaan bantuan, sesi berjalan, dan peringatan penyiapan muncul di sini begitu terjadi.</string>
-    <string name="notif_hint">Hanya peristiwa nyata saat ini — tidak ada yang dibuat-buat atau disimpan sebagai riwayat.</string>
+    <string name="notif_hint">Hanya peristiwa nyata — tersimpan hanya di perangkat ini (100 terbaru), tidak pernah diunggah, dan terhapus saat Anda keluar.</string>
 
     <!-- M3 (v0.31.0) — States.kt component labels (ErrorPanel retry, PermissionDeniedPanel hand-off). -->
     <string name="states_retry">Coba lagi</string>
@@ -479,4 +479,84 @@
     <string name="set_loc_status">Lokasi langsung direncanakan untuk rilis mendatang. Tidak ada lokasi yang dikumpulkan atau disimpan hari ini.</string>
     <string name="set_loc_now">Bagikan lokasi langsung telepon ini dengan perangkat keluarga yang dipasangkan. Hanya posisi terbaru yang disimpan — bukan riwayat.</string>
     <string name="set_guest_note">Tautan tamu bersifat sementara (hingga 3 jam) dan tidak pernah menjadi pasangan keluarga permanen.</string>
+
+    <!-- M8 (v0.34.0) — persisted local events log (G2): Recent-events section + honest new hint copy. -->
+    <string name="notif_section_recent">Peristiwa terbaru</string>
+    <string name="notif_ev_asked">Permintaan bantuan dari %1$s</string>
+    <string name="notif_ev_started">Sesi dukungan dimulai dengan %1$s</string>
+    <string name="notif_ev_ended">Sesi dukungan dengan %1$s berakhir</string>
+    <string name="notif_ev_sharing_on">Berbagi lokasi diaktifkan</string>
+    <string name="notif_ev_sharing_off">Berbagi lokasi dimatikan</string>
+
+    <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
+         (SessionException codes, screen-share status/retry/recover/fail, assist acks,
+         setup states, QR share sheet, fallbacks, a11y labels). -->
+    <string name="err_session_gone">Permintaan ini sudah tidak ada.</string>
+    <string name="err_session_unreadable">Permintaan ini tidak dapat dibaca.</string>
+    <string name="err_session_unreadable_resend">Permintaan ini tidak dapat dibaca — minta penolong mengirim ulang.</string>
+    <string name="err_only_recipient_allow">Hanya ponsel yang diminta yang dapat mengizinkan sesi ini.</string>
+    <string name="err_only_recipient_deny">Hanya ponsel yang diminta yang dapat menolak permintaan ini.</string>
+    <string name="err_only_helper_cancel">Hanya penolong yang dapat membatalkan permintaannya sendiri.</string>
+    <string name="err_already_answered">Permintaan ini sudah dijawab.</string>
+    <string name="err_already_answered_status">Permintaan ini sudah dijawab (%1$s).</string>
+    <string name="err_session_expired_resend">Permintaan ini sudah kedaluwarsa — minta penolong mengirim yang baru.</string>
+    <string name="setup_not_checked">Belum diperiksa</string>
+    <string name="setup_not_sent">Belum dikirim</string>
+    <string name="setup_not_setup">Belum disiapkan</string>
+    <string name="share_channel_name">Berbagi layar</string>
+    <string name="share_channel_desc">Ditampilkan saat layar Anda sedang dibagikan kepada penolong.</string>
+    <string name="share_notif_title">Berbagi layar aktif</string>
+    <string name="share_notif_body">Penolong sedang melihat layar ponsel ini. Ketuk untuk membuka.</string>
+    <string name="qr_share_chooser_title">Bagikan kode pemasangan</string>
+    <string name="qr_share_text">Kode pemasangan Family Remote Support: %1$s\nBuka aplikasi Family Remote Support di ponsel lainnya, ketuk \"Pindai QR\" atau ketik kode ini. Berlaku 5 menit.</string>
+    <string name="ss_info_live_receiving">Langsung — menerima layar ✓</string>
+    <string name="ss_info_preparing_share">Menyiapkan berbagi layar…</string>
+    <string name="ss_info_capture_ready">Tangkapan layar siap — menunggu penolong mengetuk \"Lihat layar\".</string>
+    <string name="ss_info_preparing_viewer">Menyiapkan penampil…</string>
+    <string name="ss_info_asked">Layar diminta dari ponsel penerima — menyambung…</string>
+    <string name="ss_info_video_ready">Kanal video siap — menunggu koneksi…</string>
+    <string name="ss_info_connected">Koneksi terjalin — memulai video…</string>
+    <string name="ss_info_live_share">Langsung — penolong dapat melihat layar ini.</string>
+    <string name="ss_info_interrupted">Koneksi terputus — mencoba memulihkan…</string>
+    <string name="ss_info_watch_received">Penolong meminta menonton — mengirim layar…</string>
+    <string name="ss_info_share_stopped">Penerima berhenti berbagi.</string>
+    <string name="ss_info_view_closed">Penolong menutup tampilan.</string>
+    <string name="ss_info_offer_sent">Penawaran terkirim — menunggu jawaban penolong…</string>
+    <string name="ss_info_offer_failed">Tidak dapat menyiapkan penawaran layar — penolong akan mencoba ulang otomatis.</string>
+    <string name="ss_info_answer_sent">Jawaban terkirim — menyambungkan video…</string>
+    <string name="ss_info_negotiation_done">Negosiasi selesai — menyambung ke penolong…</string>
+    <string name="ss_retry_no_response">Tidak ada respons dari ponsel penerima — pastikan \"Bagikan layar\" AKTIF di sana.</string>
+    <string name="ss_retry_no_answer">Jawaban penerima tidak pernah tiba.</string>
+    <string name="ss_retry_link_failed">Kedua ponsel tidak berhasil menyelesaikan sambungan.</string>
+    <string name="ss_retry_conn_failed">Percobaan koneksi gagal</string>
+    <string name="ss_retry_answer_failed">Tidak dapat menjawab penawaran penerima</string>
+    <string name="ss_retry_apply_failed">Tidak dapat menerapkan penawaran penerima</string>
+    <string name="ss_retrying_auto">%1$s — mencoba ulang otomatis…</string>
+    <string name="ss_retried_watch">%1$s — meminta lagi ke ponsel penerima…</string>
+    <string name="ss_recover_conn_failed">Koneksi ke penolong gagal — berbagi tetap siap. Minta penolong mengetuk \"Lihat layar\" lagi.</string>
+    <string name="ss_recover_answer_failed">Tidak dapat menjawab — penolong akan mencoba ulang otomatis.</string>
+    <string name="ss_recover_apply_failed">Tidak dapat menerapkan jawaban penolong — penolong akan mencoba lagi.</string>
+    <string name="ss_fail_projection_stopped">Proyeksi layar dihentikan oleh sistem — ketuk \"Bagikan layar\" lagi.</string>
+    <string name="ss_fail_capture">Tangkapan layar gagal: %1$s</string>
+    <string name="ss_fail_watch">Tidak dapat meminta menonton: %1$s</string>
+    <string name="ss_fail_viewer">Tidak dapat memulai penampil: %1$s</string>
+    <string name="ss_fail_conn_stopped">Koneksi gagal — ketuk \"Hentikan berbagi\", lalu bagikan lagi.</string>
+    <string name="ss_fail_no_engine">Tidak dapat membuat mesin WebRTC di ponsel ini.</string>
+    <string name="ss_fail_signal">Galat kanal sinyal: %1$s</string>
+    <string name="ss_fail_conn_retry">Koneksi gagal — kedua ponsel tidak berhasil tersambung. Ketuk \"Lihat layar\" lagi; jika terus gagal, sambungkan kedua ponsel ke jaringan Wi-Fi yang sama (atau hotspot salah satu ponsel).</string>
+    <string name="ss_fail_offer">Tidak dapat mengirim penawaran: %1$s</string>
+    <string name="ss_fail_answer">Tidak dapat mengirim jawaban: %1$s</string>
+    <string name="ss_fail_apply">Tidak dapat menerapkan jawaban penolong.</string>
+    <string name="ss_ack_back">Kembali terkirim ✓</string>
+    <string name="ss_ack_home">Beranda terkirim ✓</string>
+    <string name="ss_ack_recents">Terbaru terkirim ✓</string>
+    <string name="ss_ack_swipe">Geser terkirim ✓</string>
+    <string name="ss_ack_long">Tekan lama terkirim ✓</string>
+    <string name="ss_ack_tap">Ketuk terkirim ✓</string>
+    <string name="ph_save_perm_needed">Izin penyimpanan diperlukan untuk menyimpan gambar QR.</string>
+    <string name="fallback_someone">Seseorang</string>
+    <string name="fallback_helper">penolong</string>
+    <string name="cd_pairing_qr">Kode QR pemasangan</string>
+    <string name="so_signout_failed">Gagal keluar: %1$s</string>
+    <string name="cd_clear_messages">Hapus pesan</string>
 </resources>
