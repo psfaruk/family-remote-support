@@ -702,4 +702,14 @@
     <string name="so_signout_failed">সাইন-আউট ব্যর্থ: %1$s</string>
     <string name="cd_clear_messages">মেসেজ মুছুন</string>
 
+
+    <!-- v0.44.0 (smooth-app wave): map styles + local crash journal -->
+    <string name="map_style_2d">2D ম্যাপ</string>
+    <string name="map_style_satellite">স্যাটেলাইট</string>
+    <string name="map_style_terrain">3D টেরেইন</string>
+    <string name="crash_title">ক্র্যাশ রিপোর্ট</string>
+    <string name="crash_sub">সর্বশেষ অপ্রত্যাশিত বন্ধের বিবরণ — শুধু এই ফোনেই সংরক্ষিত। সমস্যা জানাতে শেয়ার করুন।</string>
+    <string name="crash_share">শেয়ার করুন</string>
+    <string name="crash_clear">মুছে ফেলুন</string>
+
 </resources>
