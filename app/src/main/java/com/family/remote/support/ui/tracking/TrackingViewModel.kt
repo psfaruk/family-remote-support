@@ -45,6 +45,10 @@ data class CounterpartPin(
 /** UiState for the Tracking tab watch: data + loaded flag + routed error. */
 data class TrackingUiState(
     val counterparts: List<CounterpartPin> = emptyList(),
+    // Phase 4 (v0.38.0) — ALL ACTIVE relationships (both directions), the
+    // full pairing picture the sharing-setup wizard's recipient picker
+    // needs. Same relationship listener, no new query — just exposed.
+    val relationships: List<RelationshipView> = emptyList(),
     val loaded: Boolean = false,
     val error: String? = null
 )
@@ -174,6 +178,10 @@ class TrackingViewModel : ViewModel() {
                     location = locations[rel.recipientUid to rel.recipientDeviceId]
                 )
             },
+            // Phase 4 — the wizard's recipient candidates: every ACTIVE
+            // relationship (helper-side AND recipient-side), not just the
+            // counterpart-trackable subset above.
+            relationships = relationships.filter { it.status == "ACTIVE" },
             loaded = true
         )
     }
