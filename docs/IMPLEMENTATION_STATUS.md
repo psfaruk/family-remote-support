@@ -1,14 +1,31 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **SMOOTH-APP WAVE SHIPPED — v0.44.0/64 (2026-11-01). All
-> master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> Status: **G1 NOTIFICATION-CENTER WAVE SHIPPED — v0.46.0/66 (2026-11-01),
+> local-gated 66/66 unit tests; CI-pending at write time.** The stack:
+> audit-fix wave v0.45.0/65 (§87) + external-audit response (§88) + the
+> G1 notification-center upgrade (§89) on top of SMOOTH-APP WAVE v0.44.0/64:
+> all master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
 > Location Phase 9 route-history UI + retention/deletion (§80) +
 > Location Phase 10 movement insights + first CI unit-test gate (§81) +
 > Phase 8 live gate PASSED + journey-tail units fix (§82) +
 > D11(e) detail-screen live movement card (§83) + Phase 11 place alerts (§84) +
-> Phase 12 security review (§85) + v0.44.0 smooth-app wave (§86).**
+> Phase 12 security review (§85) + v0.44.0 smooth-app wave (§86) +
+> v0.45.0 audit-fix wave (§87) + audit-response wave (§88) +
+> v0.46.0 G1 notification-center wave (§89).**
+> §89 in one line: the external audit's ONLY significant genuine gap (the
+> notification center's missing read/unread state, category filters, row
+> routing and user-facing clear) shipped as a LOCAL-ONLY wave —
+> NotifEvent schema v2 (readAt; v1 files read back all-unread), Unread
+> filter + tap-to-mark-read + Mark-all, All/Unread/Connection/Location/
+> Security chips mapped in ONE pure place (NotifCenter.kt), row taps route
+> through DeepLinks' own route strings via the now-shared AppNav.goRoute
+> dispatcher, Clear-history behind a confirmation dialog, the bell badge
+> shows the unread count (a pending ask keeps its plain dot — action beats
+> count), the event stamp gained its date half — 14 new string keys
+> ×15 locales, 21 new unit tests (66/66 locally, first sandbox Gradle gate),
+> zero new Firestore reads, rules untouched.
 > §86 in one line: the Owner's v0.43.0/63 device report (Settings-tab
 > crash + install-time crash dialog + slow map + 2D/3D/satellite ask +
 > frontend↔backend match) shipped as one wave — the hard-wired OSM MAPNIK

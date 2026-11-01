@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">%1$s के साथ सहायता सेशन समाप्त हुआ</string>
     <string name="notif_ev_sharing_on">लोकेशन शेयरिंग चालू हुई</string>
     <string name="notif_ev_sharing_off">लोकेशन शेयरिंग बंद हुई</string>
+    <string name="notif_filter_all">सभी</string>
+    <string name="notif_filter_unread">अपठित</string>
+    <string name="notif_filter_connection">कनेक्शन</string>
+    <string name="notif_filter_location">स्थान</string>
+    <string name="notif_filter_security">सुरक्षा</string>
+    <string name="notif_chip_unread">नया</string>
+    <string name="notif_action_mark_all">सभी को पढ़ा हुआ चिह्नित करें</string>
+    <string name="notif_action_clear">इतिहास मिटाएँ</string>
+    <string name="notif_clear_title">नोटिफिकेशन का इतिहास मिटाएँ?</string>
+    <string name="notif_clear_body">इस डिवाइस पर रखे गए इवेंट अभी मिट जाएँगे। इसे वापस नहीं किया जा सकता।</string>
+    <string name="notif_clear_yes">मिटाएँ</string>
+    <string name="notif_clear_cancel">रद्द करें</string>
+    <string name="notif_empty_filter_title">यहाँ अभी कुछ नहीं है</string>
+    <string name="notif_empty_filter_body">इस फ़िल्टर से कोई इवेंट मेल नहीं खाता।</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

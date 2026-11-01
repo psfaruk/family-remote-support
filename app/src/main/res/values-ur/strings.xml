@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">%1$s کے ساتھ مدد کا سیشن ختم ہوا</string>
     <string name="notif_ev_sharing_on">لوکیشن شیئرنگ آن ہو گئی</string>
     <string name="notif_ev_sharing_off">لوکیشن شیئرنگ بند ہو گئی</string>
+    <string name="notif_filter_all">سب</string>
+    <string name="notif_filter_unread">غیر پڑھی ہوئی</string>
+    <string name="notif_filter_connection">رابطہ</string>
+    <string name="notif_filter_location">مقام</string>
+    <string name="notif_filter_security">سیکیورٹی</string>
+    <string name="notif_chip_unread">نیا</string>
+    <string name="notif_action_mark_all">سب کو پڑھا ہوا نشان زد کریں</string>
+    <string name="notif_action_clear">تاریخ صاف کریں</string>
+    <string name="notif_clear_title">اطلاعات کی تاریخ صاف کریں؟</string>
+    <string name="notif_clear_body">اس ڈیوائس پر محفوظ واقعات اب مٹ جائیں گے۔ یہ عمل واپس نہیں ہو سکتا۔</string>
+    <string name="notif_clear_yes">مٹائیں</string>
+    <string name="notif_clear_cancel">منسوخ کریں</string>
+    <string name="notif_empty_filter_title">یہاں ابھی کچھ نہیں</string>
+    <string name="notif_empty_filter_body">اس فلٹر سے کوئی واقعہ مطابقت نہیں رکھتا۔</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

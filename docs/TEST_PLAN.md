@@ -6,7 +6,7 @@
 
 | Environment | Can do | Cannot do |
 |---|---|---|
-| Sandbox (remote) | static analysis, scripts, Contents-API pushes, readback verify, Firestore rules probes against the live project (SA path), Worker/health checks | run Gradle builds, emulators, physical devices |
+| Sandbox (remote) | static analysis, scripts, Contents-API pushes, readback verify, Firestore rules probes against the live project (SA path), Worker/health checks; **v0.46.0 (§89): FULL GRADLE GATES now proven in-sandbox** (Android SDK 34 + Gradle 8.9 + Temurin 17 installed under /home/z/my-project — `:app:testReleaseUnitTest` 66/66 + `assembleDebug` ran green) | `assembleRelease` (R8 + lintVital exceed the 4 GB sandbox ceiling — CI runner's job), emulators, physical devices |
 | GitHub Actions CI | full `assembleDebug/Release`, AXML gate (versionCode/versionName/v2 signing/stale strings), artifacts | interactive testing |
 | Owner's 2 phones | the ONLY real device test surface (install, UX, permissions, location, notifications, OEM behavior) | — |
 
@@ -114,6 +114,15 @@ the dominant daily cost is the app's own listener/heartbeat traffic — bounded 
 two-phone reality of this family.
 
 ## 2. Scenario matrix (master list → method)
+
+> **v0.46.0/66 (§89 — G1 wave) auto-gate:** `NotifCenterTest` (21 pure-JVM cases) joins
+> `MovementClassifierTest` + `PlaceAlertEngineTest` in the CI unit gate — 66 cases total,
+> run locally 66/66 before push (the sandbox's first Gradle gate). New Owner device rows:
+> (a) bell badge shows the unread count (plain dot only while a consent ask is pending);
+> (b) five filter chips in Recent events, horizontally scrollable; (c) unread rows carry
+> a "New" pill, a tap navigates to the event's screen AND clears that pill;
+> (d) "Mark all as read" clears every pill; (e) "Clear history" → confirmation → empty
+> section; (f) sign-out still wipes the whole log. Recorded in worklog §89.
 
 | # | Scenario | Method |
 |---|---|---|

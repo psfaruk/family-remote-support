@@ -3622,3 +3622,24 @@ history → Everything → del_done 验证文案）。
 **সীমাবদ্ধতা (সৎ):** স্ট্যাটিক পাঠ-ভিত্তিক; push-সক্ষমতা নেই (`.secrets/github-token.txt` স্যান্ডবক্স-রিসাইকেলে হারিয়েছে — §৫৮-ঘটনার পুনরাবৃত্তি) — এই ডক + worklog §৮৮ লোকাল-কমিটে; Owner টোকেন দিলে push → CI। G1/G2 বাস্তবায়ন স্পষ্ট অনুমোদনের অপেক্ষায় (§৬৪ STOP-condition সংস্কৃতি)।
 
 **Owner-করণীয়:** ① docs/EXTERNAL_AUDIT_RESPONSE.md পড়ুন — বাহ্যিক রিপোর্টের কোন দাবি কোথায় ইতিমধ্যে বাস্তবায়িত তার এক-স্থানের ম্যাপ। ② G1 (নোটিফিকেশন-সেন্টার আপগ্রেড) চাইলে বলুন — পরিকল্পনা প্রস্তুত, টোকেন পেলেই ওয়েভ। ③ G2 (ব্যাটারি) চাইলে আলাদা সম্মতি।
+
+## §89 — G1-ওয়েভ: নোটিফিকেশন-সেন্টার আপগ্রেড (v0.46.0/66) — বাহ্যিক অডিটের একমাত্র উল্লেখযোগ্য ফাঁক বন্ধ (২০২৬-১১-০১)
+
+**ট্রিগার:** §৮৮-এর Owner-করণীয় ② — Owner GitHub-টোকেন দিয়ে "ইমপ্লিমেন্ট করো deeply" নির্দেশ দিলেন; EXTERNAL_AUDIT_RESPONSE §৮-এ প্রস্তুত-পরিকল্পিত G1-ওয়েভ বাস্তবায়ন।
+
+**স্কোপ (G1-এর ৫ আইটেম হুবহু + ১ সম্পূরক; বিস্তারিত প্রমাণ-সারণি EXTERNAL_AUDIT_RESPONSE §১০):**
+- ① `NotifEvent`-স্কিমা v2 — `readAt`; মাইগ্রেশন = পার্সার (v1 ফাইল → সব-অপঠিত, সৎ ডিফল্ট)
+- ② "Unread" ফিল্টার + ট্যাপে Mark-as-Read (মূল stamp অপরিবর্তিত থাকে) + "Mark all as read" (অপঠিত শূন্য হলে বাটন লুকানো)
+- ③ ক্যাটাগরি-চিপস All/Unread/Connection/Location/Security — ম্যাপিং একটিই জায়গা: CONNECTION=asked/started/ended, SECURITY=denied/cancelled, LOCATION=sharing±/place_alert; অজানা ভবিষ্যৎ-টাইপ All-এর বাইরে কখনো নয়
+- ④ সারি-onClick → DeepLinks-এর নিজ রাউট-স্ট্রিং (asked→home; outcomes→home/sessions/{arg2}; sharing±→tracking; place_alert→tracking/places; অজানা→home); ডিসপ্যাচার-একত্রীকরণ **AppNav.goRoute** — DeepLinks-ইফেক্ট ও সেন্টার-সারি একই সেমান্টিক্স
+- ⑤ Clear History (কনফার্মেশন-ডায়ালগসহ) — সাইন-আউট-হাইজিন clear() থেকে আলাদা এন্ট্রি-পয়েন্ট
+- (সম্পূরক) বেল-ব্যাজ: pending-ask ডট (মূল অর্থ অপরিবর্তিত) > অপঠিত-সংখ্যা (৯৯-ক্যাপ, TalkBack-গণনাসহ); ইভেন্ট-স্ট্যাম্প তারিখ+সময় (১০০-সারির ইতিহাস দিন-পেরোয় — শুধু সময় হলে "আজকের" ভুল পাঠ)
+- ১৪ নতুন স্ট্রিং-কী ×১৫ লোকেল; NotifCenterTest — ২১ নতুন pure-JVM কেস (ক্যাটাগরি/ফিল্টার-বীজগণিত/রিড-স্টেট/রাউট; রাউট-লিটারালগুলো AppRoutes-গার্ড)
+
+**নতুন ফাইল:** `NotifCenter.kt` (pure — শূন্য Android import), `NotifCenterTest.kt`। **স্পর্শিত:** NotificationsLog.kt (readAt পার্স/পার্সিস্ট + markRead/markAllRead/clearHistory), NotificationsScreen.kt (চিপস + অ্যাকশন-সারি + onClick + কনফার্মেশন-ডায়ালগ + তারিখ-স্ট্যাম্প), AppNav.kt (goRoute + ব্যাজ-স্তর), MainActivity.kt (import + unread-ওয়্যারিং + onOpenRoute), app/build.gradle.kts (0.46.0/66), strings.xml ×১৫।
+
+**লোকাল-গেট (CI-পূর্ব — স্যান্ডবক্স-সক্ষমতার প্রথম প্রমাণ):** স্যান্ডবক্সে Android SDK 34 + Gradle 8.9 + Temurin JDK 17 (CI-হুবহু টুলচেইন, /home/z/my-project-এর নিচে স্থায়ী ইনস্টল) বসিয়ে `:app:testReleaseUnitTest` — **৬৬/৬৬ পাস** (MovementClassifier ২৫ + PlaceAlertEngine ২০ + NotifCenter ২১); `assembleDebug` SUCCESS (৪৫.৬ MB)। Maiden-run-এ ২ বাগ ধরা পড়েছিল — goRoute-এর ইমপোর্ট নেখরি (কম্পাইল-ধরা) ও রাউট-কনস্ট্যান্ট ভুল (HOME_SESSIONS ≠ HOME_SESSION_ARG — **টেস্ট-স্যুটই ধরেছিল**: expected:<home/sessions[/s1]> but was:<home/sessions[]>) — উভয়ই ঠিক করা। `assembleRelease` স্যান্ডবক্স-OOM-এ ২ বার daemon-কিল্ড (৪GB সিলিং; R8+lintVital একসাথে) — **CI-রানারই রিলিজ-গেটের কর্তৃত্ব, যথারীতি**।
+
+**§৭৫ মুদ্রা-যাচাই:** লোকাল-অনলি ওয়েভ — শূন্য নতুন Firestore read/listener/write, রুলস অপরিবর্তিত, নতুন পারমিশন শূন্য; ব্যাজ-কাউন্ট বিদ্যমান সিঙ্গেলটন StateFlow-র উপর গণনা মাত্র।
+
+**Owner-করণীয়:** ① CI সবুজ হলে দুই ফোনে **v0.46.0/66** ইনস্টল। ② ডিভাইস-চেক: বেল-ব্যাজে সংখ্যা → সেন্টারে ৫টি চিপ (horizontal-scroll); অপঠিত সারিতে "নতুন" পিল; সারি-ট্যাপ → সংশ্লিষ্ট স্ক্রিন + সারি পঠিত; Mark all → পিলগুলো মিলে যায়; Clear History → কনফার্মেশন → খালি সেকশন; সাইন-আউটে সম্পূর্ণ ওয়াইপ (আগের মতোই)। ③ G2 (ব্যাটারি) এখনো আলাদা-সম্মতি-অপেক্ষমাণ।

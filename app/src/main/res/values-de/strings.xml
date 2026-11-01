@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">Unterstützungs-Sitzung mit %1$s beendet</string>
     <string name="notif_ev_sharing_on">Standort-Freigabe aktiviert</string>
     <string name="notif_ev_sharing_off">Standort-Freigabe deaktiviert</string>
+    <string name="notif_filter_all">Alle</string>
+    <string name="notif_filter_unread">Ungelesen</string>
+    <string name="notif_filter_connection">Verbindung</string>
+    <string name="notif_filter_location">Standort</string>
+    <string name="notif_filter_security">Sicherheit</string>
+    <string name="notif_chip_unread">Neu</string>
+    <string name="notif_action_mark_all">Alle als gelesen markieren</string>
+    <string name="notif_action_clear">Verlauf löschen</string>
+    <string name="notif_clear_title">Benachrichtigungsverlauf löschen?</string>
+    <string name="notif_clear_body">Die auf diesem Gerät gespeicherten Ereignisse werden jetzt gelöscht. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="notif_clear_yes">Löschen</string>
+    <string name="notif_clear_cancel">Abbrechen</string>
+    <string name="notif_empty_filter_title">Noch nichts hier</string>
+    <string name="notif_empty_filter_body">Keine Ereignisse passen zu diesem Filter.</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

@@ -112,19 +112,44 @@ fun NavHostController.goTab(route: String) {
 }
 
 /**
+ * v0.46.0 (external-audit G1) — ONE in-app route dispatcher with the exact
+ * semantics the v0.45.0 DeepLinks router established: the four tab routes
+ * (plus notifications) go through the state-preserving goTab switch; every
+ * detail route is a plain launchSingleTop navigate. The DeepLinks effect
+ * (system-notification taps) and the notification center's Recent-events
+ * row taps (in-app) share this single definition, so a tap on a row and a
+ * tap on the system notification for the same event behave identically —
+ * one dispatcher, one place to reason about routing, zero drift.
+ */
+fun NavHostController.goRoute(route: String) {
+    when (route) {
+        AppRoutes.HOME, AppRoutes.TRACKING, AppRoutes.ADD, AppRoutes.SETTINGS,
+        AppRoutes.NOTIFICATIONS -> goTab(route)
+        else -> navigate(route) { launchSingleTop = true }
+    }
+}
+
+/**
  * Phase 21/M2 — shared top bar. The app title is now the localized,
  * brand-fixed `app_title` ("Remote Family Support") — this closes the
  * hardcoded-top-bar-title finding from the Agent 2-a audit (it was the
  * literal "Family Remote Support" before). The presence chip is passed
- * as a slot so this file stays free of presence/Firestore deps; the bell
- * badge keeps its honest meaning: ON while a consent ask is pending
- * (the only signal that demands an action right now).
+ * as a slot so this file stays free of presence/Firestore deps.
+ *
+ * The bell badge keeps its honest hierarchy (v0.46.0 / G1):
+ *   • a pending consent ask → the plain dot — the one signal that
+ *     demands action RIGHT NOW, no number to read first;
+ *   • otherwise, unread events → their count (capped display at 99),
+ *     so "something new" is visible without opening the center;
+ *   • nothing pending and nothing unread → no badge at all (a quiet
+ *     bell is the honest default — never a fabricated dot).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
     pendingAsk: Boolean,
     onBellClick: () -> Unit,
+    unreadCount: Int = 0,
     presence: (@Composable () -> Unit)? = null
 ) {
     TopAppBar(
@@ -140,10 +165,20 @@ fun AppTopBar(
                 presence()
             }
             IconButton(onClick = onBellClick) {
-                BadgedBox(badge = { if (pendingAsk) Badge() }) {
+                BadgedBox(badge = {
+                    when {
+                        pendingAsk -> Badge()
+                        unreadCount > 0 -> Badge {
+                            Text(unreadCount.coerceAtMost(99).toString())
+                        }
+                    }
+                }) {
                     Icon(
                         imageVector = Icons.Filled.Notifications,
-                        contentDescription = stringResource(R.string.cd_notifications)
+                        // The count rides along for TalkBack users — a bare
+                        // number in parens is language-neutral.
+                        contentDescription = stringResource(R.string.cd_notifications) +
+                            if (unreadCount > 0) " ($unreadCount)" else ""
                     )
                 }
             }

@@ -158,6 +158,7 @@ import com.family.remote.support.ui.components.WideOutlinedButton
 import com.family.remote.support.ui.nav.AppBottomNav
 import com.family.remote.support.ui.nav.AppRoutes
 import com.family.remote.support.ui.nav.AppTopBar
+import com.family.remote.support.ui.nav.goRoute
 import com.family.remote.support.ui.nav.goTab
 import com.family.remote.support.ui.notifications.NotificationsScreen
 // M3 (v0.31.0) — extracted screens + component library (FRONTEND_ARCHITECTURE
@@ -901,24 +902,30 @@ fun HomeScreen() {
     // v0.45.0 (audit P4) — the deep-link router: notification taps park a
     // route on DeepLinks (fresh start OR onNewIntent — the activity is
     // singleTop); this effect walks it into the NavHost exactly once and
-    // clears the request. Tab routes go through goTab (state-preserving
-    // switch), detail routes through a plain navigate. A signed-out user
-    // stays wherever the shell put them — nothing to route into yet.
+    // clears the request. A signed-out user stays wherever the shell put
+    // them — nothing to route into yet.
     LaunchedEffect(Unit) {
         DeepLinks.pending.collect { route ->
             if (route.isNullOrBlank()) return@collect
             DeepLinks.consume()
-            when (route) {
-                AppRoutes.HOME, AppRoutes.TRACKING, AppRoutes.ADD, AppRoutes.SETTINGS,
-                AppRoutes.NOTIFICATIONS -> navController.goTab(route)
-                else -> navController.navigate(route) { launchSingleTop = true }
-            }
+            // v0.46.0 (G1) — the tab/detail split now lives in ONE place
+            // (AppNav.goRoute), shared with the notification center's
+            // Recent-events row taps, so an in-app tap and a system-
+            // notification deep link behave identically.
+            navController.goRoute(route)
         }
     }
+    // v0.46.0 (G1) — the bell's unread count: the local events log already
+    // lives in a singleton StateFlow (zero new reads/listeners/stores —
+    // §75 quota discipline untouched), so the badge is a plain count over
+    // rows the shell already owns.
+    val notifEvents by NotificationsLog.events.collectAsState()
+    val notifUnreadCount = notifEvents.notifUnreadCount()
     Scaffold(
         topBar = {
             AppTopBar(
                 pendingAsk = pendingAsk,
+                unreadCount = notifUnreadCount,
                 // v0.30.0 — the bell opens the DEDICATED notifications
                 // surface (real events only — see NotificationsScreen).
                 onBellClick = {
@@ -1377,7 +1384,11 @@ fun HomeScreen() {
                         setupProblemCount = listOf(deviceOk, presenceOk, pushOk)
                             .count { it == false },
                         onOpenHome = { navController.goTab(AppRoutes.HOME) },
-                        onOpenWizard = { showWizard = true }
+                        onOpenWizard = { showWizard = true },
+                        // v0.46.0 (G1) — Recent-events row taps route through
+                        // the shared dispatcher (identical semantics to a
+                        // system notification's deep link).
+                        onOpenRoute = { route -> navController.goRoute(route) }
                     )
                 }
             }
