@@ -74,6 +74,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.family.remote.support.LocationHistoryRecord
 import com.family.remote.support.LocationSharingPrefs
+import com.family.remote.support.MovementClassifier
+import com.family.remote.support.MovementSample
 import com.family.remote.support.ReceivedLocationAuthorization
 import com.family.remote.support.RelationshipView
 import com.family.remote.support.deleteAllOwnHistory
@@ -132,12 +134,15 @@ private const val GAP_THRESHOLD_MILLIS = 10L * 60_000L
 /**
  * Phase 9 — ONE render-time route point vocabulary: real Firestore records
  * and the demo fixtures both map onto it, so the map/summary rendering has
- * a single code path (the v0.37.0 single-source discipline).
+ * a single code path (the v0.37.0 single-source discipline). Phase 10 adds
+ * the optional OS-provided speed — the sensor-backed movement fact the
+ * classifier prefers over point deltas (MODERATE vs LIMITED confidence).
  */
 internal data class HistoryPoint(
     val timeMillis: Long,
     val lat: Double,
-    val lng: Double
+    val lng: Double,
+    val speedMetersPerSecond: Double? = null
 )
 
 /** One consecutive-pair segment of the day's route, dashed when it spans a gap. */
@@ -556,7 +561,12 @@ private fun RealHistoryBody(
                 )
                 else -> {
                     val points = state.dayPoints.map {
-                        HistoryPoint(it.recordedAtMillis, it.lat, it.lng)
+                        HistoryPoint(
+                            timeMillis = it.recordedAtMillis,
+                            lat = it.lat,
+                            lng = it.lng,
+                            speedMetersPerSecond = it.speedMetersPerSecond
+                        )
                     }
                     if (points.isEmpty()) {
                         EmptyState(
@@ -716,7 +726,14 @@ private fun demoDayLabel(relId: String, dayIndex: Int): String = when (dayIndex)
 private fun DemoHistoryDaySection(relId: String, day: DemoHistoryDay) {
     val points = remember(relId, day.dayIndex) {
         DemoTrackingDataSource.historyPoints(relId, day.dayIndex)
-            .map { HistoryPoint(it.timeMillis, it.lat, it.lng) }
+            .map {
+                HistoryPoint(
+                    timeMillis = it.timeMillis,
+                    lat = it.lat,
+                    lng = it.lng,
+                    speedMetersPerSecond = it.speedMetersPerSecond
+                )
+            }
     }
     if (points.isEmpty()) {
         SectionCard(
@@ -756,6 +773,16 @@ private fun HistoryDaySection(points: List<HistoryPoint>, coveragePercent: Int) 
     }
 
     val gaps = remember(points) { routeGaps(points) }
+
+    // Phase 10 — the journey-tail movement estimate, classified at RENDER
+    // time from the records this screen already holds (zero extra Firestore
+    // reads; design D4: never stored server-side). The observedAt line on
+    // the card discloses when the estimate was observed.
+    val movement = remember(points) {
+        MovementClassifier.classifyJourneyTail(
+            points.map { MovementSample(it.timeMillis, it.lat, it.lng, it.speedMetersPerSecond) }
+        )
+    }
 
     HistoryRouteMap(points = points)
 
@@ -818,6 +845,11 @@ private fun HistoryDaySection(points: List<HistoryPoint>, coveragePercent: Int) 
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+
+    // Phase 10 — the movement insights card (spec §6 "re-usable by the
+    // journey-history screen"), under the summary: the honest estimate
+    // words, confidence word only, observation time disclosed.
+    MovementCard(estimate = movement)
 }
 
 /**
