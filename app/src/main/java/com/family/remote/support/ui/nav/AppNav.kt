@@ -52,6 +52,14 @@ import com.family.remote.support.R
  * tracking-subtree): tracking itself is the osmdroid map tab;
  * tracking/{relId} is the Location Details screen (last update time,
  * accuracy, staleness, sharing on/off, open-in-maps).
+ *
+ * Phase 4 (v0.38.0, frontend mock wave) — two more tracking-subtree
+ * leaves: tracking/{relId}/history (the journey-history screen, entered
+ * from demo member cards with granted history in this wave) and
+ * tracking/places (My places & alerts). tabForRoute's existing
+ * startsWith("tracking/") rule already keeps the TRACKING tab selected
+ * for both; the exact "tracking/places" route wins over the
+ * "tracking/{relId}" pattern in exact-match-first navigation lookup.
  */
 object AppRoutes {
     const val HOME = "home"
@@ -62,6 +70,8 @@ object AppRoutes {
     const val ADD = "add"
     const val TRACKING = "tracking"
     const val TRACKING_ARG = "tracking/{relId}"
+    const val TRACKING_HISTORY_ARG = "tracking/{relId}/history"
+    const val TRACKING_PLACES = "tracking/places"
     const val SETTINGS = "settings"
     const val NOTIFICATIONS = "notifications"
 }
