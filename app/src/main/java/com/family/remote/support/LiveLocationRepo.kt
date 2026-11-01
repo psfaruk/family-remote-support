@@ -195,6 +195,43 @@ object LocationSharingPrefs {
         prefs(context).edit().putLong(KEY_INTERVAL_MILLIS, coerced).apply()
     }
 
+    // ── Phase 4 (v0.38.0) — the setup wizard's LOCAL consent record ────────
+    // Scope/retention keys written by SharingSetupSheet's confirm step.
+    // These are a LOCAL record only: the authoritative authorization
+    // document (locationAuthorizations) is created in Phase 8, and these
+    // prefs NEVER gate the engine in v0.38.0 — the service still runs on
+    // KEY_SHARING_ENABLED alone. Values are the ScopeKind/RetentionKind
+    // enum names from ui.tracking, stored as plain strings so this repo
+    // file stays free of ui-package imports (Phase 8 parses them).
+
+    private const val KEY_SCOPE_KIND = "scope_kind"
+    private const val KEY_SCOPE_EXPIRES_AT = "scope_expires_at_millis"
+    private const val KEY_RETENTION_KIND = "retention_kind"
+
+    /** The last chosen sharing scope: "ONCE" / "TEMPORARY" / "UNTIL_STOP" / "WITH_HISTORY" (default UNTIL_STOP, the wizard's default). */
+    fun scopeKind(context: Context): String =
+        prefs(context).getString(KEY_SCOPE_KIND, "UNTIL_STOP") ?: "UNTIL_STOP"
+
+    fun setScopeKind(context: Context, kind: String) {
+        prefs(context).edit().putString(KEY_SCOPE_KIND, kind).apply()
+    }
+
+    /** 0 = no expiry (the scope is not temporary). Local consent record only — Phase 8 enforces the real expiry. */
+    fun scopeExpiresAt(context: Context): Long =
+        prefs(context).getLong(KEY_SCOPE_EXPIRES_AT, 0L)
+
+    fun setScopeExpiresAt(context: Context, expiresAtMillis: Long) {
+        prefs(context).edit().putLong(KEY_SCOPE_EXPIRES_AT, expiresAtMillis).apply()
+    }
+
+    /** The last chosen journey-history retention: "NONE" / "H24" / "D7" / "D30" (default NONE). */
+    fun retentionKind(context: Context): String =
+        prefs(context).getString(KEY_RETENTION_KIND, "NONE") ?: "NONE"
+
+    fun setRetentionKind(context: Context, kind: String) {
+        prefs(context).edit().putString(KEY_RETENTION_KIND, kind).apply()
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
