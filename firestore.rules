@@ -50,6 +50,55 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // ---------- Location master plan Phase 8 (v0.39.0) helpers ----------
+    // pairingActiveWith(deviceUid): TRUE when the CALLER has an ACTIVE
+    // trusted relationship with deviceUid (either direction; guest windows
+    // must still be live). Promoted from liveLocations' private myPairing
+    // so the locationHistory block can share the exact same semantics.
+    function pairingActiveWith(deviceUid) {
+      return (
+        (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid))
+          && get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.status == 'ACTIVE'
+          && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data)
+              || get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.guestExpiresAt > request.time))
+        || (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid))
+          && get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.status == 'ACTIVE'
+          && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data)
+              || get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.guestExpiresAt > request.time))
+      );
+    }
+
+    // locationAuthzActive(ownerUid, deviceId): TRUE when the CALLER holds
+    // an UNREVOKED, UNEXPIRED locationAuthorization granted by ownerUid for
+    // that device (design §4.2). Doc id = recipientUid_ownerUid_deviceId —
+    // the caller's own uid is request.auth.uid by construction. Rules get()
+    // of the same path is cached per evaluation, so the repeated reads here
+    // count as ONE document access.
+    function locationAuthzActive(ownerUid, deviceId) {
+      return exists(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId))
+        && get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data.ownerUserId == ownerUid
+        && get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data.recipientUserId == request.auth.uid
+        && !('revokedAt' in get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data)
+        && (!('expiresAt' in get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data)
+            || get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data.expiresAt > request.time);
+    }
+
+    // locationAuthzFeature(ownerUid, deviceId, field): an active grant that
+    // also carries the given flag ('liveEnabled' / 'historyEnabled').
+    function locationAuthzFeature(ownerUid, deviceId, field) {
+      return locationAuthzActive(ownerUid, deviceId)
+        && get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data.get(field, false) == true;
+    }
+
+    // locationAuthzFamilyOrPaired(ownerUid, deviceId): family recipients
+    // need nothing beyond the grant (the authorization IS the consent —
+    // design §4.4); guest recipients additionally need the relationship
+    // alive, mirroring the legacy live-read guest semantics.
+    function locationAuthzFamilyOrPaired(ownerUid, deviceId) {
+      return get(/databases/$(database)/documents/locationAuthorizations/$(request.auth.uid + '_' + ownerUid + '_' + deviceId)).data.recipientKind == 'family'
+        || pairingActiveWith(ownerUid);
+    }
+
     // ---------- Phase 3: profiles + registered devices ----------
     match /users/{uid} {
       allow get, list: if isSelf(uid);
@@ -590,31 +639,27 @@ service cloud.firestore {
     // ---------- Phase 22 (M5): live location sharing ----------
     match /liveLocations/{docId} {
       // Phase 22/M5 — consent-based live location sharing (architecture doc §4).
-      // One MUTABLE doc per device, update-in-place, deleted on stop — history is
-      // deliberately NOT implemented (master plan PART 6). Writer = the device
-      // owner only; reader = own doc OR the paired counterpart of an ACTIVE
-      // relationship (guest: live window) while sharingEnabled == true. Field
-      // set, ranges and updatedAt freshness are all enforced server-side.
-
-      function myPairing(deviceUid) {
-        return (
-          (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid))
-            && get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.status == 'ACTIVE'
-            && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data)
-                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(request.auth.uid + '_' + deviceUid)).data.guestExpiresAt > request.time))
-          || (exists(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid))
-            && get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.status == 'ACTIVE'
-            && (!('guestExpiresAt' in get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data)
-                || get(/databases/$(database)/documents/trustedDeviceRelationships/$(deviceUid + '_' + request.auth.uid)).data.guestExpiresAt > request.time))
-        );
-      }
+      // One MUTABLE doc per device, update-in-place, deleted on stop. Writer =
+      // the device owner only; reader = own doc OR the paired counterpart of
+      // an ACTIVE relationship (guest: live window) while sharingEnabled ==
+      // true. Phase 8 (v0.39.0) adds the authorization read path: an
+      // unrevoked, unexpired locationAuthorization whose liveEnabled is true
+      // also grants the read (family: the grant alone IS the consent; guest:
+      // the relationship must still be alive — design §4.4, dual read path,
+      // legacy branch untouched so old clients keep working).
 
       allow get: if signedIn()
         && (resource.data.uid == request.auth.uid
-            || (myPairing(resource.data.uid) && resource.data.sharingEnabled == true));
+            || (pairingActiveWith(resource.data.uid) && resource.data.sharingEnabled == true)
+            || (locationAuthzFeature(resource.data.uid, resource.data.deviceId, 'liveEnabled')
+                && locationAuthzFamilyOrPaired(resource.data.uid, resource.data.deviceId)
+                && resource.data.sharingEnabled == true));
       allow list: if signedIn()
         && (resource.data.uid == request.auth.uid
-            || (myPairing(resource.data.uid) && resource.data.sharingEnabled == true));
+            || (pairingActiveWith(resource.data.uid) && resource.data.sharingEnabled == true)
+            || (locationAuthzFeature(resource.data.uid, resource.data.deviceId, 'liveEnabled')
+                && locationAuthzFamilyOrPaired(resource.data.uid, resource.data.deviceId)
+                && resource.data.sharingEnabled == true));
 
       allow create, update: if signedIn()
         && request.resource.data.uid == request.auth.uid
@@ -641,6 +686,161 @@ service cloud.firestore {
         && request.resource.data.appVersionCode <= 1000000;
 
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---------- Location master plan Phase 8 (v0.39.0): authorizations ---
+    match /locationAuthorizations/{authzId} {
+      // The ONLY source of location feature grants (design §2.1): one doc
+      // per sharer→recipient→device triple, docId =
+      // {recipientUid}_{ownerUid}_{deviceId}. Writer = the SHARER (owner)
+      // only; the recipient may read their own grant (never list others').
+      // Revocation writes revokedAt and FREEZES the doc — the only re-grant
+      // is delete + recreate (the client's upsert does exactly that).
+      // D9: enabledFeatures flattened to liveEnabled/historyEnabled — rules
+      // can hasOnly() document keys but not nested map keys.
+      allow get: if signedIn()
+        && (resource.data.ownerUserId == request.auth.uid
+            || resource.data.recipientUserId == request.auth.uid);
+      allow list: if signedIn()
+        && (resource.data.ownerUserId == request.auth.uid
+            || resource.data.recipientUserId == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUserId == request.auth.uid
+        && authzId == request.resource.data.recipientUserId + '_' + request.auth.uid + '_' + request.resource.data.deviceId
+        && request.resource.data.recipientUserId is string
+        && request.resource.data.recipientUserId.size() > 0
+        && request.resource.data.recipientUserId != request.auth.uid
+        && request.resource.data.deviceId is string
+        && request.resource.data.deviceId.matches('[0-9a-f]{24}')
+        && request.resource.data.recipientKind in ['family', 'guest']
+        && request.resource.data.liveEnabled is bool
+        && request.resource.data.historyEnabled is bool
+        && request.resource.data.scope in ['ONCE', 'TEMPORARY', 'UNTIL_STOP', 'WITH_HISTORY']
+        && (!('expiresAt' in request.resource.data)
+            || (request.resource.data.expiresAt is timestamp
+                && request.resource.data.expiresAt > request.time))
+        && ((request.resource.data.scope in ['ONCE', 'TEMPORARY'])
+            == ('expiresAt' in request.resource.data))
+        && request.resource.data.retentionPolicy in ['NONE', 'H24', 'D7', 'D30']
+        && (request.resource.data.retentionPolicy == 'NONE'
+            || (request.resource.data.scope == 'WITH_HISTORY'
+                && request.resource.data.historyEnabled == true))
+        && request.resource.data.authorizationVersion is int
+        && request.resource.data.authorizationVersion >= 1
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.keys().hasOnly([
+            'ownerUserId', 'recipientUserId', 'deviceId', 'recipientKind',
+            'liveEnabled', 'historyEnabled', 'scope', 'expiresAt',
+            'retentionPolicy', 'authorizationVersion', 'createdAt', 'updatedAt'
+          ]);
+
+      allow update: if signedIn()
+        && resource.data.ownerUserId == request.auth.uid
+        // Terminal revoke: a revoked doc accepts NO further updates (the
+        // un-revoke path would be exactly this hole — design §5 step 1).
+        && !('revokedAt' in resource.data)
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.recipientUserId == resource.data.recipientUserId
+        && request.resource.data.deviceId == resource.data.deviceId
+        && request.resource.data.recipientKind == resource.data.recipientKind
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'liveEnabled', 'historyEnabled', 'scope', 'expiresAt',
+            'retentionPolicy', 'updatedAt', 'revokedAt'
+          ])
+        && request.resource.data.liveEnabled is bool
+        && request.resource.data.historyEnabled is bool
+        && request.resource.data.scope in ['ONCE', 'TEMPORARY', 'UNTIL_STOP', 'WITH_HISTORY']
+        && (!('expiresAt' in request.resource.data)
+            || (request.resource.data.expiresAt is timestamp
+                && request.resource.data.expiresAt > request.time))
+        && ((request.resource.data.scope in ['ONCE', 'TEMPORARY'])
+            == ('expiresAt' in request.resource.data))
+        && request.resource.data.retentionPolicy in ['NONE', 'H24', 'D7', 'D30']
+        && (request.resource.data.retentionPolicy == 'NONE'
+            || (request.resource.data.scope == 'WITH_HISTORY'
+                && request.resource.data.historyEnabled == true))
+        && request.resource.data.updatedAt is timestamp
+        && (!('revokedAt' in request.resource.data)
+            || request.resource.data.revokedAt is timestamp);
+
+      allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid;
+    }
+
+    // ---------- Location master plan Phase 8 (v0.39.0): history ---------
+    match /users/{ownerUid}/locationHistory/{recordId} {
+      // Retained journey points (design §2.2), owner-scoped path so the
+      // recipient-side authorization check binds deterministically per
+      // query. Append-only (update: false — records are never mutated);
+      // delete = owner only (retention cleanup + user-initiated deletion).
+      // Expired retention is enforced on EVERY read for everyone — the
+      // owner included: expired records are invisible before they are
+      // physically deleted ("not returned through application queries"
+      // at rule level). LIST adds a 5-minute clock-skew buffer so a
+      // slightly-behind client clock cannot page in expired records —
+      // clients MUST filter retentionExpiresAt > now or the whole query
+      // dies (rules are not filters).
+      allow get: if signedIn()
+        && resource.data.retentionExpiresAt > request.time
+        && (ownerUid == request.auth.uid
+            || (locationAuthzFeature(ownerUid, resource.data.deviceId, 'historyEnabled')
+                && locationAuthzFamilyOrPaired(ownerUid, resource.data.deviceId)));
+      allow list: if signedIn()
+        && resource.data.retentionExpiresAt > request.time - duration.value(5, 'm')
+        && (ownerUid == request.auth.uid
+            || (locationAuthzFeature(ownerUid, resource.data.deviceId, 'historyEnabled')
+                && locationAuthzFamilyOrPaired(ownerUid, resource.data.deviceId)));
+
+      allow create: if signedIn()
+        && ownerUid == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && recordId.matches('[0-9a-f]{24}_[0-9]+')
+        && request.resource.data.deviceId is string
+        && request.resource.data.deviceId.matches('[0-9a-f]{24}')
+        && request.resource.data.lat is number
+        && request.resource.data.lat >= -90.0 && request.resource.data.lat <= 90.0
+        && request.resource.data.lng is number
+        && request.resource.data.lng >= -180.0 && request.resource.data.lng <= 180.0
+        && request.resource.data.accuracyMeters is int
+        && request.resource.data.accuracyMeters >= 0
+        && request.resource.data.accuracyMeters <= 100000
+        && request.resource.data.recordedAt is timestamp
+        && request.resource.data.recordedAt > request.time - duration.value(10, 'm')
+        && request.resource.data.recordedAt < request.time + duration.value(10, 'm')
+        && request.resource.data.receivedAt is timestamp
+        && request.resource.data.receivedAt > request.time - duration.value(10, 'm')
+        && request.resource.data.receivedAt < request.time + duration.value(10, 'm')
+        && (!('speedMetersPerSecond' in request.resource.data)
+            || (request.resource.data.speedMetersPerSecond is number
+                && request.resource.data.speedMetersPerSecond >= 0.0
+                && request.resource.data.speedMetersPerSecond <= 90.0))
+        && (!('bearingDegrees' in request.resource.data)
+            || (request.resource.data.bearingDegrees is number
+                && request.resource.data.bearingDegrees >= 0.0
+                && request.resource.data.bearingDegrees <= 360.0))
+        && (!('altitudeMeters' in request.resource.data)
+            || (request.resource.data.altitudeMeters is number
+                && request.resource.data.altitudeMeters >= -1000.0
+                && request.resource.data.altitudeMeters <= 10000.0))
+        && request.resource.data.provider in ['fused', 'gps', 'network', 'platform']
+        && request.resource.data.retentionExpiresAt is timestamp
+        && request.resource.data.retentionExpiresAt > request.time
+        && request.resource.data.authorizationVersion is int
+        && request.resource.data.authorizationVersion >= 1
+        && request.resource.data.appVersionCode is int
+        && request.resource.data.appVersionCode >= 1
+        && request.resource.data.appVersionCode <= 1000000
+        && request.resource.data.keys().hasOnly([
+            'ownerUserId', 'deviceId', 'lat', 'lng', 'accuracyMeters',
+            'recordedAt', 'receivedAt', 'speedMetersPerSecond', 'bearingDegrees',
+            'altitudeMeters', 'provider', 'retentionExpiresAt',
+            'authorizationVersion', 'appVersionCode'
+          ]);
+
+      allow update: if false;
+
+      allow delete: if signedIn() && ownerUid == request.auth.uid;
     }
 
     // Catch-all: deny everything not matched above.
