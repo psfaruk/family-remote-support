@@ -1,11 +1,21 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
 > Status: **LOCATION MASTER PLAN PHASE 10 (MOVEMENT INSIGHTS) CLOSED —
-> v0.41.0/60 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> v0.41.1/61 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
 > Location Phase 9 route-history UI + retention/deletion (§80) +
-> Location Phase 10 movement insights + first CI unit-test gate (§81).**
+> Location Phase 10 movement insights + first CI unit-test gate (§81) +
+> Phase 8 live gate PASSED + journey-tail units fix (§82).**
+> §82 in one line: the CI unit-test gate's maiden run caught the
+> journey-tail ms/s units slip (points-based pair speeds 1000× low →
+> every LIMITED estimate read "possibly stationary") — one-line fix in
+> v0.41.1/61; the Phase 8 live rules gate closed authoritatively in the
+> same wave (original suite 32/33 with only the §80-anticipated H7
+> divergence → H7 rewritten to the app's exact D10a day-query shape with
+> a rows assertion + H15 boundary negative → rerun **35/35 EXPECTATIONS
+> MET, zero residue** — the HistoryScreen query contract verified
+> end-to-end through the live rules by an authorized family recipient).
 > §81 in one line: pure-Kotlin `MovementClassifier` (MODERATE sensor-backed /
 > LIMITED points-based, impossible-speed + stale-input + gap rejection, the
 > honest "unavailable" line) renders on the journey-history screen at
