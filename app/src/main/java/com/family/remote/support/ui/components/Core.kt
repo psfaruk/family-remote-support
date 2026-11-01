@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -302,6 +303,40 @@ fun BackTitleRow(title: String, onBack: () -> Unit) {
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/**
+ * v0.37.0 (dedupe wave) — ONE radio option row (was 2 drifting copies:
+ * LangOptionRow and IntervalChoiceRow in SettingsTab, same idea with
+ * drifting visuals). Canonical LangOptionRow visual: RadioButton + label,
+ * bold-when-selected, 6 dp vertical padding, 10 dp spacing.
+ *
+ * Phase 4 (v0.38.0) — promoted VERBATIM from SettingsTab's private copy
+ * (visibility private → internal only) so the location-sharing wizard
+ * (SharingSetupSheet) renders the same row; SettingsTab now imports this
+ * one. Still exactly ONE definition in the codebase.
+ */
+@Composable
+internal fun RadioOptionRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
