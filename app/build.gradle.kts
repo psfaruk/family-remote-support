@@ -109,8 +109,22 @@ android {
         // release in CI + legacy 6-char pairing codes retired + revoke ends
         // live sessions, P5 map gesture/zoom/camera fixes, P3 unexpected-
         // stop notice. See RELEASE_NOTES §8 / worklog §87.
-        versionCode = 65
-        versionName = "0.45.0"
+        // v0.46.0 (66) — external-audit G1 wave: the notification center
+        // grows up. NotifEvent schema v2 (readAt — backward compatible: a
+        // v1 file reads back as all-unread, the honest default), "Unread"
+        // filter + Mark-as-Read (tap) + Mark-all, category chips
+        // (All/Unread/Connection/Location/Security — mapped in ONE pure
+        // place, NotifCenter.kt), Recent-events row taps route to the
+        // event's screen through the DeepLinks dispatcher's own route
+        // strings (AppNav.goRoute, now shared by the router effect), the
+        // bell badge shows the unread count (a pending ask keeps its plain
+        // dot — action beats count), Clear-history behind a confirmation
+        // dialog, and the event stamp gained its DATE half. 14 new string
+        // keys ×15 locales; NotifCenterTest (20 cases) joins the CI unit
+        // gate. LOCAL-ONLY wave: zero new Firestore reads/listeners, rules
+        // untouched (§75). See worklog §89 / RELEASE_NOTES §13.
+        versionCode = 66
+        versionName = "0.46.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

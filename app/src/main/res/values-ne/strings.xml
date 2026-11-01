@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">%1$s सँगको सहयोग सेसन सकियो</string>
     <string name="notif_ev_sharing_on">लोकेशन सेयरिङ चालु भयो</string>
     <string name="notif_ev_sharing_off">लोकेशन सेयरिङ बन्द भयो</string>
+    <string name="notif_filter_all">सबै</string>
+    <string name="notif_filter_unread">नपढिएको</string>
+    <string name="notif_filter_connection">जडान</string>
+    <string name="notif_filter_location">स्थान</string>
+    <string name="notif_filter_security">सुरक्षा</string>
+    <string name="notif_chip_unread">नयाँ</string>
+    <string name="notif_action_mark_all">सबैलाई पढिएको चिन्हित गर्नुहोस्</string>
+    <string name="notif_action_clear">इतिहास मेट्नुहोस्</string>
+    <string name="notif_clear_title">सूचनाको इतिहास मेट्नुहोस्?</string>
+    <string name="notif_clear_body">यो डिभाइसमा राखिएका घटनाहरू अहिले नै मेटिनेछन्। यो कार्य फिर्ता गर्न सकिँदैन।</string>
+    <string name="notif_clear_yes">मेट्नुहोस्</string>
+    <string name="notif_clear_cancel">रद्द गर्नुहोस्</string>
+    <string name="notif_empty_filter_title">यहाँ अझै केही छैन</string>
+    <string name="notif_empty_filter_body">यो फिल्टरसँग कुनै घटना मेल खाँदैन।</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

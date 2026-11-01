@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">Сессия поддержки с %1$s завершилась</string>
     <string name="notif_ev_sharing_on">Передача местоположения включена</string>
     <string name="notif_ev_sharing_off">Передача местоположения выключена</string>
+    <string name="notif_filter_all">Все</string>
+    <string name="notif_filter_unread">Непрочитанные</string>
+    <string name="notif_filter_connection">Подключение</string>
+    <string name="notif_filter_location">Геолокация</string>
+    <string name="notif_filter_security">Безопасность</string>
+    <string name="notif_chip_unread">Новое</string>
+    <string name="notif_action_mark_all">Отметить всё как прочитанное</string>
+    <string name="notif_action_clear">Очистить журнал</string>
+    <string name="notif_clear_title">Очистить журнал уведомлений?</string>
+    <string name="notif_clear_body">События, сохранённые на этом устройстве, будут удалены. Это действие нельзя отменить.</string>
+    <string name="notif_clear_yes">Очистить</string>
+    <string name="notif_clear_cancel">Отмена</string>
+    <string name="notif_empty_filter_title">Здесь пока ничего нет</string>
+    <string name="notif_empty_filter_body">Под этот фильтр нет событий.</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

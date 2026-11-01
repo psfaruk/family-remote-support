@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">%1$s ile destek oturumu sona erdi</string>
     <string name="notif_ev_sharing_on">Konum paylaşımı açıldı</string>
     <string name="notif_ev_sharing_off">Konum paylaşımı kapatıldı</string>
+    <string name="notif_filter_all">Tümü</string>
+    <string name="notif_filter_unread">Okunmamış</string>
+    <string name="notif_filter_connection">Bağlantı</string>
+    <string name="notif_filter_location">Konum</string>
+    <string name="notif_filter_security">Güvenlik</string>
+    <string name="notif_chip_unread">Yeni</string>
+    <string name="notif_action_mark_all">Tümünü okundu işaretle</string>
+    <string name="notif_action_clear">Geçmişi temizle</string>
+    <string name="notif_clear_title">Bildirim geçmişi temizlensin mi?</string>
+    <string name="notif_clear_body">Bu cihazda saklanan etkinlikler şimdi silinecek. Bu işlem geri alınamaz.</string>
+    <string name="notif_clear_yes">Temizle</string>
+    <string name="notif_clear_cancel">İptal</string>
+    <string name="notif_empty_filter_title">Burada henüz bir şey yok</string>
+    <string name="notif_empty_filter_body">Bu filtreye uyan etkinlik yok.</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

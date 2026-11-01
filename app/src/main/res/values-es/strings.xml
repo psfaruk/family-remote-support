@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">Sesión de soporte con %1$s finalizada</string>
     <string name="notif_ev_sharing_on">Uso compartido de la ubicación activado</string>
     <string name="notif_ev_sharing_off">Uso compartido de la ubicación desactivado</string>
+    <string name="notif_filter_all">Todos</string>
+    <string name="notif_filter_unread">Sin leer</string>
+    <string name="notif_filter_connection">Conexión</string>
+    <string name="notif_filter_location">Ubicación</string>
+    <string name="notif_filter_security">Seguridad</string>
+    <string name="notif_chip_unread">Nuevo</string>
+    <string name="notif_action_mark_all">Marcar todo como leído</string>
+    <string name="notif_action_clear">Borrar historial</string>
+    <string name="notif_clear_title">¿Borrar el historial de notificaciones?</string>
+    <string name="notif_clear_body">Los eventos guardados en este dispositivo se eliminarán ahora. Esto no se puede deshacer.</string>
+    <string name="notif_clear_yes">Borrar</string>
+    <string name="notif_clear_cancel">Cancelar</string>
+    <string name="notif_empty_filter_title">Aún no hay nada aquí</string>
+    <string name="notif_empty_filter_body">Ningún evento coincide con este filtro.</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

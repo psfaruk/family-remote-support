@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">انتهت جلسة الدعم مع %1$s</string>
     <string name="notif_ev_sharing_on">تم تشغيل مشاركة الموقع</string>
     <string name="notif_ev_sharing_off">تم إيقاف مشاركة الموقع</string>
+    <string name="notif_filter_all">الكل</string>
+    <string name="notif_filter_unread">غير مقروءة</string>
+    <string name="notif_filter_connection">الاتصال</string>
+    <string name="notif_filter_location">الموقع</string>
+    <string name="notif_filter_security">الأمان</string>
+    <string name="notif_chip_unread">جديد</string>
+    <string name="notif_action_mark_all">تحديد الكل كمقروء</string>
+    <string name="notif_action_clear">محو السجل</string>
+    <string name="notif_clear_title">هل تريد محو سجل الإشعارات؟</string>
+    <string name="notif_clear_body">ستُحذف الأحداث المحفوظة على هذا الجهاز الآن. لا يمكن التراجع عن ذلك.</string>
+    <string name="notif_clear_yes">محو</string>
+    <string name="notif_clear_cancel">إلغاء</string>
+    <string name="notif_empty_filter_title">لا شيء هنا بعد</string>
+    <string name="notif_empty_filter_body">لا توجد أحداث مطابقة لهذا الفلتر.</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

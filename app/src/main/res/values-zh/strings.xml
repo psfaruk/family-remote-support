@@ -623,6 +623,20 @@
     <string name="notif_ev_ended">与 %1$s 的支持会话已结束</string>
     <string name="notif_ev_sharing_on">位置共享已开启</string>
     <string name="notif_ev_sharing_off">位置共享已关闭</string>
+    <string name="notif_filter_all">全部</string>
+    <string name="notif_filter_unread">未读</string>
+    <string name="notif_filter_connection">连接</string>
+    <string name="notif_filter_location">位置</string>
+    <string name="notif_filter_security">安全</string>
+    <string name="notif_chip_unread">新</string>
+    <string name="notif_action_mark_all">全部标为已读</string>
+    <string name="notif_action_clear">清除历史记录</string>
+    <string name="notif_clear_title">要清除通知历史记录吗？</string>
+    <string name="notif_clear_body">此设备上保存的事件将立即删除。此操作无法撤销。</string>
+    <string name="notif_clear_yes">清除</string>
+    <string name="notif_clear_cancel">取消</string>
+    <string name="notif_empty_filter_title">这里暂时没有内容</string>
+    <string name="notif_empty_filter_body">没有符合此筛选条件的事件。</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

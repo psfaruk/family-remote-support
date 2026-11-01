@@ -499,3 +499,36 @@ per-finding status:
 
 No new permissions, no new Firestore rules, no background listeners — the
 notify path costs ~2–3 reads per ask.
+
+---
+
+## 13. v0.46.0/66 — the G1 notification-center wave
+
+The external-audit response (`docs/EXTERNAL_AUDIT_RESPONSE.md`, worklog §88)
+verified every claim of the outside report against the source and found
+exactly ONE significant genuine gap: the notification center's missing
+read/unread state, category filters, row routing and user-facing clear.
+This release ships that upgrade — LOCAL-ONLY by design (zero new Firestore
+reads/listeners/writes, rules untouched, no new permissions):
+
+| G1 item | What shipped |
+|---|---|
+| Read/unread state | `NotifEvent.readAt` (schema v2 — a v1 file reads back all-unread, the honest default); tap marks read (a re-tap never re-stamps); "Mark all as read" (hidden while nothing is unread); the bell badge shows the unread count, capped at 99 (a pending consent ask keeps its plain dot — action beats count) |
+| Category filters | All / Unread / Connection / Location / Security chips, mapped in ONE pure place (`NotifCenter.kt`): session lifecycle → Connection, denied/cancelled → Security, sharing/place → Location; an unknown future event type stays visible under All only, never mis-filed |
+| Row routing | Every Recent-events row is tappable → the event's screen (ask → Home, session outcomes → `home/sessions/{id}`, sharing → Tracking, place alert → My places; unknown → Home, never a dead end) via the DeepLinks dispatcher's own route strings, now shared as `AppNav.goRoute` so an in-app tap and a system-notification tap behave identically |
+| Clear history | User-facing, behind a confirmation dialog; the sign-out wipe remains a separate hygiene path (`clearHistory` vs `clear` — two intents, two entry points) |
+| Bonus | Event stamps gained their DATE half (`getDateTimeInstance`) — a 100-row history spans days; time-only would misread old rows as today's |
+
+Tests: `NotifCenterTest` — 21 new pure-JVM cases (category mapping, filter
+algebra, read-state transitions incl. no-re-stamping and no-reordering,
+route mapping with literal route strings as an `AppRoutes` guard). Local
+gate: 66/66 unit tests green + `assembleDebug` OK (the first full Gradle
+gate inside the sandbox — Android SDK 34 + Gradle 8.9 + Temurin 17, the
+CI-identical toolchain); `assembleRelease` stays the CI runner's job (the
+4 GB sandbox OOM-killed it twice — R8 + lintVital together exceed the
+ceiling). Strings: 14 new keys ×15 locales.
+
+Owner device checklist: bell count → open center → five chips (horizontally
+scrollable) → unread rows carry a "New" pill → tap a row (navigates AND
+marks read) → "Mark all as read" clears the pills → "Clear history" →
+confirm → section empties → sign-out still wipes everything, as before.

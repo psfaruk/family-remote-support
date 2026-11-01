@@ -624,6 +624,20 @@
     <string name="notif_ev_ended">Session d\'assistance avec %1$s terminée</string>
     <string name="notif_ev_sharing_on">Partage de position activé</string>
     <string name="notif_ev_sharing_off">Partage de position désactivé</string>
+    <string name="notif_filter_all">Tous</string>
+    <string name="notif_filter_unread">Non lus</string>
+    <string name="notif_filter_connection">Connexion</string>
+    <string name="notif_filter_location">Position</string>
+    <string name="notif_filter_security">Sécurité</string>
+    <string name="notif_chip_unread">Nouveau</string>
+    <string name="notif_action_mark_all">Tout marquer comme lu</string>
+    <string name="notif_action_clear">Effacer l\'historique</string>
+    <string name="notif_clear_title">Effacer l\'historique des notifications ?</string>
+    <string name="notif_clear_body">Les événements conservés sur cet appareil seront supprimés maintenant. Cette action est irréversible.</string>
+    <string name="notif_clear_yes">Effacer</string>
+    <string name="notif_clear_cancel">Annuler</string>
+    <string name="notif_empty_filter_title">Rien ici pour l\'instant</string>
+    <string name="notif_empty_filter_body">Aucun événement ne correspond à ce filtre.</string>
 
     <!-- M8 (v0.34.0) — i18n completion wave: repo-layer literals extracted to resources
          (SessionException codes, screen-share status/retry/recover/fail, assist acks,

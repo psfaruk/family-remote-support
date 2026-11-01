@@ -34,6 +34,13 @@ import org.json.JSONObject
 // cleared at sign-out (counterpart emails must not survive the account).
 // File IO is fire-and-forget on a private IO scope: a failed persist never
 // crashes or blocks the UI — the in-memory list stays authoritative.
+//
+// v0.46.0 (external-audit G1): NotifEvent gained readAt (schema v2).
+// The migration is the parser itself — a v1 file simply carries no readAt
+// field, which reads back as null = unread, the honest default (those rows
+// were never marked read because the concept did not exist). The store
+// also learned markRead / markAllRead / clearHistory; the pure list logic
+// lives in NotifCenter.kt so CI proves it (NotifCenterTest).
 // ═══════════════════════════════════════════════════════════════════════
 
 /** One row of the local events log (top-level like PresenceView). */
@@ -46,8 +53,13 @@ data class NotifEvent(
     val at: Long,
     /** Counterpart email (or null) — never coordinates or payloads. */
     val arg: String? = null,
-    /** Second label (or null). Currently unused; kept for future events. */
-    val arg2: String? = null
+    /** Second label (or null) — the stable subject id (sessionId/placeId). */
+    val arg2: String? = null,
+    /**
+     * v0.46.0 (G1) — the moment the user first READ this row, or null while
+     * unread. Schema v2: absent in v1 files → null → honestly "never read".
+     */
+    val readAt: Long? = null
 )
 
 object NotificationsLog {
@@ -98,7 +110,12 @@ object NotificationsLog {
                     type = type,
                     at = o.optLong("at", 0L),
                     arg = o.optStringOrNull("arg"),
-                    arg2 = o.optStringOrNull("arg2")
+                    arg2 = o.optStringOrNull("arg2"),
+                    // v0.46.0 (G1) — schema v2 read-back; v1 rows (no field)
+                    // read as null = unread, the honest default.
+                    readAt = if (o.has("readAt") && !o.isNull("readAt")) {
+                        o.optLong("readAt")
+                    } else null
                 )
             }
         } catch (_: Exception) {
@@ -209,6 +226,41 @@ object NotificationsLog {
         }
     }
 
+    // ── v0.46.0 (external-audit G1) — read state + user-facing clear ────
+
+    /**
+     * G1 item 2 — one row was tapped: stamp its readAt (only if unread — a
+     * re-tap never re-stamps a newer time), persist. The list work is the
+     * pure, unit-tested NotifCenter.withOneMarkedRead; this is the store
+     * shell, same fire-and-forget persist discipline as append().
+     */
+    fun markRead(context: Context, id: Long) {
+        val next = _events.value.withOneMarkedRead(id, System.currentTimeMillis())
+        if (next == _events.value) return // unknown id or already read — no write
+        _events.value = next
+        persist(context)
+    }
+
+    /** G1 item 2 — "Mark all as read": stamp every unread row now. */
+    fun markAllRead(context: Context) {
+        val next = _events.value.withAllMarkedRead(System.currentTimeMillis())
+        if (next == _events.value) return // nothing unread — no write
+        _events.value = next
+        persist(context)
+    }
+
+    /**
+     * G1 item 5 — the USER-facing "Clear history" (the confirmation dialog
+     * lives in the screen). Same wipe as the sign-out hygiene clear():
+     * memory + file — counterpart emails must not survive the user's own
+     * decision to delete them either. Kept as a separate entry point so the
+     * two intents (account hygiene vs explicit user action) stay distinct
+     * and independently auditable in the worklog.
+     */
+    fun clearHistory(context: Context) {
+        clear(context)
+    }
+
     // ── internals ─────────────────────────────────────────────────────────
 
     private fun newEvent(type: String, arg: String?, arg2: String? = null): NotifEvent =
@@ -247,6 +299,7 @@ object NotificationsLog {
                         .put("at", e.at)
                     e.arg?.let { o.put("arg", it) }
                     e.arg2?.let { o.put("arg2", it) }
+                    e.readAt?.let { o.put("readAt", it) } // v0.46.0 (G1)
                     arr.put(o)
                 }
                 File(appContext.filesDir, FILE_NAME).writeText(arr.toString())

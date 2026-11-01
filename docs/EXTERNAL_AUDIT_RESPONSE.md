@@ -19,7 +19,7 @@ Owner-এর হাতে আসা বাহ্যিক "Deep Technical Audit 
 | বাহ্যিক রিপোর্টের অগ্রাধিকার | প্রকৃত অবস্থা | প্রমাণ (সংক্ষেপ) |
 |---|---|---|
 | Backend–Frontend Integration (High) | ✅ সম্পূর্ণ — ১২ ফিচারের পাইপলাইন বিদ্যমান | §২-এর ম্যাট্রিক্স |
-| Notification System (High) | ✅ পাইপলাইন সম্পূর্ণ (v0.45.0 P1/P4/P8) · ❌ সেন্টার-UI-তে ৪টি ফাঁক | §৩ |
+| Notification System (High) | ✅ পাইপলাইন সম্পূর্ণ (v0.45.0 P1/P4/P8) · ✅ সেন্টার-UI-এর ৪টি ফাঁকই G1-ওয়েভে বন্ধ (v0.46.0 — §১০) | §৩ |
 | Location Tracking UI (High) | ✅ সম্পূর্ণ (M5–M12, v0.33.0–v0.43.0) · ⚠️ ব্যাটারি নেই | §৪ |
 | API ও Feature Pipeline (Verify) | ✅ যাচাই-সম্পন্ন — রিয়েলটাইম লিসেনার + ইভেন্ট-চালিত push | §২/§৩ |
 | QR Pairing — Family/Guest (Verify) | ✅ নিয়ম-স্তরে প্রমাণিত (G1–G4 + ৩৩/৩৫-কেস প্রোব) | §৫ |
@@ -80,15 +80,15 @@ Owner-এর হাতে আসা বাহ্যিক "Deep Technical Audit 
 
 **"Location Update-এ Notification নয়" পরামর্শ:** অনুসৃত — লোকেশন-আপডেট কখনোই নোটিফিকেশন পাঠায় না; পাঠায় শুধু ইভেন্ট-ট্রানজিশন (ask/answer/sharing on-off/place alert/অপ্রত্যাশিত বন্ধ)।
 
-### ৩গ. Notification Center — ⚠️ আছে, কিন্তু ৪টি সত্যিকারের ফাঁক
+### ৩গ. Notification Center — ✅ v0.46.0/66-এ সম্পূর্ণ (৪টি ফাঁকই G1-ওয়েভে বন্ধ — §১০)
 
 **যা আছে** (`NotificationsScreen.kt` + `NotificationsLog.kt`): ডেডিকেটেড সারফেস (bell → রুট), Attention সেকশন (পেন্ডিং ask / পারমিশন-ফাঁক / সেটআপ-সমস্যা), Live-sessions সেকশন, Recent-events সেকশন (লোকাল-পার্সিস্টেড, ১০০-ইভেন্ট ক্যাপ, সাইন-আউটে ওয়াইপ, ১৫ ভাষায়), খালি-স্টেট, ⓘ-ব্যাখ্যা।
 
-**যা নেই (সত্যিকারের ফাঁক — §৮-এ পরিকল্পনা):**
-1. ইভেন্টে পঠিত/অপঠিত (read/unread) স্টেট নেই → "Unread" ফিল্টার ও "Mark as Read / Mark All" অসম্ভব
-2. ক্যাটাগরি-ফিল্টার ট্যাব নেই (All / Connection / Device / Location / Security)
-3. Recent-events সারিতে **onClick নেই** — ট্যাপ করলে সংশ্লিষ্ট স্ক্রিনে যাওয়ার বাহ্যিক চাহিদা অপূরণ
-4. ইউজার-মুখী "Clear History" বাটন নেই (wipes হয় শুধু সাইন-আউটে)
+**যা ছিল না (৪টি সত্যিকারের ফাঁক — সবই v0.46.0/66-এ বন্ধ, প্রমাণ §১০):**
+1. ~~ইভেন্টে পঠিত/অপঠিত (read/unread) স্টেট নেই~~ → `readAt` স্কিমা v2 + "Unread" ফিল্টার + ট্যাপে Mark-as-Read + "Mark all as read"
+2. ~~ক্যাটাগরি-ফিল্টার ট্যাব নেই~~ → All / Unread / Connection / Location / Security চিপস
+3. ~~Recent-events সারিতে onClick নেই~~ → ট্যাপ = রাউট (DeepLinks-এর নিজ স্ট্রিং, AppNav.goRoute ডিসপ্যাচার)
+4. ~~ইউজার-মুখী "Clear History" বাটন নেই~~ → কনফার্মেশন-ডায়ালগসহ Clear History
 
 **গুরুত্বপূর্ণ প্রসঙ্গ:** বাহ্যিক রিপোর্টের ১২-ক্যাটাগরি পুশ-টেবিলের বেশিরভাগই (Help Request, Connection Accepted, Device Offline, Location Sharing Started/Stopped, Guest Session Expiring…) ইতিমধ্যে পাইপলাইনে রয়েছে বা ইচ্ছাকৃতভাবে নেই (লোকেশন-স্প্যাম)। উপরের ৪টি ফাঁকই একমাত্র বাস্তব অপূর্ণতা।
 
@@ -167,7 +167,7 @@ Owner-এর হাতে আসা বাহ্যিক "Deep Technical Audit 
 
 ## ৮. সত্যিকারের ফাঁক (Genuine Gaps) — সম্পূর্ণ তালিকা ও প্রস্তাবিত ওয়েভ
 
-**G1 — Notification Center আপগ্রেড (একমাত্র উল্লেখযোগ্য ফাঁক):**
+**G1 — Notification Center আপগ্রেড — ✅ v0.46.0/66-এ বাস্তবায়িত (§১০; স্পেক হুবহু + বেল-ব্যাজ সম্পূরক):**
 লোকাল-অনলি পরিবর্তন (শূন্য নতুন Firestore রিড — §৭৫ কোটা-শৃঙ্খলার পূর্ণ সম্মতিতে):
 1. `NotifEvent`-এ `readAt` ফিল্ড (লোকাল JSON-স্কিমা v2, পশ্চাদগামী-সামঞ্জস্য)
 2. "Unread" ফিল্টার + Mark-as-Read (ট্যাপে স্বয়ংক্রিয়) + Mark-All
@@ -175,6 +175,8 @@ Owner-এর হাতে আসা বাহ্যিক "Deep Technical Audit 
 4. প্রতিটি সারিতে onClick → সংশ্লিষ্ট রুট (session_asked→home, sharing_*→tracking, place_alert→tracking/places — `DeepLinks`-এর রাউটার পুনঃব্যবহার)
 5. "Clear History" বাটন (কনফার্মেশন-ডায়ালগসহ)
 আনুমানিক পরিসর: `NotificationsLog.kt` + `NotificationsScreen.kt` + ~১২ নতুন স্ট্রিং-কী ×১৫ লোকেল + `NotifEvent`-স্কিমা মাইগ্রেশন। CI-গেট প্রয়োজন (কম্পাইল-যাচাই)।
+
+**অবস্থা:** বাস্তবায়িত — ১৪ কী ×১৫ লোকেল, NotifCenter.kt (pure) + NotifCenterTest (২১ কেস, লোকাল ৬৬/৬৬), লোকাল স্যান্ডবক্স-গেট পাস; বিস্তারিত §১০।
 
 **G2 — ব্যাটারি স্ট্যাটাস (ঐচ্ছিক, স্বল্প-অগ্রাধিকার):**
 `devicePresence`-হার্টবিটে ঐচ্ছিক ব্যাটারি-ফিল্ড + রুলস-ফিল্ড-অনুমতি + প্রেসেন্স-ব্যাজে শতকরা-লাইন। নতুন ডেটা-শ্রেণি সংগ্রহ — Owner-সম্মতি-প্রয়োজন।
@@ -186,5 +188,21 @@ Owner-এর হাতে আসা বাহ্যিক "Deep Technical Audit 
 ## ৯. সৎ ঘোষণা
 
 - এই যাচাই **সম্পূর্ণরূপে স্ট্যাটিক সোর্স-পাঠ** — রিপোজিটরি লোকাল-মিররে (`a5cbca0`, remote-main-এর সঙ্গে ০/০ পার্থক্য) পরিচালিত; কোনো নতুন রানটাইম-টেস্ট চালানো হয়নি। রানটাইম-সত্যের গেট পূর্বের মতোই CI (#859 সবুজ) + Owner-এর দুই-ফোন ম্যানুয়াল চেকলিস্ট (RELEASE_NOTES §১২)।
-- **পুশ-সক্ষমতা নেই এই সেশনে:** `.secrets/github-token.txt` স্যান্ডবক্স-রিসাইকেলে হারিয়েছে (§৫৮-পূর্ববর্তী ঘটনার পুনরাবৃত্তি)। এই ডকুমেন্ট + worklog §৮৮ লোকাল-কমিটে প্রস্তুত; Owner টোকেন দিলে ১-কমান্ডে push → CI-গেট।
-- কোনো সোর্স-কোড পরিবর্তন করা হয়নি এই ওয়েভে — G1/G2 বাস্তবায়ন Owner-এর স্পষ্ট অনুমোদনের অপেক্ষায় (§৬৪-এর STOP-condition সংস্কৃতি)।
+- **পুশ-সক্ষমতা নেই ছিল এই ওয়েভে:** `.secrets/github-token.txt` স্যান্ডবক্স-রিসাইকেলে হারিয়েছে (§৫৮-পূর্ববর্তী ঘটনার পুনরাবৃত্তি)। এই ডকুমেন্ট + worklog §৮৮ লোকাল-কমিটে প্রস্তুত ছিল; Owner টোকেন দিলে ১-কমান্ডে push → CI-গেট। *(পরবর্তী-স্পন্দর্শ: Owner টোকেন দিয়েছেন — v0.46.0/66-ওয়েভ §৮৯/§১০-এ push সম্পন্ন।)*
+- কোনো সোর্স-কোড পরিবর্তন করা হয়নি এই ওয়েভে — G1/G2 বাস্তবায়ন Owner-এর স্পষ্ট অনুমোদনের অপেক্ষায় ছিল (§৬৪-এর STOP-condition সংস্কৃতি)। *(অনুমোদন এসেছে — G1 পরবর্তী ওয়েভে বাস্তবায়িত; G2 এখনো আলাদা-সম্মতি-অপেক্ষমাণ।)*
+
+---
+
+## ১০. G1 বাস্তবায়ন — v0.46.0/66 (২০২৬-১১-০১, worklog §৮৯-ওয়েভ)
+
+Owner-এর টোকেন + "ইমপ্লিমেন্ট করো deeply" নির্দেশে §৮-এর G1-পরিকল্পনা **হুবহু বাস্তবায়িত** + ১টি সম্পূরক (বেল-ব্যাজ)। প্রতিটি ফাঁকের ফাইল-প্রমাণ:
+
+| ফাঁক (§৩গ) | বাস্তবায়ন | প্রমাণ |
+|---|---|---|
+| ① read/unread নেই | `NotifEvent.readAt` (স্কিমা v2 — v1 ফাইল পার্সারেই সব-অপঠিতে মাইগ্রেট, সৎ ডিফল্ট); "Unread" ফিল্টার; ট্যাপে Mark-as-Read (পুনরায় ট্যাপে মূল readAt অপরিবর্তিত); "Mark all as read" (অপঠিত শূন্য হলে বাটন নেই) | `NotificationsLog.kt`-এ readAt পার্স/পার্সিস্ট + `markRead`/`markAllRead`; `NotifCenter.kt`-এ `withOneMarkedRead`/`withAllMarkedRead` — NotifCenterTest-এর ৬ কেস |
+| ② ক্যাটাগরি-ফিল্টার নেই | চিপস **All / Unread / Connection / Location / Security** — ম্যাপিং একটিই জায়গায়: CONNECTION=asked/started/ended, SECURITY=denied/cancelled, LOCATION=sharing±/place_alert; অজানা ভবিষ্যৎ-টাইপ All-এ দৃশ্যমান, কোনো ক্যাটাগরিতে নয় (honesty rule) | `NotifCenter.notifCategoryOf` + `applyNotifFilter` — ৮ কেস; NotificationsScreen-এর horizontal-scroll চিপ-সারি (৩২০dp ফোনে ৫ লোকালাইজড লেবেল ধরে না) |
+| ③ সারিতে onClick নেই | প্রতিটি সারি ট্যাপযোগ্য → `DeepLinks`-এর নিজ রাউট-স্ট্রিং: session_asked→home; started/ended/denied/cancelled→home/sessions/{arg2} (id না থাকলে home); sharing±→tracking; place_alert→tracking/places; অজানা→home (মৃত-প্রান্ত নয়)। ডিসপ্যাচার-একত্রীকরণ: **AppNav.goRoute** — DeepLinks-ইফেক্ট ও সেন্টার-সারি একই সেমান্টিক্স শেয়ার করে | `NotifCenter.notifRouteFor` (AppRoutes-কনস্ট্যান্ট থেকে) — ৬ কেস, রাউট-লিটারাল = AppRoutes-গার্ড; MainActivity-র ইফেক্ট রিফ্যাক্টর |
+| ④ Clear History নেই | কনফার্মেশন-ডায়ালগসহ "Clear History"; সাইন-আউট-হাইজিন `clear()` থেকে আলাদা এন্ট্রি-পয়েন্ট `clearHistory()` — দুই ইন্টেন্ট, দুই পাথ, স্বাধীন-অডিটযোগ্য | `NotificationsLog.clearHistory` + স্ক্রিনের AlertDialog |
+| (সম্পূরক) বেল-ব্যাজ | pending-ask ডট (মূল অর্থ অপরিবর্তিত) > অপঠিত-সংখ্যা (৯৯-ক্যাপড, TalkBack-বিবরণে গণনা); ইভেন্ট-স্ট্যাম্প **তারিখ+সময়** (১০০-সারির ইতিহাস দিন পেরোয় — শুধু সময় হলে "আজ" ভুল পাঠ হতো) | `AppNav.AppTopBar(unreadCount)`, NotificationsScreen-এর `getDateTimeInstance` |
+
+**গেট:** NotifCenterTest — **২১ নতুন pure-JVM কেস**; লোকাল স্যান্ডবক্সে (Android SDK 34 + Gradle 8.9 + Temurin 17 — CI-হুবহু টুলচেইন) `:app:testReleaseUnitTest` **৬৬/৬৬ পাস** + `assembleDebug` SUCCESS; maiden-run-এ টেস্ট-স্যুটই একটি রাউট-কনস্ট্যান্ট ভুল ধরেছিল (HOME_SESSIONS ≠ HOME_SESSION_ARG) — ঠিক করা। **assembleRelease CI-রানারের গেট** (৪GB স্যান্ডবক্স R8+lintVital একসাথে বহন করতে পারে না)। **১৪ নতুন স্ট্রিং-কী ×১৫ লোকেল। §৭৫: শূন্য নতুন Firestore রিড/লিসেনার/রাইট, রুলস অপরিবর্তিত, নতুন পারমিশন শূন্য। G2 (ব্যাটারি) এখনো আলাদা-সম্মতি-অপেক্ষমাণ।**
