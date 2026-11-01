@@ -1,7 +1,8 @@
 # RELEASE_NOTES — Family Remote Support — M10 Final Report (2026-10-31)
 
-> **Release state: v0.40.0 (versionCode 59) — Location master-plan
-> Phase 9 (route-history UI + retention/deletion), 2026-11-01** · repo
+> **Release state: v0.41.0 (versionCode 60) — Location master-plan
+> Phase 10 (movement insights + the repo's first CI unit-test gate),
+> 2026-11-01** · repo
 > `psfaruk/family-remote-support` (public, `main`, CI green at every milestone
 > close) · master-plan milestones **M0–M10 all ✅** plus the Owner's Pre-M10
 > polish pass.
@@ -12,28 +13,31 @@
 > foreground-only for presence in v0.36.0/55, the QA & dedupe wave in
 > v0.37.0/56, the Location master-plan Phase 4 frontend wave in
 > v0.38.0/57, the Location Phases 6–8 implementation wave in v0.39.0/58,
-> and **v0.40.0 (versionCode 59) — the current release build — the
-> Location Phase 9 route-history wave.** The quota math and re-arm
+> the Location Phase 9 route-history wave in v0.40.0/59, and
+> **v0.41.0 (versionCode 60) — the current release build — the
+> Location Phase 10 movement-insights wave.** The quota math and re-arm
 > runbook are in §9a and `docs/CLOUDFLARE_SETUP.md` (কোটা-নির্দেশ section).
 >
-> **v0.40.0 in one line:** journey history went REAL on the reader side —
-> the member card and detail screen gate on the actual authorization grant
-> (history button only where granted, section E shows the grant's real
-> expiry/retention/access lines), the history screen loads REAL day routes
-> through one bounded composite-index query per day (deviceId equality +
-> the mandatory retentionExpiresAt floor + the recordedAt day range — the
-> rules' exact contract; rules are not filters), and the OWNER side gains
-> the D6 opportunistic retention cleanup plus the shared "Delete journey
-> history" flow (today / everything, verified-empty, offline-queued
-> honestly). One operational prerequisite, see §7.3: the project's
-> Firestore needs the ONE-TIME composite index (deviceId ASC,
-> retentionExpiresAt ASC, recordedAt ASC) on the `locationHistory`
-> collection group — without it the history screens show an honest setup
-> hint instead of routes. v0.39.0 recap: scope-aware engine (ONCE /
-> TEMPORARY / 50 m history writes), `locationAuthorizations` +
-> rules-verified revocation, live dual read path, upload-state line, ZERO
-> new permissions. The Phase 8 live probe gate rerun (quota-blocked at
-> §79) remains scheduled; 33/33 PASS will be claimed only when printed.
+> **v0.41.0 in one line:** movement insights went REAL on the
+> journey-history screen — a pure-Kotlin `MovementClassifier` (no Android
+> dependency, unit-tested — the repo's FIRST test source set, running in
+> CI before every assemble) classifies the day's last observed movement
+> at render time from records the screen already holds (zero extra
+> Firestore reads): MODERATE confidence when the record carries the
+> OS-provided speed, LIMITED when the estimate is points-based, the
+> honest "Movement type unavailable" line when the evidence cannot
+> support any label, and impossible speeds (< 0 or > 120 km/h) / stale
+> observations rejected outright. The detail screen's section C stays
+> HIDDEN this wave (recorded D11e: the liveLocations rules carry no
+> motion facts, and a per-open day query just for the card would read up
+> to 1000 records a visit — half the daily free read quota). The demo
+> history fixtures were also retimed to the documented
+> solid-runs-plus-one-20-min-gap shape (the Phase 4 fixtures spaced every
+> pair 20–60 min apart, which the >10-min threshold dashed in full).
+> v0.40.0 recap: real day routes through the bounded composite-index
+> query, grant-gated sections B/E, the D6 cleanup + shared delete flow;
+> the ONE-TIME composite index (§7.3) and the Phase 8 probe-gate rerun
+> remain the outstanding operational items.
 
 ## 1. What this is
 
