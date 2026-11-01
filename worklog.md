@@ -3575,3 +3575,5 @@ history → Everything → del_done 验证文案）。
 **推送与 CI：** 本波 28 文件（build.gradle.kts 最先、worklog 最后）逐文件 readback-verify SHA256 推送至 main；CI 门 = 最终 HEAD（44 单测预期不变 + Release-APK 64/0.44.0 验证门——结果见补记）。
 
 **Owner 动作（依序）：** ① 双机改装 **v0.44.0/64**。② 安装后首开若再遇"报告厂商"对话框：重开应用 → Settings → About → "ক্র্যাশ রিপোর্ট"行（出现即有捕获）→ 点开即见完整堆栈 → Share 发给助手即可精确诊断。③ 地图验收：Tracking 标签 → 地图上方三个 chips——2D ম্যাপ（默认，明显更快）/ স্যাটেলাইট / 3D টেরেইন——一键即时切换、选择持久；缩放按钮与精度圈行为不变。④ 安装期对话框本身多为 Android 对旁加载 APK 的扫描/崩溃报告 UI（非应用代码缺陷）——但若 v0.44.0 后仍现，②的堆栈会给出真因。⑤ §85 的 S-1~S-4 裁决仍开放；Phase 13（性能报告）仍待指令。
+
+**CI 补记（最终 HEAD `0fc1c804`，run 41303666806 **SUCCESS**，日志亲验）：** 单测步骤 PASS（`:app:testReleaseUnitTest` BUILD SUCCESSFUL——44 用例零失败）；assembleDebug + assembleRelease SUCCESS；**Release-APK 验证门 PASS（日志亲验）：✓ versionCode = 64 (INT_DEC) — expected 64 · ✓ versionName = "0.44.0" — expected "0.44.0" · ✓ APK Signing Block v2 present · VERIFY: PASS**；debug/release APK 双工件已上传（release 27.9 MB / debug 32.8 MB，7 天保留）。本波 28 推送产生的中间 run 按 GitHub 并发惯例被 later-run 抢占取消，最终 HEAD 的 run 为权威门。字节码亲验的两处 API 事实（MapTileIndex long 寻址、setCopyrightNotice）均一次通过编译——零 maiden-run 编译抓获，CI 门作为最终防线保持全绿。本补记为 §86 的最后一次推送（仅文档）。
