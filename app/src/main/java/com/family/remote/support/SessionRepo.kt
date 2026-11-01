@@ -67,8 +67,15 @@ fun SessionException.localizedMessage(context: android.content.Context): String 
 
 internal const val SESSION_COLLECTION = "supportSessions"
 
-/** How long the recipient has to answer an ask before it expires. */
-const val SESSION_RESPONSE_TTL_MILLIS = 2 * 60 * 1000L
+/** How long the recipient has to answer an ask before it expires.
+ *
+ * v0.45.0 (audit P1): 2 → 4 minutes. Two minutes left no room at all for
+ * Doze/OEM delivery latency on the recipient's (usually elderly) phone —
+ * a kill-push that lands 90 s late left 30 s to answer. Four minutes is
+ * still under the rules' hard ceiling (firestore.rules requires
+ * respondDeadline < request.time + 5 m) with a full minute of skew +
+ * latency headroom. */
+const val SESSION_RESPONSE_TTL_MILLIS = 4 * 60 * 1000L
 /** How long an ALLOWED session stays active before it auto-ends. */
 const val SESSION_ACTIVE_TTL_MILLIS = 15 * 60 * 1000L
 
@@ -236,7 +243,11 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
     blockedMessage?.let { throw SessionException(it) }
 
     // ---------- write ----------
-    val deadline = Date(System.currentTimeMillis() + SESSION_RESPONSE_TTL_MILLIS)
+    // v0.45.0 (audit P7): the deadline is computed from the SERVER-corrected
+    // clock (ServerClock) — a phone whose "Automatic date & time" is off by
+    // a few minutes used to push respondDeadline outside the rules' server
+    //-time window and the ask write itself failed with PERMISSION_DENIED.
+    val deadline = Date(ServerClock.now() + SESSION_RESPONSE_TTL_MILLIS)
     val ref = db.collection(SESSION_COLLECTION).document()
     ref.set(
         mapOf(
@@ -254,6 +265,10 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
             "updatedAt" to FieldValue.serverTimestamp()
         )
     ).awaitWithTimeout("asking for permission to help")
+    // v0.45.0 (audit P1) — event-driven push: tell the Worker the moment
+    // the ask exists so the recipient's KILLED app still rings. Best effort:
+    // the alive-process listener path keeps working regardless.
+    SessionPush.notify(ref.id, "asked")
     return SessionView(
         id = ref.id,
         relId = rel.id,
@@ -284,7 +299,7 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
  */
 suspend fun grantSession(sessionId: String, uid: String): SessionView {
     val db = Fb.db
-    return db.runTransaction { tx ->
+    val grantResult = db.runTransaction { tx ->
         // ---------- read ----------
         val ref = db.collection(SESSION_COLLECTION).document(sessionId)
         val snap = tx.get(ref)
@@ -310,7 +325,9 @@ suspend fun grantSession(sessionId: String, uid: String): SessionView {
             )
         }
         // 5 s of grace for small clock skew; the rules re-check with server time.
-        if (System.currentTimeMillis() > session.respondDeadlineMillis + 5000) {
+        // v0.45.0 (audit P7): SERVER-corrected clock (a slow phone used to
+        // think a live ask was already expired and refuse to grant).
+        if (ServerClock.now() > session.respondDeadlineMillis + 5000) {
             throw SessionException(
                 "This request already expired — ask the helper to send a new one.",
                 "session_expired_resend"
@@ -318,7 +335,7 @@ suspend fun grantSession(sessionId: String, uid: String): SessionView {
         }
 
         // ---------- lifetime: 15 min, capped by a live guest window ----------
-        var endsAtMillis = System.currentTimeMillis() + SESSION_ACTIVE_TTL_MILLIS
+        var endsAtMillis = ServerClock.now() + SESSION_ACTIVE_TTL_MILLIS
         if (session.kind == "guest" && session.relId.isNotBlank()) {
             val relSnap = tx.get(
                 db.collection(RELATIONSHIP_COLLECTION).document(session.relId)
@@ -341,6 +358,10 @@ suspend fun grantSession(sessionId: String, uid: String): SessionView {
         )
         session.copy(status = "ACTIVE", sessionEndsAtMillis = endsAt.toDate().time)
     }.awaitWithTimeout("allowing the session")
+    // v0.45.0 (audit P1/৪-ক): the helper's app may be CLOSED — push the
+    // answer so their tray says "allowed" instead of silence.
+    SessionPush.notify(sessionId, "answered")
+    return grantResult
 }
 
 /** Recipient side: refuse the ask (REQUESTED -> DENIED). */
@@ -376,6 +397,8 @@ suspend fun denySession(sessionId: String, uid: String) {
         )
         Unit
     }.awaitWithTimeout("denying the request")
+    // v0.45.0 (audit P1): the helper's closed app learns the denial.
+    SessionPush.notify(sessionId, "answered")
 }
 
 /** Helper side: take back their own unanswered ask (REQUESTED -> CANCELLED). */
@@ -411,6 +434,9 @@ suspend fun cancelSession(sessionId: String, uid: String) {
         )
         Unit
     }.awaitWithTimeout("cancelling the request")
+    // v0.45.0 (audit P8/catalog #8): the recipient's closed app learns the
+    // cancellation instead of discovering a dead ask on next open.
+    SessionPush.notify(sessionId, "answered")
 }
 
 /**

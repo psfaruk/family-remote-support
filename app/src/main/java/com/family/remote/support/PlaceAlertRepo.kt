@@ -348,6 +348,20 @@ object PlaceAlertNotifier {
 
     fun post(context: Context, events: List<PlaceAlertEvent>) {
         if (events.isEmpty()) return
+        // v0.45.0 (audit P8): place alerts finally LAND in the events log —
+        // BEFORE the notification-permission gate (the log is the
+        // Notification Center's memory; a user with tray notifications off
+        // still gets the history), at the alert's real fire time with the
+        // place name as arg (never coordinates — §9).
+        for (event in events) {
+            NotificationsLog.recordAt(
+                context,
+                "place_alert",
+                event.atMillis,
+                event.placeName,
+                event.placeId
+            )
+        }
         if (!isNotifGranted(context)) return // honest absence, never a crash
         val lc = LangPrefBus.wrap(context)
         val manager =
@@ -362,10 +376,14 @@ object PlaceAlertNotifier {
             )
         }
         for (event in events) {
+            // v0.45.0 (audit P4): tapping lands on the Tracking tab (the
+            // map with the place's member pin), not a bare Home drop.
             val openIntent = PendingIntent.getActivity(
                 context,
                 (event.placeId + event.kind.name).hashCode(),
-                Intent(context, MainActivity::class.java),
+                Intent(context, MainActivity::class.java)
+                    .putExtra(DeepLinks.EXTRA_ROUTE, "tracking")
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = NotificationCompat.Builder(lc, CHANNEL_ID)
@@ -390,6 +408,7 @@ object PlaceAlertNotifier {
                     )
                 )
                 .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_EVENT)
                 .setContentIntent(openIntent)
                 .build()
             manager.notify(notificationId(event.placeId, event.kind), notification)

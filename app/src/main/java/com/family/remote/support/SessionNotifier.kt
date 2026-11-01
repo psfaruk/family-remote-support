@@ -1,15 +1,7 @@
 package com.family.remote.support
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import com.family.remote.support.ui.LangPrefBus
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.ListenerRegistration
 
 /**
@@ -42,8 +34,6 @@ import com.google.firebase.firestore.ListenerRegistration
  */
 object SessionNotifier {
 
-    private const val CHANNEL_ID = "support_session_requests"
-
     private var initialized = false
     private var registration: ListenerRegistration? = null
     private var seenRequestIds: MutableSet<String> = mutableSetOf()
@@ -54,16 +44,10 @@ object SessionNotifier {
         initialized = true
         val appContext = context.applicationContext
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                LangPrefBus.wrap(appContext).getString(R.string.notif_channel_name),
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            val manager =
-                appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
-        }
+        // v0.45.0 (audit P4): the channel + every session notification now
+        // come from AskNotifier — ONE factory (deep link, actions, timeout,
+        // log) for both the listener path and the FCM data path.
+        AskNotifier.ensureChannel(appContext)
 
         // Re-bind the listener whenever the signed-in account changes.
         FirebaseAuth.getInstance().addAuthStateListener { auth ->
@@ -100,48 +84,32 @@ object SessionNotifier {
                     // v0.21.0 (audit): the dedupe set was populated but never
                     // CONSULTED — every listener event re-alerted ALL pending
                     // asks (repeat sound/vibration/heads-up spam within the
-                    // 2-minute window). Consult it first.
+                    // answer window). Consult it first.
                     if (doc.id in seenRequestIds) continue
                     seenRequestIds.add(doc.id)
+                    // v0.45.0 (audit P7): fold the server-stamped createdAt
+                    // (vs the local clock) into ServerClock — a phone with
+                    // manual date/time gets its deadline math corrected
+                    // before any comparison below.
+                    ServerClock.syncFrom(doc.getTimestamp("createdAt"), now)
                     val deadline = doc.getTimestamp("respondDeadline")?.toDate()?.time ?: 0L
                     // Only fresh asks ring; stale ones are handled as EXPIRED.
-                    if (deadline > now) post(context, doc)
+                    // v0.45.0 (audit P7): SERVER-corrected comparison.
+                    if (deadline > ServerClock.now()) {
+                        AskNotifier.postAsk(
+                            context = context,
+                            sessionId = doc.id,
+                            relId = doc.getString("relId"),
+                            helperEmail = doc.getString("helperEmail").orEmpty(),
+                            deadlineMillis = deadline,
+                            logEvent = false // recordSessionTransitions owns it
+                        )
+                    }
                 }
                 if (seenRequestIds.size > 50) {
                     seenRequestIds = seenRequestIds.toList().takeLast(20).toMutableSet()
                 }
             }
     }
-
-    private fun post(context: Context, doc: DocumentSnapshot) {
-        // v0.37.0 (dedupe wave) — the POST_NOTIFICATIONS granted check had
-        // drifted into 5 copies; PermissionWizard.isNotifGranted is the one
-        // implementation now.
-        if (!isNotifGranted(context)) {
-            return
-        }
-        // v0.26.0 (Phase 18.7): resolve text from the app-language context.
-        val lc = LangPrefBus.wrap(context)
-        val helperEmail = doc.getString("helperEmail")?.takeIf { it.isNotBlank() }
-            ?: lc.getString(R.string.notif_fallback_helper)
-        val openIntent = Intent(context, MainActivity::class.java)
-        val pending = PendingIntent.getActivity(
-            context,
-            doc.id.hashCode(),
-            openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val notification = NotificationCompat.Builder(lc, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_notify)
-            .setContentTitle(lc.getString(R.string.notif_help_requested_title))
-            .setContentText(lc.getString(R.string.notif_help_requested_body, helperEmail))
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(true) // v0.21.0 (audit): never re-sound the same ask
-            .setContentIntent(pending)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-        val manager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(doc.id.hashCode(), notification)
-    }
 }
+

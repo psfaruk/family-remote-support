@@ -305,6 +305,62 @@ async function deleteDoc(env, docPath) {
   }
 }
 
+/** v0.45.0 (audit P1) — GET one document (or null when missing). */
+async function getDoc(env, docPath) {
+  const sa = loadSa(env);
+  const res = await fetch(`${fsBase(sa)}/${docPath}`, {
+    headers: await authHeaders(env),
+  });
+  if (res.status === 404) {
+    try { await res.text(); } catch { /* ignore */ }
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`get ${docPath}: ${res.status} ${(await res.text()).slice(0, 300)}`);
+  }
+  const doc = await res.json();
+  return {
+    id: doc.name ? doc.name.split("/").pop() : docPath.split("/").pop(),
+    name: doc.name || docPath,
+    updateTime: doc.updateTime || null,
+    fields: doc.fields || {},
+  };
+}
+
+// ---------------------------------------------------------------------------
+// v0.45.0 (audit P1) — Firebase ID-token verification for POST /notify.
+//
+// The app attaches the CALLER's short-lived Firebase ID token (per-user,
+// ~1 h lifetime — NOT a permanent shared secret baked into the APK, which
+// was the M7 rejection). Google's tokeninfo endpoint validates the
+// signature/expiry server-side; we re-check aud == our project and the
+// Firebase issuer locally. Family-scale volumes sit far below its limits.
+// ---------------------------------------------------------------------------
+
+async function verifyIdToken(env, idToken) {
+  if (!idToken || idToken.length < 50 || idToken.length > 4096 ||
+      (idToken.match(/\./g) || []).length !== 2) {
+    throw new Error("missing/malformed bearer id-token");
+  }
+  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+  if (!res.ok) {
+    throw new Error(`id-token rejected: ${res.status}`);
+  }
+  const info = await res.json();
+  const sa = loadSa(env);
+  if (info.aud !== sa.project_id) {
+    throw new Error("id-token aud mismatch");
+  }
+  const iss = String(info.iss || "");
+  if (!iss.startsWith("https://securetoken.google.com/") && iss !== "accounts.google.com") {
+    throw new Error("id-token issuer mismatch");
+  }
+  if (!info.sub || Number(info.exp || 0) * 1000 <= Date.now()) {
+    throw new Error("id-token expired");
+  }
+  return { uid: String(info.sub) };
+}
+
 // ---------------------------------------------------------------------------
 // FCM HTTP v1
 // ---------------------------------------------------------------------------
@@ -616,6 +672,159 @@ async function runSweep(env) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// v0.45.0 (audit P1) — POST /notify: the event-driven push tier.
+//
+// The app calls this the moment it WRITES a session change:
+//   • { sessionId, event: "asked" }    — helper, right after requestSession
+//   • { sessionId, event: "answered" } — either side, after grant/deny/cancel
+// Authorization: "Bearer <Firebase ID token>" (verified, see above).
+//
+// The Worker re-reads the session doc server-side and only pushes when the
+// caller is really the party that wrote it and the state still matches —
+// the app's claim is never trusted blind. Sends a DATA-ONLY high-priority
+// FCM message (the app's onMessageReceived builds the localized,
+// Allow/Deny-action notification) to the counterpart's registered tokens,
+// reusing the sweep's claim-before-send idempotency so /sweep, /notify and
+// the alive-app listener can never double-ring.
+// Quota: ~2–3 Firestore reads + ≤3 FCM sends per ask — vs ~69k reads/day
+// for the retired polling tiers.
+// ---------------------------------------------------------------------------
+
+async function handleNotify(env, request) {
+  if (request.method !== "POST") {
+    return json({ ok: false, error: "POST required" }, 405);
+  }
+  const header = request.headers.get("Authorization") || "";
+  if (!header.startsWith("Bearer ")) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
+  const idToken = header.slice("Bearer ".length).trim();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "bad-json" }, 400);
+  }
+  const sessionId = String(body.sessionId || "");
+  const event = String(body.event || "");
+  if (!/^[A-Za-z0-9_-]{10,64}$/.test(sessionId) || !"asked|answered".includes(event)) {
+    return json({ ok: false, error: "bad-request" }, 400);
+  }
+
+  let auth;
+  try {
+    auth = await verifyIdToken(env, idToken);
+  } catch (e) {
+    return json({ ok: false, error: `auth: ${String(e && e.message ? e.message : e).slice(0, 120)}` }, 401);
+  }
+
+  const now = Date.now();
+  const doc = await getDoc(env, `supportSessions/${sessionId}`);
+  if (!doc) return json({ ok: false, error: "session-not-found" }, 404);
+  const f = doc.fields;
+  const status = fieldGet(f, "status") || "";
+  const helperUid = fieldGet(f, "helperUid") || "";
+  const recipientUid = fieldGet(f, "recipientUid") || "";
+  const relId = fieldGet(f, "relId") || "";
+  const helperEmail = fieldGet(f, "helperEmail") || "A family member";
+  const recipientEmail = fieldGet(f, "recipientEmail") || "";
+  const deadline = fieldGet(f, "respondDeadline") || 0;
+
+  let targetUid;
+  let data;
+  if (event === "asked") {
+    if (helperUid !== auth.uid) return json({ ok: false, error: "not-helper" }, 403);
+    if (status !== "REQUESTED") return json({ ok: true, skipped: "not-requested" });
+    if (!deadline || deadline <= now) return json({ ok: true, skipped: "window-over" });
+    targetUid = recipientUid;
+    data = {
+      type: "session_request",
+      sessionId,
+      relId,
+      helperEmail,
+      deadlineMillis: String(deadline),
+      sentAtMillis: String(now),
+    };
+  } else {
+    // answered: caller is the recipient (grant/deny) or the helper (cancel)
+    const byRecipient = recipientUid === auth.uid && (status === "ACTIVE" || status === "DENIED");
+    const byHelperCancel = helperUid === auth.uid && status === "CANCELLED";
+    if (!byRecipient && !byHelperCancel) {
+      return json({ ok: false, error: "not-allowed-for-answer" }, 403);
+    }
+    targetUid = byRecipient ? helperUid : recipientUid;
+    data = {
+      type: "session_answered",
+      sessionId,
+      relId,
+      answer: status,
+      counterpartEmail: byRecipient ? recipientEmail : helperEmail,
+      sentAtMillis: String(now),
+    };
+  }
+  if (!targetUid) return json({ ok: false, error: "missing-counterpart" }, 400);
+
+  // Claim-before-send (the sweep's proven idempotency): exactly one tier
+  // can own the push for this doc in this window.
+  const pushedAt = fieldGet(f, "killPushSentAt");
+  const claimedAt = fieldGet(f, "killPushClaimAt");
+  if (pushedAt) return json({ ok: true, skipped: "already-pushed" });
+  if (claimedAt && now - claimedAt < CLAIM_TTL_MILLIS) {
+    return json({ ok: true, skipped: "claimed-elsewhere" });
+  }
+  const claimed = await patchDocIfUnchanged(
+    env,
+    `supportSessions/${sessionId}`,
+    { killPushClaimAt: { timestampValue: new Date().toISOString() } },
+    ["killPushClaimAt"],
+    doc.updateTime
+  );
+  if (!claimed) return json({ ok: true, skipped: "claim-lost" });
+
+  const tokenDocs = await queryWhere(env, "fcmTokens", "uid", targetUid);
+  const tokens = tokenDocs
+    .map((t) => ({ docId: t.id, token: fieldGet(t.fields, "token") }))
+    .filter((t) => typeof t.token === "string" && t.token.length >= 32);
+  if (tokens.length === 0) {
+    return json({ ok: true, skipped: "no-tokens" });
+  }
+
+  let sent = 0;
+  for (const t of tokens.slice(0, 3)) {
+    const message = {
+      token: t.token,
+      data,
+      android: { priority: "HIGH" },
+    };
+    try {
+      const r = await sendFcm(env, message);
+      if (r.ok) {
+        sent += 1;
+      } else if (r.kind === "UNREGISTERED" || r.kind === "BAD_TOKEN") {
+        try {
+          await deleteDoc(env, `fcmTokens/${t.docId}`);
+        } catch { /* best effort */ }
+      }
+    } catch { /* one token's network blip must not kill the rest */ }
+  }
+
+  if (sent > 0) {
+    try {
+      await patchDoc(
+        env,
+        `supportSessions/${sessionId}`,
+        {
+          killPushSentAt: { timestampValue: new Date().toISOString() },
+          killPushStatus: { stringValue: `notify:${event}:${sent}/${Math.min(tokens.length, 3)}` },
+        },
+        ["killPushSentAt", "killPushStatus"]
+      );
+    } catch { /* delivery happened; the claim TTL covers the rare dup */ }
+  }
+  return json({ ok: true, sent, event });
+}
+
 const json = (obj, status = 200) =>
   // v0.21.0 (audit): CORS headers REMOVED — this Worker serves cron + a
   // bearer-token POST endpoint only; "*" origins with Authorization allowed
@@ -641,6 +850,14 @@ export default {
         },
         last,
       });
+    }
+
+    if (url.pathname === "/notify") {
+      try {
+        return await handleNotify(env, request);
+      } catch (e) {
+        return json({ ok: false, error: String(e && e.message ? e.message : e).slice(0, 200) }, 500);
+      }
     }
 
     if (url.pathname === "/sweep") {

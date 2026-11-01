@@ -3577,3 +3577,27 @@ history → Everything → del_done 验证文案）。
 **Owner 动作（依序）：** ① 双机改装 **v0.44.0/64**。② 安装后首开若再遇"报告厂商"对话框：重开应用 → Settings → About → "ক্র্যাশ রিপোর্ট"行（出现即有捕获）→ 点开即见完整堆栈 → Share 发给助手即可精确诊断。③ 地图验收：Tracking 标签 → 地图上方三个 chips——2D ম্যাপ（默认，明显更快）/ স্যাটেলাইট / 3D টেরেইন——一键即时切换、选择持久；缩放按钮与精度圈行为不变。④ 安装期对话框本身多为 Android 对旁加载 APK 的扫描/崩溃报告 UI（非应用代码缺陷）——但若 v0.44.0 后仍现，②的堆栈会给出真因。⑤ §85 的 S-1~S-4 裁决仍开放；Phase 13（性能报告）仍待指令。
 
 **CI 补记（最终 HEAD `0fc1c804`，run 41303666806 **SUCCESS**，日志亲验）：** 单测步骤 PASS（`:app:testReleaseUnitTest` BUILD SUCCESSFUL——44 用例零失败）；assembleDebug + assembleRelease SUCCESS；**Release-APK 验证门 PASS（日志亲验）：✓ versionCode = 64 (INT_DEC) — expected 64 · ✓ versionName = "0.44.0" — expected "0.44.0" · ✓ APK Signing Block v2 present · VERIFY: PASS**；debug/release APK 双工件已上传（release 27.9 MB / debug 32.8 MB，7 天保留）。本波 28 推送产生的中间 run 按 GitHub 并发惯例被 later-run 抢占取消，最终 HEAD 的 run 为权威门。字节码亲验的两处 API 事实（MapTileIndex long 寻址、setCopyrightNotice）均一次通过编译——零 maiden-run 编译抓获，CI 门作为最终防线保持全绿。本补记为 §86 的最后一次推送（仅文档）。
+
+## §87 — v0.45.0/65 审计修复波：v0.44.0 深度静态审计 14 项发现（P1–P14）逐项落地 + CrashJournal 栈迹根因（P11 定案）（2026-11-01）
+
+**触发：** Owner 转交的深度审计报告（14 项发现：P1 关机收不到求助推送、P2 静止手机 5 分钟判 OFFLINE、P3 OEM 杀进程无通知、P4 通知无深链无按钮、P5 地图手势/缩放/相机、P6 安全与发布姿态、P7 时钟偏差、P8 通知中心名不符实、P9 语言不一致、P10 字号低于 senior-first、P11 设置页崩溃未知、P12 性能、P13 邮箱代替称呼、P14 瓦片条款）+ 一份 CrashJournal 崩溃栈（`LocationDetailViewModel` 反射实例化 `IllegalAccessException`）。
+
+**P11 定案（栈迹先行，非猜测）：** Kotlin 顶层 `private class` 编译为 JVM package-private；`viewModel()` 默认工厂经 `JvmViewModelProviders` 反射实例化，跨包不可见 → 必崩。同型雷三处：LocationDetailScreen/HistoryScreen/PlaceAlertsScreen —— 全部改 public + 卫注释。栈中 877 行号与 dex-id 帧证实为 D8 合成帧偏移，非真实源行。
+
+**交付（9 修改 + 4 新增 Kotlin + Worker 扩展 + 2 资源 + 3 配置/CI + 2 文档）：**
+- **P1 事件驱动推送**：`SessionPush.kt`（app 侧）写会话后即刻 POST Worker `/notify`，鉴权 = 短时 Firebase ID token（非 APK 常驻密钥，回应 M7 否决理由）；Worker `handleNotify`：tokeninfo 验签 + aud/iss/exp 本地复核 + Firestore 重读会话核身份核状态 + claim-before-send 幂等 + FCM data-only HIGH → `PushTokenService.onMessageReceived` 经统一工厂建本地化通知。TTL 2→4 分钟（规则上限 5 分钟内留足偏移余量）。`config/notify` 运行时开关（缺文档=安全关闭，10 分钟缓存）。**Owner 一次性动作见 RELEASE_NOTES §12。**
+- **P2 静止心跳**：距离门拒绝分支内 ≥4 分钟 merge 仅 `updatedAt`（hasOnly 按合并后整文档校验，规则零改动）；freshness LIVE<5m/STALE<15m。
+- **P4 统一通知工厂**：`AskNotifier.kt`（+`DeepLinks` 总线、`SessionActionReceiver`）—— 深链 extra + singleTop + onNewIntent + 允许/拒绝通知按钮（广播接收器跑与卡面同一套规则校验事务）+ setTimeoutAfter + CATEGORY_MESSAGE；SessionNotifier/PlaceAlertNotifier/LocationShareService/SettingsTab 测试通知全部改走深链。
+- **P7 ServerClock**：从既有快照（ask createdAt / FCM sentAt）估服务器偏移，±1 天护栏、±2 s 容差；请求写入与全部期限比较均用校正时钟。
+- **P8 日志真时刻**：`recordAt(at=事件真实时刻, arg2=sessionId)` + (type, arg2) 10 分钟去重（监听路径与 FCM 路径互斥）+ place_alert/session_denied/session_cancelled 三类新事件入日志。
+- **P6 发布姿态**：R8 开启（保守 keep：org.webrtc/org.osmdroid/firebase 全保 + 自有 manifest 入口类）+ shrinkResources 暂缓；CI 缺 keystore secret 即 ::error 硬失败；gradle 侧缺 keystore → 未签名（不再静默 debug 签名）；legacy 6 字符配对码停收；**revoke 同步终结该对在开会话**（REQUESTED→EXPIRED / ACTIVE→ENDED，规则本就允许，零规则改动）。
+- **P5 地图**：`NestableMapView`（dispatchTouchEvent 抢占父滚动）+ zoomIn/zoomOut 动画 + 相机 rememberSaveable + 同点聚簇防最大缩放。
+- **P3 意外停止通知**：onDestroy 且 sharingEnabled+在登 → 一次性"শেয়ারিং বন্ধ"通知（id 73）深链 Tracking。
+- **P9/P10/P13**：location 通道名/描述、"Registering this device…"、测试通知（顺带修复通道名被英文重命名的翻转）全部资源化（EN+BN）；body/label 字号回调 senior 档；`Nicknames.kt` 本地昵称（relId→称呼，零 Firestore）+ 成员详情编辑行 + 通知/标题消费。
+- **P12**：权限清单轮询 repeatOnLifecycle(RESUMED)（后台零 binder 读）。
+
+**§75 姿态核查：** 零新监听器、零定时器、零后台常驻；/notify 为用户动作（发起求助/应答）触发的瞬时调用（~2–3 读/次）；心跳 ≤360 小写/日（静止整日分享最坏情形，审计配额数学 ~2%）；昵称/日志纯本地。
+
+**验证方式（诚实记录）：** 本波为静态实现——沙箱无 Android SDK，未本地编译；CI（单测 44 例 + assembleDebug/Release + APK AXML 验证门 65/0.45.0）为编译与签名权威门。Worker JS 已过 node --check。发布后真机验收清单见 RELEASE_NOTES §12。
+
+**遗留（如实）：** TURN 临时凭据（P6-ক，待提供商 API 决策）、Google Maps 引擎迁移与全高地图布局（P5 深层）、SessionRepo 存储型双语阻断文案、bn 首启默认（与已记录的 Owner 英文优先决策冲突）、大文件拆分（P12）、瓦片条款复核（P14）。

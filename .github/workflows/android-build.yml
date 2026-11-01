@@ -62,7 +62,13 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             echo "$FP"
           else
-            echo "No keystore secret found - release falls back to debug signing"
+            # v0.45.0 (audit P6-ক): a release APK silently signed with the
+            # DEBUG key was the fallback here — the moment the real keystore
+            # returned, every installed copy bricked its own update path
+            # (signature mismatch → "App not installed"). No secrets, no
+            # release build: fail the job BEFORE anything is built.
+            echo "::error::KEYSTORE_BASE64 secret is missing — refusing to build a debug-signed release APK. Add the secret or remove the release artifacts from this workflow."
+            exit 1
           fi
 
       - name: Unit tests (Phase 10 gate — MovementClassifier et al.)

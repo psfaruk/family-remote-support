@@ -738,4 +738,35 @@
     <string name="crash_share">Share</string>
     <string name="crash_clear">Delete</string>
 
+    <!-- v0.45.0 (audit-fix wave): notification actions/results, localized
+         location-sharing channel + unexpected-stop notice, register status,
+         new notifications-log event types. -->
+    <string name="notif_allow">Allow</string>
+    <string name="notif_deny">Deny</string>
+    <string name="notif_result_allowed_title">Session allowed</string>
+    <string name="notif_result_allowed_body">The helper can now see this phone for 15 minutes.</string>
+    <string name="notif_result_denied_title">Session denied</string>
+    <string name="notif_result_denied_body">You denied this help request.</string>
+    <string name="notif_result_failed_title">Could not answer</string>
+    <string name="notif_result_failed_body">%1$s</string>
+    <string name="notif_result_open_app">Open the app and answer from the request card.</string>
+    <string name="notif_answered_allowed_title">%1$s allowed the session</string>
+    <string name="notif_answered_allowed_body">Open the app to watch their screen.</string>
+    <string name="notif_answered_denied_title">%1$s denied the session</string>
+    <string name="notif_answered_denied_body">You can send a new request when they are ready.</string>
+    <string name="notif_answered_cancelled_title">Help request cancelled</string>
+    <string name="notif_answered_cancelled_body">%1$s took back their request.</string>
+    <string name="loc_notif_channel_name">Location sharing</string>
+    <string name="loc_notif_channel_desc">Shown while this phone\'s location is being shared with your family.</string>
+    <string name="loc_notif_stopped_title">Location sharing stopped</string>
+    <string name="loc_notif_stopped_body">The system closed the app — tap to turn sharing back on.</string>
+    <string name="reg_in_progress">Registering this device…</string>
+    <string name="notif_ev_denied">%1$s denied the help request</string>
+    <string name="notif_ev_cancelled">%1$s took back the help request</string>
+    <string name="notif_ev_place">Place alert: %1$s</string>
+    <string name="nick_label">Nickname</string>
+    <string name="nick_hint">e.g. Dad, Mum, big brother…</string>
+    <string name="nick_save">Save</string>
+    <string name="nick_saved">Saved ✓</string>
+
 </resources>

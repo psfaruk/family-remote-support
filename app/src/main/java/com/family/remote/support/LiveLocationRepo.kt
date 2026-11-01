@@ -117,6 +117,28 @@ suspend fun writeLocationFix(
 }
 
 /**
+ * v0.45.0 (audit P2 — the stationary-OFFLINE bug) — the STATIONARY
+ * heartbeat: merge ONLY a fresh server-stamped updatedAt into the live doc.
+ *
+ * A phone that stays put passed every gate but wrote nothing (the §3
+ * distance gate), so the family's freshness math called it OFFLINE within
+ * minutes. This keeps the doc's updatedAt flowing without touching the
+ * coordinates — the position stays exactly as honest as the last accepted
+ * fix. Rules-wise this is a plain merge: hasOnly validates the POST-merge
+ * doc, which still carries the original (already-validated) field set, so
+ * no rules change is needed.
+ */
+suspend fun writeLocationHeartbeat(uid: String, deviceId: String) {
+    Fb.db.collection(LIVE_LOCATION_COLLECTION)
+        .document(liveLocationDocId(uid, deviceId))
+        .set(
+            mapOf("updatedAt" to FieldValue.serverTimestamp()),
+            SetOptions.merge()
+        )
+        .awaitWithTimeout("refreshing this device's sharing heartbeat")
+}
+
+/**
  * Watch one device's shared position (e.g. the counterpart's). Emits null
  * while the document is absent — never shared, stopped, or cleaned up —
  * which the Tracking tab must render as an honest empty state rather than

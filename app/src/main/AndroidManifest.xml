@@ -44,6 +44,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <!-- Pre-M10 (v0.35.0) — adjustResize (Owner: "Keybord চাপলে যেনো
                  অ্যাপ এর ফাংশন গুলো লুকিয়ে না থাকে"): with enableEdgeToEdge
@@ -55,6 +56,10 @@
                  keyboard (API 30+ insets dispatch; API 26–29 classic
                  window resize). Text fields stay visible, functions stay
                  reachable. -->
+            <!-- v0.45.0 (audit P4): singleTop + onNewIntent — a notification
+                 tap while the app is alive routes a deep link instead of
+                 stacking a duplicate MainActivity (duplicate listeners,
+                 duplicate NotificationsLog loads). -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -119,6 +124,14 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- v0.45.0 (audit P4) — Allow/Deny from the notification shade.
+             Manifest-declared so Android starts the process for the
+             broadcast even when the app was killed; runs the SAME
+             rules-checked grant/deny transactions as the in-app cards. -->
+        <receiver
+            android:name=".SessionActionReceiver"
+            android:exported="false" />
 
         <!-- v0.9.8 (Phase 8.2): KILL-PUSH. When the app process is dead, the
              Firebase SDK itself displays FCM notification messages with these
