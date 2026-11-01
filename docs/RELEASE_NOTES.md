@@ -36,8 +36,9 @@
 > pair 20–60 min apart, which the >10-min threshold dashed in full).
 > v0.40.0 recap: real day routes through the bounded composite-index
 > query, grant-gated sections B/E, the D6 cleanup + shared delete flow;
-> the ONE-TIME composite index (§7.3) and the Phase 8 probe-gate rerun
-> remain the outstanding operational items.
+> the Phase 8 probe-gate rerun remains the outstanding operational item
+> (the Phase 9 composite-index prerequisite was CANCELED 2026-11-01 —
+> live-verified unnecessary, see §7.3).
 
 ## 1. What this is
 
@@ -228,15 +229,27 @@ Sweep budget by source: `docs/TEST_PLAN.md` §1a (historical estimates) + §9a
   registered while the app is backgrounded (foreground-only presence bounds
   the writes; reads ≈5.8 k/day budgeted in TEST_PLAN §1a); map zoom/pan resets
   on tab re-entry/rotation (osmdroid view is non-saveable — accepted).
-- **v0.40.0 ONE-TIME composite index prerequisite (Owner action, ~2 min in
-  the Firebase console):** the journey-history day queries need the composite
-  index `locationHistory` · deviceId ASC · retentionExpiresAt ASC ·
-  recordedAt ASC (collection-group scope). The coordinator's service account
-  can LIST indexes but is denied CREATE (IAM `datastore.indexes.create`
-  missing), so it must be created from the Owner's console:
-  console.firebase.google.com → Firestore Database → Indexes → Add index.
-  Until it exists (state BUILDING → READY), the history screens render the
-  honest `hist_index_hint` wording instead of routes — never an error storm.
+- **v0.40.0 ONE-TIME composite index prerequisite — CANCELED 2026-11-01
+  (Phase 10, live-verified unnecessary):** Phase 9 recorded that the
+  journey-history day queries need the composite index
+  `locationHistory` · deviceId ASC · retentionExpiresAt ASC · recordedAt
+  ASC — a documented-construction assumption that could not be runtime-
+  tested from the sandbox (no device). On the Owner's Phase 10
+  instruction the coordinator attempted the creation live: the SA is
+  denied `datastore.indexes.create` (IAM role missing; self-escalation
+  also denied — `testIamPermissions` holds only databases.get +
+  indexes.list). The coordinator then ran the app's EXACT day-query
+  shape through the Firestore Admin REST API against a probe
+  subcollection with decoy documents: **the query executes correctly
+  with ZERO composite indexes** (Firestore serves equality + two
+  ranges + matching orderBy via single-field index merge; correct
+  subset + correct order verified, decoys excluded). The Owner console
+  action is therefore REMOVED — `scripts/create-location-index.mjs`
+  ships as the optional perf-optimization tool (idempotent, honest
+  exit codes) should day volumes ever want the composite; the
+  `hist_index_hint` error ladder stays as harmless defense-in-depth.
+  Live-test cost: ~13 writes + ~10 reads + 13 deletes against the
+  user-directed instruction (§75-compliant), zero residue.
 - **v0.40.0 Phase 9 honest edges (worklog §80):** day chips show the grant's
   retention-window days with honest per-day empties (the spec's
   "days-with-records metadata doc" is not in the published rules — deferred
