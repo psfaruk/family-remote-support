@@ -72,14 +72,18 @@ android {
         // here in v0.41.1/61 (worklog §82).
         //
         // v0.42.0/62 — post-gate activation wave (worklog §83): the detail
-        // screen's section C goes LIVE — liveLocations gains the OPTIONAL
-        // speedMetersPerSecond (rules-validated 0–90 m/s, mirroring the
-        // history contract), the engine passes the OS fix speed (cleared,
-        // never clamped, when missing/glitched) and LocationDetailScreen
-        // classifies it with the already-shipped classifyLive at MODERATE
-        // confidence — zero extra Firestore reads (§75).
-        versionCode = 62
-        versionName = "0.42.0"
+        // screen's section C went live (liveLocations' OPTIONAL
+        // speedMetersPerSecond + engine fix.speed + classifyLive).
+        //
+        // Phase 11 (v0.43.0/63) — PLACE ALERTS: "My places & alerts" goes
+        // real — rules-first placeAlerts block (owner-only, live probe
+        // 25/25), pure-Kotlin PlaceAlertEngine (19 CI unit tests) evaluated
+        // INSIDE LocationShareService's fix stream (DR-P2: zero new
+        // permissions, zero engine Firestore reads), name-only local
+        // notifications, Firestore persistence + offline-honest local
+        // mirror, 20-place cap. See worklog §84.
+        versionCode = 63
+        versionName = "0.43.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

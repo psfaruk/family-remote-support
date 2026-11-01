@@ -101,6 +101,13 @@ permissions the location features *could* have wanted. Both resolve to
   service degrades LIVE → STALE → OFFLINE, never fake-live). Place-alert
   geofencing (Phase 11) will evaluate inside the same running service —
   no background grant needed there either.
+  **CONFIRMED AS SHIPPED (Phase 11, v0.43.0/63, worklog §84):** the
+  geofence engine (`PlaceAlertEngine`) runs INSIDE `LocationShareService`'s
+  fix stream — no GeofencingClient, no BroadcastReceiver, no new manifest
+  entry, no new runtime prompt of ANY kind; the manifest and this matrix
+  are unchanged by Phase 11 (the only new user-visible surface is a
+  notification CHANNEL, which needs no permission beyond the already-
+  requested POST_NOTIFICATIONS).
 
 **Wizard integration (verified this phase):** the 6-step `SharingSetupSheet`
 requests exactly FINE+COARSE (the M5 launcher reused, both at once — an
