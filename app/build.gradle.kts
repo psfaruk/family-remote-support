@@ -55,8 +55,12 @@ android {
         // + users/{uid}/locationHistory rules with the live dual read path
         // and the 33-case probe suite; wizard writes the authoritative
         // grants; upload-state line live on the own card.
-        versionCode = 58
-        versionName = "0.39.0"
+        // Location master plan Phase 9 (v0.40.0/59): route-history UI
+        // wiring — real day queries through the composite index, recipient
+        // grant-gated sections B/E, owner-side retention cleanup + the
+        // shared delete flow (today / everything, verified-empty).
+        versionCode = 59
+        versionName = "0.40.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
