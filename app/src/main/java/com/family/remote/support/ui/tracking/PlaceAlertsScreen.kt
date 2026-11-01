@@ -309,7 +309,7 @@ private class PlacesViewModel : ViewModel() {
     fun reload(context: android.content.Context, describeError: (Exception) -> String) {
         loadJob?.cancel()
         _state.value = _state.value.copy(error = null)
-        loadJob = viewModelScope.launch {
+        loadJob = scope.launch {
             try {
                 val places = readSavedPlaces()
                 publishLoadedPlaces(context, places)
@@ -331,7 +331,7 @@ private class PlacesViewModel : ViewModel() {
     ) {
         if (_state.value.opBusy) return
         _state.value = _state.value.copy(opBusy = true, opError = null)
-        opJob = viewModelScope.launch {
+        opJob = scope.launch {
             try {
                 val saved = createSavedPlace(context, _state.value.places, draft)
                 _state.value = _state.value.copy(
@@ -354,7 +354,7 @@ private class PlacesViewModel : ViewModel() {
     ) {
         if (_state.value.opBusy) return
         _state.value = _state.value.copy(opBusy = true, opError = null)
-        opJob = viewModelScope.launch {
+        opJob = scope.launch {
             try {
                 updateSavedPlace(context, _state.value.places, place)
                 _state.value = _state.value.copy(
@@ -376,7 +376,7 @@ private class PlacesViewModel : ViewModel() {
     ) {
         if (_state.value.opBusy) return
         _state.value = _state.value.copy(opBusy = true, opError = null)
-        opJob = viewModelScope.launch {
+        opJob = scope.launch {
             try {
                 deleteSavedPlace(context, _state.value.places, placeId)
                 _state.value = _state.value.copy(
