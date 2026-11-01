@@ -13,6 +13,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
@@ -63,6 +64,16 @@ import kotlinx.coroutines.launch
  * network with the same gates. All fix delivery lands on the main thread,
  * which is why the gate state below needs no synchronization; only the
  * Firestore writes hop to the service scope.
+ *
+ * Location master plan Phase 7 (v0.39.0) — the engine became scope-aware
+ * and history-aware: ONCE stops after the first ACCEPTED write ("sends a
+ * single position, then sharing stops by itself" — scope_once_help);
+ * TEMPORARY arms a main-handler alarm at the expiry plus a per-fix wall-
+ * clock backstop (deep-sleep delays only make the stop LATE, never wrong);
+ * WITH_HISTORY + retention ≠ NONE additionally appends a journey record
+ * whenever the fix is ≥ 50 m from the last RETAINED point (history is
+ * coarser than live by design — design doc §3). Write outcomes surface to
+ * the UI through LocationUploadReporter (UX spec §8: silent when OK).
  */
 class LocationShareService : Service() {
 
@@ -86,6 +97,25 @@ class LocationShareService : Service() {
      * passed the acceptance gates must not log a matching "turned off"
      * either — real events only. */
     private var shareStartLogged = false
+
+    // ── Phase 7 (v0.39.0) — scope + history state (main-thread only) ─────
+
+    /** The wizard's scope, re-read on every start command (a re-run wizard
+     * re-arms a live service honestly). Plain strings — the engine and the
+     * wizard's ScopeKind agree on the names via LocationSharingPrefs. */
+    private var scopeKind = LocationSharingPrefs.SCOPE_UNTIL_STOP
+
+    /** TEMPORARY expiry in wall-clock millis (0 = no temporary expiry). */
+    private var scopeExpiryMillis = 0L
+
+    /** The TEMPORARY alarm: one postDelayed on the main looper, precise to
+     * the second while the process lives; the per-fix backstop below
+     * catches deep-sleep delays and clock shifts. */
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var scopeExpiryRunnable: Runnable? = null
+
+    /** Last RETAINED history point — the 50 m history throttle's anchor. */
+    private var lastRetained: Fix? = null
 
     // ── Gate + back-off state (§3/§6) — main-thread only ─────────────────
 
@@ -147,12 +177,16 @@ class LocationShareService : Service() {
             return Service.START_NOT_STICKY
         }
         startInForeground()
-        // Re-read the owner's cadence on every start command: a re-start
-        // while already running doubles as the "Settings changed the
-        // interval" re-request path, and a fresh cadence re-arms the
-        // stationary back-off.
+        // Re-read the owner's cadence AND scope on every start command: a
+        // re-start while already running doubles as the "Settings changed
+        // the interval" / "wizard re-ran with a new scope" re-request path,
+        // and a fresh cadence re-arms the stationary back-off.
         configuredIntervalMillis = LocationSharingPrefs.intervalMillis(this)
         effectiveIntervalMillis = configuredIntervalMillis
+        scopeKind = LocationSharingPrefs.scopeKind(this)
+        scopeExpiryMillis = LocationSharingPrefs.scopeExpiresAt(this)
+        lastRetained = null
+        armScopeExpiry()
         restartLocationRequests()
         // M8 (v0.34.0) — the acceptance gates passed and the engine began:
         // record the REAL start (no coordinates — the events log never
@@ -166,6 +200,12 @@ class LocationShareService : Service() {
 
     override fun onDestroy() {
         running = false
+        // Phase 7 — the TEMPORARY alarm dies with the instance (the stop
+        // paths below already did their work), and the upload line resets
+        // to the silent state so a stopped session never keeps showing a
+        // stale FAILED/PENDING verdict.
+        cancelScopeExpiry()
+        LocationUploadReporter.report(LocationUploadStatus.OK)
         // M8 (v0.34.0) — every stop path funnels here: the owner's toggle,
         // the sign-out teardown, and the defensive stopSelf branches
         // (consent off / permission lost / signed out mid-run). Logged only
@@ -291,7 +331,7 @@ class LocationShareService : Service() {
             val callback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
                     val fix = result.lastLocation ?: return
-                    onFix(fix.latitude, fix.longitude, fix.accuracy.toInt())
+                    onFix(fix)
                 }
             }
             client.requestLocationUpdates(request, callback, Looper.getMainLooper())
@@ -319,7 +359,7 @@ class LocationShareService : Service() {
                 applicationContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
-                    onFix(location.latitude, location.longitude, location.accuracy.toInt())
+                    onFix(location)
                 }
             }
             // Register BOTH providers even when disabled: a registration on
@@ -350,11 +390,17 @@ class LocationShareService : Service() {
                 // service may legitimately do anymore — stop rather than
                 // keep running silently.
                 stopSelf()
+            } else {
+                // Providers exist but none would register (location services
+                // off, broken ROM): the honest "update unavailable" line,
+                // §6's no-fix-no-write rule and the tray stay as they are.
+                LocationUploadReporter.report(LocationUploadStatus.UNAVAILABLE)
             }
         } catch (_: Throwable) {
             // Even the platform stack is unavailable: nothing registers, no
             // fix ever arrives, the notification stays honest (§6 offline
             // row — no writes, the document keeps its last state).
+            LocationUploadReporter.report(LocationUploadStatus.UNAVAILABLE)
         }
     }
 
@@ -394,10 +440,18 @@ class LocationShareService : Service() {
      * must pass before a write: elapsed since the last ACCEPTED write ≥ the
      * configured interval (first fix: no previous write, so it passes),
      * distance from the last accepted fix ≥ 25 m, accuracy ≤ 100 m.
+     *
+     * Phase 7: the fix arrives as the full [Location] so the history path
+     * can store only OS-PROVIDED speed/bearing/altitude (design §3) and the
+     * honest provider tag; the TEMPORARY expiry rides along as a wall-clock
+     * backstop; ONCE stops the whole share after its single accepted write.
      */
-    private fun onFix(lat: Double, lng: Double, accuracyMeters: Int) {
+    private fun onFix(fix: Location) {
         if (!running) return
         val now = SystemClock.elapsedRealtime()
+        val lat = fix.latitude
+        val lng = fix.longitude
+        val accuracyMeters = fix.accuracy.toInt()
 
         // Stationary back-off bookkeeping first (§6): the window holds raw
         // fixes, so back-off keeps working while the gates below are busy
@@ -430,6 +484,17 @@ class LocationShareService : Service() {
             restartLocationRequests()
         }
 
+        // Phase 7 — the TEMPORARY wall-clock backstop: a deep-sleep-delayed
+        // alarm, a clock shift or a re-start command that raced the expiry
+        // all land here. An expired share never writes one more fix.
+        if (scopeKind == LocationSharingPrefs.SCOPE_TEMPORARY &&
+            scopeExpiryMillis != 0L &&
+            System.currentTimeMillis() >= scopeExpiryMillis
+        ) {
+            stopLocationSharing(this)
+            return
+        }
+
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
             // Signed out mid-run (rules would deny the write anyway): stop
@@ -439,16 +504,103 @@ class LocationShareService : Service() {
         }
         val uid = user.uid
         val deviceId = stableDeviceId(applicationContext)
+
+        // Phase 7 — the history throttle (design §3): a journey point is
+        // retained only when ≥ 50 m from the last RETAINED point (the fix
+        // already cleared the §3 live gates, so this is the ONLY extra
+        // check). WITH_HISTORY + retention ≠ NONE gates the whole path.
+        val retentionKind = LocationSharingPrefs.retentionKind(this)
+        val historyOn = scopeKind == LocationSharingPrefs.SCOPE_WITH_HISTORY &&
+            retentionKind != LocationSharingPrefs.RETENTION_NONE
+        var retainThisFix = false
+        if (historyOn) {
+            val anchor = lastRetained
+            retainThisFix = anchor == null ||
+                distanceMeters(anchor.lat, anchor.lng, lat, lng) >= HISTORY_MIN_MOVE_METERS
+            if (retainThisFix) lastRetained = Fix(lat, lng)
+        }
+
+        // The honest provider tag: "fused" from the GMS path, the platform
+        // Location's own provider otherwise, coerced into the rules' enum
+        // when a broken ROM reports something else.
+        val providerTag = if (usingPlatformFallback) {
+            when (fix.provider) {
+                LocationManager.GPS_PROVIDER -> "gps"
+                LocationManager.NETWORK_PROVIDER -> "network"
+                "fused" -> "fused"
+                else -> "platform"
+            }
+        } else "fused"
+
         serviceScope.launch {
+            LocationUploadReporter.report(LocationUploadStatus.PENDING)
             try {
                 writeLocationFix(uid, deviceId, lat, lng, accuracyMeters)
+                LocationUploadReporter.report(LocationUploadStatus.OK)
+                if (retainThisFix) {
+                    try {
+                        writeHistoryRecord(
+                            uid = uid,
+                            deviceId = deviceId,
+                            lat = lat,
+                            lng = lng,
+                            accuracyMeters = accuracyMeters,
+                            speedMetersPerSecond = if (fix.hasSpeed()) fix.speed else null,
+                            bearingDegrees = if (fix.hasBearing()) fix.bearing else null,
+                            altitudeMeters = if (fix.hasAltitude()) fix.altitude else null,
+                            provider = providerTag,
+                            recordedAtMillis = fix.time,
+                            retentionMillis = LocationSharingPrefs.retentionMillis(retentionKind)
+                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Offline at history-append time (design §9): the
+                        // point is simply not retained — the route shows an
+                        // honest gap; the next accepted fix supersedes, no
+                        // retry storm (the live doc model makes retries
+                        // pointless).
+                    }
+                }
+                if (scopeKind == LocationSharingPrefs.SCOPE_ONCE) {
+                    // "Sends a single position, then sharing stops by
+                    // itself" (scope_once_help): the one fix is now durably
+                    // written, so the full stop path runs — including the
+                    // live-doc delete and the authorization revoke.
+                    stopLocationSharing(this@LocationShareService)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 // Offline at write time (§6): no write — the document keeps
                 // the last accepted state and freshness handles the rest.
+                LocationUploadReporter.report(LocationUploadStatus.FAILED)
             }
         }
+    }
+
+    // ── Phase 7 — the TEMPORARY scope's stop machinery ────────────────────
+
+    /** Arm (or re-arm) the expiry alarm; an expiry already in the past
+     * stops the share immediately — an expired share never writes again. */
+    private fun armScopeExpiry() {
+        cancelScopeExpiry()
+        if (scopeKind != LocationSharingPrefs.SCOPE_TEMPORARY || scopeExpiryMillis == 0L) return
+        val delta = scopeExpiryMillis - System.currentTimeMillis()
+        if (delta <= 0L) {
+            stopLocationSharing(this)
+            return
+        }
+        val runnable = Runnable {
+            if (running) stopLocationSharing(this)
+        }
+        scopeExpiryRunnable = runnable
+        mainHandler.postDelayed(runnable, delta)
+    }
+
+    private fun cancelScopeExpiry() {
+        scopeExpiryRunnable?.let { mainHandler.removeCallbacks(it) }
+        scopeExpiryRunnable = null
     }
 
     /**
@@ -496,6 +648,10 @@ class LocationShareService : Service() {
 
         /** §3/§6: movement gate and stationary threshold, meters. */
         private const val MIN_MOVE_METERS = 25.0
+
+        /** Phase 7 (design §3): minimum distance between RETAINED journey
+         * points — history is deliberately coarser than live. */
+        private const val HISTORY_MIN_MOVE_METERS = 50.0
 
         /** §6: stationary window size — fixes, not accepted writes. */
         private const val STATIONARY_FIX_WINDOW = 3
