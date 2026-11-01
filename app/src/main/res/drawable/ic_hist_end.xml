@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phase 4 of the Location master plan (v0.38.0) — journey-history END
+  marker (LOCATION_UX_SPECIFICATION §9: filled ■ at the day's last recorded
+  point; the tap bubble shows the end time). Companion of ic_hist_start.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- plain filled square: the route's terminal point -->
+    <path
+        android:fillColor="#37474F"
+        android:pathData="M7,7 H17 V17 H7 Z" />
+</vector>
