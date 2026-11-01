@@ -258,7 +258,7 @@ class SessionPushWorker(
         val sessionId = inputData.getString(KEY_SESSION_ID) ?: return Result.failure()
         val event = inputData.getString(KEY_EVENT) ?: return Result.failure()
         return try {
-            if (notifyBlocking(sessionId, event, forceConfigRefresh = runAttemptCount > 0)) {
+            if (SessionPush.notifyBlocking(sessionId, event, forceConfigRefresh = runAttemptCount > 0)) {
                 Result.success()
             } else {
                 // Feature OFF (config/notify absent/invalid): retrying cannot

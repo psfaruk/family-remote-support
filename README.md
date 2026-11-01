@@ -5,11 +5,20 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **🟢 RELEASE-READY — QA & dedupe wave closed (2026-10-31, v0.37.0, versionCode 56):**
-  All master-plan milestones **M0–M10 ✅** + the Owner's Pre-M10 polish pass. The final
-  report lives in **`docs/RELEASE_NOTES.md`** (features, install, build-from-source,
-  known-limits ledger, maintenance runbook, milestone ledger). Highlights of the
-  milestones this README had not yet recorded:
+- **🟢 RELEASE-READY — v0.47.0 (versionCode 67), 2026-11-01 — audit-fix wave 2 +
+  build-rescue wave (worklog §90–91):** notification event-matrix filled (pairing /
+  revoke / guest-expiry / permission-lost / presence events now reach the Notification
+  Center AND an in-app banner), session-pipeline bug fixes B1–B4 (ServerClock tray
+  timeout, bounded goAsync, push retry worker, background ask sweep), nicknames
+  everywhere, Settings "Dead-app alerts" status row, Bangla first-run default.
+  Build fixes after CI #864: `privacy_body` apostrophe escapes (AGP 8.5.2's Kotlin
+  aaptcompiler misreports them as "Invalid unicode escape `{str}`"), duplicate
+  companion object, duplicate imports, `notifyBlocking` qualifier. Local CI-identical
+  gate: **70/70 unit tests, debug + release APKs green** (Temurin 17 + Gradle 8.9 +
+  SDK 34). All master-plan milestones **M0–M10 ✅** + the Owner's Pre-M10 polish pass.
+  The final report lives in **`docs/RELEASE_NOTES.md`** (features, install,
+  build-from-source, known-limits ledger, maintenance runbook, milestone ledger).
+  Earlier milestones this README had not yet recorded:
   - **M6 ✅ (docs-only, v0.33.0/52):** Family/Guest authorization verified live — full
     probe battery 4/4 green (pairing round-trip + claim fences; session-FSM audit
     A0–A21; negative P0–N18 + G1/G2 guest-window/kind fences; liveLocations 12/12),

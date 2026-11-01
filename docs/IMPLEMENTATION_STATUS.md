@@ -1,10 +1,20 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **G1 NOTIFICATION-CENTER WAVE SHIPPED — v0.46.0/66 (2026-11-01),
-> CI run #860 SUCCESS on the code HEAD `091785b` (unit tests 66/66,
-> debug+release APKs, AXML gate).** The stack:
-> audit-fix wave v0.45.0/65 (§87) + external-audit response (§88) + the
-> G1 notification-center upgrade (§89) on top of SMOOTH-APP WAVE v0.44.0/64:
+> Status: **AUDIT-FIX WAVE 2 + BUILD-RESCUE SHIPPED — v0.47.0/67 (2026-11-01),
+> full CI-identical local gate green: 70/70 unit tests (25+25+20), assembleDebug +
+> assembleRelease (R8) + AXML 67/0.47.0 (worklog §90–91, RELEASE_NOTES §14).**
+> The deep-audit report's P0/P1 items shipped: notification event-matrix filled
+> (Gap-1..5 from existing listeners, zero extra reads), in-app EventBannerBus +
+> routed banners, session-pipeline fixes B1–B4, P13 nickname completion, M1/M5/
+> BE5/P9 UX honesty items. The wave's own three-layer build breakage (privacy_body
+> apostrophes misreported by AGP 8.5.2's Kotlin aaptcompiler as "Invalid unicode
+> escape `{str}`"; duplicate companion object; duplicate imports; unqualified
+> notifyBlocking; forgotten version bump) was diagnosed by rebuilding the sandbox
+> toolchain (Temurin 17 + Gradle 8.9 + SDK 34) and decompiling aaptcompiler —
+> all fixed, gate green before push. The stack:
+> audit-fix wave v0.45.0/65 (§87) + external-audit response (§88) +
+> G1 notification-center v0.46.0/66 (§89) + audit-fix wave 2 & build-rescue
+> v0.47.0/67 (§90–91) on top of SMOOTH-APP WAVE v0.44.0/64:
 > all master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
@@ -14,7 +24,8 @@
 > D11(e) detail-screen live movement card (§83) + Phase 11 place alerts (§84) +
 > Phase 12 security review (§85) + v0.44.0 smooth-app wave (§86) +
 > v0.45.0 audit-fix wave (§87) + audit-response wave (§88) +
-> v0.46.0 G1 notification-center wave (§89).**
+> v0.46.0 G1 notification-center wave (§89) + v0.47.0 audit-fix/build-rescue
+> wave (§90–91).**
 > §89 in one line: the external audit's ONLY significant genuine gap (the
 > notification center's missing read/unread state, category filters, row
 > routing and user-facing clear) shipped as a LOCAL-ONLY wave —

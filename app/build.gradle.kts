@@ -123,8 +123,35 @@ android {
         // keys ×15 locales; NotifCenterTest (20 cases) joins the CI unit
         // gate. LOCAL-ONLY wave: zero new Firestore reads/listeners, rules
         // untouched (§75). See worklog §89 / RELEASE_NOTES §13.
-        versionCode = 66
-        versionName = "0.46.0"
+        // v0.47.0 (67) — audit-fix wave 2: the deep-audit report's P0/P1
+        // items shipped. Notification event-matrix filled (Gap-1..5:
+        // pairing invited/approved, family revoked / guest removed /
+        // rel revoked, guest expiring-soon / expired, sharing permission
+        // lost, presence online/offline — all recorded from EXISTING
+        // listeners, zero extra Firestore reads, each with NotifCenter
+        // category + route + 10 new event strings EN+BN), the in-app
+        // EventBannerBus + EventBannerHost (one routed auto-dismissing
+        // banner per fresh event; session_asked excluded — the consent
+        // card is the hero), bug fixes B1 (ServerClock in AskNotifier
+        // setTimeoutAfter), B2 (SessionActionReceiver goAsync bounded at
+        // 9 s with honest fallback), B3 (SessionPush transient-failure
+        // retry via WorkManager, ≤3 attempts, network-constrained), B4
+        // (background-transition sweep: cached pending asks re-delivered
+        // when the last activity stops), P13 completion (nicknames in
+        // member cards, home hints, consent, feed, notif rows, tracking
+        // cards, detail screens, sharing sheet), M1 terrain-chip honesty,
+        // M5 Settings demo shortcut, BE5 "Dead-app alerts" status row,
+        // P9 Bangla first-run default. BUILD FIXES after CI run #864:
+        // privacy_body's three unescaped apostrophes (from the merged
+        // privacy-disclosure PR) escaped as \' — AGP 8.5.2's Kotlin
+        // aaptcompiler misreports this as "Invalid unicode escape
+        // sequence … {str}"; the duplicate companion object in
+        // SessionActionReceiver merged; MainActivity's six duplicate
+        // imports de-duplicated; SessionPushWorker.notifyBlocking
+        // qualified with the SessionPush object. See worklog §90–91 /
+        // RELEASE_NOTES §14.
+        versionCode = 67
+        versionName = "0.47.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

@@ -532,3 +532,37 @@ Owner device checklist: bell count → open center → five chips (horizontally
 scrollable) → unread rows carry a "New" pill → tap a row (navigates AND
 marks read) → "Mark all as read" clears the pills → "Clear history" →
 confirm → section empties → sign-out still wipes everything, as before.
+
+## 14. v0.47.0/67 — the audit-fix wave 2 + build-rescue wave (2026-11-01)
+
+The deep-audit report (§90) shipped its P0/P1 items; the wave's own build breakage
+(rescued in §91) is documented with the same honesty:
+
+| Item | What shipped |
+|---|---|
+| Notification matrix Gap-1..5 | pairing_invited/approved, family_revoked / guest_removed / rel_revoked, guest_expiring_soon / guest_expired, sharing_perm_lost, presence_online/offline — all recorded from EXISTING listeners (zero extra Firestore reads, §75-compliant), each with a NotifCenter category + row route; 10 new event strings EN+BN |
+| In-app event banner | EventBannerBus (StateFlow) + EventBannerHost: one routed, auto-dismissing (6 s), category-colored banner per fresh event, 2-min freshness window (cold-start never replays); session_asked is excluded — the consent card is the hero |
+| B1 | AskNotifier.setTimeoutAfter now computes against `ServerClock.now()` — a manual-clock phone no longer kills the tray ask early/late |
+| B2 | SessionActionReceiver's goAsync work is bounded (`withTimeoutOrNull(9 s)`); a timeout posts the honest "open the app to answer" result instead of risking the ~10 s broadcast window |
+| B3 | SessionPush transient /notify failures enqueue a WorkManager retry (network-constrained, exponential 10 s backoff, ≤3 attempts, survives process death); config-OFF never retries |
+| B4 | SessionNotifier caches pending asks every snapshot; `App.onActivityStopped(→0)` re-delivers — the background-transition hole (ask seen while app open, no tray entry after going home) closed |
+| P13 complete | Nicknames in member cards, home hints, consent card/dialog, activity feed, notification rows, tracking cards, detail screens, sharing sheet |
+| M1 / M5 / BE5 / P9 | Terrain chip honest relabel ("3D look"); Settings demo-mode shortcut; Settings "Dead-app alerts" ON/OFF/UNKNOWN status row (the config/notify honesty fix); fresh installs default to Bangla |
+
+**The build rescue (§91):** the wave initially broke the build in three stacked ways
+that a toolchain-less sandbox could not see. CI run #864 failed at
+`mergeReleaseResources` with a misleading AGP 8.5.2 message ("Invalid unicode escape
+sequence … `{str}`") — decompiling `aaptcompiler-8.5.2.jar` proved the real cause:
+`privacy_body`'s three unescaped apostrophes (from the merged privacy-disclosure PR;
+the Kotlin aaptcompiler port hardcodes a wrong message + a broken string-template in
+that branch — C++ aapt2 says "unescaped apostrophe"). Behind it waited three Kotlin
+compile errors (duplicate companion object in `SessionActionReceiver`, six duplicate
+imports in `MainActivity`, unqualified `notifyBlocking` in `SessionPushWorker`) and
+the forgotten version bump. All fixed; the full CI-identical gate (Temurin 17,
+Gradle 8.9, SDK 34) now runs green in-sandbox: **70/70 unit tests** (25 + 25 + 20),
+`assembleDebug` 46.8 MB, `assembleRelease` (R8) 32.9 MB unsigned + AXML 67/0.47.0 —
+the signature check remains the CI runner's job (keystore secret).
+
+**Owner next steps:** watch this push's CI run go green, download the release APK
+artifact, and run the two-phone §90 checklist (killed-app ask → tray Allow; open-app
+ask → Home press → tray; the new event types in the Center + banners; Settings rows).

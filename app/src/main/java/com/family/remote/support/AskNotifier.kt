@@ -291,11 +291,6 @@ class SessionActionReceiver : BroadcastReceiver() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** v0.47.0 (audit B2) — the goAsync ceiling: ~10 s OS window minus headroom. */
-    private companion object {
-        const val ACTION_DEADLINE_MILLIS = 9_000L
-    }
-
     override fun onReceive(context: Context, intent: Intent) {
         val sessionId = intent.getStringExtra(EXTRA_SESSION_ID) ?: return
         val action = intent.getStringExtra(EXTRA_ACTION) ?: return
@@ -360,5 +355,8 @@ class SessionActionReceiver : BroadcastReceiver() {
     companion object {
         const val EXTRA_SESSION_ID = "frs.sessionId"
         const val EXTRA_ACTION = "frs.action" // "allow" | "deny"
+
+        /** v0.47.0 (audit B2) — the goAsync ceiling: ~10 s OS window minus headroom. */
+        private const val ACTION_DEADLINE_MILLIS = 9_000L
     }
 }

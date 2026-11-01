@@ -3677,3 +3677,23 @@ history → Everything → del_done 验证文案）。
 **গেট-সীমাবদ্ধতা (সৎ):** স্যান্ডবক্স-রিসাইকেলে §৮৯-এর Android-টুলচেইন হারিয়েছে — এই ওয়েভ local-কমিট; compile+unit-test গেট GitHub-CI-এর (android-pr-checks.yml: testReleaseUnitTest + assembleDebug)। লেক্সার-ভিত্তিক স্ট্রাকচারাল-ব্যালান্স চেক সব ২৪ ফাইলে সবুজ; XML বৈধতা সবুজ। Owner-টোকেন পেলে push → CI → দুই-ফোন চেকলিস্ট।
 
 **Owner-করণীয়:** ① push করে CI সবুজ করুন। ② দুই ফোনে v0.47.0: killed-app ask → tray Allow (B2 slow-network পথ), অ্যাপ খোলা অবস্থায় ask → Home চাপলেই ট্রে-নোটিফিকেশন (B4), pairing/revoke/guest-expiry/perm-lost/presence ইভেন্টগুলো সেন্টারে + ফোরগ্রাউন্ডে ব্যানার, Settings-এ "Dead-app alerts" সারি, মেম্বার-কার্ডে ডাকনাম। ③ config/notify এখনো না বানালে Settings-এর নতুন সারিটাই মনে করিয়ে দেবে (P0-কনসোল-কাজ)।
+
+## §91 — v0.47.0 বিল্ড-রেসকিউ ওয়েভ: CI run #864-এর তিন-স্তরের ব্যর্থতা নির্ণয় ও সমাধান + টুলচেইন-পুনর্নির্মাণ + সম্পূর্ণ লোকাল CI-গেট সবুজ (2026-11-01)
+
+**ট্রিগার:** Owner-টোকেন পেয়ে §90-ওয়েভ push → CI run #864 FAILURE (`mergeReleaseResources`)। §90-এর সৎ স্বীকারোক্তি সঠিক প্রমাণিত: টুলচেইন-হারানো ওয়েভে ৩ ধরনের বিল্ড-ত্রুটি অদৃশ্য ছিল।
+
+**নির্ণয়-পথ (আগে কখনো নয়):** স্যান্ডবক্সে পূর্ণ Android টুলচেইন পুনর্নির্মাণ (Gradle 8.9 + cmdline-tools + platform-34/build-tools 34.0.0 + Temurin JDK 17 — CI-অভিন্ন) → failing task হুবহু reproduce → aaptcompiler-8.5.2.jar ডিকম্পাইল (CFR) → root cause প্রমাণ।
+
+**ত্রুটি-১ (resource, CI run #862 থেকে চলমান):** `privacy_body`-র ৩টি unescaped apostrophe (`app's` ×2, `phone's` ×1) — PR #1-এর privacy-disclosure সংশোধন থেকে। AGP 8.5.2-র Kotlin aaptcompiler এটিকে বিভ্রান্তিকরভাবে **"Invalid unicode escape sequence in string `"{str}"`"** দেখায় — ডিকম্পাইলে প্রমাণ: `codePoint == 39` (apostrophe) branch-এ error-string হার্ডকোডেড ভুল বার্তা + Kotlin-template আর্টিফ্যাক্ট `{str}` (C++ aapt2 সঠিকভাবে বলে "unescaped apostrophe")। ফিক্স: `\'`-escape ×3। সব ১৫ লোকেল + সব res-XML স্ক্যান: এই ৩টিই একমাত্র লঙ্ঘন।
+
+**ত্রুটি-২ (Kotlin compile, আগে কখনো CI পৌঁছায়নি):** ① `SessionActionReceiver`-এ দুটি companion object (B2-ফিক্স নতুন `private companion` যোগ করেছিল, পুরনোটি থেকে গিয়েছিল) → একটিতে একীভূত (EXTRA_* পাবলিক, ACTION_DEADLINE_MILLIS প্রাইভেট); ② MainActivity-তে ৬টি ডুপ্লিকেট import (AnimatedContentTransitionScope + AppListTile/EmptyState/EventBannerHost/SectionCard/WideOutlinedButton ব্লক দুইবার) — Kotlin 2.0-তে কনফ্লিক্টিং; ③ SessionPushWorker.doWork-এ `notifyBlocking` আনকোয়ালিফায়েড (object-member) → `SessionPush.notifyBlocking`।
+
+**ত্রুটি-৩ (environment):** JDK 21-এর JdkImageTransform ব্যর্থতা → Temurin 17 (CI-অভিন্ন) দিয়ে সমাধান; 4GB RAM-এ R8 OOM → সীমিত-হিপ/SerialGC/max-workers=1 টিউনিংয়ে §89-এ অসম্পূর্ণ-থাকা assembleRelease এবার **স্যান্ডবক্সেই সবুজ**।
+
+**লোকাল গেট (CI-অভিন্ন টুলচেইন, সব সবুজ):** testReleaseUnitTest **70/70** (MovementClassifier 25 + NotifCenter 25 + PlaceAlertEngine 20, শূন্য ব্যর্থতা) · assembleDebug ✓ (46.8 MB) · assembleRelease ✓ (32.9 MB unsigned — সাইনিং CI-runner-এর keystore-secret) · verify-apk-axml: 67/0.47.0 ✓ (v2-signature অংশ কেবল CI-তে)।
+
+**ভার্সন:** build.gradle.kts 66→67 / 0.46.0→**0.47.0** (প্রথা-অনুযায়ী কমেন্ট-ব্লকসহ — §90 বাম্প করতে ভুলেছিল); অডিট-রিপোর্টের README-drift (B6) পুনরাবৃত্তি এড়াতে README স্ট্যাটাস-লাইনও হালনাগাদ।
+
+**স্পর্শিত ফাইল (৬):** values/strings.xml (apostrophe ×3), AskNotifier.kt (companion-একীকরণ), MainActivity.kt (import-ডিডুপ ×6), SessionPush.kt (কোয়ালিফায়ার), build.gradle.kts (67/0.47.0 + কমেন্ট), docs ×3 (RELEASE_NOTES §14, IMPLEMENTATION_STATUS, README banner) + এই worklog।
+
+**Owner-করণীয়:** ① এই push-এর CI রান সবুজ হওয়া নিশ্চিত করুন (run #865+)। ② Release-APK artifact ডাউনলোড করে দুই ফোনে §90-এর চেকলিস্ট চালান।
