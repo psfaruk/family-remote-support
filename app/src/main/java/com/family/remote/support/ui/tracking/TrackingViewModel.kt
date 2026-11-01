@@ -24,9 +24,14 @@ package com.family.remote.support.ui.tracking
 import androidx.lifecycle.ViewModel
 import com.family.remote.support.LiveLocationView
 import com.family.remote.support.RelationshipView
+import com.family.remote.support.readReceivedLocationAuthorization
 import com.family.remote.support.watchLiveLocation
 import com.family.remote.support.watchRelationships
 import com.google.firebase.auth.FirebaseUser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +54,10 @@ data class TrackingUiState(
     // full pairing picture the sharing-setup wizard's recipient picker
     // needs. Same relationship listener, no new query — just exposed.
     val relationships: List<RelationshipView> = emptyList(),
+    // Phase 9 (v0.40.0) — per-relationship "the sharer granted me journey
+    // history" (the dashboard card's hist button gate, UX spec §2). Keyed
+    // by relId; a missing key = not granted (honest absence).
+    val historyGrants: Map<String, Boolean> = emptyMap(),
     val loaded: Boolean = false,
     val error: String? = null
 )
@@ -85,6 +94,16 @@ class TrackingViewModel : ViewModel() {
 
     private var relationships: List<RelationshipView> = emptyList()
 
+    // Phase 9 — the recipient-side authorization read (one per counterpart
+    // device, diffed exactly like the location watches: re-read ONLY when
+    // the counterpart SET changes, so a rel-listener churn never turns into
+    // an authorization read storm). One-shot gets on a throwaway scope; a
+    // failure leaves the member's grant simply un-read (no button — the
+    // honest default), never a fabricated grant.
+    private val historyGrants = HashMap<String, Boolean>()
+    private val authzReadKeys = HashSet<Pair<String, String>>()
+    private val authzScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     /** Own uid — a relationship whose recipient is THIS account tracks this phone itself (owner side), never a counterpart pin. */
     private var myUid: String? = null
 
@@ -101,6 +120,8 @@ class TrackingViewModel : ViewModel() {
         stopAllLocationWatches()
         locations.clear()
         relationships = emptyList()
+        historyGrants.clear()
+        authzReadKeys.clear()
         myUid = user?.uid
         if (user == null) {
             _state.value = TrackingUiState()
@@ -167,6 +188,40 @@ class TrackingViewModel : ViewModel() {
                 }
             )
         }
+        rebuildAuthzReads()
+    }
+
+    /**
+     * Phase 9 — one authorization read per NEW counterpart device (the
+     * diff keeps churn at zero for unchanged sets). The read itself is a
+     * user-action-driven one-shot get (§75): opening the Tracking tab is
+     * the action. Grants landing later than the first emission simply
+     * re-emit.
+     */
+    private fun rebuildAuthzReads() {
+        val wanted = trackedCounterparts()
+        for (rel in wanted) {
+            val key = rel.recipientUid to rel.recipientDeviceId
+            if (key in authzReadKeys) continue
+            authzReadKeys.add(key)
+            authzScope.launch {
+                try {
+                    val authz = readReceivedLocationAuthorization(key.first, key.second)
+                    val now = System.currentTimeMillis()
+                    historyGrants[rel.id] =
+                        authz != null && authz.activeAt(now) && authz.historyEnabled
+                } catch (_: Exception) {
+                    // Unreadable right now (offline): no button for this
+                    // member — the honest default, retried next tab open.
+                    historyGrants.remove(rel.id)
+                }
+                emit()
+            }
+        }
+        // Relationships that disappeared drop their grants (stale ids must
+        // never keep a button alive).
+        val liveIds = wanted.map { it.id }.toSet()
+        historyGrants.keys.retainAll(liveIds)
     }
 
     /** Rebuild the public state from the current relationships + positions. */
@@ -182,6 +237,7 @@ class TrackingViewModel : ViewModel() {
             // relationship (helper-side AND recipient-side), not just the
             // counterpart-trackable subset above.
             relationships = relationships.filter { it.status == "ACTIVE" },
+            historyGrants = HashMap(historyGrants),
             loaded = true
         )
     }
