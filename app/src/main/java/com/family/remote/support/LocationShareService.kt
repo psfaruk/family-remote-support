@@ -552,6 +552,18 @@ class LocationShareService : Service() {
                             recordedAtMillis = fix.time,
                             retentionMillis = LocationSharingPrefs.retentionMillis(retentionKind)
                         )
+                        // Phase 9 — the LOCAL write log: the only place that
+                        // can ever name an EXPIRED record again (the rules
+                        // make expired records invisible to every query), so
+                        // the owner-side cleanup and today-scoped deletion
+                        // enumerate blind from here. Local-only, bounded,
+                        // pruned; appended only after the write succeeded.
+                        LocationHistoryLog.append(
+                            this@LocationShareService,
+                            deviceId,
+                            fix.time,
+                            LocationSharingPrefs.retentionMillis(retentionKind)
+                        )
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
