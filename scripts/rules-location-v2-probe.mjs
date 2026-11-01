@@ -33,7 +33,13 @@
  *   H4  owner append speed 91 m/s                                    403.
  *   H5  owner append recordedAt 11 min in the past                   403.
  *   H6  authorized family GET a record                               200.
- *   H7  authorized family FILTERED list (retentionExpiresAt > now)   200.
+ *   H7  authorized family DAY list — the app's EXACT D10a shape
+ *       (deviceId == + retentionExpiresAt > now+5 min + recordedAt
+ *       day window + composite ascending order + limit 1000), and
+ *       the returned rows are exactly the one in-retention record
+ *       (the expired fixture excluded)                             200.
+ *       [REVISED 2026-11-01, §82 — the original retention-only shape
+ *       is denied under strict rules semantics; see H15.]
  *   H14 owner FILTERED list                                          200.
  *   H9  revoked-grant recipient GET                                  403.
  *   H8  history-disabled grant recipient GET (SA fixture)            403.
@@ -42,6 +48,13 @@
  *   H11 owner UNFILTERED list (one expired record poisons the query) 403.
  *   H12 cross-user append (recipient writing the owner's path)       403.
  *   H13 stranger FILTERED list                                       403.
+ *   H15 retention-only recipient list (NO deviceId equality) — the
+ *       strict-semantics boundary live-verified by the 2026-11-01
+ *       gate rerun (§82): the recipient list branch references
+ *       resource.data.deviceId, which only a deviceId-equality query
+ *       can bind; the app never issues this shape, and this negative
+ *       locks the boundary so a future rules loosening cannot pass
+ *       silently                                                    403.
  *
  *   ── L-series (liveLocations dual read path, design §4.4) ───────────
  *   L1  legacy: ACTIVE family relationship, NO grant → helper GET     200.
@@ -556,9 +569,59 @@ async function main() {
     histCreate(oH, `${devHex}_${Date.now() + 5}`, histFields({ recordedAt: TS(Date.now() - 11 * 60_000) }))
   );
 
-  // ---------- H6/H7/H14: authorized reads ----------
+  // ---------- H6/H7/H14/H15: authorized reads + the list boundary ----------
   await expectAllowed("H6 authorized family GET record", 200, () => histGet(hH, recId));
-  await expectAllowed("H7 authorized family FILTERED list", 200, () =>
+
+  // H7 REVISED (2026-11-01, worklog §82): the app's EXACT day query (D10a)
+  // — deviceId equality + the mandatory retention floor (+5 min, the
+  // shipped HISTORY_SKEW_MILLIS) + the recordedAt day window + the
+  // composite ascending order + limit 1000. The original H7 ran a
+  // retention-only list, which strict rules evaluation DENIES (the
+  // recipient branch references resource.data.deviceId — only an
+  // equality-constrained query can bind it; the §81-scheduled gate rerun
+  // live-verified that verdict exactly as §80 had disclosed, and H15
+  // below now locks it as a deliberate negative). The app never issues
+  // the retention-only shape; the shape it DOES issue is the contract
+  // this gate must prove — status 200 AND exactly the one in-retention
+  // record returned (the expired fixture excluded).
+  {
+    const h7 = await histRunQuery(hH, {
+      from: [{ collectionId: "locationHistory" }],
+      where: {
+        compositeFilter: {
+          op: "AND",
+          filters: [
+            { fieldFilter: { field: { fieldPath: "deviceId" }, op: "EQUAL", value: F(devHex) } },
+            { fieldFilter: { field: { fieldPath: "retentionExpiresAt" }, op: "GREATER_THAN", value: TS(Date.now() + 5 * 60_000) } },
+            { fieldFilter: { field: { fieldPath: "recordedAt" }, op: "GREATER_THAN_OR_EQUAL", value: TS(Date.now() - 12 * 3_600_000) } },
+            { fieldFilter: { field: { fieldPath: "recordedAt" }, op: "LESS_THAN", value: TS(Date.now() + 12 * 3_600_000) } },
+          ],
+        },
+      },
+      orderBy: [
+        { field: { fieldPath: "retentionExpiresAt" }, direction: "ASCENDING" },
+        { field: { fieldPath: "recordedAt" }, direction: "ASCENDING" },
+      ],
+      limit: 1000,
+    });
+    const h7rows = h7.clone();
+    await expectAllowed("H7 authorized family DAY list (the app's exact D10a shape)", 200, async () => h7);
+    await run("H7 day query returns exactly the in-retention record", async () => {
+      const got = (await parseQueryRows(h7rows)).map((r) => r.document.name.split("/").pop());
+      const pass = got.length === 1 && got[0] === recId;
+      return {
+        expected: `exactly [${recId}] (expired record excluded)`,
+        got: `[${got.join(", ")}]`,
+        pass,
+      };
+    });
+  }
+
+  // H15 (NEW, §82): the strict-semantics boundary the 2026-11-01 rerun
+  // live-verified — a retention-only recipient list (no deviceId
+  // equality) is DENIED. Locked as a deliberate negative so a future
+  // rules regression toward looser listing cannot pass silently.
+  await expectDenied("H15 retention-only list (no deviceId binding) — strict-semantics boundary", () =>
     histRunQuery(hH, {
       from: [{ collectionId: "locationHistory" }],
       where: {
@@ -566,6 +629,7 @@ async function main() {
       },
     })
   );
+
   await expectAllowed("H14 owner FILTERED list", 200, () =>
     histRunQuery(oH, {
       from: [{ collectionId: "locationHistory" }],
