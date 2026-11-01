@@ -1286,6 +1286,9 @@ fun HomeScreen() {
                                 // share/viewer teardown above; the doc delete
                                 // below runs while still signed in).
                                 stopLocationSharing(context)
+                                // Saved-place names/coordinates are cached locally for offline alerts;
+                                // clear both the disk mirror and in-memory rules on account sign-out.
+                                clearSavedPlacesLocalCache(context)
                                 var cleanupNote: String? = null
                                 val currentUser = FirebaseAuth.getInstance().currentUser
                                 if (currentUser != null) {
