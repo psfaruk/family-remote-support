@@ -65,6 +65,25 @@ jobs:
             echo "No keystore secret found - release falls back to debug signing"
           fi
 
+      - name: Unit tests (Phase 10 gate — MovementClassifier et al.)
+        run: |
+          set -o pipefail
+          gradle :app:testReleaseUnitTest --stacktrace | tee unit-test.log
+          {
+            echo "## Unit test results"
+            echo ""
+            echo '```'
+            # One line per test class from the JUnit XML reports (failures
+            # would have aborted the step before this summary is written).
+            for f in app/build/test-results/testReleaseUnitTest/*.xml; do
+              [ -e "$f" ] || continue
+              grep -o 'name="[a-zA-Z.]*Test"' "$f" | head -1 | sed 's/name="/class /;s/"$//'
+              grep -o 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' "$f" \
+                | head -1 | sed 's/^/  /'
+            done
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build debug and release APKs
         env:
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
