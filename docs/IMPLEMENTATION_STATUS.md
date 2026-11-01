@@ -1,10 +1,21 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **LOCATION MASTER PLAN PHASE 9 (ROUTE-HISTORY UI) CLOSED —
-> v0.40.0/59 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> Status: **LOCATION MASTER PLAN PHASE 10 (MOVEMENT INSIGHTS) CLOSED —
+> v0.41.0/60 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
-> Location Phase 9 route-history UI + retention/deletion (§80).**
+> Location Phase 9 route-history UI + retention/deletion (§80) +
+> Location Phase 10 movement insights + first CI unit-test gate (§81).**
+> §81 in one line: pure-Kotlin `MovementClassifier` (MODERATE sensor-backed /
+> LIMITED points-based, impossible-speed + stale-input + gap rejection, the
+> honest "unavailable" line) renders on the journey-history screen at
+> render time from records already in hand — ZERO extra Firestore reads;
+> the repo's FIRST unit-test source set (24 JUnit4 cases) runs in CI before
+> every assemble as the Phase 10 gate; detail-screen section C recorded
+> HIDDEN (D11e — liveLocations rules carry no motion facts; a per-open day
+> query would burn up to 1000 reads/visit); demo history fixtures retimed
+> to the documented solid-runs + one-20-min-gap shape (Phase 4 fixtures had
+> every pair 20–60 min apart = all-dashed route — found and fixed).
 > §76 in one line: six parallel deep audits + secrets scan + VLM screenshot
 > verification; 2 edge-crash paths closed, auth hardening + latency wins
 > (parallel config/registration, 20 s auth timeouts), **14 of 15 duplicate
