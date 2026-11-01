@@ -3098,3 +3098,109 @@ MainActivity 接线、homeSessions 状态名、字符串资源存在性、import
 
 **Owner 动作：** 审阅三份设计文档（重点 §77 四个开放问题）；批准后进入 Phase 4
 （前端 mock 实现，含 privacy_body 漂移修复与 6 处孤儿字符串清理）。
+
+## §78 — Location 主计划 Phase 4（v0.38.0/57）：前端 mock 波 — 全屏幕可导航 + DEMO 明示 + 漂移收口（2026-10-31）
+
+**触发：** Owner 指令 "Phase 4"——即 §77 文档包审批门通过；4 个开放问题（v1 范围 /
+50 m 粒度 / 不申请后台权限 / 临时范围预设 1h-8h-至午夜）未表异议，按文档推荐默认
+执行（D7 记录于 docs/location/LOCATION_IMPLEMENTATION_PROGRESS.md，Phase 5 审阅
+中可否决）。
+
+**交付（34 变更文件 + 5 协调者文件；协调者 + 3 个并行实现代理 A/B/C）：**
+- **7 态共享状态模型**（ui/tracking/ShareStatusModel.kt 新建）：
+  SHARING_LIVE / SHARING_PAUSED / PERMISSION_REQUIRED / DEVICE_OFFLINE /
+  LAST_LOCATION / UNAVAILABLE / STOPPED——图标+文字+颜色三重编码（无障碍：
+  绝不仅靠颜色）。真实侧从现有 live 文档推导子集（LIVE / STALE→LAST_LOCATION /
+  OFFLINE / 无文档→UNAVAILABLE / sharingEnabled=false→STOPPED）；PAUSED 与
+  PERMISSION_REQUIRED 在 Phase 8 授权实体落地前仅演示数据呈现（诚实边界）。
+  另有 UploadState 4 态（OK 静默/PENDING/FAILED/UNAVAILABLE）与 ScopeKind/
+  RetentionKind/Movement 枚举。
+- **Tracking 仪表盘扩展**（TrackingTab.kt 699→1294 行）：成员卡列表（首字母
+  头像 + StatusBadge + 新鲜度图标行 + 常显 "Last known — HH:mm ±N m" 线；真实卡
+  无历史按钮——授权源尚不存在，诚实缺席）；地图 +/− 缩放按钮（48 dp，
+  cd_map_zoom_in/out）、精度圈 overlay、STALE/OFFLINE 虚线圈；Places 入口；
+  空态 demo 进入按钮（EmptyState 既有 actionLabel/onAction 槽）+ 已加载仪表盘
+  底部次级 demo 入口（记录性微偏差：Phase 5 审阅需在有配对账户上可达）。
+- **6 步同意向导**（SharingSetupSheet.kt 新建，687 行）替代旧单页同意单：解释
+  （收集什么/谁收/历史/控制/离线五段诚实文案）→接收人多选（配对≠许可脚注
+  rel_always_permission）→范围（once / 临时 1h/8h/至午夜 / 直至停止[默认] /
+  含历史，各带 helper 文案）→留存（仅含历史时：不存/24h/7d/30d + ret_note
+  备份诚实注）→权限（上下文 FINE/COARSE 复用既有 launcher；含历史时 bg_note
+  电池诚实注）→确认读回卡（接收人/范围/留存/到期）。选项经
+  LocationSharingPrefs 新增本地键记录（scope/retention——Phase 4 仅本地同意
+  记录，Phase 8 建 locationAuthorizations 权威文档）；取消=零变更；演示模式
+  确认只翻演示状态、绝不触碰真实服务。
+- **tracking/{relId} 详情 A–E 分区**（LocationDetailScreen.kt 369→692 行）：
+  真实侧新增 E "Sharing & privacy"（接收人=查看者邮箱 / 留存:无 / 历史访问:无
+  ——诚实）；演示侧全分区渲染：A（状态章+新鲜度+last-known+loc_addr_approx
+  近似地名行+open-in-maps）、B（仅 historyGranted：汇总 chips+hist_open+留存
+  行；未授权=什么都不渲染）、C（MovementCard——速度区间 0.5–120 km/h 外隐藏、
+  置信仅 Limited/Moderate 两值、无新数据=无卡）、D（v1 收件方提醒推迟——隐藏
+  保留）、E（到期[临时范围]+留存+访问 granted/none 行）。
+- **tracking/{relId}/history 历史屏**（HistoryScreen.kt 新建，553 行）：日期
+  chips（今日/昨日，仅存在的天）；折线按 >10 分钟断档分段——实线段 + 断档处
+  虚线（DashPathEffect）+ hist_gap 时间 chips；▶/■ 起终点 marker（自制矢量
+  ic_hist_start/ic_hist_end）带时间；汇总卡（点数/哈弗辛近似距离/起止/覆盖率
+  /hist_sum_note 近似声明）；留存行；zoomToBoundingBox 一次贴合（fit-key 防
+  镜头打架）。真实 relId → 诚实空态（hist_none——后端 Phase 8/9）。
+- **tracking/places 地点与提醒屏**（PlaceAlertsScreen.kt 新建，458 行）：内存
+  态列表（进入时若演示激活则以演示种子预填，否则空）+ 添加表单（名称 +
+  200dp 地图中心选点 + 半径 chips 100/200/500 m + 到达/离开开关 + 冷却 chips
+  5/10/15 min）+ 每地点 Remove；place_status "共享开启时监控" + place_future_note
+  （收件方提醒=未来扩展）诚实注；**不持久化、不地理围栏、不通知**（范围注释
+  在码内——Phase 11 落地）。
+- **Demo 模式（UX spec §11 逐条执行）**（ui/tracking/demo/DemoTrackingData.kt
+  新建，392 行）：显式进入（空态按钮+次级入口）；每个演示屏常驻横幅
+  demo_banner "DEMO DATA — not real locations" + ✕；DemoTrackingDataSource 纯
+  内存（3 虚构成员：Ayesha live ±25 m 步行 / Kamal offline / Nusrat paused；
+  2 日达卡区域路线含刻意 20 分钟断档；3 个演示地点；7 态画廊卡保证 Phase 5
+  "每态可验"）；**零 Firestore**——演示激活期间真实 TrackingViewModel
+  observe(null) 停放全部监听器（LaunchedEffect 以 DemoTrackingMode.active 为
+  键；退出即重新 observe）；BackHandler/横幅 ✕ 退出回真实态；进程死亡即复位
+  （永不持久化）；演示 relId（"demo-*" 前缀）在 MainActivity 路由层分流到
+  DemoLocationDetailScreen——真实监听屏永不接触演示数据。
+- **审计 Appendix A 收口：** A1 privacy_body 重写 ×15 locale（占位符时代
+  "nothing is collected today" → M5 实况：仅实时位置、同意制、停止即删、本版
+  无历史收集；BN 全译）；A6 孤儿删除 ×7（loc_perm_title/body、
+  loc_coming_title/body、ph_two_kinds_info、ph_denied_short + 审计外发现的
+  set_loc_status "规划中"虚假陈述）；A2 LIVE_LOCATION_ARCHITECTURE 撤销语义
+  改为代码真相（规则即时拒绝读取；文档保留至所有者停止/登出；delete-on-revoke
+  = Phase 8 计划）+ A5 新鲜度措辞对齐代码（LIVE<2min/STALE<5min/OFFLINE 固定
+  阈值）；A3 PROJECT_CONTEXT liveLocations 行标 shipped；A4
+  ANDROID_PERMISSION_MATRIX 头状态 PLANNING→CURRENT。
+- **字符串：** +120 键 ×15 locale（BN 齐全、13 locale 镜像 EN——项目占位惯例）；
+  总键数 533→646（base）。
+- **Dedupe 纪律延续：** SettingsTab 私有 RadioOptionRow 原样提升
+  ui/components/Core.kt 单一源（向导+Settings 共用，一处定义）；C 代理自报的
+  小重复（chips/toggleable 块）带 "后续去重波提升" 注释（v0.37.0 惯例）；第
+  15 簇（last-finished getSession 双拷贝）仍按 §76 决定有意保留。
+
+**验证（协调者亲验，B 代理超时但文件完整——§76 M5 先例收货）：** ①14 个
+Kotlin 文件符号平衡全过（剥离注释/字符串后计数）；②全库 R.string 引用 × 646
+基键交叉核对——零缺失、孤儿 7 键零引用；③B/C 代理间 API 契约逐签名核对
+（DemoTrackingData 全 API、三屏签名、MainActivity 接线、OwnSharingCard 默认参
+兼容 LocationDetailScreen 既有调用、EmptyState actionLabel/onAction 为既有
+API、TrackingTab 新参 onOpenPlaces/onOpenHistory 与 MainActivity 呼叫一致）；
+④RadioOptionRow 全库唯一定义（Core.kt:322）+ SettingsTab 导入共享版；⑤mtime
+清点：仓库 6 小时内变更 34 文件与预期变更集**完全一致**（无越界编辑）；⑥A 代理
+资源矩阵全 PASS（XML 解析/15 文件键集一致/无重复/新键 120×15 齐/孤儿绝迹/
+privacy 无 placeholder 残留）；⑦CI 编译门=最终 HEAD run（见下补记）。
+
+**已知边界（诚实台账，全文在 PROGRESS 文档）：** ①真实侧状态=可推导子集
+（PAUSED/PERMISSION_REQUIRED 需 Phase 8）；②upload-state 线演示 4 态、真实
+接线待 Phase 7 引擎暴露写结果（此前静默=OK 语义，不伪造）；③地点屏内存态
+（持久化+围栏=Phase 11）；④历史屏真实侧诚实空态（Phase 8/9）；⑤向导 scope
+选择 Phase 4 仅本地记录——引擎仍按 "直至停止" 语义运行（Phase 7 落实 once/
+临时自动停止；向导文案如实描述所选范围，Stop 按钮永远可用）。
+
+**CI 记录（承诺补记）：** 本波 39 个推送（build.gradle.kts 最先、worklog §78
+最后）以最终 HEAD run 为准（前序 run 并发自动取消属常态）；构建门结果由协调者
+核验后在此补记（§76 同例）。
+
+**Owner 动作：** 双机改装 **v0.38.0/57** + **Phase 5 审阅检查单**：①空态（或
+仪表盘底部）"নতুন স্ক্রিনগুলো আগে দেখুন (ডেমো ডেটা)" 进入演示→横幅常驻、
+✕/返回退出；②7 态画廊 + 三成员卡（Ayesha live±25 m/Kamal offline/Nusrat
+paused）+ 6 步向导走通（演示确认不启动真实服务）；③Ayesha 详情 B/C/E 分区 +
+历史屏今日/昨日切换 + 虚线断档 + 汇总卡；④地点屏增删 + 半径/开关/冷却 chips；
+⑤BN 1.3× 字号换行检查；⑥Settings→Privacy 新文案核对（仅实时、无历史）；
+⑦4 个开放问题确认或否决（范围/50 m/无后台权限/预设）。
