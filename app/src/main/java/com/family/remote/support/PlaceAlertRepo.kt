@@ -288,6 +288,11 @@ private object PlaceAlertStore {
             .apply()
     }
 
+    /** Remove saved-place names and coordinates from this device on sign-out. */
+    fun clear(context: Context) {
+        prefs(context).edit().clear().apply()
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
@@ -322,9 +327,23 @@ object PlaceAlertRuntime {
      * phone must never monitor the previous user's fences.
      */
     fun refreshFromStore(context: Context) {
-        val user = FirebaseAuth.getInstance().currentUser ?: return
+        val user = FirebaseAuth.getInstance().currentUser ?: run {
+            places = emptyList()
+            return
+        }
         places = PlaceAlertStore.load(context, user.uid).map { it.toRule() }
     }
+
+    /** Clear process memory as well as the local mirror during sign-out. */
+    fun clear() {
+        places = emptyList()
+    }
+}
+
+/** Sign-out cleanup for locally cached saved-place names and coordinates. */
+fun clearSavedPlacesLocalCache(context: Context) {
+    PlaceAlertStore.clear(context)
+    PlaceAlertRuntime.clear()
 }
 
 // ── The notifier: local, coordinate-free, language-honest ───────────────
