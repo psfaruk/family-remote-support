@@ -1,7 +1,7 @@
 # RELEASE_NOTES — Family Remote Support — M10 Final Report (2026-10-31)
 
-> **Release state: v0.39.0 (versionCode 58) — Location master-plan
-> implementation wave (Phases 5–8), 2026-11-01** · repo
+> **Release state: v0.40.0 (versionCode 59) — Location master-plan
+> Phase 9 (route-history UI + retention/deletion), 2026-11-01** · repo
 > `psfaruk/family-remote-support` (public, `main`, CI green at every milestone
 > close) · master-plan milestones **M0–M10 all ✅** plus the Owner's Pre-M10
 > polish pass.
@@ -11,19 +11,29 @@
 > cron removed, Actions schedule disabled) and the app itself became
 > foreground-only for presence in v0.36.0/55, the QA & dedupe wave in
 > v0.37.0/56, the Location master-plan Phase 4 frontend wave in
-> v0.38.0/57, and **v0.39.0 (versionCode 58) — the current release build —
-> the Location Phases 6–8 implementation wave.** The quota math and re-arm
+> v0.38.0/57, the Location Phases 6–8 implementation wave in v0.39.0/58,
+> and **v0.40.0 (versionCode 59) — the current release build — the
+> Location Phase 9 route-history wave.** The quota math and re-arm
 > runbook are in §9a and `docs/CLOUDFLARE_SETUP.md` (কোটা-নির্দেশ section).
 >
-> **v0.39.0 in one line:** the Location plan went REAL — scope-aware engine
-> (Share-once / temporary 1 h-8 h-midnight auto-stop), journey-history
-> writes (50 m, OS-provided speed/bearing, retention-expiry enforced
-> server-side), the `locationAuthorizations` consent entity with
-> rules-verified revocation, the live-doc dual read path, the own card's
-> live upload line — and ZERO new Android permissions. The Phase 8 live
-> probe gate was blocked mid-run by the project's daily read-quota
-> exhaustion (incident: worklog §79) and is scheduled to rerun right after
-> the ~07:00 UTC quota reset; 33/33 PASS will be claimed only when printed.
+> **v0.40.0 in one line:** journey history went REAL on the reader side —
+> the member card and detail screen gate on the actual authorization grant
+> (history button only where granted, section E shows the grant's real
+> expiry/retention/access lines), the history screen loads REAL day routes
+> through one bounded composite-index query per day (deviceId equality +
+> the mandatory retentionExpiresAt floor + the recordedAt day range — the
+> rules' exact contract; rules are not filters), and the OWNER side gains
+> the D6 opportunistic retention cleanup plus the shared "Delete journey
+> history" flow (today / everything, verified-empty, offline-queued
+> honestly). One operational prerequisite, see §7.3: the project's
+> Firestore needs the ONE-TIME composite index (deviceId ASC,
+> retentionExpiresAt ASC, recordedAt ASC) on the `locationHistory`
+> collection group — without it the history screens show an honest setup
+> hint instead of routes. v0.39.0 recap: scope-aware engine (ONCE /
+> TEMPORARY / 50 m history writes), `locationAuthorizations` +
+> rules-verified revocation, live dual read path, upload-state line, ZERO
+> new permissions. The Phase 8 live probe gate rerun (quota-blocked at
+> §79) remains scheduled; 33/33 PASS will be claimed only when printed.
 
 ## 1. What this is
 
@@ -37,7 +47,7 @@ permanent **Family** and time-boxed **Guest** pairing.
 
 ## 2. Owner quick start (বাংলা — সংক্ষেপ)
 
-1. **দুটো ফোনেই v0.39.0 (versionCode 58) বসান** — GitHub repo → Actions → সবুজ
+1. **দুটো ফোনেই v0.40.0 (versionCode 59) বসান** — GitHub repo → Actions → সবুজ
    (SUCCESS) যেকোনো রান → Artifacts → `app-release-apk` ডাউনলোড → ইনস্টল
    (আগের ভার্সনের উপরেই পরিষ্কারভাবে বসে যায় — একই CI keystore-এ সাইন করা)।
 2. বসানোর পরের দ্রুত যাচাই: Settings-এ নতুন **পাঁচ-কার্ড ক্রম** (Account →
@@ -214,6 +224,27 @@ Sweep budget by source: `docs/TEST_PLAN.md` §1a (historical estimates) + §9a
   registered while the app is backgrounded (foreground-only presence bounds
   the writes; reads ≈5.8 k/day budgeted in TEST_PLAN §1a); map zoom/pan resets
   on tab re-entry/rotation (osmdroid view is non-saveable — accepted).
+- **v0.40.0 ONE-TIME composite index prerequisite (Owner action, ~2 min in
+  the Firebase console):** the journey-history day queries need the composite
+  index `locationHistory` · deviceId ASC · retentionExpiresAt ASC ·
+  recordedAt ASC (collection-group scope). The coordinator's service account
+  can LIST indexes but is denied CREATE (IAM `datastore.indexes.create`
+  missing), so it must be created from the Owner's console:
+  console.firebase.google.com → Firestore Database → Indexes → Add index.
+  Until it exists (state BUILDING → READY), the history screens render the
+  honest `hist_index_hint` wording instead of routes — never an error storm.
+- **v0.40.0 Phase 9 honest edges (worklog §80):** day chips show the grant's
+  retention-window days with honest per-day empties (the spec's
+  "days-with-records metadata doc" is not in the published rules — deferred
+  with the rules-amendment track); section B renders the action + retention
+  line without summary chips (quota-protective — the chips live on the
+  journey screen); "delete today" enumerates from the LOCAL write log (the
+  rules make expired records unlistable, so the log is the only discovery
+  path); design §6.2's server-side cleanup query (`retentionExpiresAt <=
+  now`) is UNEXECUTABLE under the published rules (denied by the retention
+  floor on every list) — Phase 9 ships the local-log blind-delete variant
+  and records the rules-amendment as a future item with its own probe
+  cases.
 
 ## 8. Verification summary (what "tested" means here)
 
