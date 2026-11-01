@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.family.remote.support.LiveLocationView
+import com.family.remote.support.MovementClassifier
 import com.family.remote.support.R
 import com.family.remote.support.ReceivedLocationAuthorization
 import com.family.remote.support.RelationshipView
@@ -340,8 +341,10 @@ internal fun LocationDetailScreen(
  * MemberDetailScreen line style), freshness + "Updated HH:mm" + accuracy
  * (ALWAYS visible — an old coordinate is never labeled live), the
  * read-only sharing status, the open-in-maps action when a position
- * exists, section B "Journey history" (grant-gated, Phase 9) and section E
- * "Sharing & privacy" with the grant's REAL values (Phase 9).
+ * exists, section B "Journey history" (grant-gated, Phase 9), section C
+ * "Movement insights" (live from the doc's own OS speed since the
+ * v0.42.0 post-gate wave — no extra reads) and section E "Sharing &
+ * privacy" with the grant's REAL values (Phase 9).
  */
 @Composable
 private fun CounterpartDetailBody(
@@ -451,21 +454,26 @@ private fun CounterpartDetailBody(
             }
         }
 
-        // ── Section C "Movement insights" — D11(e): ships HIDDEN on the
-        // REAL detail screen in v0.41.0. The liveLocations contract (the
-        // published rules' hasOnly) carries NO motion facts — the engine
-        // stores OS speed/bearing only in journey records — and a per-open
-        // day query just to classify movement would read up to 1000
-        // records per visit (half the daily free read quota — rejected on
-        // §75 grounds). The card's real home is the journey-history
-        // screen, where the records are already in hand (zero extra
-        // reads). Activation path (recorded in the progress doc): a
-        // POST-GATE rules wave adds optional speedMetersPerSecond to
-        // liveLocations + the engine passes fix.speed → this screen calls
-        // MovementClassifier.classifyLive(location.speedMetersPerSecond,
-        // location.updatedAtMillis, nowMillis) — the classifier and its
-        // unit tests already ship in this wave, so that wave touches
-        // rules + engine only.
+        // ── Section C "Movement insights" — LIVE since the v0.42.0
+        // post-gate rules wave (§83): liveLocations now carries the
+        // OPTIONAL rules-validated speedMetersPerSecond (the OS speed of
+        // the last accepted fix), so classifyLive runs on data already in
+        // hand — ZERO extra Firestore reads (the §75 ground D11(e) stood
+        // on). The same TickingBlock clock that drives the freshness line
+        // drives the classifier's staleness window (300 s): an observation
+        // older than the Offline horizon classifies to null → MovementCard
+        // renders nothing (a stale speed never presents as current, §6),
+        // and a fresh-but-glitched speed renders the single honest
+        // ins_unknown line. Card order matches the demo gallery (B, C, E).
+        if (location != null) {
+            MovementCard(
+                estimate = MovementClassifier.classifyLive(
+                    location.speedMetersPerSecond,
+                    location.updatedAtMillis,
+                    nowMillis
+                )
+            )
+        }
 
         // ── Section E "Sharing & privacy" (UX spec §4-E, real values) ────
         // What THIS account may receive from the member's sharing: the

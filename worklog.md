@@ -3469,3 +3469,27 @@ history → Everything → del_done 验证文案）。
 **Owner 动作（依序）：** ① 双机改装 **v0.41.1/61**（勿装 0.41.0/60——其点对路径移动卡一律显示 "possibly stationary"）。② Phase 8 门已绿——"等重跑"事项关闭；ONCE 语义裁决仍开放。③ detail 屏 C 区点亮（规则小波：liveLocations 可选 speedMetersPerSecond + 引擎传 fix.speed + 配套探针案）现已随门绿解锁——等 Owner 授权即开工。
 
 **CI 补记（最终 HEAD `486293d2`，run 41288516043 **SUCCESS**，日志亲验）：** 单测步骤 **PASS——`Task :app:testReleaseUnitTest` 零失败**（对照失败首跑的 "25 tests completed, 4 failed"——修复后同一套件全绿，1000× 单位缺陷的回归闭环完成）；assembleDebug+assembleRelease SUCCESS；**Release-APK 验证门 PASS（日志亲验）：✓ versionCode = 61 (INT_DEC) — expected 61 · ✓ versionName = "0.41.1" — expected "0.41.1" · ✓ APK Signing Block v2 present（"APK Sig Block 42"）· ✓ 版本形字符串池仅 [0.41.1] · VERIFY: PASS**；debug/release APK 双工件已上传。本补记本身为 §82 的最后一次推送（仅文档），其后运行以该 HEAD 为最终门——见下。
+
+## §83 — D11(e) 后门波：detail 屏 C 区点亮（v0.42.0/62）——liveLocations 速度字段 + 引擎传速 + 探针 16/16 绿（2026-11-01）
+
+**触发：** Owner 指令 "হ্যাঁ শুরু করো"——授权 §82 遗留的最后一项可开工事项：detail 屏 C 区（live movement 卡）点亮波。§81 D11(e) 当时埋下的激活路径原样执行："POST-GATE rules wave（liveLocations 增可选 speedMetersPerSecond + 引擎传 fix.speed + 配套探针案）——classifyLive 与其单测已随 Phase 10 就绪，该波只动规则与引擎"。实际落地比预告多一个文件：detail 屏本体（挂卡处）。
+
+**交付（4 代码 + 3 文档 + 版本，共 8 文件）：**
+
+- **规则（firestore.rules，liveLocations 块）：** hasOnly 增可选 `speedMetersPerSecond`，校验与 locationHistory 契约**逐字镜像**（number、0.0–90.0 m/s 双闭区间）；可选 = 缺省路径完全不变，旧客户端零影响（纯增量，构造性向后兼容）。
+- **引擎写入层（LiveLocationRepo.kt）：** `writeLocationFix` 增可选 speed 参数；**null 时以 merge-delete 哨兵清空字段**（D12c：新位置绝不继承上一拍的旧速度——过期速度永不冒充当前速度）。哨兵在 request.resource.data 中不出现，hasOnly 契约两条路径皆成立（实测证明：P0 无速度与 P3 有速度同波 200）。
+- **引擎判定层（LocationShareService.kt）：** onFix 传 `fix.speed` 仅当 `hasSpeed()` 且落在 0–90 m/s 窗口内（新常量 MAX_LIVE_SPEED_MPS = 90.0）；窗口外**清空、绝不钳制**（与分类器 D11a 同一诚实规则）。理由（D12a，记录于进度文档）：history 追加失败可容忍为诚实缺口，live doc 是新鲜度表面必须持续流动——坏速度不得有能力让整个 LIVE 写入被规则拒绝。
+- **探针（rules-liveLocations-probe.mjs）：** 11 → **16 案**。新增 P3（2.8 m/s 步行速度 → 200 + 案内删除）、P3b（**含边界** 90.0 → 200——锁定双闭区间语义）、N10（负值 → 403）、N11（90.1 → 403）、N12（字符串类型 → 403，`is number` 拒绝）。允许案均在案内自删，保持攻击案的"文档缺席"不变量。
+- **UI（LocationDetailScreen.kt）：** D11(e) 的隐藏注释块原位替换为活的 C 区：`MovementCard(classifyLive(location.speedMetersPerSecond, location.updatedAtMillis, nowMillis))`，挂于 B 区之后、E 区之前（与 demo 画廊 B/C/E 同序）。输入全部是已在手的数据——**零新增 Firestore 读**（D11(e) 立论原样保住）；300 s 陈旧窗 = Offline 新鲜度地平线（同一 TickingBlock 时钟，构造性一致）；陈旧 → 无卡（§6 永不以旧充新），新但坏 → 单行 ins_unknown。字符串零变更（sec_c_note/ins_* 键 Phase 4 已齐 ×15 locale）。
+- **文档同步：** LIVE_LOCATION_ARCHITECTURE.md §4 字段表增可选速度行；LOCATION_IMPLEMENTATION_PROGRESS.md 增 **D12** 决策（四锁：窗口/哨兵/null 语义/时钟一致性）、Phase 10 边缘区 D11(e) 项划线标记 RESOLVED（§83）、变更日志新条目、页脚 Owner 动作更新。
+- **版本：** v0.42.0 / versionCode 62（功能波次 minor 升版；CI APK 验证门自动取值）。
+
+**规则发布（先于代码推送，序次即安全论据）：** `publish-firestore-rules.mjs` → ruleset **cdc62753-c228-4e31-b6fc-c53902938e21**（863 行），release `cloud.firestore/default` 已指认并回读核验。先发规则再推代码 = 任何时点在线客户端（含未升级的 0.41.1）面对的规则都接受其写入形态（可选字段缺省合法），零窗口期。
+
+**探针门（对已发布规则实弹）：** **16/16 ALL EXPECTATIONS MET**——原 11 案全绿（含 P0/P1/P2 允许路径与 N1–N9 拒绝路径，证明旧契约分毫未动），新 5 案全绿（允许/边界/负/超顶/类型）。零残留（2/2 文档 + 3/3 合成账号清理）。本次 ~40 读/写/删，全部为用户排定的门执行（§75），canary 守门。
+
+**§75 姿态核查：** 应用侧每次接受的 fix 多写至多一个可选字段——**写入次数不变、读取次数不变、零新监听/定时器/后台**；分类 100% 渲染期；探针流量为门执行。
+
+**推送与 CI：** 本波 9 文件（build.gradle.kts 最先、worklog 最后）全部 readback-verify SHA256 逐文件核验；CI 门 = 最终 HEAD（单测 25/25 + Release-APK 62/0.42.0 验证门——结果见补记）。
+
+**Owner 动作（依序）：** ① 双机改装 **v0.42.0/62**（0.41.1/61 继续运行也安全——速度字段线上可选，旧版永不读它；新版的差异只有 detail 屏多一张移动卡）。② 验收路径：A 机开启位置共享并走动 → B 机 Tracking → 成员 detail 屏 → C 区应出现移动卡（如 "possibly in a vehicle · 32.4 km/h · 观测于 HH:mm · 估计置信度：适中"）；静止时应诚实显示 "possibly stationary"。③ ONCE 语义裁决仍开放（Phase 8 遗留，一行改动）。④ 下一阶段为 Phase 11（place alerts 自提醒地理围栏）——等 Owner 指令开工。

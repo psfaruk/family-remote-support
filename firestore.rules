@@ -665,7 +665,7 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && docId.matches(request.auth.uid + '_[0-9a-f]{24}')
         && request.resource.data.keys().hasOnly(
-          ['uid', 'deviceId', 'lat', 'lng', 'accuracyMeters', 'sharingEnabled', 'updatedAt', 'appVersionCode']
+          ['uid', 'deviceId', 'lat', 'lng', 'accuracyMeters', 'sharingEnabled', 'updatedAt', 'appVersionCode', 'speedMetersPerSecond']
         )
         && request.resource.data.uid is string
         && request.resource.data.deviceId is string
@@ -683,7 +683,18 @@ service cloud.firestore {
         && request.resource.data.updatedAt < request.time + duration.value(5, 'm')
         && request.resource.data.appVersionCode is int
         && request.resource.data.appVersionCode >= 1
-        && request.resource.data.appVersionCode <= 1000000;
+        && request.resource.data.appVersionCode <= 1000000
+        // v0.42.0 (§83 post-gate wave): the OS-provided speed of the last
+        // accepted fix, OPTIONAL exactly like the locationHistory contract
+        // (same window — 0–90 m/s): absent = the fix had no usable sensor
+        // speed; present = a plain number inside the plausible band. The
+        // engine clears (never clamps) a missing/glitched reading via the
+        // merge-delete sentinel, which disappears from
+        // request.resource.data, so the hasOnly contract holds both ways.
+        && (!('speedMetersPerSecond' in request.resource.data)
+            || (request.resource.data.speedMetersPerSecond is number
+                && request.resource.data.speedMetersPerSecond >= 0.0
+                && request.resource.data.speedMetersPerSecond <= 90.0));
 
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }

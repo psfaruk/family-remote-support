@@ -78,31 +78,41 @@ fun liveLocationDocId(uid: String, deviceId: String): String = "${uid}_$deviceId
  *
  * Field set is exactly the §4 contract (the published rules use hasOnly on
  * it): uid, deviceId, lat, lng, accuracyMeters, sharingEnabled, updatedAt,
- * appVersionCode. updatedAt is a server timestamp so freshness never depends
- * on the sender's clock.
+ * appVersionCode — plus the OPTIONAL speedMetersPerSecond of the v0.42.0
+ * post-gate wave (same 0–90 m/s window as the locationHistory contract).
+ * updatedAt is a server timestamp so freshness never depends on the
+ * sender's clock.
+ *
+ * Speed semantics (D12): a non-null [speedMetersPerSecond] is the OS
+ * speed of THIS fix (the service only passes rules-plausible values);
+ * null clears any previous fix's speed via the merge-delete sentinel —
+ * a fresh position must never inherit a stale speed reading, and the
+ * sentinel vanishes from request.resource.data so the rules' hasOnly
+ * contract holds on both paths.
  */
 suspend fun writeLocationFix(
     uid: String,
     deviceId: String,
     lat: Double,
     lng: Double,
-    accuracyMeters: Int
+    accuracyMeters: Int,
+    speedMetersPerSecond: Double? = null
 ) {
+    val fields = mutableMapOf<String, Any>(
+        "uid" to uid,
+        "deviceId" to deviceId,
+        "lat" to lat,
+        "lng" to lng,
+        "accuracyMeters" to accuracyMeters,
+        "sharingEnabled" to true,
+        "updatedAt" to FieldValue.serverTimestamp(),
+        "appVersionCode" to BuildConfig.VERSION_CODE
+    )
+    fields["speedMetersPerSecond"] =
+        speedMetersPerSecond ?: FieldValue.delete()
     Fb.db.collection(LIVE_LOCATION_COLLECTION)
         .document(liveLocationDocId(uid, deviceId))
-        .set(
-            mapOf(
-                "uid" to uid,
-                "deviceId" to deviceId,
-                "lat" to lat,
-                "lng" to lng,
-                "accuracyMeters" to accuracyMeters,
-                "sharingEnabled" to true,
-                "updatedAt" to FieldValue.serverTimestamp(),
-                "appVersionCode" to BuildConfig.VERSION_CODE
-            ),
-            SetOptions.merge()
-        )
+        .set(fields, SetOptions.merge())
         .awaitWithTimeout("updating this device's live location")
 }
 
