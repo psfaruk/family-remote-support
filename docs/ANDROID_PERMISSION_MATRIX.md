@@ -1,4 +1,4 @@
-# ANDROID_PERMISSION_MATRIX — Current & Planned (Master-Plan PART 12)
+# ANDROID_PERMISSION MATRIX — Current & Planned (Master-Plan PART 12)
 
 > Status: **CURRENT — location permissions shipped in M5 (v0.33.0): while-in-use
 > `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION` and a `location`-type FGS
@@ -6,6 +6,13 @@
 > "while the service runs" scoping.** Manifest verified by Agent 2-b
 > (2026-10-31, v0.29.0/48, `app/src/main/AndroidManifest.xml:4-25`); the M5 location
 > additions landed as planned. minSdk 26 / targetSdk 34.
+>
+> **Location master plan Phase 6 (v0.39.0) — decision records complete (see §5):
+> the full Location v1 (live + history + movement insights + place alerts)
+> ships with ZERO new permissions** — re-verified against the live manifest
+> 2026-11-01: `ACCESS_BACKGROUND_LOCATION` and `ACTIVITY_RECOGNITION` are
+> deliberately NOT requested, and no new FGS types are needed beyond the
+> shipped `FOREGROUND_SERVICE_LOCATION`.
 
 ## 1. Current permissions (all justified by shipped features)
 
@@ -18,6 +25,9 @@
 | `FOREGROUND_SERVICE_MEDIA_PROJECTION` | Android 14 FGS type | install-time declaration | — | — |
 | `WRITE_EXTERNAL_STORAGE` (maxSdk 28) | save QR image (legacy) | legacy install-time | — | save-QR falls back to share sheet |
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | presence/heartbeat reliability | wizard, with disclosure (never silent) | user-revocable | degraded background heartbeat (honest UX copy) |
+| `ACCESS_FINE_LOCATION` | precise live position + journey history points (M5/v0.33.0, re-used by Location v1) | runtime, wizard purpose step first | until revoked | sharing off; explanation state |
+| `ACCESS_COARSE_LOCATION` | approximate position (either grant is enough to share) | runtime, same wizard step | until revoked | falls back to the fine prompt behavior |
+| `FOREGROUND_SERVICE_LOCATION` | Android 14 FGS type for `LocationShareService` (live + history writes ride the same service) | install-time declaration | — | — |
 
 Special grants (not permissions): **AccessibilityService** (`AssistService` — gesture
 injection; user enables in system settings via guided `AssistSetup`; revocable anytime;
@@ -25,17 +35,18 @@ per-session assist authorization dialog) · **MediaProjection** (system consent 
 capture session; Android 14 re-prompts each session — OS behavior, never bypassed; visible
 session bar + stop control always).
 
-## 2. Planned additions (M5 — require approval)
+## 2. Planned additions
 
-| Permission | Purpose | When requested | Persistence / renewal | If denied |
-|---|---|---|---|---|
-| `ACCESS_COARSE_LOCATION` | approximate location (minimum viable sharing) | runtime, purpose sheet first | until revoked | sharing off; explanation state |
-| `ACCESS_FINE_LOCATION` | precise location (owner chooses precision by granting either) | runtime, same flow | until revoked | falls back to coarse prompt behavior |
-| `FOREGROUND_SERVICE_LOCATION` | Android 14 FGS type for sharing service | install-time declaration | — | — |
-| `FOREGROUND_SERVICE` (already present) | reused by LocationShareService | — | — | — |
+**None.** The Location master plan's full v1 surface (live sharing, journey
+history, movement insights, self-alert place geofencing) needs **zero new
+permissions** — every capability runs on the shipped while-in-use location
+grants + the existing `location`-type FGS (Phase 6 decision records, §6).
+Historical M5 rows moved into §1 when v0.33.0 shipped them.
 
-**Deliberately NOT requested:** `ACCESS_BACKGROUND_LOCATION` (v1 design: FGS started while
-visible — compliant without it; limitation documented honestly) · `SYSTEM_ALERT_WINDOW`
+**Deliberately NOT requested:** `ACCESS_BACKGROUND_LOCATION` (v1 design: FGS
+started while visible — compliant without it; limitation documented honestly
+— DR-P2) · `ACTIVITY_RECOGNITION` (movement classification derives from
+OS-provided speed/bearing at render time — DR-P1) · `SYSTEM_ALERT_WINDOW`
 (not needed) · any query/contacts/storage extras.
 
 ## 3. Android version behavior notes (compatibility facts the UX must respect)
@@ -63,6 +74,38 @@ visible — compliant without it; limitation documented honestly) · `SYSTEM_ALE
 ## 5. Verification hooks
 
 - CI: build passes with new manifest entries; AXML gate still asserts version/signing.
-- Probes: `rules-liveLocations-probe.mjs` proves server-side fencing regardless of client.
+- Probes: `rules-liveLocations-probe.mjs` (M5 legacy path regression) and
+  `rules-location-v2-probe.mjs` (Phase 8 — 33 cases over locationAuthorizations /
+  locationHistory / the live dual read path) prove server-side fencing regardless
+  of client.
 - Owner physical tests: TEST_PLAN §3 rows 10–12, 18 (permission granted / denied /
   approximate / background-restricted).
+
+## 6. Location master plan Phase 6 decision records (v0.39.0)
+
+The master plan's Phase 6 asked for contextual decision records on the two
+permissions the location features *could* have wanted. Both resolve to
+"deliberately NOT requested" — the honest-minimal surface:
+
+- **DR-P1 — `ACTIVITY_RECOGNITION`: NOT requested in v1.** Movement
+  classification (design decision D4) is pure-Kotlin, device-local and
+  render-time, derived ONLY from the OS-provided speed/bearing that already
+  ride the accepted fixes; it is always labeled an estimate. Asking for a
+  physical-activity permission would add a sensitive-permission prompt whose
+  data the app deliberately never stores. Revisit only if a future phase
+  wants fused-activity confidence — and that requires its own Owner approval.
+- **DR-P2 — `ACCESS_BACKGROUND_LOCATION`: NOT requested in v1** (D7 locked
+  at Phase 4). The FGS-started-while-visible pattern is compliant without
+  it; the honest "while the service runs" scoping is stated in the wizard's
+  `bg_note`, the tray notification, and the freshness states (a stopped
+  service degrades LIVE → STALE → OFFLINE, never fake-live). Place-alert
+  geofencing (Phase 11) will evaluate inside the same running service —
+  no background grant needed there either.
+
+**Wizard integration (verified this phase):** the 6-step `SharingSetupSheet`
+requests exactly FINE+COARSE (the M5 launcher reused, both at once — an
+"Approximate"-only grant honestly proceeds); the denial path renders the
+canonical `PermissionDeniedPanel` with the system-settings hand-off; DEMO
+mode never launches the real launcher; still-valid grants are reused with
+no re-prompt (consent rule 2). The runtime matrix above is therefore the
+complete, final permission surface of Location v1.
