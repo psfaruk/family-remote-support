@@ -191,7 +191,11 @@ object MovementClassifier {
             // A pair closer than MIN_MOVE_METERS is indistinguishable from
             // jitter and honestly reads as "stationary" (its implied speed
             // is ≈ 0 anyway — the arithmetic below discloses it either way).
-            val speedKmh = (meters / dt) * 3.6
+            // dt arrives in MILLISECONDS — convert to seconds before the
+            // m/s → km/h factor. The CI unit-test gate caught this exact
+            // ms/s slip on the 0.41.0 maiden run (every points-based pair
+            // ran 1000× slow and read "possibly stationary"; worklog §82).
+            val speedKmh = (meters / (dt / 1000.0)) * 3.6
             return MovementEstimate(
                 kind = kindFor(speedKmh),
                 confidence = MovementConfidence.LIMITED,
