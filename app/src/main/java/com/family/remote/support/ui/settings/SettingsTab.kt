@@ -76,7 +76,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -118,6 +117,7 @@ import com.family.remote.support.ui.ThemePreview
 import com.family.remote.support.ui.components.AppListTile
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.components.RadioOptionRow
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.SettingsTile
 import com.family.remote.support.ui.components.SignOutButton
@@ -642,29 +642,12 @@ internal fun EditNameDialog(
  * LangOptionRow here and IntervalChoiceRow below, same idea with drifting
  * visuals). Canonical LangOptionRow visual: RadioButton + label,
  * bold-when-selected, 6 dp vertical padding, 10 dp spacing.
+ *
+ * Phase 4 (v0.38.0) — the row was promoted VERBATIM into the design system
+ * (ui/components/Core.kt RadioOptionRow) so the location-sharing wizard
+ * shares it; this file's private copy is deleted and the call sites below
+ * import the shared one (identical signature, no behavioral change).
  */
-@Composable
-private fun RadioOptionRow(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-        )
-    }
-}
 
 /**
  * Pre-M10 (v0.35.0) — the language picker dialog. The 15-language list is
