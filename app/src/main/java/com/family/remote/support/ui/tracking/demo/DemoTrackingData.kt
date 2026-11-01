@@ -43,11 +43,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.family.remote.support.LiveLocationView
+import com.family.remote.support.MovementConfidence
+import com.family.remote.support.MovementEstimate
+import com.family.remote.support.MovementKind
 import com.family.remote.support.R
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.tracking.LocationShareStatus
-import com.family.remote.support.ui.tracking.MovementConfidence
-import com.family.remote.support.ui.tracking.MovementKind
 import com.family.remote.support.ui.tracking.RetentionKind
 import com.family.remote.support.ui.tracking.UploadState
 import com.family.remote.support.ui.tracking.nextLocalMidnightMillis
@@ -76,6 +77,19 @@ data class DemoMovement(
 )
 
 /**
+ * Phase 10 — the demo fixture → the classifier's shared vocabulary, so
+ * MovementCard has ONE render path (real estimates and demo fixtures
+ * map onto the same type; the v0.37.0 single-source discipline).
+ */
+fun DemoMovement.toMovementEstimate(): MovementEstimate = MovementEstimate(
+    kind = kind,
+    confidence = confidence,
+    speedKmh = speedKmh,
+    observedAtMillis = observedAtMillis,
+    insufficientEvidence = false
+)
+
+/**
  * One fictional family member for the demo dashboard. [status],
  * [historyGranted], [retention] and [expiryMillis] are FIXTURES (the
  * states the Phase 5 review needs to see), not derivations — the demo
@@ -96,11 +110,14 @@ data class DemoMember(
     val expiryMillis: Long?
 )
 
-/** One recorded journey point (demo history fixtures). */
+/** One recorded journey point (demo history fixtures). The optional
+ *  speed is the OS-provided sensor fact — present only on some fixes,
+ *  exactly like real records (hasSpeed() is false without Doppler). */
 data class DemoHistoryPoint(
     val timeMillis: Long,
     val lat: Double,
-    val lng: Double
+    val lng: Double,
+    val speedMetersPerSecond: Double? = null
 )
 
 /** One history day's summary: index (0 = yesterday, 1 = today), point count, coverage. */
@@ -232,14 +249,16 @@ object DemoTrackingDataSource {
 
     // ── History ────────────────────────────────────────────────────────────
 
-    /** Day summaries per member: demo-1 has yesterday+today, demo-3 today only, demo-2 none. */
+    /** Day summaries per member: demo-1 has yesterday+today, demo-3 today only, demo-2 none.
+     * Coverage mirrors the honest route math on the retimed Phase 10 fixtures
+     * (yesterday: 5×9-min runs around the one 20-min gap → 82 %; today solid). */
     fun historyDays(relId: String): List<DemoHistoryDay> = when (relId) {
         "demo-1" -> listOf(
-            DemoHistoryDay(dayIndex = 0, pointCount = 12, coveragePercent = 78),
-            DemoHistoryDay(dayIndex = 1, pointCount = 6, coveragePercent = 60)
+            DemoHistoryDay(dayIndex = 0, pointCount = 12, coveragePercent = 82),
+            DemoHistoryDay(dayIndex = 1, pointCount = 6, coveragePercent = 100)
         )
         "demo-3" -> listOf(
-            DemoHistoryDay(dayIndex = 1, pointCount = 5, coveragePercent = 55)
+            DemoHistoryDay(dayIndex = 1, pointCount = 5, coveragePercent = 100)
         )
         else -> emptyList()
     }
@@ -254,43 +273,57 @@ object DemoTrackingDataSource {
      * data, and deliberately NOT clamped, which would distort the gap and
      * coverage fixtures.
      */
+    /**
+     * Journey points for one day, ascending by time. demo-1's yesterday
+     * set carries a deliberate 20-minute GAP (11:50 → 12:10, nothing in
+     * between) so the history screen's gap rendering has something true
+     * to dash out; every other pair sits at a ≤9-minute cadence so the
+     * route renders as SOLID runs (the Phase 4 fixtures spaced every pair
+     * 20–60 min apart, which the >10-min threshold dashed in full — found
+     * and retimed in Phase 10). demo-1 today ends with a sensor-backed
+     * speed on the last point (MODERATE-confidence movement demo);
+     * demo-3's short Gulshan steps honestly read as "possibly stationary".
+     */
     fun historyPoints(relId: String, dayIndex: Int): List<DemoHistoryPoint> = when (relId) {
         "demo-1" -> when (dayIndex) {
             0 -> listOf(
-                // Yesterday 09:00 → 17:00, walking steps around Dhanmondi
+                // Yesterday 11:05 → 12:55, walking steps around Dhanmondi
                 // drifting toward Lalbagh (with the 20-minute gap mid-route).
-                DemoHistoryPoint(atClockTime(-1, 9, 0), 23.7461, 90.3760),
-                DemoHistoryPoint(atClockTime(-1, 9, 50), 23.7440, 90.3785),
-                DemoHistoryPoint(atClockTime(-1, 10, 40), 23.7410, 90.3810),
-                DemoHistoryPoint(atClockTime(-1, 11, 30), 23.7380, 90.3835),
-                DemoHistoryPoint(atClockTime(-1, 11, 50), 23.7355, 90.3850),
-                DemoHistoryPoint(atClockTime(-1, 12, 10), 23.7320, 90.3870),
-                DemoHistoryPoint(atClockTime(-1, 13, 0), 23.7290, 90.3890),
-                DemoHistoryPoint(atClockTime(-1, 14, 0), 23.7255, 90.3915),
-                DemoHistoryPoint(atClockTime(-1, 15, 0), 23.7225, 90.3935),
-                DemoHistoryPoint(atClockTime(-1, 15, 45), 23.7200, 90.3950),
-                DemoHistoryPoint(atClockTime(-1, 16, 30), 23.7230, 90.3970),
-                DemoHistoryPoint(atClockTime(-1, 17, 0), 23.7260, 90.3990)
+                DemoHistoryPoint(atClockTime(-1, 11, 5), 23.7461, 90.3760),
+                DemoHistoryPoint(atClockTime(-1, 11, 14), 23.7440, 90.3785),
+                DemoHistoryPoint(atClockTime(-1, 11, 23), 23.7410, 90.3810),
+                DemoHistoryPoint(atClockTime(-1, 11, 32), 23.7380, 90.3835),
+                DemoHistoryPoint(atClockTime(-1, 11, 41), 23.7355, 90.3850),
+                DemoHistoryPoint(atClockTime(-1, 11, 50), 23.7320, 90.3870),
+                DemoHistoryPoint(atClockTime(-1, 12, 10), 23.7290, 90.3890),
+                DemoHistoryPoint(atClockTime(-1, 12, 19), 23.7255, 90.3915),
+                DemoHistoryPoint(atClockTime(-1, 12, 28), 23.7225, 90.3935),
+                DemoHistoryPoint(atClockTime(-1, 12, 37), 23.7200, 90.3950),
+                DemoHistoryPoint(atClockTime(-1, 12, 46), 23.7230, 90.3970),
+                DemoHistoryPoint(atClockTime(-1, 12, 55), 23.7260, 90.3990)
             )
             1 -> listOf(
-                // Today 08:00 → 11:00, around Dhanmondi.
+                // Today 08:00 → 08:45, around Dhanmondi; the last fix
+                // carries an OS-provided speed (the sensor-backed movement
+                // evidence — MODERATE confidence on the card).
                 DemoHistoryPoint(atClockTime(0, 8, 0), 23.7405, 90.3755),
-                DemoHistoryPoint(atClockTime(0, 8, 40), 23.7430, 90.3770),
-                DemoHistoryPoint(atClockTime(0, 9, 20), 23.7450, 90.3788),
-                DemoHistoryPoint(atClockTime(0, 10, 0), 23.7465, 90.3805),
-                DemoHistoryPoint(atClockTime(0, 10, 30), 23.7448, 90.3822),
-                DemoHistoryPoint(atClockTime(0, 11, 0), 23.7425, 90.3835)
+                DemoHistoryPoint(atClockTime(0, 8, 9), 23.7430, 90.3770),
+                DemoHistoryPoint(atClockTime(0, 8, 18), 23.7450, 90.3788),
+                DemoHistoryPoint(atClockTime(0, 8, 27), 23.7465, 90.3805),
+                DemoHistoryPoint(atClockTime(0, 8, 36), 23.7448, 90.3822),
+                DemoHistoryPoint(atClockTime(0, 8, 45), 23.7425, 90.3835, speedMetersPerSecond = 1.4)
             )
             else -> emptyList()
         }
         "demo-3" -> when (dayIndex) {
             1 -> listOf(
-                // Today 08:00 → 12:00, around Gulshan.
+                // Today 08:00 → 08:36, short steps around Gulshan (the
+                // honest "possibly stationary" movement demo).
                 DemoHistoryPoint(atClockTime(0, 8, 0), 23.7925, 90.4078),
-                DemoHistoryPoint(atClockTime(0, 9, 0), 23.7935, 90.4090),
-                DemoHistoryPoint(atClockTime(0, 10, 0), 23.7915, 90.4105),
-                DemoHistoryPoint(atClockTime(0, 11, 0), 23.7905, 90.4085),
-                DemoHistoryPoint(atClockTime(0, 12, 0), 23.7920, 90.4070)
+                DemoHistoryPoint(atClockTime(0, 8, 9), 23.7935, 90.4090),
+                DemoHistoryPoint(atClockTime(0, 8, 18), 23.7915, 90.4105),
+                DemoHistoryPoint(atClockTime(0, 8, 27), 23.7905, 90.4085),
+                DemoHistoryPoint(atClockTime(0, 8, 36), 23.7920, 90.4070)
             )
             else -> emptyList()
         }
