@@ -57,7 +57,12 @@ data class LiveLocationView(
     val lng: Double,
     val accuracyMeters: Int,
     val sharingEnabled: Boolean,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    /** Phase 10 — the OS-provided speed of the last accepted fix, when
+     *  the writer had one (optional in the doc AND in the rules' hasOnly;
+     *  null for docs written without a sensor speed). Render-time input
+     *  for MovementClassifier.classifyLive — never stored classified. */
+    val speedMetersPerSecond: Double? = null
 )
 
 /** Document id for one device's live location (mirrors [presenceDocId]). */
@@ -134,7 +139,8 @@ fun watchLiveLocation(
                     lng = snap.getDouble("lng") ?: 0.0,
                     accuracyMeters = (snap.getLong("accuracyMeters") ?: 0L).toInt(),
                     sharingEnabled = snap.getBoolean("sharingEnabled") ?: false,
-                    updatedAtMillis = snap.getTimestamp("updatedAt")?.toDate()?.time ?: 0L
+                    updatedAtMillis = snap.getTimestamp("updatedAt")?.toDate()?.time ?: 0L,
+                    speedMetersPerSecond = snap.getDouble("speedMetersPerSecond")
                 )
             )
         }
