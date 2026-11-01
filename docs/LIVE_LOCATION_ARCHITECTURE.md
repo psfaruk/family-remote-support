@@ -157,3 +157,33 @@ Version at first M5 release: **v0.30.0 / versionCode 49** (or later if bundled w
 Acceptance criteria: all probe cases pass; quota budget respected on a live 2-device day;
 freshness badges proven stale/offline by clock tampering; revoke cuts access instantly;
 Owner's physical test script passes on both phones.
+
+---
+
+## 11. Location master plan v0.39.0 — the engine grew scopes + history (2026-11-01)
+
+The M5 design above ("one mutable live doc, no history") is still the LIVE-doc
+truth. The Location master plan (docs/location/) added two engine behaviors on
+top of it in v0.39.0/58:
+
+- **Scopes (wizard consent → engine behavior):** ONCE writes the first
+  ACCEPTED fix then runs the full stop path (doc delete + grant revoke);
+  TEMPORARY (1 h / 8 h / until-midnight) arms a main-handler expiry alarm plus
+  a per-fix wall-clock backstop, then the same stop path; UNTIL_STOP and
+  WITH_HISTORY behave as before. The server additionally enforces the
+  authorization's `expiresAt` on every read, so an offline client can never
+  over-share.
+- **Journey history (opt-in WITH_HISTORY + retention ≠ NONE):** accepted fixes
+  that moved ≥ 50 m from the last RETAINED point append an immutable record
+  under `users/{uid}/locationHistory/{deviceId}_{epochMillis}` (speed/bearing/
+  altitude stored only when the OS provided them). `retentionExpiresAt` is
+  enforced by the rules on EVERY read — expired records are invisible to
+  everyone (the owner included) before physical deletion, which happens as
+  on-device opportunistic batches on user actions (§75: no sweeps).
+- **Read authorization gained a second path:** liveLocations reads now allow
+  EITHER the original ACTIVE-relationship branch (verbatim — old clients
+  unaffected) OR an unrevoked, unexpired `locationAuthorization` with
+  `liveEnabled` (family recipients: the grant alone is consent; guests: the
+  relationship must also be alive). Full design:
+  docs/location/LOCATION_DATA_AND_SECURITY_DESIGN.md; live probe:
+  scripts/rules-location-v2-probe.mjs (33 cases).
