@@ -82,8 +82,20 @@ android {
         // permissions, zero engine Firestore reads), name-only local
         // notifications, Firestore persistence + offline-honest local
         // mirror, 20-place cap. See worklog §84.
-        versionCode = 63
-        versionName = "0.43.0"
+        //
+        // v0.44.0 (64) — smooth-app wave (Owner device report on 63:
+        // "সেটিং ট্যাব এ ক্লিক করলে ক্র্যাশ করে" + "অ্যাপ টি স্মুথ লি চলে
+        // ঠিক করে দেন" + "গুগল ম্যাপ একেবারেই স্লো … 2D 3D ও setelite ম্যাপ
+        // যুক্ত করতে হবে"): local CrashJournal (uncaught handler → file,
+        // zero telemetry, Settings→About view/share/delete), all binder
+        // polls moved to Dispatchers.IO, the map's hard-wired OSM MAPNIK
+        // replaced by a 3-style registry (fast CARTO Voyager 2D default /
+        // Esri satellite / Esri 3D-relief terrain — live switching chips),
+        // osmdroid tile plumbing tuned (6 download threads, 48-tile memory
+        // LRU, 128 MB disk cache), dirty-tracked map redraws, and the
+        // device list now refreshes on app resume. See worklog §86.
+        versionCode = 64
+        versionName = "0.44.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
