@@ -3317,3 +3317,15 @@ Tracking 打开时配额内自证）；③Stop 按一下 → 文档应现 revoke
 裁决（见 Known honest edges：想要"最后已知位置多留一阵"是一行改动）；⑤若
 今日再现 429——把当时段设备使用情况（是否有长时间屏幕共享会话）回报给协调
 者做配额归因。
+
+**CI 记录（已补记，1 修复轮）：** 本波 16 个推送（build.gradle.kts 最先、本补记
+最后）中前序 run 被工作流并发设置自动取消（常态，以最终 HEAD 为准）。首轮最终
+HEAD `4456d72bbd` run **41273155609 FAILURE**（04:29 UTC）——恰两处 Kotlin 编译
+错误：`LocationShareService.kt:548/549` 把 `Location.speed/bearing`（Java float
+→ Kotlin **Float**）直传 `writeHistoryRecord` 的 **Double?** 形参（Kotlin 不隐式
+数值加宽；`altitude` 本就是 double 故无错）。修复（2 行——`.toDouble()`）后 HEAD
+`4b62330f81` run **41273411861 SUCCESS**（04:35 UTC 完成）。**Release-APK 验证门
+PASS（日志亲验）：✓ versionCode = 58 (INT_DEC) — expected 58 · ✓ versionName =
+"0.39.0" — expected "0.39.0" · ✓ APK Signing Block v2 present。** 本地无构建环
+境下 Float/Double 这类跨类型签名不匹配超出静态符号平衡的检查范围——CI 门再证
+其值。全部 16 推送均经 readback-verify SHA256 逐文件核验。
