@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phase 4 of the Location master plan (v0.38.0) — journey-history START
+  marker (LOCATION_UX_SPECIFICATION §9: green ▶ at the day's first recorded
+  point; the tap bubble shows the start time). Tiny monochrome vector, no
+  adaptive layers, tinted nowhere — the green IS the semantic color.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- "play"-style triangle pointing along the route direction -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M8,4 L20,12 L8,20 Z" />
+</vector>
