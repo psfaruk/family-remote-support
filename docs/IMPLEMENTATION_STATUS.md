@@ -1,7 +1,8 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
 > Status: **G1 NOTIFICATION-CENTER WAVE SHIPPED — v0.46.0/66 (2026-11-01),
-> local-gated 66/66 unit tests; CI-pending at write time.** The stack:
+> CI run #860 SUCCESS on the code HEAD `091785b` (unit tests 66/66,
+> debug+release APKs, AXML gate).** The stack:
 > audit-fix wave v0.45.0/65 (§87) + external-audit response (§88) + the
 > G1 notification-center upgrade (§89) on top of SMOOTH-APP WAVE v0.44.0/64:
 > all master-plan milestones M0–M10 ✅ + Pre-M10 polish +
