@@ -68,6 +68,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.family.remote.support.MAX_SAVED_PLACES
+import com.family.remote.support.R
 import com.family.remote.support.SavedPlace
 import com.family.remote.support.createSavedPlace
 import com.family.remote.support.deleteSavedPlace
