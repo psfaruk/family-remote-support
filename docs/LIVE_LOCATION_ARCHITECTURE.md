@@ -62,7 +62,10 @@ ever needed).
 ```
 liveLocations/{docId}   docId = {uid}_[0-9a-f]{24}   (presence pattern)
 fields: lat (−90..90), lng (−180..180), accuracyMeters (int ≤ 100000),
-        sharingEnabled (bool), updatedAt (timestamp), appVersionCode (int)
+        sharingEnabled (bool), updatedAt (timestamp), appVersionCode (int),
+        speedMetersPerSecond (OPTIONAL number 0–90 — v0.42.0: the OS speed
+        of the last accepted fix; cleared, never clamped, when the fix has
+        none inside the window; same contract as locationHistory)
         — fixed field set (hasOnly), size caps per Phase 18.8 convention
 read:   signedIn AND counterpart relationship ACTIVE (guest: live window)
         AND resource.data.sharingEnabled == true

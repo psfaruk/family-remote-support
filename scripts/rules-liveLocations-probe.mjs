@@ -27,6 +27,15 @@
  *   P2  guest-live-window allow — guest link with a FUTURE guestExpiresAt
  *       and sharingEnabled == true ⇒ helper GET 200.
  *
+ * v0.42.0 (§83 post-gate wave) — the OPTIONAL speed field, mirroring the
+ * locationHistory contract exactly (optional, number, 0–90 m/s):
+ *   P3  allow-plausible-speed — owner create with speedMetersPerSecond 2.8
+ *       (walking) allowed, then deleted in-case.
+ *   P3b allow-boundary-speed — 90.0 (the inclusive ceiling) allowed.
+ *   N10 deny-negative-speed — −1.0 denied.
+ *   N11 deny-over-ceiling-speed — 90.1 denied.
+ *   N12 deny-speed-type — a string speed denied (is number fails).
+ *
  * Fixtures: the synthetic relationship doc (pairKey helperUid_recipientUid)
  * is written/mutated ONLY through the SA ADMIN path (rules bypass — same
  * convention as the other rules-* probes); every liveLocations read/write
@@ -404,6 +413,45 @@ async function main() {
     writeLocDoc(hH, locFields({ uid: F(HELPER_UID) }))
   );
 
+  // ---------- P3/P3b + N10..N12: the v0.42.0 optional speed field ----------
+  // liveLocations mirrors the locationHistory speed contract exactly:
+  // OPTIONAL, plain number, 0–90 m/s inclusive. Allowed creates delete the
+  // doc in-case so the "doc absent" invariant the surrounding hostile
+  // cases rely on still holds.
+  await run("P3 owner create with plausible speed", async () => {
+    const c = await writeLocDoc(oH, locFields({ speedMetersPerSecond: D(2.8) }));
+    let dS = 0;
+    if (c.status === 200) {
+      const d = await fetch(`${BASE}/liveLocations/${locDocId}`, { method: "DELETE", headers: oH });
+      dS = d.status;
+    }
+    const pass = c.status === 200 && dS === 200;
+    return { expected: "200/200", got: `${c.status}/${dS || "—"}`, pass };
+  });
+
+  await run("P3b speed at the inclusive ceiling 90.0", async () => {
+    const c = await writeLocDoc(oH, locFields({ speedMetersPerSecond: D(90.0) }));
+    let dS = 0;
+    if (c.status === 200) {
+      const d = await fetch(`${BASE}/liveLocations/${locDocId}`, { method: "DELETE", headers: oH });
+      dS = d.status;
+    }
+    const pass = c.status === 200 && dS === 200;
+    return { expected: "200/200", got: `${c.status}/${dS || "—"}`, pass };
+  });
+
+  await expectDenied("N10 owner create negative speed", () =>
+    writeLocDoc(oH, locFields({ speedMetersPerSecond: D(-1.0) }))
+  );
+
+  await expectDenied("N11 owner create speed over ceiling", () =>
+    writeLocDoc(oH, locFields({ speedMetersPerSecond: D(90.1) }))
+  );
+
+  await expectDenied("N12 owner create speed wrong type", () =>
+    writeLocDoc(oH, locFields({ speedMetersPerSecond: F("fast") }))
+  );
+
   // ---------- N9: unpaired identity enumerating the collection ----------
   await fixture("owner recreate liveLocations doc", await writeLocDoc(oH, locFields()));
   await expectDenied("N9 stranger LIST collection", () =>
@@ -501,7 +549,7 @@ async function main() {
   console.log(`synthetic Auth user cleanup (accounts:delete): ${authOk}/3`);
 
   // ================= report ===============================================
-  console.log("\n────────── M5 (Phase 22) liveLocations probe results ──────────");
+  console.log("\n──── M5 (Phase 22) + v0.42.0 speed wave — liveLocations probe results ────");
   let allPass = true;
   for (const r of results) {
     const mark = r.pass ? "✔" : "✘";

@@ -535,7 +535,22 @@ class LocationShareService : Service() {
         serviceScope.launch {
             LocationUploadReporter.report(LocationUploadStatus.PENDING)
             try {
-                writeLocationFix(uid, deviceId, lat, lng, accuracyMeters)
+                // D12 (v0.42.0, §83 post-gate wave): the live doc carries the
+                // OS speed ONLY when the fix has one inside the rules' 0–90
+                // m/s window (MAX_LIVE_SPEED_MPS). A missing or glitched
+                // reading is CLEARED, never clamped (same honesty rule as
+                // the classifier's D11a) — a bad speed must never be able
+                // to fail the LIVE write: history tolerates a failed append
+                // as an honest gap, but the live doc is the freshness
+                // surface and has to keep flowing.
+                val liveSpeed = if (fix.hasSpeed() &&
+                    fix.speed >= 0f && fix.speed <= MAX_LIVE_SPEED_MPS
+                ) {
+                    fix.speed.toDouble()
+                } else {
+                    null
+                }
+                writeLocationFix(uid, deviceId, lat, lng, accuracyMeters, liveSpeed)
                 LocationUploadReporter.report(LocationUploadStatus.OK)
                 if (retainThisFix) {
                     try {
@@ -664,6 +679,11 @@ class LocationShareService : Service() {
         /** Phase 7 (design §3): minimum distance between RETAINED journey
          * points — history is deliberately coarser than live. */
         private const val HISTORY_MIN_MOVE_METERS = 50.0
+
+        /** D12 (v0.42.0): the live-doc speed window in m/s — the exact
+         * bounds the published liveLocations rules validate (mirrors the
+         * locationHistory contract). Outside it the speed is omitted. */
+        private const val MAX_LIVE_SPEED_MPS = 90.0
 
         /** §6: stationary window size — fixes, not accepted writes. */
         private const val STATIONARY_FIX_WINDOW = 3

@@ -70,8 +70,16 @@ android {
         // whose maiden run caught the journey-tail ms/s units slip (every
         // points-based pair ran 1000× slow → "possibly stationary"), fixed
         // here in v0.41.1/61 (worklog §82).
-        versionCode = 61
-        versionName = "0.41.1"
+        //
+        // v0.42.0/62 — post-gate activation wave (worklog §83): the detail
+        // screen's section C goes LIVE — liveLocations gains the OPTIONAL
+        // speedMetersPerSecond (rules-validated 0–90 m/s, mirroring the
+        // history contract), the engine passes the OS fix speed (cleared,
+        // never clamped, when missing/glitched) and LocationDetailScreen
+        // classifies it with the already-shipped classifyLive at MODERATE
+        // confidence — zero extra Firestore reads (§75).
+        versionCode = 62
+        versionName = "0.42.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
