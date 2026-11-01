@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.List
@@ -119,6 +120,7 @@ import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.components.RadioOptionRow
 import com.family.remote.support.ui.components.SectionCard
+import com.family.remote.support.ui.tracking.DeleteHistoryDialog
 import com.family.remote.support.ui.components.SettingsTile
 import com.family.remote.support.ui.components.SignOutButton
 import com.google.firebase.auth.FirebaseAuth
@@ -843,6 +845,9 @@ private fun LocationSharingControls() {
         mutableStateOf(LocationSharingPrefs.intervalMillis(context))
     }
     var showIntervalDialog by remember { mutableStateOf(false) }
+    // Phase 9 — the owner-side "Delete journey history" row's dialog state
+    // (spec §9/§10: Settings is the delete flow's second home).
+    var showDeleteHistory by remember { mutableStateOf(false) }
 
     // Turning sharing ON needs the while-in-use grant first (the FGS cannot
     // legally start without it on Android 14). The system dialog only ever
@@ -906,6 +911,17 @@ private fun LocationSharingControls() {
         onClick = { showIntervalDialog = true }
     )
 
+    // Phase 9 — the owner-side journey-history deletion row (spec §9:
+    // "owner-side 'Delete my history' lives in the wizard confirm screen
+    // & Settings"). The ret_note description stays the honest expiry note
+    // — deletion is the manual complement of automatic expiry.
+    SettingsTile(
+        icon = Icons.Filled.Delete,
+        title = stringResource(R.string.set_loc_hist),
+        description = stringResource(R.string.ret_note),
+        onClick = { showDeleteHistory = true }
+    )
+
     if (showIntervalDialog) {
         AlertDialog(
             onDismissRequest = { showIntervalDialog = false },
@@ -959,6 +975,13 @@ private fun LocationSharingControls() {
                 }
             }
         )
+    }
+
+    if (showDeleteHistory) {
+        // Phase 9 — the ONE shared delete flow (today / everything,
+        // verified-empty, offline-queued honestly; flushed on the next
+        // user action by the Tracking resume hook).
+        DeleteHistoryDialog(onDismiss = { showDeleteHistory = false })
     }
 }
 
