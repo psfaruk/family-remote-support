@@ -1,14 +1,27 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **LOCATION MASTER PLAN PHASE 12 (SECURITY REVIEW) CLOSED —
-> v0.43.0/63 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> Status: **SMOOTH-APP WAVE SHIPPED — v0.44.0/64 (2026-11-01). All
+> master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
 > Location Phase 9 route-history UI + retention/deletion (§80) +
 > Location Phase 10 movement insights + first CI unit-test gate (§81) +
 > Phase 8 live gate PASSED + journey-tail units fix (§82) +
 > D11(e) detail-screen live movement card (§83) + Phase 11 place alerts (§84) +
-> Phase 12 security review delivered, no code changes (§85).**
+> Phase 12 security review (§85) + v0.44.0 smooth-app wave (§86).**
+> §86 in one line: the Owner's v0.43.0/63 device report (Settings-tab
+> crash + install-time crash dialog + slow map + 2D/3D/satellite ask +
+> frontend↔backend match) shipped as one wave — the hard-wired OSM MAPNIK
+> tile source replaced by a 3-style live-switchable registry
+> (fast CARTO Voyager 2D default / Esri satellite / Esri 3D-relief
+> terrain, per-style attribution, persisted choice), osmdroid plumbing
+> tuned (6 download threads, 48-tile memory LRU, 128 MB bounded disk
+> cache), map redraws dirty-tracked, a purely LOCAL crash journal
+> (uncaught handler → file; view/share/delete in Settings → About; zero
+> telemetry — the next crash arrives WITH its stack trace), all
+> 1.5–2.5 s binder polls moved to Dispatchers.IO, and the device list
+> refreshes on app resume. No crash SDK added; no new permissions; rules
+> untouched.
 > §85 in one line: `LOCATION_SECURITY_REVIEW.md` closed the Phase 12 gate —
 > the RELEASED ruleset live-verified **byte-exact** vs the repo
 > (permanent read-only script `scripts/verify-released-rules.mjs`, exit-0
