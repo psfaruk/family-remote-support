@@ -1,9 +1,10 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **LOCATION MASTER PLAN PHASES 5–8 (IMPLEMENTATION WAVE) CLOSED —
-> v0.39.0/58 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> Status: **LOCATION MASTER PLAN PHASE 9 (ROUTE-HISTORY UI) CLOSED —
+> v0.40.0/59 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
-> Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79).**
+> Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
+> Location Phase 9 route-history UI + retention/deletion (§80).**
 > §76 in one line: six parallel deep audits + secrets scan + VLM screenshot
 > verification; 2 edge-crash paths closed, auth hardening + latency wins
 > (parallel config/registration, 20 s auth timeouts), **14 of 15 duplicate
@@ -27,7 +28,17 @@
 > ~07:00 UTC reset; all parked tiers re-verified clean (sandbox no services,
 > Worker crons=[], Actions dispatch-only) — the exhaustion is real usage on
 > the 50 K/day free tier, reported to the Owner.**
-> Build at writing: **v0.39.0 (versionCode 58) — reinstall both phones.** Rules
+> §80 in one line: journey history went REAL on the reader side — member
+> card + detail sections B/E gate on the actual grant (one diffed one-shot
+> read per counterpart), the history screen runs real day queries (deviceId
+> equality + retention floor + day range via the composite index, PERMISSION_
+> DENIED → honest "not kept", FAILED_PRECONDITION → honest setup hint), the
+> owner side gains the D6 local-log retention cleanup + the shared delete
+> flow (today / everything, verified-empty, offline-queued); +13 string keys
+> ×15 locales (BN complete). Prerequisite: the ONE-TIME composite index on
+> `locationHistory` (Owner console — SA denied index-create); Phase 8's live
+> probe gate rerun stays scheduled (33/33 claimed only when printed).
+> Build at writing: **v0.40.0 (versionCode 59) — reinstall both phones.** Rules
 > are **LIVE at ruleset c1ac1396** (v0.39.0: locationAuthorizations +
 > users/{uid}/locationHistory + the liveLocations dual read path; the legacy
 > branch is verbatim, so the M9 probe battery's semantics are unchanged — the
