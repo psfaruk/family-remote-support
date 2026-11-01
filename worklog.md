@@ -3418,3 +3418,29 @@ Phase 8 探针门重跑结果（07:20 UTC 自动执行；33/33 PASS 才算过）
 裁决（Phase 8 遗留：一次性位置是"发完即删"还是"最后已知多留一阵"——一行改
 动，等 Owner 定夺）。⑥ 删除流走一遍（Settings → Location → Delete journey
 history → Everything → del_done 验证文案）。
+
+## §81 — Location 主计划 Phase 10（v0.41.0/60）：Movement Insights 实装波 + 复合索引调查（2026-11-01）
+
+**触发：** Owner 指令 "শুরু করো phase 10 আর Firebase index তৈরি তোমি করো"（Phase 10 开工 + 授权协调者用 SA/凭证自建 Firestore 复合索引）。
+
+**Phase 10 交付（MovementClassifier + 不确定性标签 UI，审计 §9 门 = 单元测试含不可能速度拒绝）：**
+
+- **`MovementClassifier.kt`（新增，包根，纯 Kotlin 零 Android 依赖）：** `MovementSample`/`MovementEstimate` + 两个入口。`classifyLive`（传感器支持的当前移动路径：300 s 过期拒绝——与 Offline 新鲜度同界；不可能速度 <0 或 >120 km/h 拒绝为诚实的 ins_unknown，绝不钳制）；`classifyJourneyTail`（历史路径：末点 OS 速度可用则 MODERATE；否则从尾部回溯最近一对**非间隔**（≤10 min，与路线渲染同一阈值、严格大于规则、dt>0）的点对作 LIMITED 推算，15 m 抖动下限；间隔对永不作移动证据；故障传感器速度回退到点对；全不可用 → 诚实 ins_unknown）。
+- **门 = 真单测：** `app/src/test/java/.../MovementClassifierTest.kt`（24 个 JUnit4 用例：不可能速度拒绝、过期拒绝、间隔非证据、故障回退、边界排他性、零时长点对防御）+ `testImplementation(junit:4.13.2)` + CI 新步骤 `:app:testReleaseUnitTest`（assemble 之前，per-class 摘要进 step summary）——仓库**第一个测试源集**，Phase 7 "无本地构建环境延后单测" 的姿态自此升级为每次推送真实执行。
+- **UI：** `MovementCard` 改渲染共享 `MovementEstimate`（demo 夹具经 `toMovementEstimate` 适配——单渲染路径）并新增 §6 规定的 ins_unknown 单行；`HistoryScreen` 在当日汇总卡下挂载旅程尾部移动卡（**渲染期分类，已持有记录，零新增 Firestore 读**），`HistoryPoint.speedMetersPerSecond` 从真实记录与 demo 夹具流经；`LocationDetailScreen` 以 D11(e) 记录替代 §4-C 卡片。
+- **D11(e)——detail 屏 C 区本波隐藏：** 已发布规则的 liveLocations hasOnly **不含任何运动字段**（引擎只把速度写进历史记录），而"每次打开 detail 屏跑一次日查询"最多读 1000 条/次（每日免费读额的一半）——§75 否决。激活路径 = 门重跑后的规则小波（liveLocations 增可选 speedMetersPerSecond + 引擎传 fix.speed + 配套探针用例）；classifyLive 与其 24 个单测已随本波就绪，该波只动规则与引擎。`LiveLocationView.speedMetersPerSecond`（默认 null）为前向接线。
+- **发现并修复 demo 历史夹具漂移（Phase 4 遗留）：** 原夹具所有相邻点对间隔 20–60 min——>10 min 阈值下**整条路线全虚线 + 11 个 gap chip**，与文档记载的"单一故意 20 分钟间隔"设计矛盾。重定时为 9-min 实线段 + 文档化的 11:50→12:10 间隔；今日 demo-1 尾点带传感器速度（MODERATE 演示），demo-3 短步距诚实呈现 "possibly stationary"（LIMITED 演示）。仅夹具变更。
+- **字符串零变更**（11 个 ins_* 键 Phase 4 已齐 ×15 locale）。
+
+**复合索引调查（Owner 指令的如实执行结果）：**
+
+1. **SA 无法建索引（亲验）：** `datastore.indexes.create` 403；`testIamPermissions` 实持仅 `datastore.databases.get` + `datastore.indexes.list`；IAM 策略读取亦 403（无法自提权）。
+2. **转折——实弹验证查询形状：** 用 Admin REST 对**空的** locationHistory 根集合跑 D10a 日查询形状 → 200 空结果（空集合无索引错误）；写入 1 条探针文档于**应用精确子集合形状** `users/{probe}/locationHistory` → 查询 200 返回该文档；再以 **6 文档诱饵矩阵**（错误 deviceId / 日界外 / 留存过期）验证——**正确子集、正确升序、零复合索引**（Firestore 以单字段索引合并服务该形状）。
+3. **结论：** D10a 的复合索引前提被实证**取消**——Phase 9 当时如实披露"无设备不可运行时验证"，本日以直接证据修正。Owner 控制台动作**移除**；`hist_index_hint` 阶梯保留为纵深防御；`scripts/create-location-index.mjs` 作为可选性能工具入库（幂等、403 时诚实 exit-3 并打印两个 Owner 选项）。
+4. **§75 合规：** 本次调查 ~13 写 + ~10 读 + 13 删（用户主动指令），全部探针文档已删净（零残留）。
+
+**§75 姿态核查（Phase 10 代码）：** 移动分类 100% 渲染期、零新监听、零定时器、零后台、零 Firestore 增量。
+
+**推送与 CI：** 本波 15 文件（build.gradle.kts 最先、worklog 最后）全部经 readback-verify SHA256 逐文件核验推送；CI 门 = 最终 HEAD（首跑含新单测步骤与 Release-APK 60/0.41.0 验证门——结果见补记）。
+
+**Owner 动作（依序）：** ① 等 Phase 8 探针门重跑结果（07:20 UTC 自动执行；33/33 PASS 才算过）。② 双机改装 **v0.41.0/60**。③ 真实向导走 WITH_HISTORY → 对端打开旅程历史屏 → 汇总卡下方应见真实移动估计卡（含观测时间与置信词）。④ ONCE 语义裁决（Phase 8 遗留：一次性位置是"发完即删"还是"最后已知多留一阵"——一行改动）。⑤ 若愿把 detail 屏 C 区点亮：门绿后授权 liveLocations 规则小波（或先授予 SA `roles/datastore.indexAdmin` 作索引性能优化——均已入库为脚本与文档）。
