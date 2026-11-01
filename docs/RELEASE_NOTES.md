@@ -1,19 +1,29 @@
 # RELEASE_NOTES — Family Remote Support — M10 Final Report (2026-10-31)
 
-> **Release state: v0.35.0 (versionCode 54)** · repo `psfaruk/family-remote-support`
-> (public, `main`, CI green at every milestone close) · master-plan milestones
-> **M0–M10 all ✅** plus the Owner's Pre-M10 polish pass. This is the
-> release-readiness document the master plan requires: what ships, how to install
-> and build it, what is verified, what is known-limited, and how to keep it running.
+> **Release state: v0.39.0 (versionCode 58) — Location master-plan
+> implementation wave (Phases 5–8), 2026-11-01** · repo
+> `psfaruk/family-remote-support` (public, `main`, CI green at every milestone
+> close) · master-plan milestones **M0–M10 all ✅** plus the Owner's Pre-M10
+> polish pass.
 >
-> **⚠ Post-release ops change (same day, Owner quota directive — see §9a):**
-> all automatic server-side Firestore polling is PARKED (sandbox stopped,
-> Worker cron removed, Actions schedule disabled) and the app itself became
+> **⚠ Post-release ops change (Owner quota directive — see §9a):** all
+> automatic server-side Firestore polling is PARKED (sandbox stopped, Worker
+> cron removed, Actions schedule disabled) and the app itself became
 > foreground-only for presence in v0.36.0/55, the QA & dedupe wave in
-> v0.37.0/56, then the Location master-plan Phase 4 frontend wave in
-> **v0.38.0 (versionCode 57) — the current
-> release build.** The quota math and re-arm runbook are in §9a and
-> `docs/CLOUDFLARE_SETUP.md` (কোটা-নির্দেশ section).
+> v0.37.0/56, the Location master-plan Phase 4 frontend wave in
+> v0.38.0/57, and **v0.39.0 (versionCode 58) — the current release build —
+> the Location Phases 6–8 implementation wave.** The quota math and re-arm
+> runbook are in §9a and `docs/CLOUDFLARE_SETUP.md` (কোটা-নির্দেশ section).
+>
+> **v0.39.0 in one line:** the Location plan went REAL — scope-aware engine
+> (Share-once / temporary 1 h-8 h-midnight auto-stop), journey-history
+> writes (50 m, OS-provided speed/bearing, retention-expiry enforced
+> server-side), the `locationAuthorizations` consent entity with
+> rules-verified revocation, the live-doc dual read path, the own card's
+> live upload line — and ZERO new Android permissions. The Phase 8 live
+> probe gate was blocked mid-run by the project's daily read-quota
+> exhaustion (incident: worklog §79) and is scheduled to rerun right after
+> the ~07:00 UTC quota reset; 33/33 PASS will be claimed only when printed.
 
 ## 1. What this is
 
@@ -27,7 +37,7 @@ permanent **Family** and time-boxed **Guest** pairing.
 
 ## 2. Owner quick start (বাংলা — সংক্ষেপ)
 
-1. **দুটো ফোনেই v0.38.0 (versionCode 57) বসান** — GitHub repo → Actions → সবুজ
+1. **দুটো ফোনেই v0.39.0 (versionCode 58) বসান** — GitHub repo → Actions → সবুজ
    (SUCCESS) যেকোনো রান → Artifacts → `app-release-apk` ডাউনলোড → ইনস্টল
    (আগের ভার্সনের উপরেই পরিষ্কারভাবে বসে যায় — একই CI keystore-এ সাইন করা)।
 2. বসানোর পরের দ্রুত যাচাই: Settings-এ নতুন **পাঁচ-কার্ড ক্রম** (Account →
