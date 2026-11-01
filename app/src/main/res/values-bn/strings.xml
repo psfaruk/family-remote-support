@@ -226,7 +226,7 @@
     <string name="set_section_setup">সেটআপ ও পারমিশন</string>
     <string name="set_section_look">চেহারা</string>
     <string name="set_section_lang">ভাষা</string>
-    <string name="set_lang_sub">অ্যাপের ভাষা — ডিফল্ট ইংরেজি</string>
+    <string name="set_lang_sub">অ্যাপের ভাষা</string>
     <string name="set_section_rules">নীতিমালা ও গোপনীয়তা</string>
     <string name="set_privacy">প্রাইভেসি পলিসি</string>
     <string name="set_privacy_sub">কোন তথ্য ব্যবহৃত হয়, কী কখনো নেওয়া হয় না</string>
@@ -399,7 +399,7 @@
     <string name="th_light_sub">সবসময় উজ্জ্বল</string>
     <string name="th_dark">ডার্ক</string>
     <string name="th_dark_sub">সবসময় অন্ধকার — রাতে আরাম</string>
-    <string name="set_lang_info">English is the default app language; your choice is remembered on this phone. Available: English, বাংলা, हिन्दी, العربية, Español, Français, Português, Русский, Bahasa Indonesia, اردو, Türkçe, Deutsch, 中文, 日本語, नेपाली।</string>
+    <string name="set_lang_info">নতুন ইনস্টলে অ্যাপ বাংলায় খোলে; আপনার পছন্দ এই ফোনে মনে রাখা হয়। ভাষা: English, বাংলা, हिन्दी, العربية, Español, Français, Português, Русский, Bahasa Indonesia, اردو, Türkçe, Deutsch, 中文, 日本語, नेपाली।</string>
     <string name="set_version">সংস্করণ</string>
     <string name="tnotif_desc">নোটিফিকেশন চ্যানেল ও পারমিশন এক ট্যাপে যাচাই করুন।</string>
     <string name="notif_test_ok">নোটিফিকেশন কাজ করছে ✓</string>
@@ -706,7 +706,7 @@
     <!-- v0.44.0 (smooth-app wave): map styles + local crash journal -->
     <string name="map_style_2d">2D ম্যাপ</string>
     <string name="map_style_satellite">স্যাটেলাইট</string>
-    <string name="map_style_terrain">3D টেরেইন</string>
+    <string name="map_style_terrain">টেরেইন (থ্রিডি-এর মতো)</string>
     <string name="crash_title">ক্র্যাশ রিপোর্ট</string>
     <string name="crash_sub">সর্বশেষ অপ্রত্যাশিত বন্ধের বিবরণ — শুধু এই ফোনেই সংরক্ষিত। সমস্যা জানাতে শেয়ার করুন।</string>
     <string name="crash_share">শেয়ার করুন</string>
@@ -754,5 +754,25 @@
     <string name="nick_hint">যেমন: আব্বু, আম্মু, ভাইয়া…</string>
     <string name="nick_save">সেভ করুন</string>
     <string name="nick_saved">সেভ হয়েছে ✓</string>
+
+    <!-- v0.47.0 (event-matrix fill, audit Gap-1..5) -->
+    <string name="notif_ev_pairing_invited">পেয়ারিং কোড তৈরি হয়েছে — অন্য ফোনের অপেক্ষায়</string>
+    <string name="notif_ev_pairing_approved">%1$s এই পরিবারে যোগ দিয়েছেন</string>
+    <string name="notif_ev_family_revoked">%1$s-এর অ্যাক্সেস বাতিল করা হয়েছে</string>
+    <string name="notif_ev_guest_removed">গেস্ট %1$s সরানো হয়েছে</string>
+    <string name="notif_ev_rel_revoked">%1$s আর যুক্ত নেই</string>
+    <string name="notif_ev_guest_expiring_soon">%1$s-এর গেস্ট অ্যাক্সেস শীঘ্রই শেষ হবে</string>
+    <string name="notif_ev_guest_expired">%1$s-এর গেস্ট অ্যাক্সেস শেষ হয়েছে</string>
+    <string name="notif_ev_sharing_perm_lost">লোকেশনের অনুমতি হারিয়েছে — শেয়ারিং বন্ধ</string>
+    <string name="notif_ev_presence_offline">%1$s এখন অফলাইন বলে মনে হচ্ছে</string>
+    <string name="notif_ev_presence_online">%1$s আবার অনলাইনে এসেছেন</string>
+    <string name="notif_banner_view">দেখুন</string>
+    <string name="notif_banner_close">বন্ধ করুন</string>
+    <string name="set_dead_alerts">বন্ধ অ্যাপের অ্যালার্ট</string>
+    <string name="set_dead_alerts_on">চালু — অ্যাপ বন্ধ থাকলেও সাহায্যের অনুরোধ এই ফোনে পৌঁছাবে</string>
+    <string name="set_dead_alerts_off">বন্ধ — শুধু অ্যাপ চালু থাকলে অনুরোধ আসবে। অ্যাপের মালিক সার্ভার সেটআপে এটি চালু করতে পারবেন।</string>
+    <string name="set_dead_alerts_unknown">খোঁজা হচ্ছে…</string>
+    <string name="set_demo_preview">ট্র্যাকিং স্ক্রিন দেখুন (ডেমো)</string>
+    <string name="set_demo_preview_sub">নমুনা ডেটা দিয়ে ম্যাপ ও মেম্বার কার্ড দেখুন — কিছুই আসল শেয়ার হয় না।</string>
 
 </resources>

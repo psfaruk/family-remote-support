@@ -3645,3 +3645,35 @@ history → Everything → del_done 验证文案）。
 **Owner-করণীয়:** ① CI সবুজ হলে দুই ফোনে **v0.46.0/66** ইনস্টল। ② ডিভাইস-চেক: বেল-ব্যাজে সংখ্যা → সেন্টারে ৫টি চিপ (horizontal-scroll); অপঠিত সারিতে "নতুন" পিল; সারি-ট্যাপ → সংশ্লিষ্ট স্ক্রিন + সারি পঠিত; Mark all → পিলগুলো মিলে যায়; Clear History → কনফার্মেশন → খালি সেকশন; সাইন-আউটে সম্পূর্ণ ওয়াইপ (আগের মতোই)। ③ G2 (ব্যাটারি) এখনো আলাদা-সম্মতি-অপেক্ষমাণ।
 
 **CI স্বীকৃতি-স্বীকারোক্তি (কোড-HEAD `091785b`, run #860 **SUCCESS**, ধাপ-রায় API থেকে সংগৃহীত — run 41325708825):** Unit-tests ধাপ PASS (`:app:testReleaseUnitTest` — ৬৬ কেস শূন্য ব্যর্থতা: MovementClassifier ২৫ + PlaceAlertEngine ২০ + NotifCenter ২১); assembleDebug + assembleRelease উভয় SUCCESS (**স্যান্ডবক্স-OOM-এর পরেও রিলিজ-বিল্ড CI-তে একবারেই সবুজ** — R8 নতুন কোডে কোনো সমস্যা করেনি, যথারীতি রাখ-রুল অপরিবর্তিত); **Release-APK AXML গেট PASS** (versionCode 66 / versionName 0.46.0 / v2 signature — Owner-এর ইনস্টল-দ্বার খোলা); debug+release দ্বৈত artifact আপলোড হয়েছে (৭ দিনের রিটেনশন, যথারীতি)। এই স্বীকৃতি-স্বীকারোক্তি-পুশ নিজেই §৮৯-এর শেষ পুশ (শুধু ডকুমেন্ট) — এর নিজের CI-রানই চূড়ান্ত HEAD-এর কর্তৃত্বপূর্ণ গেট।
+
+## §90 — v0.47.0 অডিট-ফিক্স ওয়েভ: ইভেন্ট-ম্যাট্রিক্স পূরণ + B1–B4 বাগ-ফিক্স + ব্যানার-বাস + P13-সম্পূর্ণতা (গভীর-অডিট রিপোর্ট বাস্তবায়ন)
+
+**ট্রিগার:** Owner-এর আপলোড করা family-remote-support-deep-audit-report.md (A0–A21/P0–N18 প্রোব-সবুজ v0.46.0-এর উপর ৫টি ফাংশনাল গ্যাপ, ৪টি লুকানো বাগ, ৩টি UX ঘাটতি) — "এই সব কিছুর একটি ফিক্স করেন" নির্দেশ।
+
+**বাগ-ফিক্স (অডিট §2, P1-সারি):**
+- **B1** AskNotifier.postAsk — setTimeoutAfter-গণিত এখন `ServerClock.now()` (আগে raw local clock: manual-clock ফোনে dead-ask ট্রে-তে আটকে থাকত বা আগে/দেরিতে মরত); recordAt-ও একই now ব্যবহার করে
+- **B2** SessionActionReceiver — goAsync উইন্ডো `withTimeoutOrNull(9s)`-বাউন্ডেড; টাইমআউটে সৎ "অ্যাপ খুলে উত্তর দিন" রেজাল্ট (লেখনী ক্যাশড-প্রসেসে চলতে থাকে — Firestore ট্রানজেকশন সার্ভার-অ্যাটমিক)
+- **B3** SessionPush — ট্রানজিয়েন্ট /notify-ব্যর্থতা এখন WorkManager-রিট্রাই (network-constrained, EXPONENTIAL 10s, ≤3 চেষ্টা, process-death-জীবিত, প্রতি (sessionId,event) unique-REPLACE); non-2xx এখন retryable-থ্রো; config-off রায় কখনো রিট্রাই করে না; App.onCreate → SessionPush.attach
+- **B4** ব্যাকগ্রাউন্ড-ট্রানজিশন গর্ত — SessionNotifier প্রতি স্ন্যাপশটে pending-ask ক্যাশ করে (দৃশ্যমান হলেও); App.onActivityStopped(→0) → `SessionNotifier.onAppBackgrounded()` ক্যাশ থেকে ডেলিভার করে (শূন্য অতিরিক্ত রিড) — কার্ড-দৃশ্যমান ask এখন Home-চাপলেই ট্রে-নোটিফিকেশন পায়
+
+**ইভেন্ট-ম্যাট্রিক্স পূরণ (Gap-1..5, P0-সারি; সবই বিদ্যমান listener/tick থেকে — §75 শূন্য-অতিরিক্ত-রিড):**
+- Gap-1: pairing_invited (createCode) / pairing_approved (claimer: doRedeem; inviter: watchInvitation PENDING→PAIRED ট্রানজিশন)
+- Gap-2: family_revoked + guest_removed (local actor, MemberDetail) / rel_revoked (রিমোট পক্ষ: NotificationsLog.recordRelationshipTransitions — ACTIVE→REVOKED/EXPIRED/vanished diff, rememberRelationshipWatch + TrackingTab উভয় থেকে)
+- Gap-3: guest_expiring_soon (১৫-মিনিট ব্যান্ড-ক্রসিং, 30s tick, warned-set সেমান্টিক্স — প্রতি উইন্ডোতে একবার) / guest_expired (lazy-sweep + diff)
+- Gap-4: sharing_perm_lost — LocationShareService-এর দুই শনাক্তকরণ-বিন্দুতে (restart-notice + mid-run SecurityException); onDestroy কখনো কারণ জানে না — এই দুটি জানে
+- Gap-5: presence_online/offline — PresenceBadge-এ relId দিলে প্রকৃত ফ্লিপে রেকর্ড (প্রথম পর্যবেক্ষণ কখনো নয়; own-device chip পথ নীরব); 20-মিনিট freshness-ল্যাগ সৎ-ডিজাইন
+- NotifCenter: ১০ নতুন টাইপ ক্যাটাগরি-ম্যাপে (CONNECTION/SECURITY/LOCATION) + রাউট-ম্যাপে (family-রুট arg2=relId হলে member-detail, নাহলে hub); NotifCenterTest ২৯টি নতুন assertion (ম্যাট্রিক্স ফিক্সচার + ফিল্টার-বীজগণিত সম্প্রসারণ + রাউট-লিটারাল)
+
+**In-app ইভেন্ট-ব্যানার (অডিট §4-প্রস্তাব):** EventBannerBus (StateFlow) + EventBannerHost — NotificationsLog.append() সদ্য-গৃহীত ইভেন্ট bus-এ offer করে (session_asked বাদ — consent-dialog-ই hero); হোস্ট top-bar-নিচে Scaffold-content-এ, ক্যাটাগরি-রঙিন, "দেখুন" ট্যাপ → goRoute (সেন্টার-সারির অভিন্ন রাউট), ৬s অটো-ডিসমিস, ২-মিনিট freshness উইন্ডো (cold-start রিপ্লে কখনো ব্যানার করে না); টাইটেল-ম্যাপিং notifEventTitleRes — সেন্টার-সারি ও ব্যানার একই সংজ্ঞা ভাগ করে (drift অসম্ভব)
+
+**P13-সম্পূর্ণতা (nickname সর্বত্র):** PairTile কার্ড-টাইটেল, MemberDetail ph_req_sent, HomeTab hint-কার্ড + consent কার্ড/ডায়ালগ, ActivityScreens feed-সারি + last-finished + StatusRow-দ্বয়, NotificationsScreen লাইভ-সারি, AddDeviceTab waiting/active কার্ড, TrackingTab member-কার্ড (title=nickname, subtitle=model — counterpartName() নতুন সাধারণ সংজ্ঞা), LocationDetailScreen টাইটেল-দ্বয়, SharingSetupSheet চেকবক্স + confirm (RecipientOption.name)
+
+**UX/ম্যাপ/Settings:** M1 — map_style_terrain এখন "Terrain (3D look)/টেরেইন (থ্রিডি-এর মতো)" (hillshade-সততা); M5 — Settings-এ ডেমো-প্রিভিউ শর্টকাট (Preferences; onOpenDemo → DemoTrackingMode + Tracking-tab); BE5 — SettingsDeadAlertsTile (Device Management): config/notify-র সৎ ON/OFF/UNKNOWN অবস্থা (probeSetup — ১ bounded রিড/ভিজিট, 10-min ক্যাশ-সম্মানী); P9 — fresh-install ডিফল্ট এখন বাংলা (সঞ্চিত পছন্দ সর্বদা জয়ী; set_lang_sub/info কপি-হালনাগাদ ×2 লোকেল)
+
+**নতুন স্ট্রিং:** ২২ কী EN+BN-এ (notif_ev_* ×10, banner ×2, dead-alerts ×4, demo ×2, map-renames + lang-copy) — P8-নজির অনুযায়ী বাকি ১৩ লোকেল EN-fallback।
+
+**স্পর্শিত ফাইল (24):** AskNotifier, SessionNotifier, SessionPush, App, NotifCenter, NotificationsLog, EventBannerBus(নতুন), LocationShareService, MainActivity, Badges, EventBannerHost(নতুন), FamilyScreens, HomeTab, ActivityScreens, AddDeviceTab, TrackingTab, TrackingViewModel(শুধু KDoc-প্রত্যাবর্তন), LocationDetailScreen, SharingSetupSheet, SettingsTab, Lang, NotificationsScreen, NotifCenterTest, strings.xml ×2।
+
+**গেট-সীমাবদ্ধতা (সৎ):** স্যান্ডবক্স-রিসাইকেলে §৮৯-এর Android-টুলচেইন হারিয়েছে — এই ওয়েভ local-কমিট; compile+unit-test গেট GitHub-CI-এর (android-pr-checks.yml: testReleaseUnitTest + assembleDebug)। লেক্সার-ভিত্তিক স্ট্রাকচারাল-ব্যালান্স চেক সব ২৪ ফাইলে সবুজ; XML বৈধতা সবুজ। Owner-টোকেন পেলে push → CI → দুই-ফোন চেকলিস্ট।
+
+**Owner-করণীয়:** ① push করে CI সবুজ করুন। ② দুই ফোনে v0.47.0: killed-app ask → tray Allow (B2 slow-network পথ), অ্যাপ খোলা অবস্থায় ask → Home চাপলেই ট্রে-নোটিফিকেশন (B4), pairing/revoke/guest-expiry/perm-lost/presence ইভেন্টগুলো সেন্টারে + ফোরগ্রাউন্ডে ব্যানার, Settings-এ "Dead-app alerts" সারি, মেম্বার-কার্ডে ডাকনাম। ③ config/notify এখনো না বানালে Settings-এর নতুন সারিটাই মনে করিয়ে দেবে (P0-কনসোল-কাজ)।

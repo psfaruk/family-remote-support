@@ -17,12 +17,24 @@ import com.family.remote.support.ui.nav.AppRoutes
 //
 // Category mapping (FIXED here, once, for every type the log can hold):
 //   CONNECTION : session_asked / session_started / session_ended
-//                (the support-session lifecycle)
+//                pairing_invited / pairing_approved
+//                presence_online / presence_offline
+//                (the support-session lifecycle + who joined/left)
 //   SECURITY   : session_denied / session_cancelled
-//                (access refused or withdrawn — the outcomes a
+//                family_revoked / guest_removed / rel_revoked
+//                guest_expiring_soon / guest_expired
+//                (access refused, withdrawn or running out — the outcomes a
 //                privacy-conscious user wants to find in one tap)
 //   LOCATION   : sharing_started / sharing_stopped / place_alert
+//                sharing_perm_lost
 //                (the location-sharing facts)
+//
+// v0.47.0 (audit Gap-1..5 — the event-matrix fill): the pairing lifecycle,
+// relationship revocation/expiry, mid-share permission loss and counterpart
+// presence transitions joined the fixed map. They are recorded from
+// listeners/ticks the app ALREADY runs (zero extra Firestore reads — §75
+// quota posture), each carrying a stable subject id as arg2 (relId /
+// invitationId / uid_deviceId) so the (type, arg2) 10-minute dedupe holds.
 //
 // The read-state transitions are non-destructive by construction: an
 // already-read row keeps its ORIGINAL readAt (re-marking never re-stamps
@@ -45,9 +57,14 @@ enum class NotifCategory { CONNECTION, LOCATION, SECURITY }
  * never mis-filed).
  */
 fun notifCategoryOf(type: String): NotifCategory? = when (type) {
-    "session_asked", "session_started", "session_ended" -> NotifCategory.CONNECTION
-    "session_denied", "session_cancelled" -> NotifCategory.SECURITY
-    "sharing_started", "sharing_stopped", "place_alert" -> NotifCategory.LOCATION
+    "session_asked", "session_started", "session_ended",
+        "pairing_invited", "pairing_approved",
+        "presence_online", "presence_offline" -> NotifCategory.CONNECTION
+    "session_denied", "session_cancelled",
+        "family_revoked", "guest_removed", "rel_revoked",
+        "guest_expiring_soon", "guest_expired" -> NotifCategory.SECURITY
+    "sharing_started", "sharing_stopped", "place_alert",
+        "sharing_perm_lost" -> NotifCategory.LOCATION
     else -> null
 }
 
@@ -95,7 +112,16 @@ fun List<NotifEvent>.notifUnreadCount(): Int = count { it.readAt == null }
  *   denied / cancelled       → home/sessions/{arg2} when the stable subject
  *                              id survived (it is the dedupe key), else home
  *   sharing_started / stopped→ tracking
+ *   sharing_perm_lost        → tracking (the sharing controls live there)
  *   place_alert              → tracking/places
+ *   pairing_invited /
+ *   pairing_approved         → home/family (the pairing/relationship hub)
+ *   family_revoked / guest_removed / rel_revoked /
+ *   guest_expiring_soon / guest_expired
+ *                           → home/family/{arg2} when the relId survived,
+ *                              else home/family
+ *   presence_online / offline→ home/family/{arg2} likewise (the badge lives
+ *                              on the member rows)
  *   unknown future type      → home (never a dead end)
  */
 fun notifRouteFor(type: String, arg2: String?): String = when (type) {
@@ -106,7 +132,16 @@ fun notifRouteFor(type: String, arg2: String?): String = when (type) {
         } else {
             AppRoutes.HOME_SESSION_ARG.replace("{id}", arg2)
         }
-    "sharing_started", "sharing_stopped" -> AppRoutes.TRACKING
+    "sharing_started", "sharing_stopped", "sharing_perm_lost" -> AppRoutes.TRACKING
     "place_alert" -> AppRoutes.TRACKING_PLACES
+    "pairing_invited", "pairing_approved",
+        "family_revoked", "guest_removed", "rel_revoked",
+        "guest_expiring_soon", "guest_expired",
+        "presence_online", "presence_offline" ->
+        if (arg2.isNullOrBlank()) {
+            AppRoutes.HOME_FAMILY
+        } else {
+            AppRoutes.HOME_FAMILY_ARG.replace("{relId}", arg2)
+        }
     else -> AppRoutes.HOME
 }

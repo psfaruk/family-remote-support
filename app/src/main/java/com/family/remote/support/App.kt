@@ -40,6 +40,9 @@ class App : Application() {
         // v0.44.0 — capture any uncaught exception locally BEFORE the
         // system dialog appears (the system flow itself is unchanged).
         CrashJournal.install(this)
+        // v0.47.0 (audit B3) — the push retry worker needs the app context;
+        // attached before anything can call SessionPush.notify().
+        SessionPush.attach(this)
         // Phase 22/M5 — osmdroid must identify itself to the tile servers
         // with this app's own package id (tile policy compliance).
         Configuration.getInstance().apply {
@@ -58,6 +61,16 @@ class App : Application() {
 
                 override fun onActivityStopped(activity: Activity) {
                     startedActivities = (startedActivities - 1).coerceAtLeast(0)
+                    // v0.47.0 (audit B4 — the background-transition hole):
+                    // the moment the LAST activity leaves the screen, a
+                    // pending support ask that the in-app consent card was
+                    // showing must become a TRAY notification — otherwise
+                    // (Firestore only re-fires on new writes) the ask sat
+                    // silently until it died. SessionNotifier re-delivers
+                    // from its CACHED snapshot: zero extra Firestore reads.
+                    if (startedActivities == 0) {
+                        SessionNotifier.onAppBackgrounded(this@App)
+                    }
                 }
 
                 override fun onActivityCreated(

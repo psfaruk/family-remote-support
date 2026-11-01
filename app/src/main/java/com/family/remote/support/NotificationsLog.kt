@@ -211,6 +211,108 @@ object NotificationsLog {
         if (batch.isNotEmpty()) append(context, batch)
     }
 
+    /**
+     * v0.47.0 (audit Gap-2/Gap-3) — the relationship twin of
+     * [recordSessionTransitions]: diff the previous trusted-relationship
+     * snapshot with the current one and record the transitions the app
+     * ALREADY observes through the shared watchRelationships listener
+     * (zero extra Firestore reads):
+     *   • ACTIVE → REVOKED          → "rel_revoked"      (the other side acted)
+     *   • ACTIVE → EXPIRED          → "guest_expired"    (the lazy sweep /
+     *                                                     the other side won)
+     *   • ACTIVE → vanished from the watch → "rel_revoked"
+     *     (a guest REMOVAL deletes the doc — the only ACTIVE exit that
+     *     disappears; the local actor's own "guest_removed" row and the
+     *     (type, arg2) 10-minute dedupe keep the pair from double-writing)
+     *
+     * [prev] is the caller's remembered map (relId → last view) and is
+     * REWRITTEN here, same one-line call-site contract as the session twin.
+     * Nickname resolution happens here (the P13 rule): arg is the display
+     * name, arg2 the stable relId (the dedupe + routing key).
+     */
+    fun recordRelationshipTransitions(
+        context: Context,
+        meUid: String?,
+        prev: MutableMap<String, RelationshipView>,
+        relationships: List<RelationshipView>
+    ) {
+        if (meUid == null) {
+            prev.clear()
+            return
+        }
+        val currentById = relationships.associateBy { it.id }
+        val batch = mutableListOf<NotifEvent>()
+        for (rel in relationships) {
+            val before = prev[rel.id] ?: continue
+            if (before.status == "ACTIVE" && rel.status != "ACTIVE") {
+                val name = Nicknames.displayName(
+                    context, rel.id, counterpartEmailOf(rel, meUid), ""
+                )
+                batch += when (rel.status) {
+                    "EXPIRED" -> newEvent("guest_expired", name, rel.id)
+                    else -> newEvent("rel_revoked", name, rel.id)
+                }
+            }
+        }
+        for ((id, before) in prev) {
+            if (before.status == "ACTIVE" && currentById[id] == null) {
+                val name = Nicknames.displayName(
+                    context, id, counterpartEmailOf(before, meUid), ""
+                )
+                batch += newEvent("rel_revoked", name, id)
+            }
+        }
+        prev.clear()
+        relationships.forEach { prev[it.id] = it }
+        if (batch.isNotEmpty()) append(context, batch)
+    }
+
+    /** The counterpart (non-me) email of a relationship view. */
+    private fun counterpartEmailOf(rel: RelationshipView, meUid: String): String =
+        if (rel.helperUid == meUid) rel.recipientEmail else rel.helperEmail
+
+    /**
+     * v0.47.0 (audit Gap-3) — the guest-window warning band: ONE row per
+     * guest relationship when its remaining time crosses INTO the last
+     * 15 minutes (band-crossing semantics — a threshold check on the 30 s
+     * tick would re-log forever; [warned] is the caller's remembered set,
+     * cleared when the relationship leaves the band or dies so a NEW
+     * window can warn again honestly).
+     */
+    fun recordGuestExpiryWarnings(
+        context: Context,
+        rels: List<RelationshipView>,
+        relNow: Long,
+        warned: MutableSet<String>
+    ) {
+        val batch = mutableListOf<NotifEvent>()
+        val liveGuestIds = rels
+            .filter {
+                it.kind == REL_KIND_GUEST && it.status == "ACTIVE" &&
+                    it.guestExpiresAtMillis > 0L
+            }
+            .map { it.id }
+            .toHashSet()
+        for (rel in rels) {
+            if (rel.kind != REL_KIND_GUEST || rel.status != "ACTIVE") continue
+            if (rel.guestExpiresAtMillis <= 0L) continue
+            val minutesLeft = (rel.guestExpiresAtMillis - relNow) / 60_000L
+            val inBand = minutesLeft in 1..15
+            if (inBand && rel.id !in warned) {
+                warned += rel.id
+                val name = Nicknames.displayName(
+                    context, rel.id, rel.recipientEmail, ""
+                )
+                batch += newEvent("guest_expiring_soon", name, rel.id)
+            }
+        }
+        // A warned id whose guest window died (expired / revoked / removed)
+        // leaves liveGuestIds — drop its flag so a NEW window for the same
+        // pair can warn again honestly.
+        warned.retainAll(liveGuestIds)
+        if (batch.isNotEmpty()) append(context, batch)
+    }
+
     /** Sign-out hygiene: events hold counterpart emails — wipe memory + file. */
     fun clear(context: Context) {
         _events.value = emptyList()
@@ -282,6 +384,23 @@ object NotificationsLog {
         if (fresh.isEmpty()) return
         _events.value = (fresh + existing).take(MAX_EVENTS)
         persist(context)
+        // v0.47.0 (audit §4 proposal) — the in-app banner: the FRESHEST
+        // freshly-recorded event is offered to the shell's top banner
+        // (session_asked excluded — the centered consent dialog is that
+        // event's hero UX, a banner on top of it would be noise). The host
+        // itself decides visibility (foreground only) and freshness (a
+        // cold-start replay of old rows never banners).
+        fresh.firstOrNull { it.type != "session_asked" }?.let { e ->
+            EventBannerBus.offer(
+                EventBanner(
+                    id = e.id,
+                    type = e.type,
+                    arg = e.arg,
+                    route = notifRouteFor(e.type, e.arg2),
+                    atMillis = e.at
+                )
+            )
+        }
     }
 
     private fun persist(context: Context) {

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -152,7 +153,13 @@ object AskNotifier {
         val helper = Nicknames.displayName(
             context, relId, helperEmail, lc.getString(R.string.notif_fallback_helper)
         )
-        val now = System.currentTimeMillis()
+        // v0.47.0 (audit B1) — SERVER-corrected clock for the timeout math.
+        // [deadlineMillis] is always server-stamped (Firestore
+        // respondDeadline / the Worker's server-side re-read); the old raw
+        // local clock made a manual-clock phone either skip the self-removal
+        // entirely (local clock ahead → a dead ask sat in the tray until
+        // tapped) or kill a live ask early/late (local clock behind).
+        val now = ServerClock.now()
         val builder = NotificationCompat.Builder(lc, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notify)
             .setContentTitle(lc.getString(R.string.notif_help_requested_title))
@@ -174,7 +181,7 @@ object AskNotifier {
         manager.notify(sessionId.hashCode(), builder.build())
         if (logEvent) {
             NotificationsLog.recordAt(
-                context, "session_asked", System.currentTimeMillis(), helper, sessionId
+                context, "session_asked", now, helper, sessionId
             )
         }
     }
@@ -284,6 +291,11 @@ class SessionActionReceiver : BroadcastReceiver() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** v0.47.0 (audit B2) — the goAsync ceiling: ~10 s OS window minus headroom. */
+    private companion object {
+        const val ACTION_DEADLINE_MILLIS = 9_000L
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         val sessionId = intent.getStringExtra(EXTRA_SESSION_ID) ?: return
         val action = intent.getStringExtra(EXTRA_ACTION) ?: return
@@ -300,13 +312,30 @@ class SessionActionReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val allowed: Boolean
-                if (action == "allow") {
-                    grantSession(sessionId, uid)
-                    allowed = true
-                } else {
-                    denySession(sessionId, uid)
-                    allowed = false
+                // v0.47.0 (audit B2) — the goAsync window is bounded now. A
+                // manifest receiver's process stays foreground-priority only
+                // ~10 s; the old unbounded coroutine could legally run up to
+                // RPC_TIMEOUT_MILLIS (30 s) on a slow network, silently
+                // losing the OS's backing (or worse). 9 s leaves headroom
+                // under the broadcast window; on timeout the write keeps
+                // running in the cached process (its result still lands —
+                // Firestore transactions are server-atomic), but the USER
+                // immediately gets the honest "open the app" result instead
+                // of a shade entry that answers nothing.
+                val allowed: Boolean = withTimeoutOrNull(ACTION_DEADLINE_MILLIS) {
+                    if (action == "allow") {
+                        grantSession(sessionId, uid)
+                        true
+                    } else {
+                        denySession(sessionId, uid)
+                        false
+                    }
+                } ?: run {
+                    AskNotifier.postResult(
+                        appContext, sessionId, allowed = false,
+                        error = appContext.getString(R.string.notif_result_open_app)
+                    )
+                    return@launch
                 }
                 AskNotifier.postResult(appContext, sessionId, allowed)
                 // NOTE: no extra SessionPush call here — grantSession/

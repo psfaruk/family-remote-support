@@ -248,7 +248,7 @@
     <string name="set_section_setup">Setup &amp; permissions</string>
     <string name="set_section_look">Appearance</string>
     <string name="set_section_lang">Language</string>
-    <string name="set_lang_sub">App language — English is the default</string>
+    <string name="set_lang_sub">App language</string>
     <string name="set_section_rules">Rules &amp; privacy</string>
     <string name="set_privacy">Privacy policy</string>
     <string name="set_privacy_sub">What data is used and what is never collected</string>
@@ -426,7 +426,7 @@
     <string name="th_light_sub">Always bright</string>
     <string name="th_dark">Dark</string>
     <string name="th_dark_sub">Always dim — easy at night</string>
-    <string name="set_lang_info">English is the default app language; your choice is remembered on this phone. Available: English, Bangla, Hindi, Arabic, Spanish, French, Portuguese, Russian, Indonesian, Urdu, Turkish, German, Chinese, Japanese, Nepali.</string>
+    <string name="set_lang_info">Bangla is the default app language on a fresh install; your choice is remembered on this phone. Available: English, বাংলা, हिन्दी, العربية, Español, Français, Português, Русский, Bahasa Indonesia, اردو, Türkçe, Deutsch, 中文, 日本語, नेपाली।</string>
     <string name="set_version">Version</string>
     <string name="tnotif_desc">Test the notification channel and permission in one tap.</string>
     <string name="notif_test_ok">Notifications are working ✓</string>
@@ -732,7 +732,7 @@
     <!-- v0.44.0 (smooth-app wave): map styles + local crash journal -->
     <string name="map_style_2d">2D map</string>
     <string name="map_style_satellite">Satellite</string>
-    <string name="map_style_terrain">3D terrain</string>
+    <string name="map_style_terrain">Terrain (3D look)</string>
     <string name="crash_title">Crash report</string>
     <string name="crash_sub">Details of the last unexpected close — saved on this phone only. Share it when reporting the problem.</string>
     <string name="crash_share">Share</string>
@@ -782,5 +782,27 @@
     <string name="nick_hint">e.g. Dad, Mum, big brother…</string>
     <string name="nick_save">Save</string>
     <string name="nick_saved">Saved ✓</string>
+
+    <!-- v0.47.0 (event-matrix fill, audit Gap-1..5): the notification
+         center's new event rows + the in-app banner + Settings' honest
+         dead-app-alerts row + the demo-preview shortcut. -->
+    <string name="notif_ev_pairing_invited">Pairing code created — waiting for the other phone</string>
+    <string name="notif_ev_pairing_approved">%1$s joined this family</string>
+    <string name="notif_ev_family_revoked">Access revoked for %1$s</string>
+    <string name="notif_ev_guest_removed">Guest %1$s removed</string>
+    <string name="notif_ev_rel_revoked">%1$s is no longer connected</string>
+    <string name="notif_ev_guest_expiring_soon">Guest access for %1$s ends soon</string>
+    <string name="notif_ev_guest_expired">Guest access for %1$s has ended</string>
+    <string name="notif_ev_sharing_perm_lost">Location permission lost — sharing stopped</string>
+    <string name="notif_ev_presence_offline">%1$s seems offline</string>
+    <string name="notif_ev_presence_online">%1$s is back online</string>
+    <string name="notif_banner_view">View</string>
+    <string name="notif_banner_close">Close</string>
+    <string name="set_dead_alerts">Dead-app alerts</string>
+    <string name="set_dead_alerts_on">On — a help request reaches this phone even when the app is closed</string>
+    <string name="set_dead_alerts_off">Off — requests only arrive while the app is alive. The app owner can turn this on in the server setup.</string>
+    <string name="set_dead_alerts_unknown">Checking…</string>
+    <string name="set_demo_preview">Preview tracking screens (demo)</string>
+    <string name="set_demo_preview_sub">See the map and member cards with sample data — nothing real is shared.</string>
 
 </resources>

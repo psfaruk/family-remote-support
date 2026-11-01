@@ -42,8 +42,23 @@ class NotifCenterTest {
     private val shareOn = ev(6, "sharing_started")
     private val shareOff = ev(7, "sharing_stopped")
     private val place = ev(8, "place_alert")
+    // v0.47.0 (audit Gap-1..5) — the event-matrix fill fixtures.
+    private val pairingInvited = ev(10, "pairing_invited")
+    private val pairingApproved = ev(11, "pairing_approved", arg2 = "r1")
+    private val familyRevoked = ev(12, "family_revoked", arg2 = "r2")
+    private val guestRemoved = ev(13, "guest_removed", arg2 = "r3")
+    private val relRevoked = ev(14, "rel_revoked", arg2 = "r4")
+    private val guestSoon = ev(15, "guest_expiring_soon", arg2 = "r5")
+    private val guestExpired = ev(16, "guest_expired", arg2 = "r5")
+    private val permLost = ev(17, "sharing_perm_lost")
+    private val presenceOff = ev(18, "presence_offline", arg2 = "r6")
+    private val presenceOn = ev(19, "presence_online", arg2 = "r6")
     private val future = ev(9, "some_future_type")
-    private val all = listOf(future, place, shareOff, shareOn, cancelled, denied, ended, started, asked)
+    private val all = listOf(
+        presenceOn, presenceOff, permLost, guestExpired, guestSoon, relRevoked,
+        guestRemoved, familyRevoked, pairingApproved, pairingInvited,
+        future, place, shareOff, shareOn, cancelled, denied, ended, started, asked
+    )
 
     // ── category mapping ───────────────────────────────────────────────
 
@@ -57,6 +72,17 @@ class NotifCenterTest {
         assertEquals(NotifCategory.LOCATION, notifCategoryOf("sharing_started"))
         assertEquals(NotifCategory.LOCATION, notifCategoryOf("sharing_stopped"))
         assertEquals(NotifCategory.LOCATION, notifCategoryOf("place_alert"))
+        // v0.47.0 (audit Gap-1..5) — the new event-matrix types.
+        assertEquals(NotifCategory.CONNECTION, notifCategoryOf("pairing_invited"))
+        assertEquals(NotifCategory.CONNECTION, notifCategoryOf("pairing_approved"))
+        assertEquals(NotifCategory.CONNECTION, notifCategoryOf("presence_online"))
+        assertEquals(NotifCategory.CONNECTION, notifCategoryOf("presence_offline"))
+        assertEquals(NotifCategory.SECURITY, notifCategoryOf("family_revoked"))
+        assertEquals(NotifCategory.SECURITY, notifCategoryOf("guest_removed"))
+        assertEquals(NotifCategory.SECURITY, notifCategoryOf("rel_revoked"))
+        assertEquals(NotifCategory.SECURITY, notifCategoryOf("guest_expiring_soon"))
+        assertEquals(NotifCategory.SECURITY, notifCategoryOf("guest_expired"))
+        assertEquals(NotifCategory.LOCATION, notifCategoryOf("sharing_perm_lost"))
     }
 
     @Test
@@ -91,22 +117,29 @@ class NotifCenterTest {
 
     @Test
     fun `CONNECTION keeps exactly the session-lifecycle rows`() {
-        // asked/started/ended only — denied and cancelled are SECURITY.
+        // asked/started/ended + pairing + presence only — denied/cancelled
+        // and the revoke family are SECURITY.
         assertEquals(
-            listOf(ended, started, asked),
+            listOf(presenceOn, presenceOff, pairingApproved, pairingInvited, ended, started, asked),
             all.applyNotifFilter(NotifFilter.CONNECTION)
         )
     }
 
     @Test
     fun `SECURITY keeps exactly the denied and cancelled rows`() {
-        assertEquals(listOf(cancelled, denied), all.applyNotifFilter(NotifFilter.SECURITY))
+        assertEquals(
+            listOf(
+                guestExpired, guestSoon, relRevoked, guestRemoved,
+                familyRevoked, cancelled, denied
+            ),
+            all.applyNotifFilter(NotifFilter.SECURITY)
+        )
     }
 
     @Test
     fun `LOCATION keeps exactly the sharing and place rows`() {
         assertEquals(
-            listOf(place, shareOff, shareOn),
+            listOf(permLost, place, shareOff, shareOn),
             all.applyNotifFilter(NotifFilter.LOCATION)
         )
     }
@@ -161,9 +194,9 @@ class NotifCenterTest {
 
     @Test
     fun `unread count follows the readAt stamps`() {
-        assertEquals(9, all.notifUnreadCount())
+        assertEquals(19, all.notifUnreadCount())
         assertEquals(0, all.withAllMarkedRead(now).notifUnreadCount())
-        assertEquals(8, all.withOneMarkedRead(place.id, now).notifUnreadCount())
+        assertEquals(18, all.withOneMarkedRead(place.id, now).notifUnreadCount())
     }
 
     // ── row routes (literal strings on purpose — AppRoutes guard) ──────
@@ -196,6 +229,38 @@ class NotifCenterTest {
     @Test
     fun `place alerts route to my places`() {
         assertEquals("tracking/places", notifRouteFor("place_alert", "uid_1"))
+    }
+
+    // v0.47.0 (audit Gap-1..5) — the new rows' routes.
+
+    @Test
+    fun `sharing perm lost routes to tracking where the controls live`() {
+        assertEquals("tracking", notifRouteFor("sharing_perm_lost", null))
+    }
+
+    @Test
+    fun `pairing rows route to the family hub`() {
+        assertEquals("home/family", notifRouteFor("pairing_invited", null))
+        // pairing_invited/approved never carry a relId (the invitation is
+        // not a relationship yet) — the hub is always the target.
+        assertEquals("home/family", notifRouteFor("pairing_approved", null))
+    }
+
+    @Test
+    fun `relationship rows route to the member detail when the relId survived`() {
+        assertEquals("home/family/r2", notifRouteFor("family_revoked", "r2"))
+        assertEquals("home/family/r3", notifRouteFor("guest_removed", "r3"))
+        assertEquals("home/family/r4", notifRouteFor("rel_revoked", "r4"))
+        assertEquals("home/family/r5", notifRouteFor("guest_expiring_soon", "r5"))
+        assertEquals("home/family/r5", notifRouteFor("guest_expired", "r5"))
+        assertEquals("home/family/r6", notifRouteFor("presence_offline", "r6"))
+        assertEquals("home/family/r6", notifRouteFor("presence_online", "r6"))
+    }
+
+    @Test
+    fun `relationship rows without a relId fall back to the family hub`() {
+        assertEquals("home/family", notifRouteFor("family_revoked", null))
+        assertEquals("home/family", notifRouteFor("guest_expired", ""))
     }
 
     @Test

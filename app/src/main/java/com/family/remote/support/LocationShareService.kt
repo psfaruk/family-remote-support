@@ -165,6 +165,19 @@ class LocationShareService : Service() {
             // signed out, or the while-in-use permission is gone. Stop
             // instead of crashing or running silently.
             //
+            // v0.47.0 (audit Gap-4) — the permission-lost restart case gets
+            // its OWN events-log row: sharing was enabled + a user is
+            // present, but the while-in-use permission vanished (revoked
+            // from system settings mid-share, and this restart noticed).
+            // onDestroy cannot tell the causes apart — THIS branch can.
+            if (intent != null &&
+                LocationSharingPrefs.isSharingEnabled(this) &&
+                FirebaseAuth.getInstance().currentUser != null &&
+                !hasLocationPermission() &&
+                shareStartLogged
+            ) {
+                NotificationsLog.record(this, "sharing_perm_lost")
+            }
             // v0.37.0 (crash wave): ContextCompat.startForegroundService() was
             // used to start THIS instance, so Android's 5-second contract
             // requires a startForeground() call even on this stop path — the
@@ -454,6 +467,14 @@ class LocationShareService : Service() {
                 // While-in-use permission revoked mid-run: nothing this
                 // service may legitimately do anymore — stop rather than
                 // keep running silently.
+                // v0.47.0 (audit Gap-4) — this is the ONE moment the loss
+                // is positively identifiable mid-run (a SecurityException
+                // on BOTH providers); record it BEFORE the stop so the
+                // center's Location story says WHY sharing died (the
+                // generic sharing_stopped row in onDestroy cannot).
+                if (shareStartLogged && FirebaseAuth.getInstance().currentUser != null) {
+                    NotificationsLog.record(this, "sharing_perm_lost")
+                }
                 stopSelf()
             } else {
                 // Providers exist but none would register (location services
