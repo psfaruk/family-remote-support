@@ -38,10 +38,18 @@ if (!SA_RESOLVED) {
 }
 // v0.21.0 (audit) — repo-relative rules path (the old hardcoded sandbox path
 // failed everywhere else, e.g. CI or another checkout).
+// v0.39.0 (location Phase 8) — the clone moved to <repo-root>/android-app/,
+// which made the old SCRIPT_DIR/../android-app/firestore.rules resolution
+// point at android-app/android-app/firestore.rules. Try BOTH the old and
+// the new layout so the script works from any checkout.
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const RULES_PATH = join(SCRIPT_DIR, "..", "android-app", "firestore.rules");
-if (!existsSync(RULES_PATH)) {
-  console.error("✘ firestore.rules not found at", RULES_PATH);
+const RULES_CANDIDATES = [
+  join(SCRIPT_DIR, "..", "firestore.rules"), // <repo>/scripts → <repo>/firestore.rules (current)
+  join(SCRIPT_DIR, "..", "android-app", "firestore.rules"), // legacy layout
+];
+const RULES_PATH = RULES_CANDIDATES.find((p) => existsSync(p));
+if (!RULES_PATH) {
+  console.error("✘ firestore.rules not found (tried:", RULES_CANDIDATES.join(", "), ")");
   process.exit(1);
 }
 
