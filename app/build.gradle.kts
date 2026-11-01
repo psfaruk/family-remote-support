@@ -59,8 +59,16 @@ android {
         // wiring — real day queries through the composite index, recipient
         // grant-gated sections B/E, owner-side retention cleanup + the
         // shared delete flow (today / everything, verified-empty).
-        versionCode = 59
-        versionName = "0.40.0"
+        // Location master plan Phase 10 (v0.41.0/60): movement insights —
+        // pure-Kotlin MovementClassifier (MODERATE sensor-backed /
+        // LIMITED points-based estimates, impossible-speed + stale-input
+        // rejection) rendering on the journey-history screen from records
+        // already in hand; MovementCard single render path (demo fixtures
+        // map onto MovementEstimate); demo history fixtures retimed to the
+        // documented solid-runs + one 20-min-gap shape; FIRST unit-test
+        // suite (app/src/test, JUnit4) wired into CI before assemble.
+        versionCode = 60
+        versionName = "0.41.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
@@ -202,4 +210,10 @@ dependencies {
     // with M2 — no map/location library existed in the app before this.
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+    // Location master plan Phase 10 (v0.41.0) — the repo's FIRST unit
+    // test dependency: MovementClassifierTest is the phase gate (audit §9
+    // "Unit tests incl. impossible-speed rejection"), pure JVM, no
+    // Android deps; CI runs :app:testReleaseUnitTest before assemble.
+    testImplementation("junit:junit:4.13.2")
 }
