@@ -49,7 +49,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 // ═══════════════════════════════════════════════════════════════════════
 // v0.9.5 — PERMISSION WIZARD + the shared Bengali guide for the Remote-
@@ -264,7 +266,11 @@ fun PermissionWizard(
     // Live refresh while open (covers return from Settings + switch flips).
     LaunchedEffect(Unit) {
         while (true) {
-            st = readPermChecklist(ctx)
+            // v0.44.0 (smooth-app wave) — the checklist reads
+            // Settings.Secure + PowerManager over binder calls; the poll
+            // now hops to IO so the main thread only ever receives the
+            // value (same 1.5 s cadence, zero visual change).
+            st = withContext(Dispatchers.IO) { readPermChecklist(ctx) }
             delay(1500)
         }
     }
