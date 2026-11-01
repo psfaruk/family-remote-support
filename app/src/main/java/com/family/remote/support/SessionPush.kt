@@ -1,7 +1,7 @@
 package com.family.remote.support
 
 import com.google.firebase.auth.FirebaseAuth
-import java.io.HttpURLConnection
+import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
