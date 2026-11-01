@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
+import java.util.Date
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -152,6 +153,64 @@ suspend fun deleteOwnLocation(uid: String, deviceId: String) {
         .awaitWithTimeout("removing this device's live location")
 }
 
+// ── Location master plan Phase 7 (v0.39.0) — journey history writes ──────
+
+private const val LOCATION_HISTORY_PARENT = "users"
+private const val LOCATION_HISTORY_COLLECTION = "locationHistory"
+
+/**
+ * Phase 7 — append ONE retained journey point under
+ * `users/{ownerUid}/locationHistory/{deviceId}_{epochMillis}` (design §2.2,
+ * owner-scoped path so the recipient-side rules evaluate deterministically
+ * per query). Called by the engine ONLY when the local consent record says
+ * WITH_HISTORY + retention ≠ NONE and the fix already passed every §3 gate
+ * plus the 50 m history throttle (history is coarser than live by design —
+ * the stationary back-off compounds it further).
+ *
+ * Speed/bearing/altitude are stored only when the OS provided them
+ * (hasSpeed()/hasBearing()/hasAltitude()) — never computed-then-presented-
+ * as-measured (design §3); the classifier label stays client-side UI state.
+ * `receivedAt` is the server timestamp and `retentionExpiresAt` is
+ * recordedAt + policy, both enforced by the Phase 8 rules on every read.
+ * Append-only: records are never updated; deletion is owner-only.
+ */
+suspend fun writeHistoryRecord(
+    uid: String,
+    deviceId: String,
+    lat: Double,
+    lng: Double,
+    accuracyMeters: Int,
+    speedMetersPerSecond: Double?,
+    bearingDegrees: Double?,
+    altitudeMeters: Double?,
+    provider: String,
+    recordedAtMillis: Long,
+    retentionMillis: Long
+) {
+    val fields = mutableMapOf<String, Any?>(
+        "ownerUserId" to uid,
+        "deviceId" to deviceId,
+        "lat" to lat,
+        "lng" to lng,
+        "accuracyMeters" to accuracyMeters,
+        "recordedAt" to Date(recordedAtMillis),
+        "receivedAt" to FieldValue.serverTimestamp(),
+        "provider" to provider,
+        "retentionExpiresAt" to Date(recordedAtMillis + retentionMillis),
+        "authorizationVersion" to 1,
+        "appVersionCode" to BuildConfig.VERSION_CODE
+    )
+    if (speedMetersPerSecond != null) fields["speedMetersPerSecond"] = speedMetersPerSecond
+    if (bearingDegrees != null) fields["bearingDegrees"] = bearingDegrees
+    if (altitudeMeters != null) fields["altitudeMeters"] = altitudeMeters
+    Fb.db.collection(LOCATION_HISTORY_PARENT)
+        .document(uid)
+        .collection(LOCATION_HISTORY_COLLECTION)
+        .document("${deviceId}_$recordedAtMillis")
+        .set(fields)
+        .awaitWithTimeout("appending this device's journey history")
+}
+
 /**
  * The owner's sharing toggle and cadence choice, kept in plain
  * SharedPreferences: a local consent record needs no Firestore round-trip.
@@ -165,6 +224,27 @@ object LocationSharingPrefs {
     const val INTERVAL_30S = 30_000L
     const val INTERVAL_1M = 60_000L
     const val INTERVAL_5M = 300_000L
+
+    // ── Phase 7/8 (v0.39.0) — the scope vocabulary as plain strings so this
+    // repo file stays free of ui-package imports (the wizard's enums and the
+    // engine agree on these exact names).
+    const val SCOPE_ONCE = "ONCE"
+    const val SCOPE_TEMPORARY = "TEMPORARY"
+    const val SCOPE_UNTIL_STOP = "UNTIL_STOP"
+    const val SCOPE_WITH_HISTORY = "WITH_HISTORY"
+
+    const val RETENTION_NONE = "NONE"
+    const val RETENTION_H24 = "H24"
+    const val RETENTION_D7 = "D7"
+    const val RETENTION_D30 = "D30"
+
+    /** Retention window in milliseconds (0 when history is not kept). */
+    fun retentionMillis(kind: String): Long = when (kind) {
+        RETENTION_H24 -> 24 * 3_600_000L
+        RETENTION_D7 -> 7 * 24 * 3_600_000L
+        RETENTION_D30 -> 30 * 24 * 3_600_000L
+        else -> 0L
+    }
 
     private const val PREFS_NAME = "location_sharing"
     private const val KEY_SHARING_ENABLED = "sharing_enabled"
@@ -232,6 +312,48 @@ object LocationSharingPrefs {
         prefs(context).edit().putString(KEY_RETENTION_KIND, kind).apply()
     }
 
+    // ── Phase 8 (v0.39.0) — the authorization queue: the LAST wizard
+    // selection (uid:kind pairs) + the honest offline flags. Grants are
+    // (re)written by user actions only; revocations queue when a stop
+    // happens offline and retry on the next user action.
+
+    private const val KEY_AUTHZ_RECIPIENTS = "authz_recipients"
+    private const val KEY_PENDING_GRANT = "authz_pending_grant"
+    private const val KEY_PENDING_REVOKE = "authz_pending_revoke"
+
+    /** The last confirmed recipients as uid:kind pairs (kind family|guest). */
+    fun authzRecipients(context: Context): List<Pair<String, String>> {
+        val raw = prefs(context).getString(KEY_AUTHZ_RECIPIENTS, "") ?: ""
+        return raw.split(',')
+            .filter { it.contains(':') }
+            .mapNotNull { entry ->
+                val uid = entry.substringBefore(':')
+                val kind = entry.substringAfter(':', "family")
+                if (uid.isNotEmpty()) uid to kind else null
+            }
+    }
+
+    fun setAuthzRecipients(context: Context, recipients: List<Pair<String, String>>) {
+        val raw = recipients.joinToString(",") { (uid, kind) -> "$uid:$kind" }
+        prefs(context).edit().putString(KEY_AUTHZ_RECIPIENTS, raw).apply()
+    }
+
+    fun pendingGrant(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_PENDING_GRANT, false)
+
+    fun setPendingGrant(context: Context, pending: Boolean) {
+        prefs(context).edit().putBoolean(KEY_PENDING_GRANT, pending).apply()
+    }
+
+    fun pendingRevoke(context: Context): List<String> {
+        val raw = prefs(context).getString(KEY_PENDING_REVOKE, "") ?: ""
+        return raw.split(',').filter { it.isNotEmpty() }
+    }
+
+    fun setPendingRevoke(context: Context, uids: List<String>) {
+        prefs(context).edit().putString(KEY_PENDING_REVOKE, uids.joinToString(",")).apply()
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
@@ -268,14 +390,20 @@ fun startLocationSharing(context: Context) {
 /**
  * Owner turned sharing OFF. The preference flips BEFORE the service stops so
  * a late start command can never resurrect sharing; the service's own stop
- * path then deletes the liveLocations document. When the service is already
- * dead (process killed, phone rebooted — §5 deliberately ships no
- * auto-restart) no onDestroy will ever fire, so this stop path clears the
- * document itself, exactly once: the running check happens before
- * stopService, when it is still truthful.
+ * path then deletes the liveLocations document, and — Phase 8 — every
+ * stored authorization is marked revoked (best-effort; failures queue and
+ * retry on the next user action while the server-side expiresAt keeps
+ * expiring grants on its own). When the service is already dead (process
+ * killed, phone rebooted — §5 deliberately ships no auto-restart) no
+ * onDestroy will ever fire, so this stop path clears the document itself,
+ * exactly once: the running check happens before stopService, when it is
+ * still truthful.
  */
 fun stopLocationSharing(context: Context) {
     LocationSharingPrefs.setSharingEnabled(context, false)
+    // Phase 8 — revoke the authorizations from every stop path (toggle,
+    // scope auto-stop, sign-out teardown — they all funnel through here).
+    revokeLocationAuthorizationsOnStop(context)
     val serviceWasRunning = isLocationSharingRunning(context)
     context.stopService(Intent(context, LocationShareService::class.java))
     if (serviceWasRunning) return
