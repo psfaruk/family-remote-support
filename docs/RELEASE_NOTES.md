@@ -1,8 +1,8 @@
 # RELEASE_NOTES — Family Remote Support — M10 Final Report (2026-10-31)
 
-> **Release state: v0.41.0 (versionCode 60) — Location master-plan
-> Phase 10 (movement insights + the repo's first CI unit-test gate),
-> 2026-11-01** · repo
+> **Release state: v0.41.1 (versionCode 61) — Location master-plan
+> Phase 10 fix (the CI unit-test gate's maiden catch) + the Phase 8 live
+> rules gate PASSED 35/35, 2026-11-01** · repo
 > `psfaruk/family-remote-support` (public, `main`, CI green at every milestone
 > close) · master-plan milestones **M0–M10 all ✅** plus the Owner's Pre-M10
 > polish pass.
@@ -13,10 +13,27 @@
 > foreground-only for presence in v0.36.0/55, the QA & dedupe wave in
 > v0.37.0/56, the Location master-plan Phase 4 frontend wave in
 > v0.38.0/57, the Location Phases 6–8 implementation wave in v0.39.0/58,
-> the Location Phase 9 route-history wave in v0.40.0/59, and
-> **v0.41.0 (versionCode 60) — the current release build — the
-> Location Phase 10 movement-insights wave.** The quota math and re-arm
+> the Location Phase 9 route-history wave in v0.40.0/59, the Location
+> Phase 10 movement-insights wave in v0.41.0/60, and
+> **v0.41.1 (versionCode 61) — the current release build — the Phase 10
+> units fix + Phase 8 gate closure.** The quota math and re-arm
 > runbook are in §9a and `docs/CLOUDFLARE_SETUP.md` (কোটা-নির্দেশ section).
+>
+> **v0.41.1 in one line:** the repo's first CI unit-test gate proved its
+> worth on its maiden run — it caught that the journey-history movement
+> card's points-based speed math fed milliseconds into a seconds
+> formula, making every LIMITED estimate read "possibly stationary";
+> one line fixed it (numeric re-verification: all 25 cases), and the
+> same wave closed the Phase 8 live rules gate authoritatively: the
+> scheduled rerun scored 32/33 (the sole failure was the §80-anticipated
+> H7 strict-semantics divergence — a retention-only recipient list is
+> denied because the rules bind `resource.data.deviceId` to
+> deviceId-equality queries only), the probe's H7 was rewritten to the
+> app's EXACT day-query shape with a returned-rows assertion, a new H15
+> negative locked the boundary, and the authoritative rerun passed
+> **35/35 — end-to-end through the live rules, not the Admin bypass**.
+> Do NOT install 0.41.0/60 (its points-based movement estimates are all
+> "possibly stationary"); install v0.41.1/61.
 >
 > **v0.41.0 in one line:** movement insights went REAL on the
 > journey-history screen — a pure-Kotlin `MovementClassifier` (no Android
@@ -229,6 +246,27 @@ Sweep budget by source: `docs/TEST_PLAN.md` §1a (historical estimates) + §9a
   registered while the app is backgrounded (foreground-only presence bounds
   the writes; reads ≈5.8 k/day budgeted in TEST_PLAN §1a); map zoom/pan resets
   on tab re-entry/rotation (osmdroid view is non-saveable — accepted).
+- **v0.41.1 Phase 8 gate closure + units fix (worklog §82):** the
+  Phase 8 live probe gate — pending since v0.39.0 (quota-aborted first
+  run) — is now **PASSED**: original 33-case suite scored 32/33 on the
+  authoritative rerun (the sole failure was H7, exactly the §80 risk
+  disclosure: a retention-only recipient list is denied under strict
+  rules semantics because the recipient branch references
+  `resource.data.deviceId`, which only a deviceId-equality query can
+  bind — the app never issues that shape); H7 was rewritten to the
+  app's EXACT D10a day query (deviceId EQUAL + retentionExpiresAt
+  > now+5 min + recordedAt day window + composite order + limit 1000)
+  WITH a returned-rows assertion (exactly the one in-retention record,
+  expired fixture excluded), H15 added as the boundary negative, and
+  the rerun passed **35/35 (34 cases, 35 assertions), zero residue** —
+  the shipping HistoryScreen query contract verified end-to-end
+  through the live rules by an authorized family recipient. The same
+  wave's CI run on v0.41.0/60 failed the new unit-test step with 4
+  journey-tail failures: the points-based speed math divided by
+  milliseconds instead of seconds (1000× low → every LIMITED estimate
+  read "possibly stationary"). Fixed in one line, re-verified
+  numerically against all 25 cases, shipped as **v0.41.1/61** — the
+  gate design working exactly as intended.
 - **v0.40.0 ONE-TIME composite index prerequisite — CANCELED 2026-11-01
   (Phase 10, live-verified unnecessary):** Phase 9 recorded that the
   journey-history day queries need the composite index
