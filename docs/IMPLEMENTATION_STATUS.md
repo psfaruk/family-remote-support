@@ -1,12 +1,26 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **LOCATION MASTER PLAN PHASE 10 (MOVEMENT INSIGHTS) CLOSED —
-> v0.41.1/61 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> Status: **LOCATION MASTER PLAN PHASE 11 (PLACE ALERTS) CLOSED —
+> v0.43.0/63 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
 > Location Phase 9 route-history UI + retention/deletion (§80) +
 > Location Phase 10 movement insights + first CI unit-test gate (§81) +
-> Phase 8 live gate PASSED + journey-tail units fix (§82).**
+> Phase 8 live gate PASSED + journey-tail units fix (§82) +
+> D11(e) detail-screen live movement card (§83) + Phase 11 place alerts (§84).**
+> §84 in one line: "My places & alerts" went real — rules-first `placeAlerts`
+> block (owner-only in every direction; live probe **25/25, zero residue**),
+> pure-Kotlin `PlaceAlertEngine` (silent init, ≤radius enter / ≥radius+25 m
+> exit hysteresis, per-place cooldown gating emission only; 19 CI unit
+> tests), the fences evaluate INSIDE the already-running location FGS on
+> fixes already flowing (DR-P2 realized — zero new permissions, zero engine
+> Firestore reads), name-only local notifications, Firestore persistence
+> with an offline-honest local mirror, the 20-place cap; Phases 12–14
+> (security review → release checklist) remain.
+> §83 in one line: the detail screen's section C renders the live movement
+> card (optional rules-validated `speedMetersPerSecond` on liveLocations,
+> engine clears glitched speeds rather than clamping, probe 16/16, zero
+> extra reads).
 > §82 in one line: the CI unit-test gate's maiden run caught the
 > journey-tail ms/s units slip (points-based pair speeds 1000× low →
 > every LIMITED estimate read "possibly stationary") — one-line fix in

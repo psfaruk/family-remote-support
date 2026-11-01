@@ -129,11 +129,25 @@ class LocationShareService : Service() {
     private var lastAccepted: Fix? = null
     private var lastAcceptedElapsed = 0L
 
+    // Phase 11 (v0.43.0) — the self-alert geofence engine (D13/DR-P2):
+    // stateful per service lifetime, fed below by every accuracy-passing
+    // fix. A fresh service instance = a fresh engine (silent re-init of
+    // every place — "you were already home when sharing started" is not
+    // an alert).
+    private val placeAlertEngine = PlaceAlertEngine()
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         running = true
+        // Phase 11 — the engine's place list comes from the LOCAL store
+        // (never the network: the FGS may be starting offline, and
+        // self-alerts are entirely local). refreshFromStore RESETS to
+        // empty when the mirror does not belong to the current user — a
+        // different account on this phone never monitors the previous
+        // user's fences.
+        PlaceAlertRuntime.refreshFromStore(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -468,6 +482,21 @@ class LocationShareService : Service() {
         }
 
         if (accuracyMeters > MAX_ACCURACY_METERS) return
+
+        // Phase 11 (v0.43.0) — self-alert geofencing, BEFORE the §3
+        // time/distance acceptance gates: a stationary phone still needs
+        // its place-state initialized, and an arrival between accepted
+        // writes (stationary back-off can stretch to 5 min) stays timely.
+        // Pure arithmetic over the in-memory registry snapshot — zero
+        // Firestore traffic, zero new permissions (DR-P2); the events
+        // post as local notifications (name only, never coordinates).
+        val alertEvents = placeAlertEngine.evaluate(
+            PlaceAlertRuntime.current(), lat, lng, System.currentTimeMillis()
+        )
+        if (alertEvents.isNotEmpty()) {
+            PlaceAlertNotifier.post(applicationContext, alertEvents)
+        }
+
         val previous = lastAccepted
         if (previous != null) {
             if (now - lastAcceptedElapsed < configuredIntervalMillis) return

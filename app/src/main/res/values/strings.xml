@@ -210,6 +210,13 @@
     <string name="place_demo_home">Home</string>
     <string name="place_demo_market">Market</string>
     <string name="place_demo_clinic">Clinic</string>
+    <!-- Phase 11 (v0.43.0) — self-alert notifications + the place cap. -->
+    <string name="place_notif_channel_name">Place alerts</string>
+    <string name="place_notif_title_arrive">Arrived</string>
+    <string name="place_notif_title_depart">Left</string>
+    <string name="place_notif_arrive">You arrived near %1$s</string>
+    <string name="place_notif_depart">You have left %1$s</string>
+    <string name="place_limit">You can save up to %1$d places.</string>
     <string name="up_pending">Update waiting for internet…</string>
     <string name="up_failed">Couldn\'t send last update — will retry with the next fix</string>
     <string name="up_unavailable">Location update unavailable — check location settings</string>

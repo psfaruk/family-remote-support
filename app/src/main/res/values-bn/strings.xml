@@ -189,6 +189,13 @@
     <string name="place_demo_home">বাড়ি</string>
     <string name="place_demo_market">বাজার</string>
     <string name="place_demo_clinic">ক্লিনিক</string>
+    <!-- Phase 11 (v0.43.0) — self-alert notifications + the place cap. -->
+    <string name="place_notif_channel_name">স্থান অ্যালার্ট</string>
+    <string name="place_notif_title_arrive">পৌঁছেছেন</string>
+    <string name="place_notif_title_depart">রওনা দিয়েছেন</string>
+    <string name="place_notif_arrive">আপনি %1$s-এর কাছে পৌঁছেছেন</string>
+    <string name="place_notif_depart">আপনি %1$s ছেড়ে গেছেন</string>
+    <string name="place_limit">আপনি সর্বোচ্চ %1$dটি জায়গা সেভ করতে পারবেন।</string>
     <string name="up_pending">ইন্টারনেটের জন্য অপেক্ষা করছে…</string>
     <string name="up_failed">সর্বশেষ আপডেট পাঠানো যায়নি — পরের ফিক্সে আবার চেষ্টা হবে</string>
     <string name="up_unavailable">লোকেশন আপডেট পাওয়া যাচ্ছে না — লোকেশন সেটিংস দেখুন</string>

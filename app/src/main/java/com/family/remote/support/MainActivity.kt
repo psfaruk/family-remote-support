@@ -1151,7 +1151,13 @@ fun HomeScreen() {
                 popExitTransition = nestedPopExit
             ) {
                 ShellTabColumn {
-                    PlaceAlertsScreen(onBack = { navController.popBackStack() })
+                    // Phase 11 (v0.43.0): the places screen now runs the REAL
+                    // data path when signed in (demo mode keeps the Phase 4
+                    // fixture preview).
+                    PlaceAlertsScreen(
+                        user = signedInUser,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
             }
             composable(AppRoutes.SETTINGS) {

@@ -854,6 +854,87 @@ service cloud.firestore {
       allow delete: if signedIn() && ownerUid == request.auth.uid;
     }
 
+    // ---------- Location master plan Phase 11 (v0.43.0): places ---------
+    match /placeAlerts/{docId} {
+      // "My places & alerts" (design §2.3): the saved places + self-alert
+      // config, OWNER-ONLY in every direction — v1 alerts fire on the
+      // owner's own device inside the location FGS (DR-P2), so NO other
+      // identity (paired family, guest, stranger) ever reads or writes
+      // this collection. docId = {ownerUid}_{16 hex} (millis-derived,
+      // monotonic per device — same convention as locationHistory record
+      // ids). hasOnly enforces the exact field set; the bounds mirror the
+      // UI's chips as a superset (radius 50..1000 m over the 100/200/500
+      // chips, cooldown 5..120 min over 5/10/15); name is 1..64 chars.
+      // createdAt/updatedAt ride the same ±10-min skew window as history
+      // records; updates are field-fenced (diff) so ownerUserId/createdAt
+      // are immutable — an update may only touch the alert-config fields
+      // + updatedAt.
+      allow get, list: if signedIn()
+        && resource.data.ownerUserId == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUserId == request.auth.uid
+        && docId.matches(request.auth.uid + '_[0-9a-f]{16}')
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 64
+        && request.resource.data.lat is number
+        && request.resource.data.lat >= -90.0 && request.resource.data.lat <= 90.0
+        && request.resource.data.lng is number
+        && request.resource.data.lng >= -180.0 && request.resource.data.lng <= 180.0
+        && request.resource.data.radiusMeters is int
+        && request.resource.data.radiusMeters >= 50
+        && request.resource.data.radiusMeters <= 1000
+        && request.resource.data.arrivalEnabled is bool
+        && request.resource.data.departureEnabled is bool
+        && request.resource.data.cooldownMinutes is int
+        && request.resource.data.cooldownMinutes >= 5
+        && request.resource.data.cooldownMinutes <= 120
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt > request.time - duration.value(10, 'm')
+        && request.resource.data.createdAt < request.time + duration.value(10, 'm')
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt > request.time - duration.value(10, 'm')
+        && request.resource.data.updatedAt < request.time + duration.value(10, 'm')
+        && request.resource.data.appVersionCode is int
+        && request.resource.data.appVersionCode >= 1
+        && request.resource.data.appVersionCode <= 1000000
+        && request.resource.data.keys().hasOnly([
+            'ownerUserId', 'name', 'lat', 'lng', 'radiusMeters',
+            'arrivalEnabled', 'departureEnabled', 'cooldownMinutes',
+            'createdAt', 'updatedAt', 'appVersionCode'
+          ]);
+
+      allow update: if signedIn()
+        && resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'lat', 'lng', 'radiusMeters', 'arrivalEnabled',
+            'departureEnabled', 'cooldownMinutes', 'updatedAt'
+          ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 64
+        && request.resource.data.lat is number
+        && request.resource.data.lat >= -90.0 && request.resource.data.lat <= 90.0
+        && request.resource.data.lng is number
+        && request.resource.data.lng >= -180.0 && request.resource.data.lng <= 180.0
+        && request.resource.data.radiusMeters is int
+        && request.resource.data.radiusMeters >= 50
+        && request.resource.data.radiusMeters <= 1000
+        && request.resource.data.arrivalEnabled is bool
+        && request.resource.data.departureEnabled is bool
+        && request.resource.data.cooldownMinutes is int
+        && request.resource.data.cooldownMinutes >= 5
+        && request.resource.data.cooldownMinutes <= 120
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt > request.time - duration.value(10, 'm')
+        && request.resource.data.updatedAt < request.time + duration.value(10, 'm');
+
+      allow delete: if signedIn()
+        && resource.data.ownerUserId == request.auth.uid;
+    }
+
     // Catch-all: deny everything not matched above.
     match /{document=**} {
       allow read, write: if false;

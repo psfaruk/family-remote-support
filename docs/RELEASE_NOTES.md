@@ -1,8 +1,8 @@
 # RELEASE_NOTES — Family Remote Support — M10 Final Report (2026-10-31)
 
-> **Release state: v0.41.1 (versionCode 61) — Location master-plan
-> Phase 10 fix (the CI unit-test gate's maiden catch) + the Phase 8 live
-> rules gate PASSED 35/35, 2026-11-01** · repo
+> **Release state: v0.43.0 (versionCode 63) — Location master-plan
+> Phase 11 PLACE ALERTS (self-alert geofencing, rules+engine+screen, probe
+> 25/25) + the v0.42.0/62 detail-screen live movement card, 2026-11-01** · repo
 > `psfaruk/family-remote-support` (public, `main`, CI green at every milestone
 > close) · master-plan milestones **M0–M10 all ✅** plus the Owner's Pre-M10
 > polish pass.
@@ -230,6 +230,25 @@ Sweep budget by source: `docs/TEST_PLAN.md` §1a (historical estimates) + §9a
 
 ### 7.3 Recorded follow-ups (NOT blockers, tracked for honesty)
 
+- **v0.42.0/62 — D11(e) activation wave (worklog §83):** the detail screen's
+  section C now renders the LIVE movement card (liveLocations carries the
+  optional rules-validated `speedMetersPerSecond`; the engine passes the OS
+  fix speed, cleared when missing/glitched; probe 16/16 against the published
+  rules; zero extra reads — classifyLive runs on data already in hand).
+- **v0.43.0/63 — Phase 11 place alerts (worklog §84):** "My places & alerts"
+  is now REAL: rules-first `placeAlerts` block (owner-only in every
+  direction, live probe **25/25**, zero residue), pure-Kotlin
+  `PlaceAlertEngine` (19 CI unit tests — silent init, ≤radius enter /
+  ≥radius+25 m exit hysteresis, per-place cooldown gating emission only),
+  the service evaluates fences inside the already-running location FGS on
+  fixes already flowing (DR-P2 realized: **zero new permissions**, no
+  GeofencingClient, no background location, zero engine Firestore reads),
+  local notifications carry the place NAME only (never coordinates, Bengali
+  via the app-language system), the places screen persists through Firestore
+  (survives reinstall) with a local mirror so monitoring works offline, and
+  the 20-place cap keeps the surface bounded. Honest scope, stated on the
+  screen: alerts fire only while sharing is on; recipient-facing alerts
+  remain a future extension.
 - MainActivity prefix-parsed setup strings ("Registered ✓…" — needs flag
   plumbing first; M8 remainder).
 - ScreenShareEngine bilingual assist banners + diag lines (Phase-16b style).
