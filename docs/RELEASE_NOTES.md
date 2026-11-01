@@ -9,8 +9,9 @@
 > **⚠ Post-release ops change (same day, Owner quota directive — see §9a):**
 > all automatic server-side Firestore polling is PARKED (sandbox stopped,
 > Worker cron removed, Actions schedule disabled) and the app itself became
-> foreground-only for presence in v0.36.0/55, then the QA & dedupe wave in
-> **v0.37.0 (versionCode 56) — the current
+> foreground-only for presence in v0.36.0/55, the QA & dedupe wave in
+> v0.37.0/56, then the Location master-plan Phase 4 frontend wave in
+> **v0.38.0 (versionCode 57) — the current
 > release build.** The quota math and re-arm runbook are in §9a and
 > `docs/CLOUDFLARE_SETUP.md` (কোটা-নির্দেশ section).
 
@@ -26,7 +27,7 @@ permanent **Family** and time-boxed **Guest** pairing.
 
 ## 2. Owner quick start (বাংলা — সংক্ষেপ)
 
-1. **দুটো ফোনেই v0.37.0 (versionCode 56) বসান** — GitHub repo → Actions → সবুজ
+1. **দুটো ফোনেই v0.38.0 (versionCode 57) বসান** — GitHub repo → Actions → সবুজ
    (SUCCESS) যেকোনো রান → Artifacts → `app-release-apk` ডাউনলোড → ইনস্টল
    (আগের ভার্সনের উপরেই পরিষ্কারভাবে বসে যায় — একই CI keystore-এ সাইন করা)।
 2. বসানোর পরের দ্রুত যাচাই: Settings-এ নতুন **পাঁচ-কার্ড ক্রম** (Account →
@@ -38,6 +39,12 @@ permanent **Family** and time-boxed **Guest** pairing.
    বন্ধ (§9a) + অ্যাপ এখন ইউজার-চালিত (অ্যাপ বন্ধ থাকলে Firebase-এ শূন্য ট্রাফিক)।
    ভবিষ্যতে কখনো ভারী ব্যবহারে কোটা ছুঁয়ে ফেললেও **প্রতিদিন ১৩:০০ (ঢাকা)**
    রিসেট হয়ে নিজে থেকেই ঠিক হয়ে যায় (নিচের §7.1)।
+4. **নতুন (v0.38.0): Location Phase 4** — Tracking ট্যাবে এখন সদস্য-কার্ড
+   তালিকা + ৬-ধাপ শেয়ারিং সেটআপ উইজার্ড। খালি অবস্থায় (বা তালিকার একেবারে
+   নিচে) **"নতুন স্ক্রিনগুলো আগে দেখুন (ডেমো ডেটা)"** বোতামে ঢুকলে নতুন সব
+   স্ক্রিন ডেমো মোডে দেখা যায় — শীর্ষে সবসময় "DEMO DATA — not real locations"
+   ব্যানার থাকবে; ব্যানারের ✕ বা ব্যাক-বোতামে বের হয়ে আসুন। Settings →
+   Privacy-র লেখাও এখন বাস্তবের সঙ্গে মিলে (শুধু লাইভ লোকেশন — ইতিহাস নয়)।
 
 ## 3. Install (both phones)
 
@@ -48,7 +55,7 @@ permanent **Family** and time-boxed **Guest** pairing.
 | Gate | Since v0.18.0 every release APK passes `scripts/verify-apk-axml.mjs` in CI: versionCode (INT_DEC), versionName, stale-version probe, v2 signing block — build fails otherwise. |
 | Retention | Artifacts are kept **7 days** (public-repo pull-scraping protection, v0.21.0 decision). Re-run the workflow to refresh at any time. |
 | Sideload | Allow "install unknown apps" for your browser/file manager once; Android will prompt. No Play Store — distribution is family-internal by design. |
-| Version history (M-series) | v0.30.0/49 M2 shell · v0.31.0/50 M3 extraction · v0.32.0/51 M4 nested-nav · v0.33.0/52 M5 live location · v0.34.0/53 M8 notifications/a11y/i18n · v0.35.0/54 Pre-M10 Settings polish · v0.36.0/55 quota-directive build (foreground-only presence) · **v0.37.0/56 QA & dedupe wave (crash-edge fixes, auth timeouts, parallel latency wins, 14/15 duplicate clusters single-sourced — current)** — M6/M7/M9/M10 were docs/infra-only. |
+| Version history (M-series) | v0.30.0/49 M2 shell · v0.31.0/50 M3 extraction · v0.32.0/51 M4 nested-nav · v0.33.0/52 M5 live location · v0.34.0/53 M8 notifications/a11y/i18n · v0.35.0/54 Pre-M10 Settings polish · v0.36.0/55 quota-directive build (foreground-only presence) · v0.37.0/56 QA & dedupe wave (crash-edge fixes, auth timeouts, parallel latency wins, 14/15 duplicate clusters single-sourced) · **v0.38.0/57 Location master-plan Phase 4 — frontend mock wave: Tracking member cards + 7-state sharing statuses, 6-step consent wizard, journey-history & My-places screens, explicitly-entered DEMO mode (zero Firestore), privacy-policy text corrected to the shipped M5 truth — current** — M6/M7/M9/M10 were docs/infra-only. |
 
 **Post-install regression (5 minutes, both phones):** language বাংলা across the
 UI · bell → "Recent events" (persists restart; clears on sign-out) · Settings
