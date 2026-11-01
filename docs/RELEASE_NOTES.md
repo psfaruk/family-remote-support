@@ -1,11 +1,37 @@
 # RELEASE_NOTES — Family Remote Support — M10 Final Report (2026-10-31)
 
-> **Release state: v0.43.0 (versionCode 63) — Location master-plan
-> Phase 11 PLACE ALERTS (self-alert geofencing, rules+engine+screen, probe
-> 25/25) + the v0.42.0/62 detail-screen live movement card, 2026-11-01** · repo
+> **Release state: v0.44.0 (versionCode 64) — smooth-app wave (fast 3-style
+> map + local crash journal + IO-hardened polls), 2026-11-01** · repo
 > `psfaruk/family-remote-support` (public, `main`, CI green at every milestone
 > close) · master-plan milestones **M0–M10 all ✅** plus the Owner's Pre-M10
 > polish pass.
+>
+> **v0.44.0 in one line (the Owner's device report on v0.43.0/63: "সেটিং
+> ট্যাব এ ক্লিক করলে ক্র্যাশ করে", install-time crash dialog, "অ্যাপ টি স্মুথ
+> লি চলে ঠিক করে দেন", "গুগল ম্যাপ একেবারেই স্লো … 2D 3D ও setelite ম্যাপ
+> যুক্ত করতে হবে", frontend↔backend match):** the map's hard-wired OSM
+> MAPNIK source (a community server with no South-Asia edge — THE reason
+> the map felt "একেবারেই স্লো") was replaced by a 3-style registry with
+> one-tap LIVE switching chips: **2D street** (CARTO Voyager — same OSM
+> data from a fast global CDN, the new default), **স্যাটেলাইট** (Esri
+> World Imagery) and **3D terrain** (Esri World Topo hillshade — honest
+> note: true photorealistic 3D buildings are not possible on a 2D tile
+> engine; hillshaded relief is the honest equivalent). osmdroid plumbing
+> tuned (6 download threads, 48-tile memory LRU vs the tiny stock default,
+> 128 MB bounded disk cache) and map redraws are now dirty-tracked — the
+> 30 s freshness tick no longer repaints an unchanged map. **Crash
+> diagnostics:** the app ships zero crash SDKs by policy, so device crash
+> reports arrived with no stack trace — a purely LOCAL crash journal now
+> captures every uncaught exception to a file (view / share / delete in
+> Settings → About; nothing ever leaves the phone by itself; the next
+> crash report comes with its exact stack trace). **Smoothness:** every
+> 1.5–2.5 s settings/power/notification poll now reads off the main
+> thread (Dispatchers.IO), and the account's phone list refreshes on app
+> resume (frontend↔backend match — everything else already updates live
+> from Firestore listeners). The install-time "report to the mobile
+> company" dialog is Android's own crash/scan report UI — if it appears
+> again after v0.44.0, open Settings → About → Crash report and the
+> captured stack trace will say exactly what broke.
 >
 > **⚠ Post-release ops change (Owner quota directive — see §9a):** all
 > automatic server-side Firestore polling is PARKED (sandbox stopped, Worker
