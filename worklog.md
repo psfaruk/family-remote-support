@@ -3601,3 +3601,24 @@ history → Everything → del_done 验证文案）。
 **验证方式（诚实记录）：** 本波为静态实现——沙箱无 Android SDK，未本地编译；CI（单测 44 例 + assembleDebug/Release + APK AXML 验证门 65/0.45.0）为编译与签名权威门。Worker JS 已过 node --check。发布后真机验收清单见 RELEASE_NOTES §12。
 
 **遗留（如实）：** TURN 临时凭据（P6-ক，待提供商 API 决策）、Google Maps 引擎迁移与全高地图布局（P5 深层）、SessionRepo 存储型双语阻断文案、bn 首启默认（与已记录的 Owner 英文优先决策冲突）、大文件拆分（P12）、瓦片条款复核（P14）。
+
+## §88 — বাহ্যিক অডিট-প্রতিক্রিয়া ওয়েভ (v0.45.0/65 অপরিবর্তিত — docs only): ChatGPT-রিপোর্টের সোর্স-কোড যাচাই + Feature Integration Matrix + ২টি সত্যিকারের ফাঁক শনাক্তকরণ (২০২৬-১১-০১)
+
+**ট্রিগার:** Owner-এর হাতে আসা নতুন বাহ্যিক "Deep Technical Audit Report" (বাংলা, Dribbble-রেফারেন্স-চিত্রসহ) — যে-AI রিপোর্টটি লিখেছে সে **নিজেই স্বীকার করেছে রিপো অ্যাক্সেস করতে পারেনি** ("এটি এখনো প্রকৃত সোর্স-কোড অডিট নয়")। তার কেন্দ্রীয় অভিযোগ: backend↔frontend integration gap, নোটিফিকেশন-পপআপ অনুপস্থিত, নোটিফিকেশন-সেন্টার-অসম্পূর্ণতা, লোকেশন-UI, family/guest যাচাই, ৪-ট্যাব UI, backend/API অডিট।
+
+**পূর্ব-যাচাই:** লোকাল মিরর = remote main (`a5cbca0`, 0/0 পার্থক্য); CI run #859 **SUCCESS** (নভেম্বর ১ — §৮৭-ফিক্সআপের চূড়ান্ত গেট সবুজ, ৫ম২৮সে)। অর্থাৎ যাচাই-বেসলাইন প্রকাশিত-সত্য।
+
+**পদ্ধতি:** প্রতিটি দাবি প্রকৃত সোর্সের বিপরীতে পঠিত-যাচাইকৃত — MainActivity (২,৫২৪ লাইন), AppNav, NotificationsScreen, NotificationsLog, TrackingTab, HomeTab, FamilyScreens, AddDeviceTab, SettingsTab, PairingRepo, LiveLocationRepo, PresenceRepo, AskNotifier, PushTokenService, SessionPush, firestore.rules, CI-ওয়ার্কফ্লো, TEST_PLAN। কোনো অনুমান-ভিত্তিক রায় নয়।
+
+**প্রধান ফলাফল (docs/EXTERNAL_AUDIT_RESPONSE.md-এ পূর্ণ প্রমাণসহ):**
+- **"Backend-এ আছে, Frontend-এ নেই" অভিযোগ খারিজ:** ১২/১২ ফিচারে ছয়-উপাদানের পাইপলাইন (Backend Fn → API/Listener → Frontend Service → UI → L/S/E স্টেট → টেস্ট) ফাইল-লাইন-প্রমাণসহ ম্যাট্রিক্সে সাজানো — বাহ্যিক রিপোর্টের নিজের চাহিদাকৃত ফরম্যাটেই।
+- **নোটিফিকেশন:** ৬-ধাপ পাইপলাইন ধাপে-ধাপে ম্যাপড (SessionPush→Worker /notify→FCM data-only HIGH→PushTokenService→AskNotifier deep-links→DeepLinks রাউটার→NotificationsLog recordAt); দুইবার-পপআপ উদ্বেগের উত্তর বিদ্যমান (স্থিতিশীল notification-ID + (type,arg2) ১০-মিনিট ডিডুপ); in-app পপআপ = HomeConsentDialog root-মোডাল (v0.19.0 থেকে)।
+- **৪টি সত্যিকারের ফাঁক (সবই NotificationsScreen-এ, সবই লোকাল-অনলি):** ① read/unread স্টেট নেই (Unread ফিল্টার/Mark-Read অসম্ভব) ② ক্যাটাগরি-ফিল্টার নেই ③ Recent-events সারিতে onClick/ট্যাপ-রাউটিং নেই ④ ইউজার-মুখী Clear History নেই (শুধু সাইন-আউটে ওয়াইপ)। **G1-ওয়েভ পরিকল্পনা প্রস্তুত** (~১২ নতুন স্ট্রিং ×১৫ লোকেল + NotifEvent-স্কিমা v2) — Owner-অনুমোদনের অপেক্ষায়।
+- **G2 (ঐচ্ছিক):** ব্যাটারি-স্ট্যাটাস — devicePresence-এ ফিল্ডই নেই; নতুন ডেটা-শ্রেণি → Owner-সম্মতি-প্রয়োজন।
+- বাকি সব দাবি (লোকেশন-স্টেট/স্টেল-সততা/family-guest/QR-এককালীন/authz) ✅ প্রমাণিত-বিদ্যমান; ৪-ট্যাব কাঠামো বাহ্যিক পরিকল্পনার হুবহু সমান।
+
+**§৭৫ মুদ্রা-যাচাই:** শূন্য কোড-পরিবর্তন, শূন্য নতুন রিড/লিসেনার — বিশুদ্ধ ডকুমেন্টেশন ওয়েভ।
+
+**সীমাবদ্ধতা (সৎ):** স্ট্যাটিক পাঠ-ভিত্তিক; push-সক্ষমতা নেই (`.secrets/github-token.txt` স্যান্ডবক্স-রিসাইকেলে হারিয়েছে — §৫৮-ঘটনার পুনরাবৃত্তি) — এই ডক + worklog §৮৮ লোকাল-কমিটে; Owner টোকেন দিলে push → CI। G1/G2 বাস্তবায়ন স্পষ্ট অনুমোদনের অপেক্ষায় (§৬৪ STOP-condition সংস্কৃতি)।
+
+**Owner-করণীয়:** ① docs/EXTERNAL_AUDIT_RESPONSE.md পড়ুন — বাহ্যিক রিপোর্টের কোন দাবি কোথায় ইতিমধ্যে বাস্তবায়িত তার এক-স্থানের ম্যাপ। ② G1 (নোটিফিকেশন-সেন্টার আপগ্রেড) চাইলে বলুন — পরিকল্পনা প্রস্তুত, টোকেন পেলেই ওয়েভ। ③ G2 (ব্যাটারি) চাইলে আলাদা সম্মতি।
