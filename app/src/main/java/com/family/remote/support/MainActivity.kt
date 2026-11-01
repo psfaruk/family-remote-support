@@ -1110,7 +1110,13 @@ fun HomeScreen() {
                         LocationDetailScreen(
                             user = signedInUser,
                             relId = relId,
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            // Phase 9 — section B's grant-gated action.
+                            onOpenHistory = {
+                                navController.navigate("tracking/$relId/history") {
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
                 }
@@ -1131,6 +1137,7 @@ fun HomeScreen() {
             ) { entry ->
                 ShellTabColumn {
                     HistoryScreen(
+                        user = signedInUser,
                         relId = entry.arguments?.getString("relId").orEmpty(),
                         onBack = { navController.popBackStack() }
                     )
