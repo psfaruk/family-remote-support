@@ -43,8 +43,13 @@ android {
         // Firebase traffic while closed), and SessionNotifier's listener
         // query got a .limit(10) cap. Server sweep tiers parked (see
         // wrangler.toml / kill-push.yml / docs).
-        versionCode = 56
-        versionName = "0.37.0"
+        // v0.38.0 (57) — Location master plan Phase 4: frontend mock wave.
+        // Tracking member cards + 7-state sharing statuses, 6-step consent
+        // wizard, journey-history + My-places screens, explicitly-entered
+        // DEMO mode (zero Firestore); privacy_body corrected to the shipped
+        // M5 truth; 7 orphan strings removed; +120 string keys ×15 locales.
+        versionCode = 57
+        versionName = "0.38.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
