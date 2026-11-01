@@ -697,4 +697,14 @@
     <string name="so_signout_failed">فشل تسجيل الخروج: %1$s</string>
     <string name="cd_clear_messages">مسح الرسائل</string>
 
+
+    <!-- v0.44.0 (smooth-app wave): map styles + local crash journal -->
+    <string name="map_style_2d">2D map</string>
+    <string name="map_style_satellite">Satellite</string>
+    <string name="map_style_terrain">3D terrain</string>
+    <string name="crash_title">Crash report</string>
+    <string name="crash_sub">Details of the last unexpected close — saved on this phone only. Share it when reporting the problem.</string>
+    <string name="crash_share">Share</string>
+    <string name="crash_clear">Delete</string>
+
 </resources>
