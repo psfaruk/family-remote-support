@@ -156,6 +156,19 @@ internal fun retentionLabel(r: RetentionKind?): String = when (r) {
     RetentionKind.D30 -> stringResource(R.string.ret_30d)
 }
 
+/**
+ * Phase 9 — the wire `retentionPolicy` string (locationAuthorizations /
+ * received grants) → the UI vocabulary. ONE mapping so the detail screen
+ * and the history screen can never disagree about what "D7" means;
+ * anything unexpected reads as NONE (the honest floor).
+ */
+internal fun retentionKindFromPolicy(policy: String): RetentionKind = when (policy) {
+    "H24" -> RetentionKind.H24
+    "D7" -> RetentionKind.D7
+    "D30" -> RetentionKind.D30
+    else -> RetentionKind.NONE
+}
+
 /** Localized sharing-scope word. */
 @Composable
 internal fun scopeLabel(k: ScopeKind): String = when (k) {
