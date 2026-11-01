@@ -66,9 +66,12 @@ android {
         // already in hand; MovementCard single render path (demo fixtures
         // map onto MovementEstimate); demo history fixtures retimed to the
         // documented solid-runs + one 20-min-gap shape; FIRST unit-test
-        // suite (app/src/test, JUnit4) wired into CI before assemble.
-        versionCode = 60
-        versionName = "0.41.0"
+        // suite (app/src/test, JUnit4) wired into CI before assemble —
+        // whose maiden run caught the journey-tail ms/s units slip (every
+        // points-based pair ran 1000× slow → "possibly stationary"), fixed
+        // here in v0.41.1/61 (worklog §82).
+        versionCode = 61
+        versionName = "0.41.1"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
