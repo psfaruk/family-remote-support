@@ -100,6 +100,7 @@ import androidx.core.app.NotificationCompat
 import com.family.remote.support.AssistSetup
 import com.family.remote.support.AssistSetupGuide
 import com.family.remote.support.BuildConfig
+import com.family.remote.support.CrashJournal
 import com.family.remote.support.Fb
 import com.family.remote.support.LocationSharingPrefs
 import com.family.remote.support.MainActivity
@@ -129,9 +130,11 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 /**
  * v0.37.0 (dedupe wave) — the pure chevron trailing of a clickable
@@ -478,6 +481,10 @@ internal fun SettingsTab(
             // v0.37.0 (dedupe wave) — shared chevron (was pasted inline).
             trailing = { SettingsChevron() }
         )
+        // v0.44.0 — the LOCAL crash journal row (renders ONLY when a
+        // crash was actually captured on this phone — an honest absence
+        // otherwise; see CrashJournal.kt).
+        CrashLogTile()
         if (signedInUser != null) {
             HorizontalDivider()
             SignOutButton(
@@ -998,6 +1005,68 @@ private fun intervalChoiceLabel(millis: Long): String = when (millis) {
 // this file's second, visually drifting radio-row copy of LangOptionRow).
 
 /**
+ * v0.44.0 — the LOCAL crash journal row (Settings → About). Appears ONLY
+ * when CrashJournal captured an uncaught exception — the Owner's v0.43.0
+ * device reports ("সেটিং ট্যাব এ ক্লিক করলে ক্র্যাশ করে") arrived with no
+ * stack trace and the app ships ZERO crash/analytics SDKs by policy, so
+ * the next crash now leaves its evidence on the phone. View = scrollable
+ * dialog with the captured entries; Share hands the text to the Android
+ * share sheet (the OWNER decides where it goes); Delete wipes the file.
+ * Nothing ever leaves the phone by itself.
+ */
+@Composable
+private fun CrashLogTile() {
+    val context = LocalContext.current
+    var report by remember { mutableStateOf(CrashJournal.report(context)) }
+    if (report == null) return // honest absence — nothing was captured
+    var showLog by remember { mutableStateOf(false) }
+    SettingsTile(
+        icon = Icons.Filled.Info,
+        title = stringResource(R.string.crash_title),
+        description = stringResource(R.string.crash_sub),
+        onClick = { showLog = true },
+        trailing = { SettingsChevron() }
+    )
+    if (showLog) {
+        AlertDialog(
+            onDismissRequest = { showLog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    // Local share sheet only — the owner picks the destination.
+                    CrashJournal.share(context)
+                }) {
+                    Text(stringResource(R.string.crash_share))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    CrashJournal.clear(context)
+                    report = null
+                    showLog = false
+                }) {
+                    Text(stringResource(R.string.crash_clear))
+                }
+            },
+            title = {
+                Text(stringResource(R.string.crash_title), fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = report ?: "",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        )
+    }
+}
+
+/**
  * v0.14.0 — নোটিফিকেশন টগল (আসল Switch): চালু/বন্ধ অবস্থা সিস্টেম থেকে পড়া
  * হয় (১.৫ সেকেন্ডে রিফ্রেশ, সৎ)। চালু করতে চাইলে Android 13+ রানটাইম
  * পারমিশন চাওয়া হয়; বন্ধ করতে সিস্টেমের নোটিফিকেশন-সেটিংসে পাঠানো হয় —
@@ -1014,9 +1083,10 @@ internal fun SettingsNotifTile() {
     }
     LaunchedEffect(Unit) {
         while (true) {
-            // v0.37.0 (dedupe wave) — ONE granted check (PermissionWizard's
-            // isNotifGranted; was an inline SDK/ContextCompat copy).
-            notifGranted = isNotifGranted(context)
+            // v0.44.0 (smooth-app wave) — the honest 1.5 s poll now reads
+            // the notification state OFF the main thread (a binder-backed
+            // check; the UI thread only receives the value).
+            notifGranted = withContext(Dispatchers.IO) { isNotifGranted(context) }
             delay(1500)
         }
     }
@@ -1074,7 +1144,9 @@ internal fun SettingsAssistTile() {
     var showGuide by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
-            assistOn = AssistSetup.isAssistReady(context)
+            // v0.44.0 (smooth-app wave) — same IO hop as the notification
+            // tile: Settings.Secure reads leave the main thread.
+            assistOn = withContext(Dispatchers.IO) { AssistSetup.isAssistReady(context) }
             delay(1500)
         }
     }
