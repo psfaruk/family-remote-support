@@ -3193,9 +3193,20 @@ privacy 无 placeholder 残留）；⑦CI 编译门=最终 HEAD run（见下补�
 选择 Phase 4 仅本地记录——引擎仍按 "直至停止" 语义运行（Phase 7 落实 once/
 临时自动停止；向导文案如实描述所选范围，Stop 按钮永远可用）。
 
-**CI 记录（承诺补记）：** 本波 39 个推送（build.gradle.kts 最先、worklog §78
-最后）以最终 HEAD run 为准（前序 run 并发自动取消属常态）；构建门结果由协调者
-核验后在此补记（§76 同例）。
+**CI 记录（已补记，1 修复轮）：** 本波 40 个推送（build.gradle.kts 最先、本补记
+最后）中前序 run 被工作流并发设置自动取消（常态，以最终 HEAD 为准）。首轮最终
+HEAD `9c4f39ef64` run **41268804768 FAILURE**（2026-11-01 03:22 UTC）——唯一
+编译错误：PlaceAlertsScreen.kt:25 的 `toggleable` import 误写
+`androidx.compose.foundation.toggleable`（正确包为
+`androidx.compose.foundation.selection.toggleable`——clickable 在 foundation
+根包而 toggleable/selectable 在 selection 子包，Compose 命名陷阱；静态符号
+平衡检查不覆盖 import 包路径，此为本地无构建环境下残余风险的标准兜底——CI
+门）。修复（1 行）后 HEAD `97c0a30cfe` run **739 SUCCESS**（id 41269090003，
+2026-11-01 03:27 UTC 完成）。**Release-APK 验证门 PASS（日志亲验）：✓
+versionCode = 57 (INT_DEC) — expected 57 · ✓ versionName = "0.38.0" —
+expected "0.38.0"。Artifacts：`app-release-apk`（26.5 MB，id 13068551771）+
+`app-debug-apk`（31.2 MB）——v0.38.0/57 双机安装源。** 全部 40 推送均经
+readback-verify SHA256 逐文件核验。
 
 **Owner 动作：** 双机改装 **v0.38.0/57** + **Phase 5 审阅检查单**：①空态（或
 仪表盘底部）"নতুন স্ক্রিনগুলো আগে দেখুন (ডেমো ডেটা)" 进入演示→横幅常驻、
