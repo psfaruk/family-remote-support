@@ -481,10 +481,38 @@ fun HomeScreen() {
     // traffic while the app is closed (the Owner's directive).
     val shellLifecycleOwner = LocalLifecycleOwner.current
     var shellResumed by remember { mutableStateOf(false) }
+    // v0.44.0 (frontend↔backend match) — throttle for the ON_RESUME
+    // device-list refresh (the list is informational; once a minute is
+    // plenty and keeps the read count user-action-driven).
+    var lastDeviceListRefreshAt by remember { mutableStateOf(0L) }
     DisposableEffect(shellLifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> shellResumed = true
+                Lifecycle.Event.ON_RESUME -> {
+                    shellResumed = true
+                    // v0.44.0 (frontend↔backend match) — every other surface
+                    // already updates live from Firestore listeners; the
+                    // Settings "this account's phones" list was the one stale
+                    // read (loaded once after sign-in). Refresh it when the
+                    // user RETURNS to the app — throttled, best-effort, one
+                    // bounded read per resume (§75: a resume IS the user
+                    // acting).
+                    val user = signedInUser
+                    if (user != null &&
+                        System.currentTimeMillis() - lastDeviceListRefreshAt > 60_000L
+                    ) {
+                        lastDeviceListRefreshAt = System.currentTimeMillis()
+                        scope.launch {
+                            try {
+                                deviceList = loadDevices(user)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                // informational only — never block the resume
+                            }
+                        }
+                    }
+                }
                 Lifecycle.Event.ON_STOP -> {
                     shellResumed = false
                     val user = signedInUser
@@ -630,7 +658,12 @@ fun HomeScreen() {
         // only runs while a user is actually signed in.
         if (signedInUser == null) return@LaunchedEffect
         while (true) {
-            permSummary = readPermChecklist(context)
+            // v0.44.0 (smooth-app wave) — the checklist reads
+            // Settings.Secure + PowerManager over BINDER calls; they used
+            // to run on the main dispatcher every 2.5 s. On a low-end OEM
+            // device that is sustained main-thread work — the polls now
+            // hop to IO (same values, same cadence, zero UI change).
+            permSummary = withContext(Dispatchers.IO) { readPermChecklist(context) }
             delay(2500)
         }
     }
