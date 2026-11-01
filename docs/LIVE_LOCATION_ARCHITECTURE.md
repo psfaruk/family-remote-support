@@ -44,11 +44,17 @@ ever needed).
 
 [Family device / map]
   listener on counterpart's single doc (rule: ACTIVE relationship + sharingEnabled)
-   → marker update; freshness = f(updatedAt): LIVE (<2×interval) / STALE (>5 min) / OFFLINE
+   → marker update; freshness = f(updatedAt): LIVE (< 2 min) / STALE (< 5 min) / OFFLINE
+   otherwise (fixed thresholds, computed reader-side vs the server updatedAt timestamp)
    ("last known — HH:MM", never labeled live)
 
 [Owner stop / revoke]
-  owner Stop toggle → service stops + doc cleared; relationship revoke → rules deny + doc delete
+  owner Stop toggle → service stops + doc cleared
+  relationship revoke → relationship flips to REVOKED; rules deny counterpart reads
+   immediately; the liveLocations doc itself is NOT deleted and the sharer's FGS keeps
+   writing (owner-only visibility) until the owner stops sharing, the service dies, or
+   sign-out cleans up; delete-on-revoke is planned for the locationAuthorizations model
+   (Location master plan Phase 8)
 ```
 
 ## 4. Data model & access-control rules (new match block; catch-all deny stays)
