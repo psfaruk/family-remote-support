@@ -75,6 +75,7 @@ import com.family.remote.support.ui.components.WideOutlinedButton
 import com.family.remote.support.ui.tracking.demo.DemoBanner
 import com.family.remote.support.ui.tracking.demo.DemoMember
 import com.family.remote.support.ui.tracking.demo.DemoTrackingDataSource
+import com.family.remote.support.ui.tracking.demo.toMovementEstimate
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -450,6 +451,22 @@ private fun CounterpartDetailBody(
             }
         }
 
+        // ── Section C "Movement insights" — D11(e): ships HIDDEN on the
+        // REAL detail screen in v0.41.0. The liveLocations contract (the
+        // published rules' hasOnly) carries NO motion facts — the engine
+        // stores OS speed/bearing only in journey records — and a per-open
+        // day query just to classify movement would read up to 1000
+        // records per visit (half the daily free read quota — rejected on
+        // §75 grounds). The card's real home is the journey-history
+        // screen, where the records are already in hand (zero extra
+        // reads). Activation path (recorded in the progress doc): a
+        // POST-GATE rules wave adds optional speedMetersPerSecond to
+        // liveLocations + the engine passes fix.speed → this screen calls
+        // MovementClassifier.classifyLive(location.speedMetersPerSecond,
+        // location.updatedAtMillis, nowMillis) — the classifier and its
+        // unit tests already ship in this wave, so that wave touches
+        // rules + engine only.
+
         // ── Section E "Sharing & privacy" (UX spec §4-E, real values) ────
         // What THIS account may receive from the member's sharing: the
         // grant's expiry / retention / history-access lines, all read from
@@ -746,9 +763,10 @@ private fun DemoMemberDetailBody(
         }
 
         // ── Section C "Movement insights" — ONLY with a fixture ───────
-        // (MovementCard itself also renders nothing for null movement.)
+        // (Phase 10: the fixture maps onto the classifier's shared
+        // MovementEstimate — same render path as the real journey screen.)
         member.movement?.let { movement ->
-            MovementCard(movement = movement)
+            MovementCard(estimate = movement.toMovementEstimate())
         }
 
         // ── Section D "Place alerts on this member" — reserved, ships
