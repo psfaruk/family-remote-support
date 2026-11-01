@@ -62,11 +62,10 @@ enum class ScopeKind { ONCE, TEMPORARY, UNTIL_STOP, WITH_HISTORY }
 /** Phase 4 — journey-history retention vocabulary (only meaningful with WITH_HISTORY). */
 enum class RetentionKind { NONE, H24, D7, D30 }
 
-/** Phase 4 — coarse movement classification (always an estimate, never a claim). */
-enum class MovementKind { WALK, CYCLE, VEHICLE, STILL }
-
-/** Phase 4 — how honest a movement estimate is (few points → LIMITED). */
-enum class MovementConfidence { LIMITED, MODERATE }
+// Phase 10 (v0.41.0) — MovementKind / MovementConfidence MOVED to
+// com.family.remote.support.MovementClassifier.kt (the pure-Kotlin
+// classifier owns its vocabulary now; every UI reference imports it
+// from there — single source, no drift).
 
 /** Localized one-word-ish label for a sharing status (StatusBadge text). */
 @Composable
