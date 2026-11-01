@@ -8,7 +8,9 @@ import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
+import java.util.Calendar
 import java.util.Date
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -354,6 +356,31 @@ object LocationSharingPrefs {
         prefs(context).edit().putString(KEY_PENDING_REVOKE, uids.joinToString(",")).apply()
     }
 
+    // ── Phase 9 (v0.40.0) — the offline user-initiated deletion queue.
+    // A delete that could not finish offline stays queued here and is
+    // retried on the next user action (same flush hook as the authz
+    // queue). "Today" scope carries its own day-start bound so a queued
+    // run flushed after midnight deletes the day the OWNER asked for,
+    // never the shifted one.
+
+    private const val KEY_PENDING_DELETE_ALL = "pending_delete_all"
+    private const val KEY_PENDING_DELETE_DAY_START = "pending_delete_day_start"
+
+    fun pendingDeleteAll(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_PENDING_DELETE_ALL, false)
+
+    fun setPendingDeleteAll(context: Context, pending: Boolean) {
+        prefs(context).edit().putBoolean(KEY_PENDING_DELETE_ALL, pending).apply()
+    }
+
+    /** The queued "delete today" run's day-start bound (0 = nothing queued). */
+    fun pendingDeleteDayStart(context: Context): Long =
+        prefs(context).getLong(KEY_PENDING_DELETE_DAY_START, 0L)
+
+    fun setPendingDeleteDayStart(context: Context, dayStartMillis: Long) {
+        prefs(context).edit().putLong(KEY_PENDING_DELETE_DAY_START, dayStartMillis).apply()
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }
@@ -439,3 +466,374 @@ fun stopLocationSharing(context: Context) {
  */
 fun isLocationSharingRunning(context: Context): Boolean =
     LocationShareService.isRunning
+
+// ── Location master plan Phase 9 (v0.40.0) — history READS, DELETES and
+// the owner-side retention cleanup (design §4.3/§6, UX spec §9/§10).
+// Everything here is one-shot and user-action-driven: no listeners, no
+// timers, no background sweeps (§75 posture — "history is always one-shot
+// get/list", design §8). ─────────────────────────────────────────────
+
+/** The clock-skew buffer every history list query carries (design §4.3 —
+ * the rule allows retentionExpiresAt > request.time − 5 min, so a client
+ * filtering at now + 5 min keeps a ~10-minute safe margin for a slow
+ * client clock; probe H-series locked this shape). */
+private const val HISTORY_SKEW_MILLIS = 5L * 60_000L
+
+/** One day-query's read ceiling (dense day ≈ a few hundred points at the
+ * 50 m throttle; 1000 is the honest cap beyond which the route renders
+ * from the first 1000 ascending points — recorded in the progress doc). */
+private const val HISTORY_DAY_QUERY_LIMIT = 1000L
+
+/** The opportunistic cleanup's per-run delete ceiling (design §6.2's
+ * bounded batch — repeats on the next user action until exhausted). */
+private const val HISTORY_CLEANUP_BATCH = 200
+
+/** Local write-log capacity — D30 at ~100 retained points/day stays well
+ * inside 4000; the oldest entries drop first (their records are either
+ * deleted by cleanup or invisible via query-time expiry by then). */
+private const val HISTORY_LOG_MAX_ENTRIES = 4000
+
+/**
+ * One retained journey point as a reader sees it (repo projection of
+ * `users/{ownerUid}/locationHistory/{recordId}`; the UI maps it onto its
+ * render-time `HistoryPoint`). docId travels along because deletion is
+ * per-record and append-only records are never updated.
+ */
+data class LocationHistoryRecord(
+    val docId: String,
+    val lat: Double,
+    val lng: Double,
+    val recordedAtMillis: Long,
+    val retentionExpiresAtMillis: Long,
+    val accuracyMeters: Int,
+    val speedMetersPerSecond: Double?
+)
+
+/**
+ * Phase 9 — read one day's retained records under
+ * `users/{ownerUid}/locationHistory` (ownerUid = the SHARER; the caller
+ * may be the owner reading their own data or a recipient the rules
+ * authorize). The query shape is exactly the rules' contract: deviceId
+ * equality (so the per-record authorization get() binds deterministically)
+ * plus the mandatory retentionExpiresAt lower bound plus the recordedAt
+ * day range — served by the composite index
+ * (deviceId, retentionExpiresAt, recordedAt). Ascending composite order
+ * is re-sorted by recordedAt in memory. Expired records can never be
+ * returned: the retention filter is IN the query (rules are not filters).
+ */
+suspend fun readHistoryDay(
+    ownerUid: String,
+    deviceId: String,
+    dayStartMillis: Long,
+    dayEndMillis: Long
+): List<LocationHistoryRecord> {
+    val skewFloor = Date(System.currentTimeMillis() + HISTORY_SKEW_MILLIS)
+    val snap = Fb.db.collection(LOCATION_HISTORY_PARENT)
+        .document(ownerUid)
+        .collection(LOCATION_HISTORY_COLLECTION)
+        .whereEqualTo("deviceId", deviceId)
+        .whereGreaterThan("retentionExpiresAt", skewFloor)
+        .whereGreaterThanOrEqualTo("recordedAt", Date(dayStartMillis))
+        .whereLessThan("recordedAt", Date(dayEndMillis))
+        .orderBy("retentionExpiresAt")
+        .orderBy("recordedAt")
+        .limit(HISTORY_DAY_QUERY_LIMIT)
+        .get()
+        .awaitWithTimeout("reading this day's journey records")
+    return snap.documents.mapNotNull { doc ->
+        val recordedAt = doc.getTimestamp("recordedAt")?.toDate()?.time ?: return@mapNotNull null
+        LocationHistoryRecord(
+            docId = doc.id,
+            lat = doc.getDouble("lat") ?: 0.0,
+            lng = doc.getDouble("lng") ?: 0.0,
+            recordedAtMillis = recordedAt,
+            retentionExpiresAtMillis = doc.getTimestamp("retentionExpiresAt")?.toDate()?.time
+                ?: recordedAt,
+            accuracyMeters = (doc.getLong("accuracyMeters") ?: 0L).toInt(),
+            speedMetersPerSecond = doc.getDouble("speedMetersPerSecond")
+        )
+    }.sortedBy { it.recordedAtMillis }
+}
+
+/**
+ * Blind per-record deletes (owner-only path per the rules; no read is
+ * needed — the docIds come from a query the caller already ran or from
+ * the local write log). Batched at Firestore's 500-op WriteBatch ceiling
+ * minus headroom. Failures propagate: callers queue honestly.
+ */
+suspend fun deleteHistoryRecords(ownerUid: String, docIds: List<String>) {
+    docIds.chunked(200).forEach { chunk ->
+        if (chunk.isEmpty()) return@forEach
+        val batch = Fb.db.batch()
+        chunk.forEach { id ->
+            batch.delete(
+                Fb.db.collection(LOCATION_HISTORY_PARENT)
+                    .document(ownerUid)
+                    .collection(LOCATION_HISTORY_COLLECTION)
+                    .document(id)
+            )
+        }
+        batch.commit().awaitWithTimeout("deleting journey history records")
+    }
+}
+
+/**
+ * Enumerate the caller's OWN unexpired records in bounded ascending
+ * batches — the OWNER path only (the rule's owner branch is path-derived,
+ * so no deviceId filter is needed and the single-field automatic index
+ * serves this without any composite). Used by delete-all and its
+ * verification re-query; the hard total cap keeps a pathological loop
+ * from reading forever.
+ */
+private suspend fun enumerateUnexpiredOwnHistory(
+    ownerUid: String,
+    maxTotal: Int = 20_000
+): List<LocationHistoryRecord> {
+    val out = mutableListOf<LocationHistoryRecord>()
+    var after: DocumentSnapshot? = null
+    while (out.size < maxTotal) {
+        var query = Fb.db.collection(LOCATION_HISTORY_PARENT)
+            .document(ownerUid)
+            .collection(LOCATION_HISTORY_COLLECTION)
+            .whereGreaterThan(
+                "retentionExpiresAt",
+                Date(System.currentTimeMillis() + HISTORY_SKEW_MILLIS)
+            )
+            .orderBy("retentionExpiresAt")
+            .limit(HISTORY_CLEANUP_BATCH.toLong())
+        if (after != null) query = query.startAfter(after)
+        val snap = query.get().awaitWithTimeout("enumerating retained journey records")
+        if (snap.isEmpty) break
+        snap.documents.forEach { doc ->
+            val recordedAt = doc.getTimestamp("recordedAt")?.toDate()?.time ?: 0L
+            out.add(
+                LocationHistoryRecord(
+                    docId = doc.id,
+                    lat = doc.getDouble("lat") ?: 0.0,
+                    lng = doc.getDouble("lng") ?: 0.0,
+                    recordedAtMillis = recordedAt,
+                    retentionExpiresAtMillis = doc.getTimestamp("retentionExpiresAt")?.toDate()?.time
+                        ?: recordedAt,
+                    accuracyMeters = (doc.getLong("accuracyMeters") ?: 0L).toInt(),
+                    speedMetersPerSecond = doc.getDouble("speedMetersPerSecond")
+                )
+            )
+        }
+        if (snap.documents.size < HISTORY_CLEANUP_BATCH) break
+        after = snap.documents.last()
+    }
+    return out
+}
+
+/**
+ * Phase 9 — "Delete my history: today" (UX spec §10). This device's
+ * records for the local day starting at [dayStartMillis] are blind-deleted
+ * from the LOCAL write log (the log is this device's own write record —
+ * in v1 a user's history has exactly one writer, this device). Returns
+ * the number of records deleted so the UI can report honestly.
+ */
+suspend fun deleteOwnHistoryForDay(context: Context, dayStartMillis: Long): Int {
+    val user = FirebaseAuth.getInstance().currentUser
+        ?: throw IllegalStateException("signed out")
+    val entries = LocationHistoryLog.entries(context)
+        .filter { it.recordedAtMillis >= dayStartMillis }
+    if (entries.isNotEmpty()) {
+        deleteHistoryRecords(user.uid, entries.map { it.docId })
+        LocationHistoryLog.removeAll(context, entries.map { it.docId }.toSet())
+    }
+    return entries.size
+}
+
+/**
+ * Phase 9 — "Delete my history: everything" (UX spec §10 + design §6.3):
+ * enumerate every unexpired own record (bounded batches), delete them,
+ * blind-delete every LOCAL write-log id (expired ones included — the log
+ * knows ids the rules will never return), then VERIFY by re-running the
+ * enumeration, which must come back empty. Returns the deleted count.
+ * Offline failures propagate to the caller for the honest queue.
+ */
+suspend fun deleteAllOwnHistory(context: Context): Int {
+    val user = FirebaseAuth.getInstance().currentUser
+        ?: throw IllegalStateException("signed out")
+    var deleted = 0
+    while (true) {
+        val batch = enumerateUnexpiredOwnHistory(user.uid, maxTotal = HISTORY_CLEANUP_BATCH)
+        if (batch.isEmpty()) break
+        deleteHistoryRecords(user.uid, batch.map { it.docId })
+        deleted += batch.size
+        if (batch.size < HISTORY_CLEANUP_BATCH) break
+    }
+    val logged = LocationHistoryLog.entries(context)
+    if (logged.isNotEmpty()) {
+        deleteHistoryRecords(user.uid, logged.map { it.docId })
+        deleted += logged.size
+        LocationHistoryLog.removeAll(context, logged.map { it.docId }.toSet())
+    }
+    // Verification re-query (design §6.3): must be empty when we are done.
+    val verify = enumerateUnexpiredOwnHistory(user.uid, maxTotal = 1)
+    if (verify.isNotEmpty()) {
+        throw IllegalStateException("history deletion could not be verified empty")
+    }
+    return deleted
+}
+
+/**
+ * Phase 9 / design §6.2 — the owner-device opportunistic cleanup, fired
+ * from user actions only (Tracking resume, the delete dialogs): every
+ * LOCAL write-log entry whose retention has passed is blind-deleted in
+ * one bounded batch (≤ 200 — "repeats per open until exhausted"). The
+ * published rules deny LISTING expired records (retention floor on every
+ * read — they are already invisible), so the local log is the only
+ * discovery mechanism; blind deletes need no read. Failed batches stay
+ * logged for the next user action — records are invisible either way,
+ * so nothing is overstated.
+ */
+fun cleanupExpiredOwnHistory(context: Context) {
+    val user = FirebaseAuth.getInstance().currentUser ?: return
+    val now = System.currentTimeMillis()
+    val expired = LocationHistoryLog.entries(context)
+        .filter { it.retentionExpiresAtMillis <= now }
+        .take(HISTORY_CLEANUP_BATCH)
+    if (expired.isEmpty()) return
+    val uid = user.uid
+    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+        try {
+            deleteHistoryRecords(uid, expired.map { it.docId })
+            LocationHistoryLog.removeAll(context, expired.map { it.docId }.toSet())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Offline: entries stay for the next user action (§6.2's
+            // "repeats per open until exhausted").
+        }
+    }
+}
+
+/**
+ * Phase 9 — retry a user-initiated deletion that went offline (UX spec
+ * §10 `del_offline`): the next user action (Tracking resume) re-runs it.
+ * The queued "today" scope re-uses the stored day-start bound so a
+ * midnight-crossing retry deletes the day the owner actually chose.
+ */
+fun flushPendingHistoryDeletion(context: Context) {
+    if (FirebaseAuth.getInstance().currentUser == null) return
+    val deleteAll = LocationSharingPrefs.pendingDeleteAll(context)
+    val dayStart = LocationSharingPrefs.pendingDeleteDayStart(context)
+    if (!deleteAll && dayStart == 0L) return
+    if (inFlightHistoryFlush) return
+    inFlightHistoryFlush = true
+    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+        try {
+            if (deleteAll) {
+                deleteAllOwnHistory(context)
+                LocationSharingPrefs.setPendingDeleteAll(context, false)
+            }
+            if (dayStart != 0L) {
+                deleteOwnHistoryForDay(context, dayStart)
+                LocationSharingPrefs.setPendingDeleteDayStart(context, 0L)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Still offline — flags stay queued, honestly.
+        } finally {
+            inFlightHistoryFlush = false
+        }
+    }
+}
+
+@Volatile
+private var inFlightHistoryFlush = false
+
+/** True when the exception looks like a connectivity failure (the delete
+ * dialogs use this to pick the honest `del_offline` wording over a plain
+ * failure — never a false success). */
+fun isFirestoreUnreachable(e: Exception): Boolean =
+    e is FirebaseFirestoreException && (
+        e.code == FirebaseFirestoreException.Code.UNAVAILABLE ||
+            e.code == FirebaseFirestoreException.Code.DEADLINE_EXCEEDED
+        )
+
+/**
+ * Local-day start (midnight of the zone's day containing [nowMillis],
+ * shifted back [daysBack] days). Private on purpose — the UI package has
+ * its own Calendar helpers; repo files stay ui-free.
+ */
+internal fun localDayStartMillis(nowMillis: Long, daysBack: Int): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = nowMillis
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    cal.add(Calendar.DAY_OF_YEAR, -daysBack)
+    return cal.timeInMillis
+}
+
+/**
+ * Phase 9 — the owner device's LOCAL write log: one line per retained
+ * record this device wrote (docId + recordedAt + retentionExpiresAt).
+ * Purpose-built for the two things the published rules cannot give back:
+ * discovering EXPIRED records (invisible to every query — §6.2's cleanup
+ * enumerates them blind from here) and today-scoped deletion without an
+ * enumeration read. Bounded; the engine appends after each successful
+ * history write (LocationShareService), prunes long-gone entries, and no
+ * entry ever leaves the device.
+ */
+object LocationHistoryLog {
+
+    private const val PREFS_NAME = "location_history_log"
+    private const val KEY_ENTRIES = "entries"
+
+    data class Entry(val docId: String, val recordedAtMillis: Long, val retentionExpiresAtMillis: Long)
+
+    /** Record a successful history write (the engine's only call here). */
+    fun append(context: Context, deviceId: String, recordedAtMillis: Long, retentionMillis: Long) {
+        val expires = recordedAtMillis + retentionMillis
+        val entry = "${deviceId}_$recordedAtMillis $recordedAtMillis $expires"
+        val current = rawEntries(context).toMutableList()
+        current.add(entry)
+        // Prune entries whose retention passed > 48 h ago: physically the
+        // records are long-expired (invisible), and a cleanup either
+        // deleted them already or never will — 48 h of retry headroom is
+        // plenty for §6.2's per-open batches.
+        val cutoff = System.currentTimeMillis() - 48L * 3_600_000L
+        val pruned = current.filter { line ->
+            thirdOf(line) > cutoff
+        }
+        val capped = if (pruned.size > HISTORY_LOG_MAX_ENTRIES) {
+            pruned.takeLast(HISTORY_LOG_MAX_ENTRIES)
+        } else {
+            pruned
+        }
+        prefs(context).edit().putString(KEY_ENTRIES, capped.joinToString("\n")).apply()
+    }
+
+    /** All live log entries (oldest first — the append order). */
+    fun entries(context: Context): List<Entry> =
+        rawEntries(context).mapNotNull { line ->
+            val parts = line.split(' ')
+            if (parts.size != 3) return@mapNotNull null
+            val recorded = parts[1].toLongOrNull() ?: return@mapNotNull null
+            val expires = parts[2].toLongOrNull() ?: return@mapNotNull null
+            Entry(docId = parts[0], recordedAtMillis = recorded, retentionExpiresAtMillis = expires)
+        }
+
+    /** Drop the given docIds from the log (deleted — nothing left to track). */
+    fun removeAll(context: Context, docIds: Set<String>) {
+        if (docIds.isEmpty()) return
+        val kept = rawEntries(context).filter { line -> line.substringBefore(' ') !in docIds }
+        prefs(context).edit().putString(KEY_ENTRIES, kept.joinToString("\n")).apply()
+    }
+
+    private fun rawEntries(context: Context): List<String> {
+        val raw = prefs(context).getString(KEY_ENTRIES, "") ?: ""
+        return raw.split('\n').filter { it.isNotBlank() }
+    }
+
+    private fun thirdOf(line: String): Long =
+        line.split(' ').getOrNull(2)?.toLongOrNull() ?: 0L
+
+    private fun prefs(context: Context) =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+}
