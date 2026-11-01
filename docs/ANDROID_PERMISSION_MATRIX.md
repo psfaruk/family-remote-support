@@ -1,7 +1,11 @@
 # ANDROID_PERMISSION_MATRIX — Current & Planned (Master-Plan PART 12)
 
-> Status: **PLANNING — awaiting Owner approval.** Current manifest verified by Agent 2-b
-> (2026-10-31, v0.29.0/48, `app/src/main/AndroidManifest.xml:4-25`). minSdk 26 / targetSdk 34.
+> Status: **CURRENT — location permissions shipped in M5 (v0.33.0): while-in-use
+> `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION` and a `location`-type FGS
+> (`LocationShareService`) are live. No `ACCESS_BACKGROUND_LOCATION` by design — honest
+> "while the service runs" scoping.** Manifest verified by Agent 2-b
+> (2026-10-31, v0.29.0/48, `app/src/main/AndroidManifest.xml:4-25`); the M5 location
+> additions landed as planned. minSdk 26 / targetSdk 34.
 
 ## 1. Current permissions (all justified by shipped features)
 
