@@ -194,6 +194,14 @@ import com.family.remote.support.ui.AppWarningColor
 // M5 (v0.33.0) — the Tracking detail route (NAVIGATION_MAP §2
 // tracking-subtree): tracking/{relId} Location Details screen.
 import com.family.remote.support.ui.tracking.LocationDetailScreen
+// Phase 4 (v0.38.0, frontend mock wave) — the tracking-subtree demo +
+// history/places routes (NAVIGATION_MAP §2): demo rel ids route to the
+// in-memory DemoLocationDetailScreen; the history + places screens are
+// demo-fed in this wave (Agent C owns the three screens).
+import com.family.remote.support.ui.tracking.DemoLocationDetailScreen
+import com.family.remote.support.ui.tracking.HistoryScreen
+import com.family.remote.support.ui.tracking.PlaceAlertsScreen
+import com.family.remote.support.ui.tracking.demo.isDemoRelId
 import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.FamilyRemoteSupportTheme
 import com.family.remote.support.ui.LangPrefBus
@@ -1057,6 +1065,15 @@ fun HomeScreen() {
                         // entry routes into tracking/{relId} (Location Details).
                         onOpenMember = { relId ->
                             navController.navigate("tracking/$relId") { launchSingleTop = true }
+                        },
+                        // Phase 4 — the Places & alerts leaf + the demo history
+                        // entry (demo member cards with granted history only;
+                        // real cards carry no history button in this wave).
+                        onOpenPlaces = {
+                            navController.navigate(AppRoutes.TRACKING_PLACES) { launchSingleTop = true }
+                        },
+                        onOpenHistory = { relId ->
+                            navController.navigate("tracking/$relId/history") { launchSingleTop = true }
                         }
                     )
                 }
@@ -1066,6 +1083,9 @@ fun HomeScreen() {
             // counterpart's read-only sharing status + open-in-maps. System
             // back pops it (map §3); the Tracking tab stays selected
             // (tabForRoute) — same motion rules as the M4 home-subtree.
+            // Phase 4 (v0.38.0) — demo rel ids ("demo-*") route to the
+            // in-memory DemoLocationDetailScreen instead of the real
+            // listener screen, with the journey-history entry it carries.
             composable(
                 AppRoutes.TRACKING_ARG,
                 arguments = listOf(navArgument("relId") { type = NavType.StringType }),
@@ -1075,11 +1095,56 @@ fun HomeScreen() {
                 popExitTransition = nestedPopExit
             ) { entry ->
                 ShellTabColumn {
-                    LocationDetailScreen(
-                        user = signedInUser,
+                    val relId = entry.arguments?.getString("relId").orEmpty()
+                    if (isDemoRelId(relId)) {
+                        DemoLocationDetailScreen(
+                            relId = relId,
+                            onBack = { navController.popBackStack() },
+                            onOpenHistory = {
+                                navController.navigate("tracking/$relId/history") {
+                                    launchSingleTop = true
+                                }
+                            }
+                        )
+                    } else {
+                        LocationDetailScreen(
+                            user = signedInUser,
+                            relId = relId,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+            }
+            // ── Phase 4 (v0.38.0) — TRACKING HISTORY + PLACES leaves ──────────
+            // tracking/{relId}/history: the journey-history screen (demo-fed
+            // this wave — entered from demo member cards with granted
+            // history and from the demo detail screen). tracking/places: My
+            // places & alerts. Both keep the TRACKING tab selected
+            // (tabForRoute's tracking/ prefix) and the same nested motion.
+            composable(
+                AppRoutes.TRACKING_HISTORY_ARG,
+                arguments = listOf(navArgument("relId") { type = NavType.StringType }),
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) { entry ->
+                ShellTabColumn {
+                    HistoryScreen(
                         relId = entry.arguments?.getString("relId").orEmpty(),
                         onBack = { navController.popBackStack() }
                     )
+                }
+            }
+            composable(
+                AppRoutes.TRACKING_PLACES,
+                enterTransition = nestedEnter,
+                exitTransition = nestedExit,
+                popEnterTransition = nestedPopEnter,
+                popExitTransition = nestedPopExit
+            ) {
+                ShellTabColumn {
+                    PlaceAlertsScreen(onBack = { navController.popBackStack() })
                 }
             }
             composable(AppRoutes.SETTINGS) {
