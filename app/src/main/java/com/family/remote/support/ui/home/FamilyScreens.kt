@@ -40,6 +40,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -55,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.family.remote.support.Nicknames
 import com.family.remote.support.R
 import com.family.remote.support.REL_KIND_GUEST
 import com.family.remote.support.RelationshipView
@@ -434,10 +436,15 @@ internal fun MemberDetailScreen(
                 )
             }
             Text(
-                text = otherEmail,
+                text = Nicknames.get(context, selectedRel.id) ?: otherEmail,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
+            // v0.45.0 (audit P13) — the nickname row: a saved "আব্বু/আপু"
+            // replaces the raw email in THIS title and in every session
+            // notification. Local-only (SharedPreferences) — no Firestore
+            // cost, no server schema; blank save clears it back to email.
+            NicknameRow(relId = selectedRel.id)
             Text(
                 text = buildString {
                     append(if (iHelp) stringResource(R.string.rel_you_help) else stringResource(R.string.rel_helps_you))
@@ -542,7 +549,10 @@ internal fun MemberDetailScreen(
                         revokingId = selectedRel.id
                         scope.launch {
                             try {
-                                revokeRelationship(selectedRel.id)
+                                // v0.45.0 (audit P6-খ): uid joins the call so
+                                // revokeRelationship can also end this pair's
+                                // live sessions (rules-allowed transitions).
+                                revokeRelationship(selectedRel.id, user.uid)
                                 onBack()
                             } catch (e: CancellationException) {
                                 throw e
@@ -587,6 +597,41 @@ internal fun MemberDetailScreen(
                     Text(stringResource(R.string.btn_remove))
                 }
             }
+        }
+    }
+}
+
+/**
+ * v0.45.0 (audit P13) — the member-detail nickname row. One outlined field
+ * prefilled with the saved nickname + one save button; saving persists it
+ * locally (Nicknames → SharedPreferences) and confirms inline. A blank save
+ * clears the nickname back to the email everywhere.
+ */
+@Composable
+private fun NicknameRow(relId: String) {
+    val context = LocalContext.current
+    var name by remember(relId) { mutableStateOf(Nicknames.get(context, relId).orEmpty()) }
+    var savedTick by remember(relId) { mutableStateOf(false) }
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                savedTick = false
+            },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            label = { Text(stringResource(R.string.nick_label)) },
+            placeholder = { Text(stringResource(R.string.nick_hint)) }
+        )
+        OutlinedButton(
+            onClick = {
+                Nicknames.set(context, relId, name)
+                savedTick = true
+            },
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            Text(stringResource(if (savedTick) R.string.nick_saved else R.string.nick_save))
         }
     }
 }

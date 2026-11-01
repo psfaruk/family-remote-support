@@ -120,6 +120,13 @@ val DarkColors = darkColorScheme(
  * oversized ("স্ক্রিন একটু zoom কমিয়ে আনেন · যতদূর সম্ভব ফিট রাখেন"), so
  * every slot dropped ~1-2 sp and tighter line heights — sections now fit
  * one screen on common phones while staying comfortably readable.
+ *
+ * v0.45.0 (audit P10) — the BODY half of that compaction is rolled back.
+ * The audit measured bodyMedium 14.5 sp / labelMedium 12 sp against the
+ * senior-first guidance the file itself claims (body ≥ 16 sp, smallest
+ * text ≥ 14 sp): the "Senior-first" label had quietly stopped being true.
+ * Body/label slots return to readable sizes; TITLES stay compact (the
+ * v0.19 Owner ask was about fitting sections, which titles dominate).
  */
 val SeniorTypography: Typography = Typography().let { base ->
     base.copy(
@@ -132,14 +139,14 @@ val SeniorTypography: Typography = Typography().let { base ->
         titleSmall = base.titleSmall.copy(
             fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold
         ),
-        bodyLarge = base.bodyLarge.copy(fontSize = 15.sp, lineHeight = 22.sp),
-        bodyMedium = base.bodyMedium.copy(fontSize = 14.5.sp, lineHeight = 20.sp),
-        bodySmall = base.bodySmall.copy(fontSize = 13.sp, lineHeight = 17.sp),
+        bodyLarge = base.bodyLarge.copy(fontSize = 16.sp, lineHeight = 23.sp),
+        bodyMedium = base.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
+        bodySmall = base.bodySmall.copy(fontSize = 14.sp, lineHeight = 19.sp),
         labelLarge = base.labelLarge.copy(
-            fontSize = 13.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold
+            fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold
         ),
         labelMedium = base.labelMedium.copy(
-            fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium
+            fontSize = 13.sp, lineHeight = 17.sp, fontWeight = FontWeight.Medium
         )
     )
 }

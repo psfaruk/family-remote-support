@@ -245,16 +245,18 @@ fun generateInviteCode(): InviteCode {
 /**
  * Accepts the code with or without dashes/spaces and in any letter case:
  * "ABCD2345XY67-1a2b…", "abcd2345xy67 1a2b…", "ABCD2345XY671a2b…" are the same
- * code. v0.25.0 (Phase 18.6): a 32-char NEW code (12+20) or a 26-char legacy
- * code (6+20, minted by older APKs) — both redeem; anything else is rejected
- * with an honest message that names both formats.
+ * code. v0.45.0 (audit P6-ঙ): the 32-char NEW format (12 id + 20 token)
+ * only — the legacy 26-char format (6-char ids, ~1B keyspace, minted by
+ * pre-v0.25 APKs) is RETIRED: a legacy doc-id is only half of the secret,
+ * and every live pairing has long since been redeemed. Old codes now get
+ * the honest too-short error. (The error string still mentions the legacy
+ * length for the rare user typing a stale code — cosmetic only.)
  */
 fun parsePairingCode(context: Context, raw: String): InviteCode {
     val cleaned = raw.replace(" ", "").replace("-", "").trim().uppercase()
     val tokenChars = TOKEN_BYTES * 2
     val idLen = when (cleaned.length) {
         INVITE_ID_LENGTH + tokenChars -> INVITE_ID_LENGTH
-        LEGACY_INVITE_ID_LENGTH + tokenChars -> LEGACY_INVITE_ID_LENGTH
         else -> throw RedemptionException(
             context.getString(R.string.err_code_length,
                 INVITE_ID_LENGTH + tokenChars, INVITE_ID_LENGTH, tokenChars,
@@ -554,8 +556,57 @@ fun watchRelationships(
     }
 }
 
-/** Either participant may revoke the relationship (rules enforce this too). */
-suspend fun revokeRelationship(relId: String) {
+/**
+ * Either participant may revoke the relationship (rules enforce this too).
+ *
+ * v0.45.0 (audit P6-খ): revoking now also ends the pair's LIVE sessions —
+ * before, an ACTIVE session kept its video + touch-control running for up
+ * to 15 minutes AFTER the revoke (RELEASE_NOTES §7.2's acknowledged gap).
+ * Both transitions are the ones the security rules already allow a
+ * participant to perform, so no rules change: REQUESTED → EXPIRED (either
+ * side), ACTIVE → ENDED (endedBy = the revoker). Best-effort per doc — a
+ * failed cleanup must never block the revoke itself, and the zombie sweep
+ * (client + Worker) still backstops whatever slips through offline.
+ */
+suspend fun revokeRelationship(relId: String, revokerUid: String) {
+    // 1) kill the open sessions first (before the rel flips to REVOKED, so
+    //    a racing new ask cannot sneak between the two writes).
+    try {
+        val db = Fb.db
+        val openAsHelper = db.collection(SESSION_COLLECTION)
+            .whereEqualTo("relId", relId)
+            .whereEqualTo("helperUid", revokerUid)
+            .whereIn("status", listOf("REQUESTED", "ACTIVE"))
+            .limit(10)
+            .get()
+            .awaitWithTimeout("checking this pair's open sessions")
+        val openAsRecipient = db.collection(SESSION_COLLECTION)
+            .whereEqualTo("relId", relId)
+            .whereEqualTo("recipientUid", revokerUid)
+            .whereIn("status", listOf("REQUESTED", "ACTIVE"))
+            .limit(10)
+            .get()
+            .awaitWithTimeout("checking this pair's open sessions")
+        (openAsHelper.documents + openAsRecipient.documents)
+            .mapNotNull { it.getString("status")?.let { s -> it.id to s } }
+            .forEach { (sessionId, status) ->
+                try {
+                    if (status == "REQUESTED") expireSession(sessionId)
+                    else endSession(sessionId, revokerUid)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // best effort — the sweeps also own this transition
+                }
+            }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        // The revoke itself must proceed even when the lookup fails
+        // (offline) — the session writes are rules-capped to ≤ 20 min life
+        // and the zombie sweep ends them server-side.
+    }
+    // 2) flip the relationship.
     Fb.db
         .collection(RELATIONSHIP_COLLECTION)
         .document(relId)

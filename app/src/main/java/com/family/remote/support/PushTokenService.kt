@@ -16,10 +16,15 @@ import com.google.firebase.messaging.RemoteMessage
  * again until the next app open. This service rewrites the registry doc the
  * moment Firebase hands us a fresh token.
  *
- * Data messages (RemoteMessage#data) need no handling here: session-request
- * pushes arrive as NOTIFICATION messages, which the Firebase SDK itself
- * displays when the process is dead, and SessionNotifier's Firestore
- * listener covers the backgrounded-but-alive case.
+ * v0.45.0 (audit P1) — DATA messages are now handled HERE. The Worker's
+ * /notify tier (event-triggered by the writing app, replacing every polling
+ * sweep) sends data-only HIGH-priority messages so THIS method builds the
+ * notification in the app's own language with Allow/Deny actions and a
+ * deep link — identical to the alive-process listener path because both
+ * delegate to AskNotifier. High-priority data messages are delivered to a
+ * killed app (Android starts the process for onMessageReceived); the one
+ * state nothing can reach is Force-stopped — that is an Android platform
+ * rule, not an app bug.
  */
 class PushTokenService : FirebaseMessagingService() {
 
@@ -40,7 +45,52 @@ class PushTokenService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        // Intentionally empty: notification messages are display-automatically;
-        // the Firestore listener in SessionNotifier owns the alive-process UX.
+        val data = message.data
+        when (data["type"]) {
+            // The recipient's incoming ask (helper just wrote it + told the
+            // Worker). deadlineMillis comes server-stamped so the tray entry
+            // can time itself out even when the phone clock is off.
+            "session_request" -> {
+                val sessionId = data["sessionId"] ?: return
+                val deadline = data["deadlineMillis"]?.toLongOrNull() ?: 0L
+                ServerClock.syncFrom(
+                    com.google.firebase.Timestamp(
+                        java.util.Date(
+                            (data["sentAtMillis"]?.toLongOrNull() ?: System.currentTimeMillis())
+                        )
+                    ),
+                    System.currentTimeMillis()
+                )
+                AskNotifier.postAsk(
+                    context = applicationContext,
+                    sessionId = sessionId,
+                    relId = data["relId"],
+                    helperEmail = data["helperEmail"].orEmpty(),
+                    deadlineMillis = if (deadline > 0) {
+                        deadline
+                    } else {
+                        ServerClock.now() + SESSION_RESPONSE_TTL_MILLIS
+                    },
+                    logEvent = true // the killed-app path owns the log entry
+                )
+            }
+            // The helper's answer receipt (the recipient just granted/denied,
+            // or the helper's own cancellation mirrored to the recipient).
+            "session_answered" -> {
+                val sessionId = data["sessionId"] ?: return
+                val answer = data["answer"] ?: return
+                AskNotifier.postAnswer(
+                    context = applicationContext,
+                    sessionId = sessionId,
+                    relId = data["relId"],
+                    answer = answer,
+                    counterpartEmail = data["counterpartEmail"].orEmpty()
+                )
+            }
+            else -> {
+                // Unknown/absent type: no fabricated behaviour — the FCM SDK
+                // still auto-displays any NOTIFICATION message itself.
+            }
+        }
     }
 }

@@ -270,14 +270,18 @@ private data class HistoryUiState(
 )
 
 /**
- * Phase 9 — the history screen's private ViewModel (the
+ * Phase 9 — the history screen's ViewModel (the
  * LocationDetailViewModel shape): one relationship listener resolving
  * [relId], ONE one-shot authorization read per resolved counterpart, and
  * one cancellable day-query per selection. All Firestore access is
  * user-action-driven one-shot work (§75); the relationship listener is
  * the same one every family screen uses.
+ *
+ * MUST stay PUBLIC with a public no-arg constructor: viewModel() builds
+ * it via androidx reflection, which cannot see a file-private class
+ * (same v0.44.0 runtime crash as LocationDetailViewModel).
  */
-private class HistoryViewModel : ViewModel() {
+class HistoryViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(HistoryUiState())
     val state: StateFlow<HistoryUiState> = _state.asStateFlow()

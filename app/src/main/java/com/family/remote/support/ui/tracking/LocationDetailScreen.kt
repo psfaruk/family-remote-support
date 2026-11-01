@@ -103,13 +103,20 @@ private data class LocationDetailUiState(
 )
 
 /**
- * The detail screen's private ViewModel (the TrackingViewModel shape,
+ * The detail screen's ViewModel (the TrackingViewModel shape,
  * focused on ONE relationship): one relationship listener resolving
  * [relId], plus a single live-location listener that is re-registered
  * only when the resolved (and still authorized) device changes. Routed
  * errors + keep-last-data follow the same v0.21.0 rule.
+ *
+ * MUST stay PUBLIC with a public no-arg constructor: viewModel() builds
+ * it via androidx reflection (JvmViewModelProviders), which lives in
+ * another package and cannot see a file-private Kotlin class — that
+ * compiled to a package-private JVM class and crashed this screen at
+ * runtime in v0.44.0 (CrashJournal: "Cannot create an instance of
+ * LocationDetailViewModel", IllegalAccessException).
  */
-private class LocationDetailViewModel : ViewModel() {
+class LocationDetailViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(LocationDetailUiState())
     val state: StateFlow<LocationDetailUiState> = _state.asStateFlow()

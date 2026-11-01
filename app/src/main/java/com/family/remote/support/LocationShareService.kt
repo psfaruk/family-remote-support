@@ -27,6 +27,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.firebase.auth.FirebaseAuth
+import com.family.remote.support.ui.LangPrefBus
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -214,6 +215,19 @@ class LocationShareService : Service() {
 
     override fun onDestroy() {
         running = false
+        // v0.45.0 (audit P3) — the UNEXPECTED-stop notice. Every OWNER-driven
+        // stop path runs through stopLocationSharing (which flips the pref
+        // off BEFORE the service dies) and sign-out clears the user, so the
+        // only way to reach here with sharing still ENABLED and a user
+        // present is the system/OEM killing us (swipe-away on aggressive
+        // builds, memory pressure). That is exactly the moment the family
+        // silently loses the location — so say it, once, with a way back.
+        if (shareStartLogged &&
+            FirebaseAuth.getInstance().currentUser != null &&
+            LocationSharingPrefs.isSharingEnabled(this)
+        ) {
+            postSharingStoppedNotice()
+        }
         // Phase 7 — the TEMPORARY alarm dies with the instance (the stop
         // paths below already did their work), and the upload line resets
         // to the silent state so a stopped session never keeps showing a
@@ -258,6 +272,35 @@ class LocationShareService : Service() {
 
     // ── Foreground notification (mirrors ScreenShareService's pattern) ───
 
+    /** v0.45.0 (audit P3): one non-ongoing notice when sharing dies
+     * unexpectedly — own id (73) so it can never collide with the live FGS
+     * entry (72), deep-link tap into the Tracking tab, no coordinates. */
+    private fun postSharingStoppedNotice() {
+        try {
+            val lc = LangPrefBus.wrap(this)
+            val manager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val tapIntent = PendingIntent.getActivity(
+                this,
+                1,
+                Intent(this, MainActivity::class.java)
+                    .putExtra(DeepLinks.EXTRA_ROUTE, "tracking")
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = NotificationCompat.Builder(lc, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_notify)
+                .setContentTitle(lc.getString(R.string.loc_notif_stopped_title))
+                .setContentText(lc.getString(R.string.loc_notif_stopped_body))
+                .setAutoCancel(true)
+                .setContentIntent(tapIntent)
+                .build()
+            manager.notify(STOPPED_NOTICE_ID, notification)
+        } catch (_: Exception) {
+            // A dying process must never crash itself over a notice.
+        }
+    }
+
     private fun startInForeground() {
         // v0.37.0 (crash wave): the location-type startForeground can throw
         // SecurityException on Android 14 when the while-in-use permission is
@@ -280,20 +323,28 @@ class LocationShareService : Service() {
     private fun buildNotification(): android.app.Notification {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // v0.45.0 (audit P9): the channel name/description were
+            // hardcoded ENGLISH — now the app-language resources, exactly
+            // like every other user-facing string.
+            val lc = LangPrefBus.wrap(this)
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "Location sharing",
+                    lc.getString(R.string.loc_notif_channel_name),
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
-                    description = "Shown while this phone's location is being shared with your family."
+                    description = lc.getString(R.string.loc_notif_channel_desc)
                 }
             )
         }
         val tapIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java),
+            // v0.45.0 (audit P4): tapping lands on the Tracking tab (where
+            // sharing is toggled), not a bare Home drop.
+            Intent(this, MainActivity::class.java)
+                .putExtra(DeepLinks.EXTRA_ROUTE, "tracking")
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         // Localized by the M5-D wave for all 15 languages; no coordinates
@@ -500,7 +551,42 @@ class LocationShareService : Service() {
         val previous = lastAccepted
         if (previous != null) {
             if (now - lastAcceptedElapsed < configuredIntervalMillis) return
-            if (distanceMeters(previous.lat, previous.lng, lat, lng) < MIN_MOVE_METERS) return
+            if (distanceMeters(previous.lat, previous.lng, lat, lng) < MIN_MOVE_METERS) {
+                // v0.45.0 (audit P2 — the stationary-OFFLINE bug): a phone
+                // that stays put wrote NOTHING (this very return), so the
+                // family's freshness math flipped it STALE at 5 min and
+                // OFFLINE after that — even with sharing ON and a healthy
+                // fix stream. A heartbeat now merges ONLY updatedAt into the
+                // live doc at ≥ 4 min cadence: the position stays honest
+                // (no coordinate drift), the freshness stays LIVE/STALE.
+                // Rules note: hasOnly evaluates the POST-merge doc, which
+                // keeps the original field set — no rules change needed.
+                if (now - lastAcceptedElapsed < STATIONARY_HEARTBEAT_MILLIS) return
+                // TEMPORARY scope: never heartbeat an expired share — stop
+                // it (the per-fix wall-clock backstop the accepted path has).
+                if (scopeKind == LocationSharingPrefs.SCOPE_TEMPORARY &&
+                    scopeExpiryMillis != 0L &&
+                    System.currentTimeMillis() >= scopeExpiryMillis
+                ) {
+                    stopLocationSharing(this)
+                    return
+                }
+                val heartbeatUser = FirebaseAuth.getInstance().currentUser ?: return
+                val heartbeatUid = heartbeatUser.uid
+                val heartbeatDeviceId = stableDeviceId(applicationContext)
+                lastAcceptedElapsed = now
+                serviceScope.launch {
+                    try {
+                        writeLocationHeartbeat(heartbeatUid, heartbeatDeviceId)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Offline at heartbeat time: the next fix retries —
+                        // the live doc keeps its last state meanwhile.
+                    }
+                }
+                return
+            }
         }
 
         // Accepted. Remember the fix, then reset the back-off — an accepted
@@ -695,9 +781,18 @@ class LocationShareService : Service() {
     companion object {
         private const val CHANNEL_ID = "location_sharing"
 
-        /** Distinct from ScreenShareService's 71 — one notification per
-         * foreground service, so stopping either clears only its own. */
+        /** The FGS entry's tray id (unchanged). */
         const val NOTIFICATION_ID = 72
+
+        /** v0.45.0 (audit P3): the unexpected-stop notice's tray id. */
+        private const val STOPPED_NOTICE_ID = 73
+
+        /** v0.45.0 (audit P2): stationary heartbeat cadence — comfortably
+         * under the family's LIVE window (5 min after the freshness fix in
+         * TrackingTab) so a still phone stays LIVE, while costing ≤ 360
+         * tiny merge-writes/day on a 24 h share (the audit's quota math:
+         * ~2% of the daily read budget at 3 viewers). */
+        private const val STATIONARY_HEARTBEAT_MILLIS = 4 * 60_000L
 
         /** §3: fixes worse than this are rejected outright. */
         private const val MAX_ACCURACY_METERS = 100

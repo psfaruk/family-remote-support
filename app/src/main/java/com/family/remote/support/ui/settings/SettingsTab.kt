@@ -101,6 +101,7 @@ import com.family.remote.support.AssistSetup
 import com.family.remote.support.AssistSetupGuide
 import com.family.remote.support.BuildConfig
 import com.family.remote.support.CrashJournal
+import com.family.remote.support.DeepLinks
 import com.family.remote.support.Fb
 import com.family.remote.support.LocationSharingPrefs
 import com.family.remote.support.MainActivity
@@ -740,29 +741,38 @@ internal fun TestNotifRow() {
                 // The channel is created by SessionNotifier at app start;
                 // (re)creating it here is idempotent and keeps the probe
                 // honest even on a brand-new process.
+                // v0.45.0 (audit P9): the channel NAME and the title used to
+                // be hardcoded English — worse, this createNotificationChannel
+                // call renamed the SESSION channel on phones where the
+                // localized SessionNotifier name had already been set (the
+                // "channel name flip-flop"). One localized source now: the
+                // same strings, the same channel id, via the app language.
                 val channelId = "support_session_requests"
                 val manager = context.getSystemService(Context.NOTIFICATION_SERVICE)
                     as NotificationManager
+                val lc = LangPrefBus.wrap(context)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     manager.createNotificationChannel(
                         NotificationChannel(
                             channelId,
-                            "Support session requests",
+                            lc.getString(R.string.notif_channel_name),
                             NotificationManager.IMPORTANCE_HIGH
                         )
                     )
                 }
                 val openIntent = Intent(context, MainActivity::class.java)
+                    .putExtra(DeepLinks.EXTRA_ROUTE, "notifications")
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 val pending = PendingIntent.getActivity(
                     context,
                     990001,
                     openIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                val notification = NotificationCompat.Builder(context, channelId)
+                val notification = NotificationCompat.Builder(lc, channelId)
                     .setSmallIcon(R.drawable.ic_stat_notify)
-                    .setContentTitle("Family Remote Support")
-                        .setContentText(LangPrefBus.wrap(context).getString(R.string.notif_test_ok))
+                    .setContentTitle(lc.getString(R.string.app_title))
+                    .setContentText(lc.getString(R.string.notif_test_ok))
                     .setAutoCancel(true)
                     .setContentIntent(pending)
                     .setPriority(NotificationCompat.PRIORITY_HIGH)

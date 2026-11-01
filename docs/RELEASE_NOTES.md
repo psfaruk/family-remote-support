@@ -461,3 +461,41 @@ sweep code are intact in all three, so re-arming needs no credential work.
 
 Full narratives: `worklog.md` §44–§75 (append-only, honest deltas included) and
 `docs/PHASE-0.md` for the pre-master-plan era.
+
+---
+
+## 12. v0.45.0/65 — the audit-fix wave (P1–P14)
+
+A deep static audit of v0.44.0 produced 14 findings (P1–P14). This release
+implements every fix that could land without new owner-held secrets; the
+per-finding status:
+
+| # | Finding | Status |
+|---|---|---|
+| P1 | Ask never reaches a killed recipient app (sweeps parked, 2-min TTL) | **Fixed** — event-driven push: the writing app calls the Worker's new `POST /notify` with a short-lived Firebase ID token; the Worker verifies the token (tokeninfo + aud/iss/exp), re-reads the session server-side, and sends a HIGH-priority FCM **data** message; `PushTokenService.onMessageReceived` builds the localized notification with Allow/Deny. TTL 2 → 4 min (rules ceiling is 5). Needs the one-time `config/notify` doc (below). Force-stopped apps remain unreachable — that is an Android platform rule. |
+| P2 | Stationary phone shows OFFLINE after 5 min | **Fixed** — stationary heartbeat merges `updatedAt`-only every ≥ 4 min (rules-compatible merge); freshness windows LIVE < 5 min / STALE < 15 min. |
+| P3 | Sharing dies silently on OEM kills | **Partially fixed** — the service's unexpected-stop path (onDestroy with sharing still enabled + user present) posts a "sharing stopped — tap to restart" notice with a Tracking deep link. Boot-restart remains a deliberate privacy decision (§5). |
+| P4 | Notifications land nowhere, no actions, dead asks linger | **Fixed** — one `AskNotifier` factory for the listener path AND the FCM data path: deep-link content intents (`DeepLinks` + singleTop + onNewIntent), Allow/Deny action buttons (`SessionActionReceiver` runs the same rules-checked transactions), `setTimeoutAfter(deadline)`, CATEGORY_MESSAGE. |
+| P5 | Map gesture conflict, jumpy zoom, camera reset | **Fixed (code-side)** — `NestableMapView` claims the gesture stream inside the scrolling column; animated `zoomIn()/zoomOut()`; camera (lat/lng/zoom) now `rememberSaveable`; co-located pins no longer slam to max zoom. The full-height map + bottom-sheet layout and the Google-Maps-engine migration remain open design decisions. |
+| P6 | Security & release posture | **Mostly fixed** — R8 ON with conservative keep rules; CI hard-fails when the release keystore secret is missing (no more debug-signed releases); legacy 6-char pairing codes retired; **revoke now ENDS the pair's live sessions** (rules-allowed transitions). TURN ephemeral credentials remain open (needs the provider's API decision — see §7.2). |
+| P7 | Deadline math trusts the phone's clock | **Fixed** — `ServerClock` estimates server-time offset from snapshots the app already receives (ask createdAt / FCM sentAt); every deadline comparison and the ask write itself use the corrected clock. |
+| P8 | Notification Center is not a real center | **Fixed** — events recorded at the REAL event time (`recordAt`); place alerts, denials and cancellations are logged; a (type, sessionId) dedupe keeps the listener path and the FCM path from double-writing. |
+| P9 | Language inconsistencies | **Fixed in-app** — location-sharing channel name/description, "Registering this device…", and the Settings test notification (which also stopped renaming the session channel) are all localized; new keys ship EN + BN (other locales fall back to EN per the Phase-4 precedent). The stored bilingual SessionRepo block messages and the "bn first-run" default remain open (the English-first default is a recorded Owner decision). |
+| P10 | Font sizes below senior-first guidance | **Fixed** — body/label scale restored to body 16 / bodyMedium 15 / bodySmall 14 / labels 14–13 sp; titles stay compact per the v0.19 Owner fit request. |
+| P11 | Settings-tab crash, cause unknown | **Root-caused via CrashJournal** — `private` top-level ViewModels (`LocationDetailViewModel`, `HistoryViewModel`, `PlacesViewModel`) crash at reflection instantiation (`IllegalAccessException`); all three are public now, with guard comments. If a Settings-specific crash remains, capture the new stack. |
+| P12 | Permanent 2.5 s polling, no R8, huge files | **Partially fixed** — the permission-checklist loop is now RESUMED-only (`repeatOnLifecycle`); R8 ON. The big-file split remains a maintenance task. |
+| P13 | Emails instead of names | **Partially fixed** — local nicknames (relId → "আব্বু/আপু…") editable on the member detail screen, used by the member title and every session notification; zero Firestore cost. Card/list surfaces migrate in a later wave. |
+| P14 | CARTO/Esri tile terms | **Open** — unchanged family-scale fair-use posture; re-verify before public distribution or move to the Maps SDK. |
+
+### One-time owner setup for P1 (event-driven push)
+
+1. Deploy the Worker (push to main auto-deploys via Workers Builds) — it now
+   exposes `POST /notify`.
+2. In Firestore create `config/notify` = `{ "url": "https://<your-worker>.workers.dev" }`
+   (the exact `*.workers.dev` URL from the Cloudflare dashboard). Every phone
+   picks it up within 10 minutes; without the doc the feature stays safely
+   off and behaviour matches v0.44.
+3. Secrets unchanged: `FIREBASE_SA_JSON` (already set) does the FCM send.
+
+No new permissions, no new Firestore rules, no background listeners — the
+notify path costs ~2–3 reads per ask.

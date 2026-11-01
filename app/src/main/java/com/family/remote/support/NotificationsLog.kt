@@ -121,6 +121,21 @@ object NotificationsLog {
     }
 
     /**
+     * v0.45.0 (audit P8) — record an event that happened at a PAST moment
+     * (the ask's real arrival time on the FCM path, a place alert's fire
+     * time). [arg2] is the stable subject id (sessionId) used for dedupe.
+     */
+    fun recordAt(
+        context: Context,
+        type: String,
+        atMillis: Long,
+        arg: String? = null,
+        arg2: String? = null
+    ) {
+        append(context, listOf(NotifEvent(id = nextId++, type = type, at = atMillis, arg = arg, arg2 = arg2)))
+    }
+
+    /**
      * M8 (v0.34.0) — diff helper for the shell's session watch: compares the
      * previous open-session snapshot with the current one and records the
      * three transitions the app ALREADY observes (no new listener, no extra
@@ -158,20 +173,20 @@ object NotificationsLog {
             val before = prev[s.id]
             if (before == null) {
                 if (s.status == "REQUESTED" && s.recipientUid == meUid) {
-                    batch += newEvent("session_asked", s.helperEmail)
+                    batch += newEvent("session_asked", s.helperEmail, s.id)
                 }
             } else if (before.status == "REQUESTED" && s.status == "ACTIVE" &&
                 (s.helperUid == meUid || s.recipientUid == meUid)
             ) {
                 val counterpart = if (s.recipientUid == meUid) s.helperEmail else s.recipientEmail
-                batch += newEvent("session_started", counterpart)
+                batch += newEvent("session_started", counterpart, s.id)
             }
         }
         for ((id, before) in prev) {
             if (before.status == "ACTIVE" && currentById[id] == null) {
                 val counterpart =
                     if (before.recipientUid == meUid) before.helperEmail else before.recipientEmail
-                batch += newEvent("session_ended", counterpart, null)
+                batch += newEvent("session_ended", counterpart, id)
             }
         }
         prev.clear()
@@ -200,7 +215,20 @@ object NotificationsLog {
         NotifEvent(id = nextId++, type = type, at = System.currentTimeMillis(), arg = arg, arg2 = arg2)
 
     private fun append(context: Context, added: List<NotifEvent>) {
-        _events.value = (added + _events.value).take(MAX_EVENTS)
+        // v0.45.0 (audit P8) — (type, arg2) dedupe within 10 minutes: the
+        // alive-app listener path and the killed-app FCM path can BOTH see
+        // the same ask/answer; one event in the log, not two. arg2 is the
+        // stable subject id (sessionId / placeId); events without one pass
+        // through untouched.
+        val existing = _events.value
+        val fresh = added.filter { new ->
+            new.arg2 == null || existing.none {
+                it.type == new.type && it.arg2 == new.arg2 &&
+                    kotlin.math.abs(new.at - it.at) < 10 * 60_000L
+            }
+        }
+        if (fresh.isEmpty()) return
+        _events.value = (fresh + existing).take(MAX_EVENTS)
         persist(context)
     }
 

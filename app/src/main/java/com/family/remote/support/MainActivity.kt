@@ -166,6 +166,7 @@ import com.family.remote.support.ui.notifications.NotificationsScreen
 // session effects and the session surfaces only.
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.family.remote.support.ui.components.PresenceChip
@@ -271,6 +272,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // v0.45.0 (audit P4) — deep links from notifications. Fresh start
+        // only (savedInstanceState == null): a rotation/language recreate
+        // must NOT replay an old notification route on top of wherever the
+        // user already navigated.
+        if (savedInstanceState == null) {
+            DeepLinks.fromIntent(intent)
+        }
         // Phase 11.6 — Light / Dark / System (persisted, ui/Theme.kt).
         // Loaded synchronously BEFORE setContent so the very first frame
         // already wears the right theme — no flash, no wrong-theme repaint.
@@ -285,6 +293,14 @@ class MainActivity : ComponentActivity() {
                 HomeScreen()
             }
         }
+    }
+
+    // v0.45.0 (audit P4) — the activity is singleTop (manifest), so a
+    // notification tap while the app is ALIVE lands here instead of
+    // stacking a second MainActivity: route it, never recreate state.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        DeepLinks.fromIntent(intent)
     }
 }
 
@@ -657,14 +673,17 @@ fun HomeScreen() {
         // v0.21.0 (audit): no binder reads on the login screen — the poll
         // only runs while a user is actually signed in.
         if (signedInUser == null) return@LaunchedEffect
-        while (true) {
-            // v0.44.0 (smooth-app wave) — the checklist reads
-            // Settings.Secure + PowerManager over BINDER calls; they used
-            // to run on the main dispatcher every 2.5 s. On a low-end OEM
-            // device that is sustained main-thread work — the polls now
-            // hop to IO (same values, same cadence, zero UI change).
-            permSummary = withContext(Dispatchers.IO) { readPermChecklist(context) }
-            delay(2500)
+        // v0.45.0 (audit P12): the 2.5 s permission checklist loop used to
+        // run for the ACTIVITY's whole lifetime — background included —
+        // hammering Settings.Secure/PowerManager binders on a battery for
+        // nothing. One read up front, then the cadence only while RESUMED
+        // (repeatOnLifecycle cancels the loop on every ON_STOP).
+        permSummary = withContext(Dispatchers.IO) { readPermChecklist(context) }
+        shellLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                permSummary = withContext(Dispatchers.IO) { readPermChecklist(context) }
+                delay(2500)
+            }
         }
     }
 
@@ -673,7 +692,11 @@ fun HomeScreen() {
     // (e.g. rules not published yet or a flaky network).
     LaunchedEffect(signedInUser?.uid, registerRetryKey) {
         val user = signedInUser ?: return@LaunchedEffect
-        deviceStatus = "Registering this device…"
+        // v0.45.0 (audit P9): the last hardcoded English setup string —
+        // "Registering this device…" (the code comment itself called it a
+        // follow-up). Now the app-language resource, like every other
+        // status line on this strip.
+        deviceStatus = context.getString(R.string.reg_in_progress)
         // v0.21.0 (audit): the FCM token registration used to sit INSIDE the
         // device-registration success path — one transient Firestore failure
         // skipped it entirely, the kill-push sweep then found "noTokens" and
@@ -874,6 +897,23 @@ fun HomeScreen() {
     }
     val nestedPopExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
         slideOutHorizontally(tween(nestedDur)) { it / 3 } + fadeOut(tween(nestedDur))
+    }
+    // v0.45.0 (audit P4) — the deep-link router: notification taps park a
+    // route on DeepLinks (fresh start OR onNewIntent — the activity is
+    // singleTop); this effect walks it into the NavHost exactly once and
+    // clears the request. Tab routes go through goTab (state-preserving
+    // switch), detail routes through a plain navigate. A signed-out user
+    // stays wherever the shell put them — nothing to route into yet.
+    LaunchedEffect(Unit) {
+        DeepLinks.pending.collect { route ->
+            if (route.isNullOrBlank()) return@collect
+            DeepLinks.consume()
+            when (route) {
+                AppRoutes.HOME, AppRoutes.TRACKING, AppRoutes.ADD, AppRoutes.SETTINGS,
+                AppRoutes.NOTIFICATIONS -> navController.goTab(route)
+                else -> navController.navigate(route) { launchSingleTop = true }
+            }
+        }
     }
     Scaffold(
         topBar = {

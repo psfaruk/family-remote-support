@@ -138,10 +138,14 @@ import com.family.remote.support.ui.tracking.demo.DemoBanner
 import com.family.remote.support.ui.tracking.demo.DemoTrackingDataSource
 import com.family.remote.support.ui.tracking.demo.DemoTrackingMode
 import com.google.firebase.auth.FirebaseUser
+import android.view.MotionEvent
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -153,8 +157,12 @@ import org.osmdroid.views.overlay.Overlay
 
 /**
  * Freshness bucket for a published position, computed from updatedAt vs
- * the reader's clock (generous: LIVE < 2 min, STALE < 5 min, else
- * OFFLINE). An old coordinate is NEVER labeled live.
+ * the reader's clock. v0.45.0 (audit P2): LIVE < 5 min, STALE < 15 min,
+ * else OFFLINE — the writer now heartbeats a STATIONARY phone every
+ * ~4 min (writeLocationHeartbeat), so a still phone stays LIVE and a
+ * briefly-unreachable one stays STALE instead of falling OFFLINE after
+ * 5 minutes of sitting still at home. An old coordinate is NEVER labeled
+ * live.
  */
 internal enum class LocationFreshness { LIVE, STALE, OFFLINE }
 
@@ -163,8 +171,8 @@ internal fun locationFreshness(location: LiveLocationView, nowMillis: Long): Loc
     if (location.updatedAtMillis <= 0L) return LocationFreshness.OFFLINE
     val ageMillis = nowMillis - location.updatedAtMillis
     return when {
-        ageMillis < 120_000L -> LocationFreshness.LIVE
-        ageMillis < 300_000L -> LocationFreshness.STALE
+        ageMillis < 300_000L -> LocationFreshness.LIVE
+        ageMillis < 900_000L -> LocationFreshness.STALE
         else -> LocationFreshness.OFFLINE
     }
 }
@@ -1057,6 +1065,31 @@ private fun removeOverlayFrom(mv: MapView, overlay: Overlay) {
 }
 
 /**
+ * v0.45.0 (audit P5 — the map-gesture conflict): a MapView that lives
+ * INSIDE a verticalScroll column fights the page for every vertical drag
+ * (the page scrolls, the map does not pan — the "ম্যাপ স্মুথ নয়" feeling).
+ * Claiming the gesture stream the moment a finger lands on the map —
+ * parent.requestDisallowInterceptTouchEvent(true) on ACTION_DOWN — hands
+ * pan AND pinch to the map; releasing it on UP/CANCEL restores page
+ * scrolling the instant the finger leaves. Idempotent with osmdroid's own
+ * internal request, and harmless in non-scrolling parents.
+ */
+private class NestableMapView(context: android.content.Context) : MapView(context) {
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN,
+            MotionEvent.ACTION_POINTER_DOWN ->
+                parent?.requestDisallowInterceptTouchEvent(true)
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL,
+            MotionEvent.ACTION_POINTER_UP ->
+                parent?.requestDisallowInterceptTouchEvent(false)
+        }
+        return super.dispatchTouchEvent(event)
+    }
+}
+
+/**
  * The map section — ONE Marker per member device that has actually
  * published a position (no marker is invented for a device that never
  * shared), an accuracy circle under each marker when the fix's radius is
@@ -1079,6 +1112,15 @@ private fun CounterpartMapSection(
     // satellite / terrain). The chips row above the map writes it; the
     // AndroidView update applies it LIVE (one tap, no view rebuild).
     var mapStyle by remember { mutableStateOf(MapStyles.current(context)) }
+
+    // v0.45.0 (audit P5) — the camera SURVIVES tab switches and rotation:
+    // pan/zoom write into these saveable slots through the MapListener
+    // below, and a freshly re-created MapView restores them instead of
+    // snapping back to the world view (the RELEASE_NOTES "accepted"
+    // reset — no longer accepted).
+    var camLat by rememberSaveable { mutableStateOf(0.0) }
+    var camLng by rememberSaveable { mutableStateOf(0.0) }
+    var camZoom by rememberSaveable { mutableStateOf(0.0) }
 
     // One MarkerVisual per device that has ACTUALLY published a position
     // (no marker is invented for a device that never shared).
@@ -1114,11 +1156,31 @@ private fun CounterpartMapSection(
         }
     }
     val mapView = remember {
-        MapView(context).apply {
+        // v0.45.0 (audit P5): NestableMapView claims the gesture stream so
+        // the surrounding verticalScroll can never eat the map's pan/pinch.
+        NestableMapView(context).apply {
             MapStyles.apply(this, MapStyles.current(context))
             setMultiTouchControls(true)
             controller.setZoom(WORLD_ZOOM)
             overlays.add(copyrightOverlay)
+            if (camLat != 0.0 || camLng != 0.0) {
+                controller.setCenter(GeoPoint(camLat, camLng))
+                if (camZoom > 0.0) controller.setZoom(camZoom)
+            }
+            // v0.45.0 (audit P5): keep the saveable camera slots in sync
+            // with every pan/zoom (main thread — osmdroid dispatches there).
+            addMapListener(object : MapListener {
+                override fun onScroll(event: ScrollEvent?): Boolean {
+                    camLat = mapCenter.latitude
+                    camLng = mapCenter.longitude
+                    return false
+                }
+
+                override fun onZoom(event: ZoomEvent?): Boolean {
+                    camZoom = zoomLevelDouble
+                    return false
+                }
+            })
         }
     }
     DisposableEffect(lifecycleOwner) {
@@ -1136,6 +1198,12 @@ private fun CounterpartMapSection(
         }
     }
     val sync = remember { MapSyncState() }
+    // v0.45.0 (audit P5): with a RESTORED camera, suppress the first
+    // auto-fit for the same pinned set — the user's zoom/pan wins until the
+    // set of publishing devices actually changes.
+    if ((camLat != 0.0 || camLng != 0.0) && sync.fittedKey == null) {
+        sync.fittedKey = pinnedVisuals.joinToString("|") { it.relId }
+    }
 
     // Overlay stroke colors resolved in the COMPOSABLE scope (the update
     // lambda below is not one): solid tertiary for LIVE rings, muted
@@ -1289,13 +1357,19 @@ private fun CounterpartMapSection(
                                 GeoPoint(pinnedVisuals[0].lat, pinnedVisuals[0].lng)
                             )
                         } else if (pinnedVisuals.size > 1) {
-                            mv.zoomToBoundingBox(
-                                BoundingBox.fromGeoPoints(
-                                    pinnedVisuals.map { GeoPoint(it.lat, it.lng) }
-                                ),
-                                false,
-                                80
-                            )
+                            // v0.45.0 (audit P5): co-located pins produce a
+                            // near-zero-span box — zoomToBoundingBox would
+                            // slam to maximum zoom. A span under ~500 µdeg
+                            // (≈ 55 m) is treated as ONE point instead.
+                            val points =
+                                pinnedVisuals.map { GeoPoint(it.lat, it.lng) }
+                            val box = BoundingBox.fromGeoPoints(points)
+                            if (box.getLatSpanE6() < 500 && box.getLonSpanE6() < 500) {
+                                mv.controller.setZoom(FOCUS_ZOOM)
+                                mv.controller.setCenter(points[0])
+                            } else {
+                                mv.zoomToBoundingBox(box, false, 80)
+                            }
                         } else {
                             // no pinned device left → back to the world view
                             mv.controller.setZoom(WORLD_ZOOM)
@@ -1317,7 +1391,10 @@ private fun CounterpartMapSection(
             ) {
                 IconButton(
                     onClick = {
-                        mapView.controller.setZoom((mapView.zoomLevel + 1).toDouble())
+                        // v0.45.0 (audit P5): animated zoom (controller.zoomIn
+                        // runs the pinch-scale animation) instead of the
+                        // integer setZoom jump.
+                        mapView.controller.zoomIn()
                     },
                     modifier = Modifier
                         .size(48.dp)
@@ -1333,7 +1410,8 @@ private fun CounterpartMapSection(
                 }
                 IconButton(
                     onClick = {
-                        mapView.controller.setZoom((mapView.zoomLevel - 1).toDouble())
+                        // v0.45.0 (audit P5): animated zoom-out, same as above.
+                        mapView.controller.zoomOut()
                     },
                     modifier = Modifier
                         .size(48.dp)

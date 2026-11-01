@@ -5,6 +5,12 @@
 # Worker code: cloudflare/killpush-worker.js — zero-dependency, exact port of
 # scripts/fcm-kill-push.mjs (the proven Node sweep). Single file, no bundling.
 #
+# v0.45.0 (audit P1): the Worker additionally serves POST /notify — the
+# EVENT-DRIVEN push tier. The app calls it the moment it writes a session
+# change (ask/answer) with a short-lived Firebase ID token; the Worker
+# verifies the token, re-reads the session, and sends one HIGH-priority FCM
+# data message. ~2–3 Firestore reads per ask — no polling, crons stay [].
+#
 # ⛔ POSTURE CHANGE (2026-10-31, Owner quota directive): the cron trigger is
 # REMOVED — no automatic Firestore polling from any server tier. The Owner
 # ordered: read/write only when the user acts; requests only from the app;

@@ -189,7 +189,10 @@ private fun recentEventTitle(e: NotifEvent): String = when (e.type) {
     "session_asked" -> stringResource(R.string.notif_ev_asked, e.arg.orEmpty())
     "session_started" -> stringResource(R.string.notif_ev_started, e.arg.orEmpty())
     "session_ended" -> stringResource(R.string.notif_ev_ended, e.arg.orEmpty())
+    "session_denied" -> stringResource(R.string.notif_ev_denied, e.arg.orEmpty())
+    "session_cancelled" -> stringResource(R.string.notif_ev_cancelled, e.arg.orEmpty())
     "sharing_started" -> stringResource(R.string.notif_ev_sharing_on)
     "sharing_stopped" -> stringResource(R.string.notif_ev_sharing_off)
+    "place_alert" -> stringResource(R.string.notif_ev_place, e.arg.orEmpty())
     else -> e.type
 }

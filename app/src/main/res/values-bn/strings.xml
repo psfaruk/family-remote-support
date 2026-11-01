@@ -712,4 +712,33 @@
     <string name="crash_share">শেয়ার করুন</string>
     <string name="crash_clear">মুছে ফেলুন</string>
 
+    <!-- v0.45.0 (audit-fix wave) -->
+    <string name="notif_allow">অনুমতি দিন</string>
+    <string name="notif_deny">না</string>
+    <string name="notif_result_allowed_title">সেশনে অনুমতি দেওয়া হয়েছে</string>
+    <string name="notif_result_allowed_body">এখন থেকে ১৫ মিনিটের জন্য হেল্পার এই ফোনটি দেখতে পারবেন।</string>
+    <string name="notif_result_denied_title">সেশনে অনুমতি দেওয়া হয়নি</string>
+    <string name="notif_result_denied_body">আপনি এই সাহায্যের অনুরোধ প্রত্যাখ্যান করেছেন।</string>
+    <string name="notif_result_failed_title">উত্তর দেওয়া যায়নি</string>
+    <string name="notif_result_failed_body">%1$s</string>
+    <string name="notif_result_open_app">অ্যাপ খুলে অনুরোধের কার্ড থেকে উত্তর দিন।</string>
+    <string name="notif_answered_allowed_title">%1$s সেশনে অনুমতি দিয়েছেন</string>
+    <string name="notif_answered_allowed_body">তাঁর স্ক্রিন দেখতে অ্যাপটি খুলুন।</string>
+    <string name="notif_answered_denied_title">%1$s অনুমতি দেননি</string>
+    <string name="notif_answered_denied_body">তিনি প্রস্তুত হলে আবার অনুরোধ পাঠাতে পারেন।</string>
+    <string name="notif_answered_cancelled_title">সাহায্যের অনুরোধ বাতিল হয়েছে</string>
+    <string name="notif_answered_cancelled_body">%1$s তাঁর অনুরোধ ফিরিয়ে নিয়েছেন।</string>
+    <string name="loc_notif_channel_name">লোকেশন শেয়ারিং</string>
+    <string name="loc_notif_channel_desc">এই ফোনের লোকেশন পরিবারের সাথে শেয়ার হওয়ার সময় দেখানো হয়।</string>
+    <string name="loc_notif_stopped_title">লোকেশন শেয়ারিং বন্ধ হয়েছে</string>
+    <string name="loc_notif_stopped_body">সিস্টেম অ্যাপটি বন্ধ করে দিয়েছে — আবার চালু করতে ট্যাপ করুন।</string>
+    <string name="reg_in_progress">এই ডিভাইস রেজিস্টার হচ্ছে…</string>
+    <string name="notif_ev_denied">%1$s সাহায্যের অনুরোধ প্রত্যাখ্যান করেছেন</string>
+    <string name="notif_ev_cancelled">%1$s সাহায্যের অনুরোধ ফিরিয়ে নিয়েছেন</string>
+    <string name="notif_ev_place">স্থান সতর্কতা: %1$s</string>
+    <string name="nick_label">ডাকনাম</string>
+    <string name="nick_hint">যেমন: আব্বু, আম্মু, ভাইয়া…</string>
+    <string name="nick_save">সেভ করুন</string>
+    <string name="nick_saved">সেভ হয়েছে ✓</string>
+
 </resources>

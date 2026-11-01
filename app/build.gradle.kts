@@ -94,8 +94,23 @@ android {
         // osmdroid tile plumbing tuned (6 download threads, 48-tile memory
         // LRU, 128 MB disk cache), dirty-tracked map redraws, and the
         // device list now refreshes on app resume. See worklog §86.
-        versionCode = 64
-        versionName = "0.44.0"
+        //
+        // v0.45.0 (65) — audit-fix wave (the deep audit of v0.44.0):
+        // P1 event-driven push (Worker /notify + ID-token auth + FCM data
+        // messages through AskNotifier), P2 stationary location heartbeat
+        // (LIVE<5m/STALE<15m freshness), P4 deep links + singleTop +
+        // Allow/Deny notification actions + setTimeoutAfter, P7 ServerClock
+        // for every session deadline comparison, P8 notifications log at
+        // real event time + place-alert/denied/cancelled types, P9
+        // localized location channel + register status + test-notification
+        // channel fix, P10 senior-first body type scale restored, P11 the
+        // private-ViewModel crashes (LocationDetail/History/Places), P12
+        // RESUMED-only permission polling, P6 R8 on + no debug-signed
+        // release in CI + legacy 6-char pairing codes retired + revoke ends
+        // live sessions, P5 map gesture/zoom/camera fixes, P3 unexpected-
+        // stop notice. See RELEASE_NOTES §8 / worklog §87.
+        versionCode = 65
+        versionName = "0.45.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the
@@ -142,11 +157,31 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // v0.45.0 (audit P6-গ): R8 ON for release builds — the ~27.9 MB
+            // APK ships unshrunk/unobfuscated today (easy to reverse).
+            // Keep rules: app/proguard-rules.pro (WebRTC natives, Firebase
+            // listeners, osmdroid, coroutines). Unit tests gate this in CI
+            // before assemble, and verify-apk-axml.mjs re-checks the signed
+            // artifact afterwards.
+            isMinifyEnabled = true
+            // Resource shrinking stays OFF for this first R8 wave — the
+            // APK-size win is mostly code+dex anyway, and none of the native
+            // deps (WebRTC/ML Kit) have been runtime-proven under resource
+            // shrinking on the family fleet yet.
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // v0.45.0 (audit P6-ক): no more silent DEBUG-signed releases.
+            // Local no-keystore `assembleRelease` now yields an UNSIGNED apk
+            // (install-visible immediately) instead of one that later breaks
+            // updates with INSTALL_FAILED_UPDATE_INCOMPATIBLE when the real
+            // key returns. CI hard-fails earlier when the secret is missing.
             signingConfig = if (releaseKeystore.exists()) {
                 signingConfigs.getByName("ciRelease")
             } else {
-                signingConfigs.getByName("debug")
+                null
             }
         }
     }

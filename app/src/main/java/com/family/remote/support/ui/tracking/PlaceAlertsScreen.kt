@@ -294,8 +294,12 @@ private data class PlacesUiState(
  * a user action (screen open / add / toggle / remove — §75); the service
  * NEVER reads this state (it reads the local store + registry the repo
  * refreshes on success).
+ *
+ * MUST stay PUBLIC with a public no-arg constructor: viewModel() builds
+ * it via androidx reflection, which cannot see a file-private class
+ * (same v0.44.0 runtime crash as LocationDetailViewModel).
  */
-private class PlacesViewModel : ViewModel() {
+class PlacesViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(PlacesUiState())
     val state: StateFlow<PlacesUiState> = _state.asStateFlow()
