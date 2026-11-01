@@ -3467,3 +3467,5 @@ history → Everything → del_done 验证文案）。
 **推送与 CI：** 本波 7 文件（build.gradle.kts 最先、worklog 最后）全部 readback-verify SHA256 逐文件核验；CI 门 = 最终 HEAD（25/25 单测 + Release-APK 61/0.41.1 验证门——结果见下方补记）。
 
 **Owner 动作（依序）：** ① 双机改装 **v0.41.1/61**（勿装 0.41.0/60——其点对路径移动卡一律显示 "possibly stationary"）。② Phase 8 门已绿——"等重跑"事项关闭；ONCE 语义裁决仍开放。③ detail 屏 C 区点亮（规则小波：liveLocations 可选 speedMetersPerSecond + 引擎传 fix.speed + 配套探针案）现已随门绿解锁——等 Owner 授权即开工。
+
+**CI 补记（最终 HEAD `486293d2`，run 41288516043 **SUCCESS**，日志亲验）：** 单测步骤 **PASS——`Task :app:testReleaseUnitTest` 零失败**（对照失败首跑的 "25 tests completed, 4 failed"——修复后同一套件全绿，1000× 单位缺陷的回归闭环完成）；assembleDebug+assembleRelease SUCCESS；**Release-APK 验证门 PASS（日志亲验）：✓ versionCode = 61 (INT_DEC) — expected 61 · ✓ versionName = "0.41.1" — expected "0.41.1" · ✓ APK Signing Block v2 present（"APK Sig Block 42"）· ✓ 版本形字符串池仅 [0.41.1] · VERIFY: PASS**；debug/release APK 双工件已上传。本补记本身为 §82 的最后一次推送（仅文档），其后运行以该 HEAD 为最终门——见下。
