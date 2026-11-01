@@ -111,7 +111,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -856,9 +855,11 @@ private fun HistoryDaySection(points: List<HistoryPoint>, coveragePercent: Int) 
  * The day's route on an osmdroid MapView — the SAME lifecycle pattern as
  * TrackingTab's CounterpartMapSection: the MapView is remembered (one
  * instance across recompositions) and wired to the host lifecycle
- * (ON_RESUME/ON_PAUSE forward to osmdroid, disposal detaches the view),
- * MAPNIK tiles, multi-touch, and the OSM copyright overlay added once
- * (index 0) and never removed.
+ * (ON_RESUME/ON_PAUSE forward to osmdroid, disposal detaches the view).
+ * v0.44.0: the tile source follows the shared fast style registry
+ * (MapStyle.kt — the persisted choice, CARTO Voyager 2D default),
+ * multi-touch stays on, and the copyright overlay (per-style attribution)
+ * is added once (index 0) and never removed.
  */
 @Composable
 private fun HistoryRouteMap(points: List<HistoryPoint>) {
@@ -875,10 +876,18 @@ private fun HistoryRouteMap(points: List<HistoryPoint>) {
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            // v0.44.0 — the SAME fast style registry as the Tracking tab
+            // (the persisted choice; CARTO Voyager 2D default). MAPNIK is
+            // gone from the whole app — every map is fast now, and the
+            // route map honors the owner's style pick.
+            MapStyles.apply(this, MapStyles.current(context))
             setMultiTouchControls(true)
             controller.setZoom(HISTORY_WORLD_ZOOM)
-            overlays.add(CopyrightOverlay(context))
+            overlays.add(
+                CopyrightOverlay(context).apply {
+                    setCopyrightNotice(MapStyles.attribution(MapStyles.current(context)))
+                }
+            )
         }
     }
     DisposableEffect(lifecycleOwner) {
