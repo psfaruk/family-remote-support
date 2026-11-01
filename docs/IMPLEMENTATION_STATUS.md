@@ -1,9 +1,9 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **LOCATION MASTER PLAN PHASE 4 (FRONTEND MOCK WAVE) CLOSED — v0.38.0/57
-> (2026-10-31). All master-plan milestones M0–M10 ✅ + Pre-M10 polish + quota
-> directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
-> Location Phase 4 frontend mock (§78).**
+> Status: **LOCATION MASTER PLAN PHASES 5–8 (IMPLEMENTATION WAVE) CLOSED —
+> v0.39.0/58 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
+> quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
+> Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79).**
 > §76 in one line: six parallel deep audits + secrets scan + VLM screenshot
 > verification; 2 edge-crash paths closed, auth hardening + latency wins
 > (parallel config/registration, 20 s auth timeouts), **14 of 15 duplicate
@@ -12,18 +12,26 @@
 > the kill-push service folder removed so it can never auto-start again.
 > Quota posture from §75 unchanged: every auto poller parked; with both phones'
 > apps closed the project's Firestore traffic is exactly zero.
-> Final report: `docs/RELEASE_NOTES.md`. Re-arm runbook for the parked tiers:
-> RELEASE_NOTES §9a / CLOUDFLARE_SETUP কোটা-নির্দেশ.
 > §78 in one line: Location master-plan Phase 4 — all new screens navigable with
-> clearly-labeled DEMO data (member cards + 7-state statuses, 6-step consent
-> wizard, journey-history + My-places screens, movement card); demo mode =
-> explicitly entered, persistent banner, zero Firestore (real listeners parked
-> while active); audit drift closed (privacy_body A1 rewritten ×15, 7 orphan
-> strings deleted, docs A2–A5 corrected); +120 string keys ×15 locales (BN
-> complete); RadioOptionRow promoted to a single shared source.
-> Build at writing: **v0.38.0 (versionCode 57) — reinstall both phones.** Rules for
-> the `liveLocations` collection remain **LIVE** (ruleset d1a38d5e); the M9 probe
-> battery (4/4 green) is unaffected — no rules changed by M8–M10/§75/§76.
+> clearly-labeled DEMO data; demo mode = explicitly entered, persistent banner,
+> zero Firestore; audit drift closed; +120 string keys ×15 locales (BN complete);
+> RadioOptionRow promoted to a single shared source.
+> §79 in one line: Location went REAL — permission decision records (zero new
+> permissions, DR-P1/DR-P2); scope-aware engine (ONCE auto-stop, TEMPORARY
+> expiry alarm + backstop, 50 m history enqueue with OS-provided speed/bearing,
+> upload-state line live); `locationAuthorizations` + history rules PUBLISHED
+> (ruleset c1ac1396…) with the liveLocations dual read path; wizard writes the
+> authoritative grants, every stop path revokes them (§75-safe queue for
+> offline); 33-case probe suite shipped — **its live gate run hit the day's
+> exhausted read quota mid-suite (incident §79) and reruns right after the
+> ~07:00 UTC reset; all parked tiers re-verified clean (sandbox no services,
+> Worker crons=[], Actions dispatch-only) — the exhaustion is real usage on
+> the 50 K/day free tier, reported to the Owner.**
+> Build at writing: **v0.39.0 (versionCode 58) — reinstall both phones.** Rules
+> are **LIVE at ruleset c1ac1396** (v0.39.0: locationAuthorizations +
+> users/{uid}/locationHistory + the liveLocations dual read path; the legacy
+> branch is verbatim, so the M9 probe battery's semantics are unchanged — the
+> 33-case v2 suite re-verifies both paths at the post-reset gate run).
 
 ## 1. Original phases (verified from PHASE-0.md §18–43, README status, worklog §44–63)
 
