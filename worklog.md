@@ -3329,3 +3329,92 @@ PASS（日志亲验）：✓ versionCode = 58 (INT_DEC) — expected 58 · ✓ v
 "0.39.0" — expected "0.39.0" · ✓ APK Signing Block v2 present。** 本地无构建环
 境下 Float/Double 这类跨类型签名不匹配超出静态符号平衡的检查范围——CI 门再证
 其值。全部 16 推送均经 readback-verify SHA256 逐文件核验。
+
+## §80 — Location 主计划 Phase 9（v0.40.0/59）：路线历史 UI 实装波 — 读取端真实化 + 授权门控 + 留存/删除工作流（2026-11-01）
+
+**触发：** Owner 指令 "Phase 9"（Location 主计划 §9 实施计划行：Route history —
+History UI + retention + deletion workflows，门 = Authorization tests）。前置状
+态：Phase 1–8 已交付（§77–§79），Phase 8 live 探针门因当日读配额耗尽而
+PENDING（重跑已排定于 PT 午夜配额重置后，协调者 cron one-time 任务，07:20 UTC
+触发——本波全部推送在其触发前完成，避免本地克隆/worklog 冲突）。
+
+**关键工程裁决（D10，全部记录于 PROGRESS）：**
+
+- **D10(a) 查询形状：** 日查询 = deviceId 等值 + retentionExpiresAt 下限（+5 min
+  偏斜缓冲）+ recordedAt 日区间 + orderBy(retentionExpiresAt, recordedAt) +
+  limit 1000，由**复合索引 (deviceId, retentionExpiresAt, recordedAt)** 服务。
+  动因：规则即非过滤器——list 规则的 retentionExpiresAt > request.time − 5min
+  条件要求查询自带该过滤（否则整个查询 403，H11 已实证该类形状）；授权分支的
+  get() 路径含 resource.data.deviceId，只有查询约束 deviceId 才可解析。BOM
+  33.4.0 支持多字段不等式过滤。**协调者 SA 无法创建索引**（IAM
+  datastore.indexes.create 缺失——list 可、create 403，亲验），列为 Owner
+  控制台一次性动作；索引就绪前历史屏显示诚实的 hist_index_hint 文案。
+- **D10(b) 留存清理本地日志变体：** 设计 §6.2 的服务端清理查询
+  (`retentionExpiresAt <= now`) 在已发布规则下**不可执行**（list 的留存下限
+  会直接拒绝该查询——过期记录对所有人不可枚举）。Phase 9 落地为引擎侧
+  **本地写入日志**（LocationHistoryLog：docId/recordedAt/retentionExpiresAt，
+  有界 4000、48h 剪枝、永不离机）：清理 = 盲删已知 id（delete 无需读，规则
+  允许 owner 路径删除）≤200/次用户动作；服务端枚举式清理列为未来规则修订项
+  （需配套探针用例，绝不静默改规则——Phase 8 门重跑在即，本波零规则变更）。
+- **D10(c) 日字 chips = 授权留存窗口天数**（空日诚实显示 hist_none；"有记录的
+  天数"元数据文档在已发布规则中无家可归）。
+- **D10(d) 详情 B 区无汇总 chips**（配额保护：chips 在旅程屏的有限查询里；
+  详情屏只渲染入口动作 + 留存行——Owner 可否决）。
+
+**交付（10 个代码文件 + 15 个 strings + 3 个 docs + 本 worklog）：**
+
+- **读取端（真实化）：** `TrackingViewModel` 增加按对手集 diff 的一次性授权读
+  （成员卡历史按钮仅在 sharer 授权 historyEnabled 且活跃时出现；对手集不变则
+  零重读）；`LocationDetailScreen` B 区（授权门控的 View 动作 + 留存行）与 E
+  区（真实到期/留存/历史访问三行，来自收到的授权文档；已撤销 → access-ended
+  文案；读取中 → 无过早"无"判决）替换 Phase 4 占位；`HistoryScreen` 全真实数
+  据路径——授权门 → 窗口日 chips → 每次选择一条有限日查询 → 与 demo 完全同
+  一的路线渲染（实线段/>10min 虚线缺口 + hist_gap chips、起终点标记、近似诚实
+  汇总卡 + 计算覆盖率），demo 夹具映射到共享 `HistoryPoint`（单一渲染路径，
+  v0.37.0 单源化纪律）。错误阶梯：PERMISSION_DENIED → 诚实"未保留"
+  （hist_none）；FAILED_PRECONDITION（索引缺失）→ 诚实设置提示
+  （hist_index_hint）；其余 → 路由化可重试 ErrorPanel；授权读自身失败 → 可重
+  试门错误（retryDay 重置 authzKey 重读门）。
+- **Owner 端（留存/删除）：** 引擎每次成功历史写入后追加本地日志；Tracking
+  resume（OwnSharingCard ON_RESUME 用户动作）现运行 D6 机会性清理（盲删
+  ≤200 过期条目）+ 冲刷离线删除队列（与 flushPendingLocationAuthz 同一钩
+  子，§75 合规：零定时器/监听器/后台）；**单一共享 `DeleteHistoryDialog`**
+  （范围：今日〔本地日志盲删〕/全部〔服务端枚举 + 日志盲删 + 验证性重查为
+  空〕）同时挂载于向导确认步（WITH_HISTORY 时）与 Settings → Location 新
+  行；离线失败诚实入队（del_offline；today 范围存储日界——跨午夜重试删的仍
+  是 Owner 选的那一天）。删除全部走 owner 单字段 retention 范围枚举（路径派
+  生分支，无需复合索引）。
+- **字符串：** +13 键 ×15 locale（del_* 8 键、set_loc_hist、setup_del_hist、
+  hist_access_end、hist_index_hint、del_close；BN 完整翻译，13 locale 镜像
+  EN——Phase 4 先例）。ret_note 复用为 Settings 删除行描述（诚实到期说明）。
+- **版本与文档：** build.gradle.kts 58→59 / 0.39.0→0.40.0（带注释）；
+  RELEASE_NOTES（头部状态 + §7.3 索引前置项与 Phase 9 诚实边界）；
+  IMPLEMENTATION_STATUS（§80 一行）；PROGRESS（Phase 9 行 + D10 + Phase 9
+  诚实边界 + change log；Phase 8 门仍 PENDING 的表述原样保留）。
+
+**§75 姿态核查：** 新增读 = 授权 GET（每对手一次/门开，diff 化）+ 日 LIST
+（每次日选择一条，限 1000）+ 删除枚举（用户发起，200/批）——全部用户动作驱
+动；新增写 = 删除（用户发起，有界）；零新监听类、零定时器、零后台扫描；本地
+日志纯 SharedPreferences。引擎历史写入路径行为不变（仅追加本地记账）。
+
+**风险与诚实披露（见 PROGRESS "Known honest edges (Phase 9 wave)"）：** 多字
+段不等式查询的运行时形状无法在沙盒验证（无设备）——Firestore 文档构造法
+（BOM 33.4.0），若形状有误将以 FAILED_PRECONDITION + Firestore 自带索引链接
+的形式在设备上出现，由诚实提示路径承接；H7 探针案（仅 retention 过滤的
+list）在严格规则求值语义下可能失败——本波客户端查询已包含 deviceId 等值
+（两种语义下均成立），探针用例修订列为门重跑之后的独立小波。
+
+**推送与 CI：** 本波全部文件经 readback-verify SHA256 逐文件核验推送
+（build.gradle.kts 最先、worklog 最后）；CI 编译门以最终 HEAD 为准（结果见
+下补记）。
+
+**Owner 动作（依序）：** ① **控制台创建复合索引**（一次性，~2 分钟）：
+console.firebase.google.com → Firestore Database → Indexes → Add index —
+Collection group `locationHistory`，字段 deviceId Ascending、
+retentionExpiresAt Ascending、recordedAt Ascending；待 BUILDING→READY。② 等
+Phase 8 探针门重跑结果（07:20 UTC 自动执行；33/33 PASS 才算过）。③ 双机改
+装 **v0.40.0/59**。④ 真实向导走 WITH_HISTORY + D7 → 另一机的成员卡应出现
+"Journey history"按钮 → 打开历史屏（索引就绪后）应见真实路线。⑤ ONCE 语义
+裁决（Phase 8 遗留：一次性位置是"发完即删"还是"最后已知多留一阵"——一行改
+动，等 Owner 定夺）。⑥ 删除流走一遍（Settings → Location → Delete journey
+history → Everything → del_done 验证文案）。
