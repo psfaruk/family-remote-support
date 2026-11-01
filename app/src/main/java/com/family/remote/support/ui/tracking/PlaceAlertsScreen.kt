@@ -96,7 +96,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
@@ -561,19 +560,25 @@ private fun AddPlaceForm(
     var cooldown by remember { mutableStateOf(DEFAULT_COOLDOWN_MIN) }
 
     // The picker MapView — the SAME lifecycle pattern as TrackingTab's
-    // CounterpartMapSection (remembered instance, MAPNIK, multi-touch,
-    // copyright overlay once, ON_RESUME/ON_PAUSE, onDetach on dispose).
+    // CounterpartMapSection (remembered instance, multi-touch, copyright
+    // overlay once, ON_RESUME/ON_PAUSE, onDetach on dispose). v0.44.0: the
+    // tile source follows the SAME fast style registry (the persisted
+    // choice; CARTO Voyager 2D default) — MAPNIK is gone from the app.
     // Nothing syncs INTO it: the user pans freely and the center is read
     // out only when Save is tapped.
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            MapStyles.apply(this, MapStyles.current(context))
             setMultiTouchControls(true)
             controller.setZoom(PICKER_ZOOM)
             controller.setCenter(GeoPoint(initialCenterLat, initialCenterLng))
-            overlays.add(CopyrightOverlay(context))
+            overlays.add(
+                CopyrightOverlay(context).apply {
+                    setCopyrightNotice(MapStyles.attribution(MapStyles.current(context)))
+                }
+            )
         }
     }
     DisposableEffect(lifecycleOwner) {
