@@ -143,6 +143,19 @@
     <string name="hist_start">Start</string>
     <string name="hist_end">End</string>
     <string name="hist_legend">Dashed line = no data in that gap</string>
+    <string name="del_title">Delete journey history</string>
+    <string name="del_confirm_body">This permanently deletes retained journey records from this phone\'s sharing.</string>
+    <string name="del_scope_today">Delete today\'s records</string>
+    <string name="del_scope_all">Delete all retained records</string>
+    <string name="del_progress">Deleting records…</string>
+    <string name="del_done">History deleted — verified empty.</string>
+    <string name="del_failed">Couldn\'t finish deleting — try again.</string>
+    <string name="del_offline">History will be deleted when you\'re back online.</string>
+    <string name="del_close">Close</string>
+    <string name="set_loc_hist">Delete journey history</string>
+    <string name="setup_del_hist">Delete existing journey history</string>
+    <string name="hist_access_end">You no longer have access to this history.</string>
+    <string name="hist_index_hint">Journey history isn\'t available on this project yet — a one-time database index setup is missing. Ask your family\'s helper.</string>
     <string name="ins_move">Movement: %1$s</string>
     <string name="ins_walk">Possibly walking</string>
     <string name="ins_cycle">Possibly cycling</string>
