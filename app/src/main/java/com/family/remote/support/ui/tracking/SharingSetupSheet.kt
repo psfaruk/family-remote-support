@@ -70,11 +70,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** One candidate sharing recipient: the OTHER party of a relationship. */
+/** One candidate sharing recipient: the OTHER party of a relationship.
+ * [kind] ('family' | 'guest') rides along so the Phase 8 authorization
+ * carries it — the rules keep requiring a live pairing for guests after
+ * their window lapses (family: the authorization IS the consent). */
 data class RecipientOption(
     val uid: String,
     val email: String,
-    val deviceModel: String
+    val deviceModel: String,
+    val kind: String = "family"
 )
 
 /**
@@ -92,13 +96,15 @@ internal fun recipientOptionFrom(rel: RelationshipView, myUid: String?): Recipie
         RecipientOption(
             uid = rel.helperUid,
             email = rel.helperEmail,
-            deviceModel = ""
+            deviceModel = "",
+            kind = rel.kind
         )
     } else {
         RecipientOption(
             uid = rel.recipientUid,
             email = rel.recipientEmail,
-            deviceModel = rel.recipientDeviceModel
+            deviceModel = rel.recipientDeviceModel,
+            kind = rel.kind
         )
     }
     // No uid → the other party cannot be identified: an honest absence.
