@@ -3444,3 +3444,26 @@ history → Everything → del_done 验证文案）。
 **推送与 CI：** 本波 15 文件（build.gradle.kts 最先、worklog 最后）全部经 readback-verify SHA256 逐文件核验推送；CI 门 = 最终 HEAD（首跑含新单测步骤与 Release-APK 60/0.41.0 验证门——结果见补记）。
 
 **Owner 动作（依序）：** ① 等 Phase 8 探针门重跑结果（07:20 UTC 自动执行；33/33 PASS 才算过）。② 双机改装 **v0.41.0/60**。③ 真实向导走 WITH_HISTORY → 对端打开旅程历史屏 → 汇总卡下方应见真实移动估计卡（含观测时间与置信词）。④ ONCE 语义裁决（Phase 8 遗留：一次性位置是"发完即删"还是"最后已知多留一阵"——一行改动）。⑤ 若愿把 detail 屏 C 区点亮：门绿后授权 liveLocations 规则小波（或先授予 SA `roles/datastore.indexAdmin` 作索引性能优化——均已入库为脚本与文档）。
+
+## §82 — Phase 8 门重跑权威执行 + v0.41.1/61 修复波：CI 单测门首跑抓住旅程尾部单位 bug + H7 探针案修订（35/35 绿）（2026-11-01）
+
+**触发：** 会话续接。承接 §81 遗留两项：① CI 补记（v0.41.0/60 最终 HEAD 的运行结果）；② Phase 8 探针门重跑（排定 07:20 UTC 的 cron 一次性任务）。核查：cron 任务未留下任何落盘痕迹（07:09 后零文件变更，隔离回合输出未持久化）——本波以协调者身份权威重跑该门并全量记录输出。
+
+**CI 补记（坏消息→好消息，run 41283667116 FAILURE）：** §81 新增的单测步骤在 maiden run 即抓住 **4 个失败用例**（plain pair / vehicle pair / glitch fallback / gap-tail walkback——全部是"点对推算"路径上期待 WALK/VEHICLE 的用例；期待 STILL 的用例因错误理由通过）。根因：`MovementClassifier.classifyJourneyTail` 第 3 级证据 `(meters / dt) * 3.6` 把**毫秒** dt 喂进**秒**公式——点对速度 1000× 偏低，所有 LIMITED 估计一律读成 "possibly stationary"。仓库第一个测试源集首跑即拦下一个真实已发布缺陷——Phase 10 门的价值当场自证。修复 = 一行（`(meters / (dt / 1000.0)) * 3.6` + 单位注释）+ 数值仿真全量核验（12 个 journey 用例重算全对、13 个 live 用例路径未动）+ 版本 **v0.41.1/61**（APK 验证门从 build.gradle.kts 自动取值）。推送：build.gradle.kts（90f2b056）→ MovementClassifier.kt（0661eea8），均 readback-verify SHA256 亲验。测试计数更正：套件实为 **25** 用例（§81 记 24 系笔误——13 live + 12 journey）。
+
+**本地克隆卫生：** §81 的 `MovementClassifierTest.kt` 未落本地克隆（当时从临时路径直推）——本波从 remote main 逐字节恢复（sha256 cf3f5fc0…），克隆恢复唯一事实源地位。
+
+**Phase 8 门重跑（权威执行，两轮，全输出已录）：**
+
+- **第一轮（原始 33 案）：32/33。** 唯一失败 = **H7**（授权 family 的仅-retention list → 403）——与 §80 预告逐字吻合：严格规则求值下接收方 list 分支引用 `resource.data.deviceId`，仅携带 deviceId 等值的查询可绑定；应用从不发出该形状。其余 32 路全数成立（含 H14 owner list、H11 过期投毒、H10 owner 亦不可见过期记录、A/L 全系）。
+- **既定"门重跑后的独立小波"当场执行：** H7 修订为应用**精确 D10a 形状**（deviceId 等值 + retentionExpiresAt > now+5 min〔随版 HISTORY_SKEW_MILLIS〕+ recordedAt 日窗 + orderBy(retention, recorded) 升序 + limit 1000）并加**行断言**（恰返回一条留存期内记录、过期夹具排除）；**H15 新增负例**锁死边界（仅-retention 接收方 list → 403——未来规则放宽不可能静默溜过）。
+- **第二轮：35/35 EXPECTATIONS MET（34 案 35 断言）。** 关键增量：**穿越真实规则求值**（非 §81 索引调查的 Admin 旁路）端到端验证 HistoryScreen 出货查询契约——授权 family 接收方跑 D10a 日查询 → 200 + 恰好正确记录子集。零残留（6/6 文档 + 3/3 合成账号清理）。探针脚本推送 readback-verify（87f4218e）。
+- 两轮 ~70 读/写/删，全部为用户排定的门执行（§75），canary 守门，配额充足（PT 午夜重置后）。
+
+**时钟披露（诚实记录）：** 本波期间 GitHub Actions 的 run created_at/updated_at 比其余所有时钟快 ~57 分钟（沙盒、Google 服务器、GitHub 自身 HTTP Date 头三方逐秒一致为凭）；Firestore 规则裁决不受影响（H1 的 ±10 分钟 recordedAt 窗通过即证应用↔服务器时钟对齐）。§82 所有时间以沙盒/Google 共识为准；日后引用 Actions 时间戳须按此怪癖解读。
+
+**§75 姿态核查：** 应用侧零流量变化（修复为纯算术）；探针两轮为门执行（用户排定）；零新监听/定时器/后台。
+
+**推送与 CI：** 本波 7 文件（build.gradle.kts 最先、worklog 最后）全部 readback-verify SHA256 逐文件核验；CI 门 = 最终 HEAD（25/25 单测 + Release-APK 61/0.41.1 验证门——结果见下方补记）。
+
+**Owner 动作（依序）：** ① 双机改装 **v0.41.1/61**（勿装 0.41.0/60——其点对路径移动卡一律显示 "possibly stationary"）。② Phase 8 门已绿——"等重跑"事项关闭；ONCE 语义裁决仍开放。③ detail 屏 C 区点亮（规则小波：liveLocations 可选 speedMetersPerSecond + 引擎传 fix.speed + 配套探针案）现已随门绿解锁——等 Owner 授权即开工。
