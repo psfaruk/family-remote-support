@@ -108,9 +108,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.family.remote.support.LiveLocationView
 import com.family.remote.support.LocationSharingPrefs
+import com.family.remote.support.LocationUploadReporter
+import com.family.remote.support.LocationUploadStatus
 import com.family.remote.support.R
 import com.family.remote.support.RelationshipView
 import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.flushPendingLocationAuthz
+import com.family.remote.support.grantLocationAuthorizations
 import com.family.remote.support.hasAnyLocationPermission
 import com.family.remote.support.startLocationSharing
 import com.family.remote.support.stopLocationSharing
@@ -285,16 +289,46 @@ internal fun OwnSharingCard(
     var permissionDenied by remember { mutableStateOf(false) }
     var showSetupSheet by remember { mutableStateOf(false) }
 
+    // Phase 7 — the engine's live upload verdict (UX spec §8: silent when
+    // OK). The reporter is engine-side and Compose-free; this bridge maps
+    // it 1:1 onto the UI vocabulary and recomposes on every report.
+    var engineUpload by remember {
+        mutableStateOf(LocationUploadReporter.current())
+    }
+    DisposableEffect(Unit) {
+        val listener: (LocationUploadStatus) -> Unit = { engineUpload = it }
+        LocationUploadReporter.listen(listener)
+        onDispose { LocationUploadReporter.unlisten(listener) }
+    }
+    val upload = when (engineUpload) {
+        LocationUploadStatus.OK -> UploadState.OK
+        LocationUploadStatus.PENDING -> UploadState.PENDING
+        LocationUploadStatus.FAILED -> UploadState.FAILED
+        LocationUploadStatus.UNAVAILABLE -> UploadState.UNAVAILABLE
+    }
+
+    // Phase 7 — the TEMPORARY scope's expiry line ("shown everywhere the
+    // share status appears" — UX spec §5), re-read with the same resume
+    // cadence as the toggle itself.
+    var scopeKind by remember { mutableStateOf(LocationSharingPrefs.scopeKind(context)) }
+    var scopeExpiry by remember { mutableStateOf(LocationSharingPrefs.scopeExpiresAt(context)) }
+
     // Refresh on resume: the pref can change outside this composition
-    // (stop from the sharing notification, the Settings section, or a
-    // fresh install restore). While sharing is WANTED but the permission
-    // is missing (revoked in system settings), the denied panel shows —
-    // the app never pretends a permission was granted.
+    // (stop from the sharing notification, the Settings section, a scope
+    // auto-stop, or a fresh install restore). While sharing is WANTED but
+    // the permission is missing (revoked in system settings), the denied
+    // panel shows — the app never pretends a permission was granted. The
+    // resume is also the §75-safe moment to retry any queued authorization
+    // writes (grant/revoke) that failed offline — a user action, never a
+    // timer.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 sharingOn = LocationSharingPrefs.isSharingEnabled(context)
                 permissionDenied = sharingOn && !hasAnyLocationPermission(context)
+                scopeKind = LocationSharingPrefs.scopeKind(context)
+                scopeExpiry = LocationSharingPrefs.scopeExpiresAt(context)
+                flushPendingLocationAuthz(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -323,6 +357,35 @@ internal fun OwnSharingCard(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        // Phase 7 — the live upload line (silent when OK, exactly the demo
+        // card's contract): PENDING warns in-app-warning color, FAILED in
+        // error color, UNAVAILABLE stays quiet gray.
+        val uploadLine = uploadStateLine(upload)
+        if (sharingOn && uploadLine != null) {
+            Text(
+                text = uploadLine,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = when (upload) {
+                    UploadState.PENDING -> AppWarningColor()
+                    UploadState.FAILED -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+        // Phase 7 — the TEMPORARY expiry line on the own card.
+        if (sharingOn && scopeKind == LocationSharingPrefs.SCOPE_TEMPORARY &&
+            scopeExpiry > System.currentTimeMillis()
+        ) {
+            Text(
+                text = stringResource(
+                    R.string.setup_confirm_expiry,
+                    SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(Date(scopeExpiry))
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         if (sharingOn) {
             // Stop is deliberately ONE tap (the setup sheet is only for
             // starting) — the owner can always end sharing immediately.
@@ -331,6 +394,8 @@ internal fun OwnSharingCard(
                     // v0.37.0 (dedupe wave) — stopLocationSharing flips the
                     // pref itself before stopping the service; the extra
                     // setSharingEnabled(false) write here was redundant.
+                    // v0.39.0 — the same call now revokes the Phase 8
+                    // authorization docs (best-effort, queued offline).
                     stopLocationSharing(context)
                     sharingOn = false
                 }
@@ -352,13 +417,23 @@ internal fun OwnSharingCard(
             recipients = recipients,
             isDemo = false,
             onDismiss = { showSetupSheet = false },
-            onConfirmed = { _, scope, tempMillis, retention ->
-                // Phase 4: a LOCAL consent record only — the authoritative
-                // locationAuthorizations doc ships in Phase 8 and these
-                // prefs never gate the engine in v0.38.0.
+            onConfirmed = { selected, scope, tempMillis, retention ->
+                // Phase 4: the LOCAL consent record (scope/expiry/
+                // retention) — the engine's auto-stop reads exactly these.
                 LocationSharingPrefs.setScopeKind(context, scope.name)
                 LocationSharingPrefs.setScopeExpiresAt(context, tempMillis ?: 0L)
                 LocationSharingPrefs.setRetentionKind(context, retention.name)
+                // Phase 8 — the AUTHORITATIVE authorization docs (one per
+                // recipient, owner-only writes, rules-fenced server-side).
+                // Best-effort here: offline failures queue and retry on
+                // the next user action (Tracking resume / next confirm).
+                grantLocationAuthorizations(
+                    context = context,
+                    recipients = selected.map { it.uid to it.kind },
+                    scopeKind = scope.name,
+                    tempMillis = tempMillis ?: 0L,
+                    retentionKind = retention.name
+                )
                 // v0.37.0 (dedupe wave) — startLocationSharing persists the
                 // consent pref itself (LiveLocationRepo records it FIRST),
                 // then brings the location foreground service up.
