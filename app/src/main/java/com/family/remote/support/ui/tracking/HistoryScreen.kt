@@ -1,16 +1,23 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Phase 4 of the Location master plan (v0.38.0/57) — journey history
-// screen, route tracking/{relId}/history
+// Location master plan Phase 4 (v0.38.0/57) + Phase 9 (v0.40.0/59) —
+// journey history screen, route tracking/{relId}/history
 // (docs/location/LOCATION_UX_SPECIFICATION.md §9, NAVIGATION_MAP §2).
 //
-// Real relationship ids have NO history backend in Phase 4 (it arrives
-// with Phases 8/9 — server-side retention + reads): the screen renders
-// the honest empty state, never a fabricated route. Demo member ids
-// ("demo-" prefix) render the fixture route from DemoTrackingDataSource:
-// a day chip row, an osmdroid route map (solid polylines per contiguous
-// run of recorded points, DASHED polylines across >10-minute gaps plus
-// a hist_gap chip), green ▶ start / ■ end markers with times, and the
-// approximation-honest summary card.
+// Phase 9 wires the REAL data path on top of the Phase 8 backend: one
+// relationship listener resolves the member, a one-shot authorization
+// read gates the screen (no grant → honest absence, never a teaser), and
+// each selected day loads through ONE bounded composite-index query
+// (deviceId equality + the mandatory retentionExpiresAt floor + the
+// recordedAt day range — the rules' exact contract; rules are not
+// filters). PERMISSION_DENIED on a day renders the honest empty wording
+// (records that were there have expired); FAILED_PRECONDITION (the
+// project's one-time composite index missing) renders the honest
+// setup-hint instead of a fake error storm.
+//
+// The rendering (map with solid runs / dashed >10-min gaps, start ▶ /
+// end ■ markers, approximation-honest summary card) is ONE code path
+// shared by the real and the demo worlds through `HistoryPoint` — the
+// demo fixtures map onto it, zero Firestore traffic, banner intact.
 //
 // Honesty rules baked in: the "approximate distance" is a straight-line
 // haversine sum between consecutive recorded points — never the exact
@@ -23,6 +30,7 @@ package com.family.remote.support.ui.tracking
 import android.graphics.DashPathEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,18 +39,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,16 +70,45 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.family.remote.support.LocationHistoryRecord
+import com.family.remote.support.LocationSharingPrefs
+import com.family.remote.support.ReceivedLocationAuthorization
+import com.family.remote.support.RelationshipView
+import com.family.remote.support.deleteAllOwnHistory
+import com.family.remote.support.deleteOwnHistoryForDay
+import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.isFirestoreUnreachable
+import com.family.remote.support.localDayStartMillis
+import com.family.remote.support.readHistoryDay
+import com.family.remote.support.readReceivedLocationAuthorization
+import com.family.remote.support.watchRelationships
 import com.family.remote.support.R
 import com.family.remote.support.ui.AppWarningColor
 import com.family.remote.support.ui.components.BackTitleRow
+import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.components.ErrorPanel
+import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.SectionCard
+import com.family.remote.support.ui.components.WideOutlinedButton
 import com.family.remote.support.ui.tracking.demo.DemoBanner
 import com.family.remote.support.ui.tracking.demo.DemoHistoryDay
-import com.family.remote.support.ui.tracking.demo.DemoHistoryPoint
 import com.family.remote.support.ui.tracking.demo.DemoTrackingDataSource
 import com.family.remote.support.ui.tracking.demo.isDemoRelId
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestoreException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -74,6 +116,8 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.math.asin
 import kotlin.math.cos
@@ -85,10 +129,21 @@ import kotlin.math.sqrt
 /** A >10-minute hole between consecutive recorded points (spec §9 "gap"). */
 private const val GAP_THRESHOLD_MILLIS = 10L * 60_000L
 
+/**
+ * Phase 9 — ONE render-time route point vocabulary: real Firestore records
+ * and the demo fixtures both map onto it, so the map/summary rendering has
+ * a single code path (the v0.37.0 single-source discipline).
+ */
+internal data class HistoryPoint(
+    val timeMillis: Long,
+    val lat: Double,
+    val lng: Double
+)
+
 /** One consecutive-pair segment of the day's route, dashed when it spans a gap. */
 private data class RouteSegment(
-    val from: DemoHistoryPoint,
-    val to: DemoHistoryPoint,
+    val from: HistoryPoint,
+    val to: HistoryPoint,
     val isGap: Boolean
 )
 
@@ -100,7 +155,7 @@ private data class RouteGap(val fromMillis: Long, val toMillis: Long)
  * pairs that span a gap (>10 min) are the dashed placeholders — nothing
  * between recorded points is ever interpolated as movement.
  */
-private fun routeSegments(points: List<DemoHistoryPoint>): List<RouteSegment> {
+private fun routeSegments(points: List<HistoryPoint>): List<RouteSegment> {
     val segments = ArrayList<RouteSegment>(points.size.coerceAtLeast(1))
     for (i in 1 until points.size) {
         val from = points[i - 1]
@@ -116,10 +171,27 @@ private fun routeSegments(points: List<DemoHistoryPoint>): List<RouteSegment> {
     return segments
 }
 
-private fun routeGaps(points: List<DemoHistoryPoint>): List<RouteGap> =
+private fun routeGaps(points: List<HistoryPoint>): List<RouteGap> =
     routeSegments(points)
         .filter { it.isGap }
         .map { RouteGap(it.from.timeMillis, it.to.timeMillis) }
+
+/**
+ * Data coverage for the summary card: the share of the day's period that
+ * is NOT a >10-minute gap (consecutive spans ≤10 min count as covered;
+ * each gap span counts as zero — a gap is a gap, never "partly covered").
+ */
+private fun routeCoveragePercent(points: List<HistoryPoint>): Int {
+    if (points.size < 2) return 100
+    val period = points.last().timeMillis - points.first().timeMillis
+    if (period <= 0L) return 100
+    var covered = 0L
+    for (i in 1 until points.size) {
+        val dt = points[i].timeMillis - points[i - 1].timeMillis
+        if (dt <= GAP_THRESHOLD_MILLIS) covered += dt
+    }
+    return ((covered * 100L) / period).toInt().coerceIn(0, 100)
+}
 
 /**
  * Haversine distance in kilometres between two recorded points. The
@@ -137,7 +209,7 @@ private fun haversineKm(lat1: Double, lng1: Double, lat2: Double, lng2: Double):
     return 2.0 * earthRadiusKm * asin(sqrt(a))
 }
 
-private fun routeDistanceKm(points: List<DemoHistoryPoint>): Double {
+private fun routeDistanceKm(points: List<HistoryPoint>): Double {
     var totalKm = 0.0
     for (i in 1 until points.size) {
         val from = points[i - 1]
@@ -176,31 +248,393 @@ private const val ROUTE_STROKE_PX = 8f
 /** Dashed no-data placeholder stroke width, in px. */
 private const val GAP_STROKE_PX = 5f
 
+// ── The real screen's data owner ─────────────────────────────────────────
+
+/** UiState for the history watch: resolved relationship + grant + one day. */
+private data class HistoryUiState(
+    val rel: RelationshipView? = null,
+    val authz: ReceivedLocationAuthorization? = null,
+    /** True once the one-shot grant read finished (doc or no doc) — the
+     * gate between the honest skeleton and any absence wording. */
+    val authzReadDone: Boolean = false,
+    val selectedDayBack: Int = 0,
+    val dayLoading: Boolean = false,
+    val dayPoints: List<LocationHistoryRecord> = emptyList(),
+    val dayError: Exception? = null,
+    val loaded: Boolean = false,
+    val error: String? = null
+)
+
+/**
+ * Phase 9 — the history screen's private ViewModel (the
+ * LocationDetailViewModel shape): one relationship listener resolving
+ * [relId], ONE one-shot authorization read per resolved counterpart, and
+ * one cancellable day-query per selection. All Firestore access is
+ * user-action-driven one-shot work (§75); the relationship listener is
+ * the same one every family screen uses.
+ */
+private class HistoryViewModel : ViewModel() {
+
+    private val _state = MutableStateFlow(HistoryUiState())
+    val state: StateFlow<HistoryUiState> = _state.asStateFlow()
+
+    private var stopWatch: (() -> Unit)? = null
+    private var relationships: List<RelationshipView> = emptyList()
+    private var relId: String = ""
+    private var myUid: String? = null
+    private var authzKey: Pair<String, String>? = null
+    private var lastDayBack = 0
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var dayJob: Job? = null
+
+    fun observe(user: FirebaseUser?, relId: String, describeError: (Exception) -> String) {
+        stopWatch?.invoke()
+        stopWatch = null
+        dayJob?.cancel()
+        dayJob = null
+        relationships = emptyList()
+        authzKey = null
+        lastDayBack = 0
+        this.relId = relId
+        myUid = user?.uid
+        _state.value = HistoryUiState()
+        if (user == null) return
+        stopWatch = watchRelationships(
+            user,
+            onUpdate = { rels ->
+                relationships = rels
+                syncAuthzRead()
+                emit()
+            },
+            onError = { e ->
+                _state.value = _state.value.copy(error = describeError(e))
+            }
+        )
+    }
+
+    private fun currentRel(): RelationshipView? =
+        relationships.firstOrNull { it.id == relId }
+
+    /**
+     * ONE grant read per resolved (still-authorized) counterpart — the
+     * authzKey diff keeps rel-listener churn from re-reading. The day's
+     * records load right after the gate lands.
+     */
+    private fun syncAuthzRead() {
+        val rel = currentRel() ?: return
+        val uid = myUid ?: return
+        if (!rel.isTrackableCounterpart(uid)) return
+        val key = rel.recipientUid to rel.recipientDeviceId
+        if (key == authzKey) return
+        authzKey = key
+        scope.launch {
+            try {
+                val authz = readReceivedLocationAuthorization(key.first, key.second)
+                _state.value = _state.value.copy(authz = authz, authzReadDone = true)
+                loadDay(lastDayBack)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(authzReadDone = true, dayError = e)
+            }
+        }
+    }
+
+    fun selectDay(daysBack: Int) {
+        lastDayBack = daysBack
+        _state.value = _state.value.copy(selectedDayBack = daysBack)
+        loadDay(daysBack)
+    }
+
+    fun retryDay() {
+        if (_state.value.authz == null) {
+            // The gate read itself failed — retry the gate (the key reset
+            // forces a fresh one-shot read; nothing else is re-fetched).
+            authzKey = null
+            syncAuthzRead()
+            return
+        }
+        loadDay(lastDayBack)
+    }
+
+    private fun loadDay(daysBack: Int) {
+        val rel = currentRel() ?: return
+        val authz = _state.value.authz ?: return
+        if (!authz.activeAt(System.currentTimeMillis()) || !authz.historyEnabled) return
+        dayJob?.cancel()
+        _state.value = _state.value.copy(dayLoading = true, dayError = null)
+        dayJob = scope.launch {
+            try {
+                val now = System.currentTimeMillis()
+                val dayStart = localDayStartMillis(now, daysBack)
+                val dayEnd = localDayStartMillis(now, daysBack - 1)
+                val points = readHistoryDay(rel.recipientUid, rel.recipientDeviceId, dayStart, dayEnd)
+                _state.value = _state.value.copy(dayPoints = points, dayLoading = false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(dayPoints = emptyList(), dayLoading = false, dayError = e)
+            }
+        }
+    }
+
+    private fun emit() {
+        _state.value = _state.value.copy(rel = currentRel(), loaded = true)
+    }
+
+    override fun onCleared() {
+        stopWatch?.invoke()
+        stopWatch = null
+        dayJob?.cancel()
+        dayJob = null
+        scope.cancel()
+    }
+}
+
 // ── The screen ───────────────────────────────────────────────────────────
 
 /**
  * §9 — the journey history screen for one member.
  *
- * @param relId  the member id from the route argument (real id → honest
- *               empty; "demo-" id → the fixture route).
+ * @param user   the signed-in account (null → the honest signed-out state).
+ * @param relId  the member id from the route argument (real id → the
+ *               Phase 9 wired data path; "demo-" id → the fixture route).
  * @param onBack pops the route (back row + demo banner ✕).
  */
 @Composable
-internal fun HistoryScreen(relId: String, onBack: () -> Unit) {
-    if (!isDemoRelId(relId)) {
-        // Real relationship: Phase 4 has no history backend (retention +
-        // reads arrive with Phases 8/9), so the honest answer is the
-        // empty state — no route is fabricated from the live position.
-        // The approximation note is a harmless, honest hint here.
+internal fun HistoryScreen(user: FirebaseUser?, relId: String, onBack: () -> Unit) {
+    if (isDemoRelId(relId)) {
+        DemoHistorySection(relId = relId, onBack = onBack)
+        return
+    }
+
+    val context = LocalContext.current
+    if (user == null) {
         BackTitleRow(title = stringResource(R.string.hist_title), onBack = onBack)
         EmptyState(
             icon = Icons.Filled.LocationOn,
-            title = stringResource(R.string.hist_none),
-            hint = stringResource(R.string.hist_sum_note)
+            title = stringResource(R.string.phone_signin_first),
+            hint = stringResource(R.string.phone_signin_hint)
         )
         return
     }
 
+    val vm: HistoryViewModel = viewModel()
+    var retryKey by remember { mutableStateOf(0) }
+    DisposableEffect(user.uid, relId, retryKey) {
+        vm.observe(user, relId) { e -> describeFirestoreError(context, e) }
+        onDispose { }
+    }
+    val state by vm.state.collectAsState()
+
+    val routedError = state.error?.takeIf { !state.loaded }
+    when {
+        routedError != null -> {
+            BackTitleRow(title = stringResource(R.string.hist_title), onBack = onBack)
+            ErrorPanel(message = routedError, onRetry = { retryKey++ })
+        }
+        !state.loaded -> {
+            BackTitleRow(title = stringResource(R.string.hist_title), onBack = onBack)
+            LoadingSkeleton(rows = 3)
+        }
+        else -> {
+            val rel = state.rel
+            if (rel == null || rel.status != "ACTIVE" || !rel.guestLive || rel.recipientUid == user.uid) {
+                // Honest not-found: revoked/expired/removed from the other
+                // side (or a stale route argument, or the own device —
+                // v1 has no owner-side history browser).
+                BackTitleRow(title = stringResource(R.string.hist_title), onBack = onBack)
+                EmptyState(
+                    icon = Icons.Filled.Phone,
+                    title = stringResource(R.string.fam_not_found),
+                    hint = stringResource(R.string.fam_not_found_h)
+                )
+                WideOutlinedButton(onClick = onBack) {
+                    Text(stringResource(R.string.cd_back))
+                }
+            } else {
+                RealHistoryBody(
+                    rel = rel,
+                    state = state,
+                    onSelectDay = { vm.selectDay(it) },
+                    onRetryDay = { vm.retryDay() },
+                    onBack = onBack
+                )
+            }
+        }
+    }
+}
+
+/** The granted member's history: gate → day chips → day body + retention line. */
+@Composable
+private fun RealHistoryBody(
+    rel: RelationshipView,
+    state: HistoryUiState,
+    onSelectDay: (Int) -> Unit,
+    onRetryDay: () -> Unit,
+    onBack: () -> Unit
+) {
+    val authz = state.authz
+    val nowMillis = remember { System.currentTimeMillis() }
+
+    BackTitleRow(title = stringResource(R.string.hist_title), onBack = onBack)
+    Text(
+        text = counterpartEmail(rel),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold
+    )
+
+    if (!state.authzReadDone || authz == null) {
+        if (!state.authzReadDone) {
+            // The gate read is in flight — the honest skeleton, never a
+            // premature "no records" verdict.
+            LoadingSkeleton(rows = 2)
+        } else if (state.dayError != null) {
+            // The gate read itself failed (network) — an honest retryable
+            // error, never a false "not granted" verdict.
+            DayErrorBody(error = state.dayError!!, onRetry = onRetryDay)
+        } else {
+            // Read finished, no grant doc: the honest absence — no
+            // locked/teaser cards (spec §4-B "else nothing").
+            EmptyState(
+                icon = Icons.Filled.LocationOn,
+                title = stringResource(R.string.hist_none),
+                hint = stringResource(R.string.hist_sum_note)
+            )
+        }
+        return
+    }
+
+    val nowActive = authz.activeAt(nowMillis)
+    when {
+        authz.revoked -> EmptyState(
+            icon = Icons.Filled.LocationOn,
+            title = stringResource(R.string.hist_none),
+            hint = stringResource(R.string.hist_access_end)
+        )
+        !nowActive -> EmptyState(
+            // Expired TEMPORARY/ONCE grant: the honest "not kept" wording.
+            icon = Icons.Filled.LocationOn,
+            title = stringResource(R.string.hist_none),
+            hint = stringResource(R.string.hist_sum_note)
+        )
+        !authz.historyEnabled -> EmptyState(
+            // Granted live-only: history was never part of this grant.
+            icon = Icons.Filled.LocationOn,
+            title = stringResource(R.string.hist_none),
+            hint = stringResource(R.string.hist_sum_note)
+        )
+        else -> {
+            val retentionDays = when (authz.retentionPolicy) {
+                "D7" -> 7
+                "D30" -> 30
+                else -> 1 // H24 (the rules never pair NONE with historyEnabled)
+            }
+            // Day chips across the grant's retention window (the spec's
+            // "days where records exist" needs a server-side metadata doc
+            // the published rules do not carry — window days + honest
+            // per-day empties is the quota-safe v1 reading; recorded in
+            // the progress doc).
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                for (daysBack in 0 until retentionDays) {
+                    HistoryDayChip(
+                        label = dayChipLabel(daysBack, nowMillis),
+                        selected = daysBack == state.selectedDayBack,
+                        onClick = { onSelectDay(daysBack) }
+                    )
+                }
+            }
+
+            when {
+                state.dayLoading -> LoadingSkeleton(rows = 2)
+                state.dayError != null -> DayErrorBody(
+                    error = state.dayError!!,
+                    onRetry = onRetryDay
+                )
+                else -> {
+                    val points = state.dayPoints.map {
+                        HistoryPoint(it.recordedAtMillis, it.lat, it.lng)
+                    }
+                    if (points.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Filled.LocationOn,
+                            title = stringResource(R.string.hist_none),
+                            hint = stringResource(R.string.hist_sum_note)
+                        )
+                    } else {
+                        HistoryDaySection(
+                            points = points,
+                            coveragePercent = routeCoveragePercent(points)
+                        )
+                    }
+                }
+            }
+
+            // Retention in force — always shown (spec §9's closing line).
+            Text(
+                text = stringResource(
+                    R.string.hist_ret,
+                    retentionLabel(retentionKindFromPolicy(authz.retentionPolicy))
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** The day error ladder: denied → honest empty; precondition → index hint. */
+@Composable
+private fun DayErrorBody(error: Exception, onRetry: () -> Unit) {
+    val context = LocalContext.current
+    when {
+        error is FirebaseFirestoreException &&
+            error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+            // The rules refused the day's query (expired records inside the
+            // range, or a grant that ended between gate and query): the
+            // honest wording is "not kept" — never a fabricated route.
+            EmptyState(
+                icon = Icons.Filled.LocationOn,
+                title = stringResource(R.string.hist_none),
+                hint = stringResource(R.string.hist_sum_note)
+            )
+        error is FirebaseFirestoreException &&
+            error.code == FirebaseFirestoreException.Code.FAILED_PRECONDITION ->
+            // The project's one-time composite index is missing — an
+            // honest setup hint, not a generic error.
+            EmptyState(
+                icon = Icons.Filled.LocationOn,
+                title = stringResource(R.string.hist_index_hint),
+                hint = stringResource(R.string.hist_sum_note)
+            )
+        else -> ErrorPanel(
+            message = describeFirestoreError(context, error),
+            onRetry = onRetry
+        )
+    }
+}
+
+/** Chip label for a day offset back from today (never a fabricated word). */
+@Composable
+private fun dayChipLabel(daysBack: Int, nowMillis: Long): String = when (daysBack) {
+    0 -> stringResource(R.string.hist_today)
+    1 -> stringResource(R.string.hist_yesterday)
+    else -> SimpleDateFormat("d MMM", Locale.getDefault())
+        .format(Date(localDayStartMillis(nowMillis, daysBack)))
+}
+
+// ── The demo world (Phase 4 fixtures — zero Firestore traffic) ───────────
+
+/**
+ * The demo member's history (tracking/{demo-relId} while demo mode is on):
+ * the SAME rendering path as the real screen, fed by fixtures. The banner
+ * stays on top; the ✕ leaves this screen (onBack).
+ */
+@Composable
+private fun DemoHistorySection(relId: String, onBack: () -> Unit) {
     val member = DemoTrackingDataSource.member(relId)
     if (member == null) {
         // Unknown demo id (stale route argument) — the honest not-found
@@ -239,7 +673,7 @@ internal fun HistoryScreen(relId: String, onBack: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             days.forEach { day ->
                 HistoryDayChip(
-                    label = historyDayLabel(relId, day.dayIndex),
+                    label = demoDayLabel(relId, day.dayIndex),
                     selected = day.dayIndex == selectedDay,
                     onClick = { selectedDay = day.dayIndex }
                 )
@@ -250,7 +684,7 @@ internal fun HistoryScreen(relId: String, onBack: () -> Unit) {
             // days; the default is the latest existing day).
             ?: days.maxByOrNull { it.dayIndex }
         if (selected != null) {
-            HistoryDaySection(relId = relId, day = selected)
+            DemoHistoryDaySection(relId = relId, day = selected)
         }
     }
 
@@ -264,13 +698,12 @@ internal fun HistoryScreen(relId: String, onBack: () -> Unit) {
 }
 
 /**
- * Chip label for a recorded day. The fixtures use the last two days
- * (dayIndex 1 = today, 0 = yesterday); any other index (none exist in the
- * fixture set) falls back to the day's first recorded time — never a
- * fabricated relative word.
+ * Chip label for a fixture day (dayIndex 1 = today, 0 = yesterday; any
+ * other index falls back to the day's first recorded time — never a
+ * fabricated relative word).
  */
 @Composable
-private fun historyDayLabel(relId: String, dayIndex: Int): String = when (dayIndex) {
+private fun demoDayLabel(relId: String, dayIndex: Int): String = when (dayIndex) {
     1 -> stringResource(R.string.hist_today)
     0 -> stringResource(R.string.hist_yesterday)
     else -> DemoTrackingDataSource.historyPoints(relId, dayIndex)
@@ -278,13 +711,34 @@ private fun historyDayLabel(relId: String, dayIndex: Int): String = when (dayInd
         ?: ""
 }
 
-/** The selected day: route map + legend + gap chips + summary card. */
+/** The selected fixture day, mapped onto the shared rendering path. */
 @Composable
-private fun HistoryDaySection(relId: String, day: DemoHistoryDay) {
-    // Ascending-by-time fixture points for this day.
+private fun DemoHistoryDaySection(relId: String, day: DemoHistoryDay) {
     val points = remember(relId, day.dayIndex) {
         DemoTrackingDataSource.historyPoints(relId, day.dayIndex)
+            .map { HistoryPoint(it.timeMillis, it.lat, it.lng) }
     }
+    if (points.isEmpty()) {
+        SectionCard(
+            title = stringResource(R.string.sec_b_note),
+            icon = Icons.Filled.DateRange
+        ) {
+            EmptyState(
+                icon = Icons.Filled.LocationOn,
+                title = stringResource(R.string.hist_none),
+                hint = stringResource(R.string.hist_sum_note)
+            )
+        }
+        return
+    }
+    HistoryDaySection(points = points, coveragePercent = day.coveragePercent)
+}
+
+// ── The shared day rendering (real + demo) ───────────────────────────────
+
+/** The selected day: route map + legend + gap chips + summary card. */
+@Composable
+private fun HistoryDaySection(points: List<HistoryPoint>, coveragePercent: Int) {
     if (points.isEmpty()) {
         // Empty day — hist_none inside the card area: "either sharing was
         // off or history wasn't enabled" (§9's honest empty wording).
@@ -303,7 +757,7 @@ private fun HistoryDaySection(relId: String, day: DemoHistoryDay) {
 
     val gaps = remember(points) { routeGaps(points) }
 
-    HistoryRouteMap(relId = relId, dayIndex = day.dayIndex, points = points)
+    HistoryRouteMap(points = points)
 
     // Legend + per-gap chips under the map (the dashed spans' times).
     Text(
@@ -354,7 +808,7 @@ private fun HistoryDaySection(relId: String, day: DemoHistoryDay) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = stringResource(R.string.hist_sum_cov, day.coveragePercent),
+            text = stringResource(R.string.hist_sum_cov, coveragePercent),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -375,11 +829,7 @@ private fun HistoryDaySection(relId: String, day: DemoHistoryDay) {
  * (index 0) and never removed.
  */
 @Composable
-private fun HistoryRouteMap(
-    relId: String,
-    dayIndex: Int,
-    points: List<DemoHistoryPoint>
-) {
+private fun HistoryRouteMap(points: List<HistoryPoint>) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val segments = remember(points) { routeSegments(points) }
@@ -422,7 +872,7 @@ private fun HistoryRouteMap(
             .clip(RoundedCornerShape(14.dp)),
         factory = { mapView },
         update = { mv ->
-            val key = "$relId:$dayIndex:${points.size}"
+            val key = "day:${points.size}:${points.firstOrNull()?.timeMillis ?: 0}"
             if (key != sync.overlaysKey) {
                 sync.overlaysKey = key
                 // Drop the previous day's polylines/markers; the copyright
@@ -548,5 +998,98 @@ private fun GapChip(text: String) {
                 RoundedCornerShape(999.dp)
             )
             .padding(horizontal = 10.dp, vertical = 4.dp)
+    )
+}
+
+// ── Phase 9 — "Delete my history" (UX spec §9/§10: wizard confirm & Settings) ──
+
+/** The delete dialog's phases. */
+private const val DEL_PHASE_CHOOSE = 0
+private const val DEL_PHASE_RUNNING = 1
+private const val DEL_PHASE_DONE = 2
+private const val DEL_PHASE_FAILED = 3
+private const val DEL_PHASE_OFFLINE = 4
+
+/**
+ * The owner-side "Delete my journey history" dialog (ONE implementation —
+ * Settings' row and the wizard's confirm step both render it). Scope
+ * choice (today / everything) → bounded deletion → verified-empty done
+ * state; offline failures queue honestly (`del_offline` — flushed on the
+ * next user action, never a false success).
+ */
+@Composable
+internal fun DeleteHistoryDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var phase by remember { mutableStateOf(DEL_PHASE_CHOOSE) }
+
+    fun runDelete(deleteEverything: Boolean) {
+        phase = DEL_PHASE_RUNNING
+        val todayStart = localDayStartMillis(System.currentTimeMillis(), 0)
+        scope.launch {
+            try {
+                if (deleteEverything) {
+                    deleteAllOwnHistory(context)
+                } else {
+                    deleteOwnHistoryForDay(context, todayStart)
+                }
+                phase = DEL_PHASE_DONE
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isFirestoreUnreachable(e)) {
+                    // Offline: queue for the next user action (the flush
+                    // hook retries it on Tracking resume).
+                    if (deleteEverything) {
+                        LocationSharingPrefs.setPendingDeleteAll(context, true)
+                    } else {
+                        LocationSharingPrefs.setPendingDeleteDayStart(context, todayStart)
+                    }
+                    phase = DEL_PHASE_OFFLINE
+                } else {
+                    phase = DEL_PHASE_FAILED
+                }
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (phase != DEL_PHASE_RUNNING) onDismiss() },
+        title = { Text(stringResource(R.string.del_title)) },
+        text = {
+            when (phase) {
+                DEL_PHASE_CHOOSE -> Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.del_confirm_body),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    WideOutlinedButton(onClick = { runDelete(false) }) {
+                        Text(stringResource(R.string.del_scope_today))
+                    }
+                    BigButton(onClick = { runDelete(true) }) {
+                        Text(stringResource(R.string.del_scope_all))
+                    }
+                }
+                DEL_PHASE_RUNNING -> Text(stringResource(R.string.del_progress))
+                DEL_PHASE_DONE -> Text(stringResource(R.string.del_done))
+                DEL_PHASE_FAILED -> Text(stringResource(R.string.del_failed))
+                else -> Text(stringResource(R.string.del_offline))
+            }
+        },
+        confirmButton = {
+            when (phase) {
+                DEL_PHASE_RUNNING -> TextButton(enabled = false, onClick = {}) {
+                    Text(stringResource(R.string.del_progress))
+                }
+                DEL_PHASE_CHOOSE -> TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.setup_cancel))
+                }
+                else -> TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.del_close))
+                }
+            }
+        }
     )
 }
