@@ -42,8 +42,9 @@
 // history/track polylines — a single marker per device (master PART 6);
 // real cards carry NO history button in Phase 4 because no real
 // authorization source exists yet (an honest absence, not a hidden one);
-// the OSM attribution (osmdroid CopyrightOverlay — "© OpenStreetMap
-// contributors") is added once and never removed (Apache-2.0/OSMF policy).
+// v0.44.0: the map attribution (CopyrightOverlay) follows the ACTIVE tile
+// source (CARTO / Esri — MapStyle.kt owns the per-style line), still added
+// once, before any marker, and never removed mid-session.
 // ═══════════════════════════════════════════════════════════════════════
 package com.family.remote.support.ui.tracking
 
@@ -75,6 +76,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -140,7 +142,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -1040,6 +1041,11 @@ private class MapSyncState {
     val markers = HashMap<String, Marker>()
     val accuracy = HashMap<String, AccuracyEntry>()
     var fittedKey: String? = null
+
+    /** v0.44.0 — the map style whose tile source is currently applied
+     *  (null = nothing applied on this MapView yet). Style switches are
+     *  live: setTileSource on the remembered view, markers untouched. */
+    var appliedStyle: String? = null
 }
 
 /** Index-based overlay removal (the marker drop path's helper). */
@@ -1069,6 +1075,10 @@ private fun CounterpartMapSection(
     val lifecycleOwner = LocalLifecycleOwner.current
     var selectedRelId by rememberSaveable { mutableStateOf<String?>(null) }
     var showDeviceSheet by remember { mutableStateOf(false) }
+    // v0.44.0 (fast-map wave) — the persisted map STYLE (2D street /
+    // satellite / terrain). The chips row above the map writes it; the
+    // AndroidView update applies it LIVE (one tap, no view rebuild).
+    var mapStyle by remember { mutableStateOf(MapStyles.current(context)) }
 
     // One MarkerVisual per device that has ACTUALLY published a position
     // (no marker is invented for a device that never shared).
@@ -1088,14 +1098,27 @@ private fun CounterpartMapSection(
     // The MapView is remembered (one instance across recompositions) and
     // wired to the host lifecycle: ON_RESUME/ON_PAUSE forward to the
     // osmdroid calls, disposal detaches the view and frees its overlays.
-    // Tile source MAPNIK (OSM) + multi-touch pan/zoom. The OSM copyright
-    // overlay is added once, before any marker, and never removed.
+    // v0.44.0 — the tile source comes from the persisted map STYLE
+    // (MapStyle.kt: fast CARTO Voyager 2D default / Esri satellite /
+    // Esri terrain) and switches LIVE from the chips above the map;
+    // multi-touch pan/zoom stays on. The copyright overlay is added once,
+    // before any marker, and never removed — its text follows the ACTIVE
+    // tile source (per-style attribution, MapStyles.attribution).
+    val copyrightOverlay = remember {
+        CopyrightOverlay(context).apply {
+            // osmdroid 6.1.18: the overlay's setter is setCopyrightNotice;
+            // each tile source ALSO carries its own copyright (the overlay
+            // reads the ACTIVE source at draw time) — both carry the same
+            // per-style line (MapStyles.attribution).
+            setCopyrightNotice(MapStyles.attribution(MapStyles.current(context)))
+        }
+    }
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            MapStyles.apply(this, MapStyles.current(context))
             setMultiTouchControls(true)
             controller.setZoom(WORLD_ZOOM)
-            overlays.add(CopyrightOverlay(context))
+            overlays.add(copyrightOverlay)
         }
     }
     DisposableEffect(lifecycleOwner) {
@@ -1121,6 +1144,37 @@ private fun CounterpartMapSection(
     val dimStroke = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
 
     SectionCard(title = stringResource(R.string.loc_title), icon = Icons.Filled.LocationOn) {
+        // v0.44.0 (Owner: "2D 3D ও setelite ম্যাপ যুক্ত করতে হবে") — the
+        // map STYLE chips: 2D street / satellite / 3D-relief terrain. One
+        // tap persists the choice and switches the tile source LIVE —
+        // no view rebuild, markers and camera untouched. The chips sit
+        // above the map so the active mode is always visible.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = mapStyle == MapStyles.STYLE_2D,
+                onClick = {
+                    mapStyle = MapStyles.STYLE_2D
+                    MapStyles.set(context, MapStyles.STYLE_2D)
+                },
+                label = { Text(stringResource(R.string.map_style_2d)) }
+            )
+            FilterChip(
+                selected = mapStyle == MapStyles.STYLE_SATELLITE,
+                onClick = {
+                    mapStyle = MapStyles.STYLE_SATELLITE
+                    MapStyles.set(context, MapStyles.STYLE_SATELLITE)
+                },
+                label = { Text(stringResource(R.string.map_style_satellite)) }
+            )
+            FilterChip(
+                selected = mapStyle == MapStyles.STYLE_TERRAIN,
+                onClick = {
+                    mapStyle = MapStyles.STYLE_TERRAIN
+                    MapStyles.set(context, MapStyles.STYLE_TERRAIN)
+                },
+                label = { Text(stringResource(R.string.map_style_terrain)) }
+            )
+        }
         Box {
             AndroidView(
                 modifier = Modifier
@@ -1129,6 +1183,23 @@ private fun CounterpartMapSection(
                     .clip(RoundedCornerShape(14.dp)),
                 factory = { mapView },
                 update = { mv ->
+                    // v0.44.0 — the whole update is DIRTY-TRACKED: the 30 s
+                    // freshness tick recomposes this section, but an
+                    // unchanged map no longer forces a full redraw (the
+                    // "স্মুথ" ask — invalidate only when something really
+                    // changed).
+                    var dirty = false
+                    // 0. v0.44.0 — LIVE style switch: apply the tile source
+                    //    + the matching attribution only when the chip
+                    //    choice actually changed for THIS MapView.
+                    if (sync.appliedStyle != mapStyle) {
+                        sync.appliedStyle = mapStyle
+                        MapStyles.apply(mv, mapStyle)
+                        copyrightOverlay.setCopyrightNotice(
+                            MapStyles.attribution(mapStyle)
+                        )
+                        dirty = true
+                    }
                     // 1. drop markers + accuracy circles whose device
                     //    stopped publishing a position
                     val pinnedIds = pinnedVisuals.map { it.relId }.toHashSet()
@@ -1137,9 +1208,11 @@ private fun CounterpartMapSection(
                         .forEach { relId ->
                             sync.markers.remove(relId)?.let { marker ->
                                 removeOverlayFrom(mv, marker)
+                                dirty = true
                             }
                             sync.accuracy.remove(relId)?.let { entry ->
                                 removeOverlayFrom(mv, entry.overlay)
+                                dirty = true
                             }
                         }
                     // 2. accuracy circles (inserted right after the
@@ -1154,6 +1227,7 @@ private fun CounterpartMapSection(
                             if (entry != null) {
                                 removeOverlayFrom(mv, entry.overlay)
                                 sync.accuracy.remove(visual.relId)
+                                dirty = true
                             }
                         } else if (entry == null || entry.visual != wanted) {
                             if (entry != null) {
@@ -1169,9 +1243,11 @@ private fun CounterpartMapSection(
                             // copyright overlay at index 0.
                             mv.overlays.add(minOf(1, mv.overlays.size), overlay)
                             sync.accuracy[visual.relId] = AccuracyEntry(overlay, wanted)
+                            dirty = true
                         }
                     }
-                    // 3. add new markers, move/relabel existing ones
+                    // 3. add new markers, move/relabel existing ones —
+                    //    unchanged pins skip even the invalidate.
                     pinnedVisuals.forEach { visual ->
                         val point = GeoPoint(visual.lat, visual.lng)
                         val existing = sync.markers[visual.relId]
@@ -1183,10 +1259,22 @@ private fun CounterpartMapSection(
                             marker.setSnippet(visual.snippet)
                             mv.overlays.add(marker)
                             sync.markers[visual.relId] = marker
+                            dirty = true
                         } else {
-                            existing.setPosition(point)
-                            existing.setTitle(visual.title)
-                            existing.setSnippet(visual.snippet)
+                            if (existing.position.latitude != visual.lat ||
+                                existing.position.longitude != visual.lng
+                            ) {
+                                existing.setPosition(point)
+                                dirty = true
+                            }
+                            if (existing.title != visual.title) {
+                                existing.setTitle(visual.title)
+                                dirty = true
+                            }
+                            if (existing.snippet != visual.snippet) {
+                                existing.setSnippet(visual.snippet)
+                                dirty = true
+                            }
                         }
                     }
                     // 4. camera follows the SET of pinned devices (a new fix for
@@ -1194,6 +1282,7 @@ private fun CounterpartMapSection(
                     val fitKey = pinnedVisuals.joinToString("|") { it.relId }
                     if (fitKey != sync.fittedKey) {
                         sync.fittedKey = fitKey
+                        dirty = true
                         if (pinnedVisuals.size == 1) {
                             mv.controller.setZoom(FOCUS_ZOOM)
                             mv.controller.setCenter(
@@ -1212,7 +1301,8 @@ private fun CounterpartMapSection(
                             mv.controller.setZoom(WORLD_ZOOM)
                         }
                     }
-                    mv.invalidate()
+                    // v0.44.0 — repaint ONLY when something actually changed.
+                    if (dirty) mv.invalidate()
                 }
             )
             // Phase 4 — zoom +/− controls over the map's bottom-end corner:
