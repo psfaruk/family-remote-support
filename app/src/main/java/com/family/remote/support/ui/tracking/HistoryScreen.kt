@@ -254,8 +254,9 @@ private const val GAP_STROKE_PX = 5f
 
 // ── The real screen's data owner ─────────────────────────────────────────
 
-/** UiState for the history watch: resolved relationship + grant + one day. */
-private data class HistoryUiState(
+/** UiState for the history watch: resolved relationship + grant + one day.
+ * (v0.45.0: public — the now-public HistoryViewModel exposes it.) */
+data class HistoryUiState(
     val rel: RelationshipView? = null,
     val authz: ReceivedLocationAuthorization? = null,
     /** True once the one-shot grant read finished (doc or no doc) — the

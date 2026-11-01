@@ -90,8 +90,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** UiState for the detail watch: the resolved relationship + its last position + the received grant. */
-private data class LocationDetailUiState(
+/** UiState for the detail watch: the resolved relationship + its last position + the received grant.
+ * (v0.45.0: public — the now-public LocationDetailViewModel exposes it.) */
+data class LocationDetailUiState(
     val rel: RelationshipView? = null,
     val location: LiveLocationView? = null,
     // Phase 9 — the grant this account received from the member (section

@@ -1359,12 +1359,16 @@ private fun CounterpartMapSection(
                         } else if (pinnedVisuals.size > 1) {
                             // v0.45.0 (audit P5): co-located pins produce a
                             // near-zero-span box — zoomToBoundingBox would
-                            // slam to maximum zoom. A span under ~500 µdeg
+                            // slam to maximum zoom. A span under ~0.0005°
                             // (≈ 55 m) is treated as ONE point instead.
+                            // (osmdroid 6.1.18 BoundingBox has no spanE6
+                            // getters — the span is north−south / east−west.)
                             val points =
                                 pinnedVisuals.map { GeoPoint(it.lat, it.lng) }
                             val box = BoundingBox.fromGeoPoints(points)
-                            if (box.getLatSpanE6() < 500 && box.getLonSpanE6() < 500) {
+                            val latSpan = box.latNorth - box.latSouth
+                            val lonSpan = box.lonEast - box.lonWest
+                            if (latSpan < 0.0005 && lonSpan < 0.0005) {
                                 mv.controller.setZoom(FOCUS_ZOOM)
                                 mv.controller.setCenter(points[0])
                             } else {

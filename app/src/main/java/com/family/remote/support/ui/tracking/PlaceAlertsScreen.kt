@@ -277,8 +277,8 @@ internal fun PlaceAlertsScreen(user: FirebaseUser?, onBack: () -> Unit) {
 }
 
 // ── The real side's state holder (the HistoryViewModel pattern) ─────────
-
-private data class PlacesUiState(
+// (v0.45.0: public — the now-public PlacesViewModel exposes it.)
+data class PlacesUiState(
     val loaded: Boolean = false,
     val places: List<SavedPlace> = emptyList(),
     /** Load failure (routed to the full ErrorPanel while nothing loaded). */
