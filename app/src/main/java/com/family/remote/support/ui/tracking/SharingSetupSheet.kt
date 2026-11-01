@@ -66,6 +66,7 @@ import com.family.remote.support.hasAnyLocationPermission
 import com.family.remote.support.ui.components.BigButton
 import com.family.remote.support.ui.components.PermissionDeniedPanel
 import com.family.remote.support.ui.components.RadioOptionRow
+import com.family.remote.support.ui.components.WideOutlinedButton
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -139,7 +140,11 @@ internal fun SharingSetupSheet(
     recipients: List<RecipientOption>,
     isDemo: Boolean,
     onDismiss: () -> Unit,
-    onConfirmed: (selected: List<RecipientOption>, scope: ScopeKind, tempMillis: Long?, retention: RetentionKind) -> Unit
+    onConfirmed: (selected: List<RecipientOption>, scope: ScopeKind, tempMillis: Long?, retention: RetentionKind) -> Unit,
+    // Phase 9 — opens the owner-side "Delete existing journey history"
+    // flow from the confirm step (spec §9's delete home #1). Null (demo)
+    // hides the affordance — demo mode never offers real-data actions.
+    onDeleteHistory: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState()
@@ -267,6 +272,7 @@ internal fun SharingSetupSheet(
                     scope = scope,
                     tempChoice = tempChoice,
                     retention = retention,
+                    onDeleteHistory = onDeleteHistory,
                     onConfirmed = onConfirmed
                 )
             }
@@ -624,6 +630,7 @@ private fun ConfirmStep(
     scope: ScopeKind,
     tempChoice: TempChoice,
     retention: RetentionKind,
+    onDeleteHistory: (() -> Unit)? = null,
     onConfirmed: (selected: List<RecipientOption>, scope: ScopeKind, tempMillis: Long?, retention: RetentionKind) -> Unit
 ) {
     val selected = recipients.filter { it.uid in selectedUids }
@@ -672,6 +679,14 @@ private fun ConfirmStep(
                     ),
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+            // Phase 9 — the owner-side delete affordance rides the WITH-
+            // HISTORY confirm step (spec §9: "owner-side 'Delete my
+            // history' lives in the wizard confirm screen & Settings").
+            if (scope == ScopeKind.WITH_HISTORY && onDeleteHistory != null) {
+                WideOutlinedButton(onClick = onDeleteHistory) {
+                    Text(stringResource(R.string.setup_del_hist))
+                }
             }
         }
     }
