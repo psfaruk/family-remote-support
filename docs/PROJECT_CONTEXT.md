@@ -116,7 +116,7 @@ is a hard design constraint.
 | `supportSessions/{id}` | participant FSM | participants | deadlines 5 m ask / 20 m cap; guest capped by rel window; no delete |
 | `supportSessions/{id}/signal` | participant | aud-only | per-type payload caps; epoch guard; participant wipe |
 | `config/{doc}` | SA only | any signed-in get | turn / quality runtime config |
-| `liveLocations/{uid}_{devId}` | **planned (M5)** | paired counterpart + sharingEnabled | see LIVE_LOCATION_ARCHITECTURE.md |
+| `liveLocations/{uid}_{devId}` | **shipped (M5, v0.33.0)** — live-only, consent-based, deleted on stop | paired counterpart + sharingEnabled | see LIVE_LOCATION_ARCHITECTURE.md |
 
 ## 7. QR pairing & device-relationship model (as-is)
 
