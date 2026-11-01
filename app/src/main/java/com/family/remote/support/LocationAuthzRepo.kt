@@ -54,6 +54,54 @@ private const val ONCE_GRACE_MILLIS = 15 * 60_000L
 fun locationAuthorizationDocId(recipientUid: String, ownerUid: String, deviceId: String): String =
     "${recipientUid}_${ownerUid}_$deviceId"
 
+// ── Location master plan Phase 9 (v0.40.0) — the RECIPIENT-side read ─────
+
+/**
+ * The grant THIS account received from a sharer (one doc, read-only for
+ * the recipient — the rules allow exactly own-grant gets). The UI gates
+ * history/section-E rendering on these values; `revoked` and a past
+ * `expiresAtMillis` both mean "nothing granted right now" — an honest
+ * absence, never a stale card.
+ */
+data class ReceivedLocationAuthorization(
+    val liveEnabled: Boolean,
+    val historyEnabled: Boolean,
+    val scope: String,
+    val expiresAtMillis: Long,
+    val retentionPolicy: String,
+    val revoked: Boolean
+) {
+    /** Server-granted and still live at [nowMillis] (0 expiry = no bound). */
+    fun activeAt(nowMillis: Long): Boolean =
+        !revoked && (expiresAtMillis == 0L || expiresAtMillis > nowMillis)
+}
+
+/**
+ * Phase 9 — read the authorization this account RECEIVED from the sharer
+ * `{ownerUid}` on device `{ownerDeviceId}` (the detail/history screens'
+ * one-shot gate read; user action only, §75). Returns null when no grant
+ * doc exists (never shared / re-paired since) — an honest absence.
+ */
+suspend fun readReceivedLocationAuthorization(
+    ownerUid: String,
+    ownerDeviceId: String
+): ReceivedLocationAuthorization? {
+    val user = FirebaseAuth.getInstance().currentUser ?: return null
+    val snap = Fb.db.collection(LOCATION_AUTHZ_COLLECTION)
+        .document(locationAuthorizationDocId(user.uid, ownerUid, ownerDeviceId))
+        .get()
+        .awaitWithTimeout("reading the received location authorization")
+    if (!snap.exists()) return null
+    return ReceivedLocationAuthorization(
+        liveEnabled = snap.getBoolean("liveEnabled") == true,
+        historyEnabled = snap.getBoolean("historyEnabled") == true,
+        scope = snap.getString("scope") ?: "UNTIL_STOP",
+        expiresAtMillis = snap.getTimestamp("expiresAt")?.toDate()?.time ?: 0L,
+        retentionPolicy = snap.getString("retentionPolicy") ?: "NONE",
+        revoked = snap.contains("revokedAt")
+    )
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Phase 7 — the engine↔UI upload bridge (no Compose import on purpose: the
 // ENGINE owns this vocabulary, the UI maps it 1:1 onto its own UploadState).
