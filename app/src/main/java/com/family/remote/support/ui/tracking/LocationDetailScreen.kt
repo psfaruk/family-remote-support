@@ -57,8 +57,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.family.remote.support.LiveLocationView
 import com.family.remote.support.R
+import com.family.remote.support.ReceivedLocationAuthorization
 import com.family.remote.support.RelationshipView
 import com.family.remote.support.describeFirestoreError
+import com.family.remote.support.readReceivedLocationAuthorization
 import com.family.remote.support.watchLiveLocation
 import com.family.remote.support.watchRelationships
 import com.family.remote.support.ui.components.BackTitleRow
@@ -74,6 +76,11 @@ import com.family.remote.support.ui.tracking.demo.DemoBanner
 import com.family.remote.support.ui.tracking.demo.DemoMember
 import com.family.remote.support.ui.tracking.demo.DemoTrackingDataSource
 import com.google.firebase.auth.FirebaseUser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,10 +88,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** UiState for the detail watch: the resolved relationship + its last position. */
+/** UiState for the detail watch: the resolved relationship + its last position + the received grant. */
 private data class LocationDetailUiState(
     val rel: RelationshipView? = null,
     val location: LiveLocationView? = null,
+    // Phase 9 — the grant this account received from the member (section
+    // B/E's real values); authzReadDone gates the skeleton-vs-absence call.
+    val authz: ReceivedLocationAuthorization? = null,
+    val authzReadDone: Boolean = false,
     val loaded: Boolean = false,
     val error: String? = null
 )
@@ -109,6 +120,13 @@ private class LocationDetailViewModel : ViewModel() {
     private var myUid: String? = null
     private var relId: String = ""
 
+    // Phase 9 — the one-shot recipient-side grant read (one per resolved
+    // counterpart, keyed like the location watch so churn never re-reads).
+    private var authzKey: Pair<String, String>? = null
+    private var receivedAuthz: ReceivedLocationAuthorization? = null
+    private var authzReadDone = false
+    private val authzScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     fun observe(user: FirebaseUser?, relId: String, describeError: (Exception) -> String) {
         stopWatch?.invoke()
         stopWatch = null
@@ -117,6 +135,9 @@ private class LocationDetailViewModel : ViewModel() {
         watchKey = null
         location = null
         relationships = emptyList()
+        authzKey = null
+        receivedAuthz = null
+        authzReadDone = false
         myUid = user?.uid
         this.relId = relId
         if (user == null) {
@@ -174,6 +195,26 @@ private class LocationDetailViewModel : ViewModel() {
                         _state.value = _state.value.copy(error = describeError(e))
                     }
                 )
+                // Phase 9 — the grant read follows the SAME key swap: one
+                // one-shot get per resolved counterpart (user action —
+                // opening this screen; §75).
+                if (key != authzKey) {
+                    authzKey = key
+                    val ownerUid = key.first
+                    val ownerDeviceId = key.second
+                    authzScope.launch {
+                        try {
+                            receivedAuthz = readReceivedLocationAuthorization(ownerUid, ownerDeviceId)
+                        } catch (_: Exception) {
+                            // Unreadable right now (offline): sections B/E
+                            // keep their honest defaults — no stale grant is
+                            // ever rendered as current.
+                            receivedAuthz = null
+                        }
+                        authzReadDone = true
+                        emit()
+                    }
+                }
             }
         }
     }
@@ -182,6 +223,8 @@ private class LocationDetailViewModel : ViewModel() {
         _state.value = LocationDetailUiState(
             rel = currentRel(),
             location = location,
+            authz = receivedAuthz,
+            authzReadDone = authzReadDone,
             loaded = true
         )
     }
@@ -191,6 +234,7 @@ private class LocationDetailViewModel : ViewModel() {
         stopWatch = null
         stopLocation?.invoke()
         stopLocation = null
+        authzScope.cancel()
     }
 }
 
@@ -201,9 +245,16 @@ private class LocationDetailViewModel : ViewModel() {
  *               with a way back).
  * @param relId  the relationship doc id from the route argument.
  * @param onBack pops the route (back row, not-found escape).
+ * @param onOpenHistory navigates to tracking/{relId}/history — Phase 9
+ *               renders the button only when the grant says so.
  */
 @Composable
-internal fun LocationDetailScreen(user: FirebaseUser?, relId: String, onBack: () -> Unit) {
+internal fun LocationDetailScreen(
+    user: FirebaseUser?,
+    relId: String,
+    onBack: () -> Unit,
+    onOpenHistory: () -> Unit = {}
+) {
     val context = LocalContext.current
     if (user == null) {
         BackTitleRow(title = stringResource(R.string.loc_details), onBack = onBack)
@@ -266,12 +317,15 @@ internal fun LocationDetailScreen(user: FirebaseUser?, relId: String, onBack: ()
                     CounterpartDetailBody(
                         rel = rel,
                         location = state.location,
+                        authz = state.authz,
+                        authzReadDone = state.authzReadDone,
                         nowMillis = nowMillis,
                         // §4-E "who receives": THIS account is the recipient
                         // viewing the member's sharing — email with the
                         // honest uid fallback (phone-auth accounts may have
                         // no email; counterpartEmail uses the same ladder).
                         viewerEmail = user.email ?: user.uid,
+                        onOpenHistory = onOpenHistory,
                         onBack = onBack
                     )
                 }
@@ -285,14 +339,18 @@ internal fun LocationDetailScreen(user: FirebaseUser?, relId: String, onBack: ()
  * MemberDetailScreen line style), freshness + "Updated HH:mm" + accuracy
  * (ALWAYS visible — an old coordinate is never labeled live), the
  * read-only sharing status, the open-in-maps action when a position
- * exists, and section E "Sharing & privacy" (v0.38.0, UX spec §4-E).
+ * exists, section B "Journey history" (grant-gated, Phase 9) and section E
+ * "Sharing & privacy" with the grant's REAL values (Phase 9).
  */
 @Composable
 private fun CounterpartDetailBody(
     rel: RelationshipView,
     location: LiveLocationView?,
+    authz: ReceivedLocationAuthorization?,
+    authzReadDone: Boolean,
     nowMillis: Long,
     viewerEmail: String,
+    onOpenHistory: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -366,12 +424,39 @@ private fun CounterpartDetailBody(
             }
         }
 
-        // ── Section E "Sharing & privacy" (UX spec §4-E, v0.38.0) ──────
-        // What THIS account may receive from the member's sharing. Real
-        // side, Phase 4: no authorization documents exist yet, so the
-        // honest lines are "no retention in force" and "history access:
-        // none" — a locked/teaser card implying a live feature would be
-        // dishonest, so the absence is stated plainly instead.
+        // ── Section B "Journey history" — ONLY when the grant says so ──
+        // (not granted → NOTHING renders: honest absence, no locked card).
+        // Quota-protective deviation, recorded in the progress doc: the
+        // spec's summary chips live on the journey screen itself (one
+        // bounded query per open); here the action + the retention in
+        // force carry the section. A grant still being read renders
+        // nothing yet — never a premature absence verdict.
+        if (authz != null && authz.activeAt(nowMillis) && authz.historyEnabled) {
+            SectionCard(
+                title = stringResource(R.string.sec_b_note),
+                icon = Icons.Filled.DateRange
+            ) {
+                BigButton(onClick = onOpenHistory) {
+                    Text(stringResource(R.string.hist_open))
+                }
+                Text(
+                    text = stringResource(
+                        R.string.hist_ret,
+                        retentionLabel(retentionKindFromPolicy(authz.retentionPolicy))
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // ── Section E "Sharing & privacy" (UX spec §4-E, real values) ────
+        // What THIS account may receive from the member's sharing: the
+        // grant's expiry / retention / history-access lines, all read from
+        // the authorization doc this screen fetched. While the read is in
+        // flight only the receives line shows (no premature "none"
+        // verdict); no doc → the honest "none" lines — a locked/teaser
+        // card implying a live feature would be dishonest.
         SectionCard(
             title = stringResource(R.string.sec_e_note),
             icon = Icons.Filled.Lock
@@ -381,22 +466,78 @@ private fun CounterpartDetailBody(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
-                text = stringResource(
-                    R.string.hist_ret,
-                    stringResource(R.string.loc_hist_none_word)
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = stringResource(
-                    R.string.loc_priv_hist,
-                    stringResource(R.string.loc_hist_none_word)
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!authzReadDone) {
+                // Grant read in flight — the remaining lines arrive with it.
+            } else if (authz != null && !authz.revoked && authz.activeAt(nowMillis)) {
+                if (authz.expiresAtMillis != 0L) {
+                    Text(
+                        text = stringResource(
+                            R.string.loc_priv_expiry,
+                            SimpleDateFormat("HH:mm, d MMM", Locale.getDefault())
+                                .format(Date(authz.expiresAtMillis))
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = stringResource(
+                        R.string.hist_ret,
+                        retentionLabel(retentionKindFromPolicy(authz.retentionPolicy))
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(
+                        R.string.loc_priv_hist,
+                        stringResource(
+                            if (authz.historyEnabled) {
+                                R.string.loc_hist_granted
+                            } else {
+                                R.string.loc_hist_none_word
+                            }
+                        )
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else if (authz != null && authz.revoked) {
+                // Ended grant: nothing is claimed from a revoked consent —
+                // access ended, plainly said.
+                Text(
+                    text = stringResource(
+                        R.string.loc_priv_hist,
+                        stringResource(R.string.loc_hist_none_word)
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.hist_access_end),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                // No live grant (never shared / expired / still unread):
+                // the honest none-lines, never a teaser.
+                Text(
+                    text = stringResource(
+                        R.string.hist_ret,
+                        stringResource(R.string.loc_hist_none_word)
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(
+                        R.string.loc_priv_hist,
+                        stringResource(R.string.loc_hist_none_word)
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
