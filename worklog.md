@@ -3550,3 +3550,28 @@ history → Everything → del_done 验证文案）。
 **Owner 动作（依序，= 评审 §8 建议）：** ① **S-1 裁决**——授权纯字符串修复波（privacy_body ×15，可并 S-4 一行）作 v0.43.1，或并入 Phase 14（发布清单的隐私同步本就是兜底）。② **S-2 决策记录**——MemoryCacheSettings（需全 app 离线行为小评审）或接受并披露。③ **S-3 裁决**——按设计实现 locationAuditEvents（小规则波+E-series）或修订设计 v1 放弃。④ **S-4 裁决**——登出一行清除或接受。⑤ **常设门采纳**——verify-released-rules.mjs 进 Phase 14 发布清单（每次发布：已发布规则必须与仓库字节级一致）。其余在途：v0.43.0/63 双机改装 + Phase 11 真机测试 + ONCE 语义裁决。下一阶段为 Phase 13（性能报告 LOCATION_PERFORMANCE_REPORT.md，measured not claimed）——等 Owner 指令开工。
 
 **CI 补记（最终 HEAD `ad278bca`，run 41296810461 **SUCCESS**，日志亲验）：** 单测步骤 PASS——`> Task :app:testReleaseUnitTest` BUILD SUCCESSFUL（Gradle 任一用例失败即 BUILD FAILED，故 SUCCESS = 44 用例零失败，与 §82/§84 同证标准）；assembleDebug + assembleRelease SUCCESS；**Release-APK 验证门 PASS（日志亲验）：✓ versionCode = 63 (INT_DEC) — expected 63 · ✓ versionName = "0.43.0" — expected "0.43.0" · ✓ APK Signing Block v2 present（"APK Sig Block 42"）· ✓ 版本形字符串池仅 [0.43.0] · VERIFY: PASS**；debug/release APK 双工件已上传。中间四次单文件推送的并发 run 按惯例被 GitHub 自动取消（同一 workflow 的 later-run 抢占），最终 HEAD 的 run 为权威门。本补记本身为 §85 的最后一次推送（仅文档），其后运行以该 HEAD 为最终门。
+
+## §86 — v0.44.0/64 平滑波：Owner 真机崩溃报告响应——3 式地图（快 CDN 2D 默认/Esri 卫星/Esri 地形）+ 纯本地崩溃日志 + IO 化轮询 + 恢复时设备列表刷新（2026-11-01）
+
+**触发：** Owner 对 v0.43.0/63（"11"）的真机报告四连：①设置标签点击即崩溃；②安装后首次打开出现"向手机厂商报告"对话框（系统崩溃对话框的本地化表现）；③"অ্যাপ টি স্মুথ লি চলে ঠিক করে দেন"（要求整体流畅）+ 前端数据须与后端一致、实时更新；④"গুগল ম্যাপ একেবারেই স্লো"——地图要快、要 2D/3D/卫星三式。
+
+**崩溃调查（如实记录——先查后写，本波没有瞎猜式"修复"）：** 对设置标签与首启路径做了全量静态排查：SettingsTab/App/MainActivity/AuthGate/PermissionWizard/Lang/Theme/NotificationsLog/全部 UI 组件逐行读；全 15 locale 的格式串占位符逐一比对（自写校验器，665 键 ×14 locale 零失配）；格式串调用点 vs 占位符数量校验（107 处调用，2 处误报为正则截断所致、人工核实为真 2 参调用）；资源文件（colors/themes/mipmap/drawable）与 manifest 复核；CI 日志亲验（release keystore 正常解码 2654 字节、APK v2 签名门 PASS）；本地克隆与远端 main 做了逐 blob 比对（122/124 字节级一致，仅 2 个 gitignore 豁免的测试源不在本地 git 索引——盘上双存）。**结论：代码库全程防御式写法，未发现可静态指认的崩溃点；真因需栈迹。** 据此本波交付了"取证 + 硬化 + 性能"三件套而不是编造式修复——下一场崩溃将带着完整堆栈抵达（见下）。
+
+**交付（9 代码（2 新增 + 7 修改）+ 15 字符串 + 版本 + 3 文档，共 28 文件）：**
+
+- **崩溃日志（CrashJournal.kt，新增）：** App.onCreate 安装默认未捕获异常处理器——崩溃发生时先把 时间/版本/设备/线程/完整堆栈 追加写入 filesDir 的 crash_journal.log（上限 8 条、新条目置顶、写入自身全程 try 保护），再原样委托系统处理器（系统"报告厂商"对话框与进程死亡流程零变化）。**纯本地零遥测**（§85 S-2 的零分析 SDK 姿态保持）：Settings→About 出现（且仅在有捕获时出现）"ক্র্যাশ রিপোর্ট"行——可查看（滚动对话框）、可经系统分享表单分享（去向由 Owner 决定）、可删除。坐标永不入该文件；卸载即随应用数据清除。
+- **二级地图同源（HistoryScreen.kt + PlaceAlertsScreen.kt）：** 旅程历史路线图与地点选取图原各自硬编码 MAPNIK——同波接入同一注册表（跟随持久化选择）+ 各自的 per-style 署名；全 app 三个 MapView 一套风格一套速度。
+- **osmdroid API 字节码亲验（防 CI 编译浪费）：** 对 Maven Central 的 osmdroid-android-6.1.18 AAR 做了字节码级签名核验——`getTileURLString(long)`（瓦片以 org.osmdroid.util.MapTileIndex 的 packed long 寻址，6.x 已无 MapTile 类！初稿按 5.x API 写会当场编译失败）、`setCopyrightNotice(String)`（初稿误记为 setCopyrightText——已纠）、带 copyright 的 OnlineTileSourceBase/XYTileSource 七参构造、MapView.setTileSource(ITileSource)、Configuration 的五个字段 getter/setter 对（接口上合成属性可用）——全部逐项确认后才定稿。
+- **地图 3 式（MapStyle.kt，新增）+ 常驻切换 chips（TrackingTab.kt）：** 替换硬编码 OSM MAPNIK（社区服务器、南亚无边缘节点——"একেবারেই স্লো"的根因）。**2D（默认）**= CARTO Voyager（同一 OSM 数据、全球快 CDN，XYTileSource 标准 z/x/y）；**স্যাটেলাইট** = Esri World Imagery；**3D টেরেইন** = Esri World Topo（山体阴影地形——诚实披露：2D 瓦片引擎做不了真实感 3D 建筑，等高阴影地形是诚实等价物，RELEASE_NOTES 明示）。Esri 的 {z}/{y}/{x} 瓦片顺序与 osmdroid XYTileSource 相反——私有 OnlineTileSourceBase 子类自持 URL 形状。三式全免密钥、全 https、家庭规模远在公平使用之内；每式带正确署名行（CopyrightOverlay 文本随活动源切换，版权覆盖物仍加于索引 0、永不中途移除）。选择持久化（ui_prefs/map_style），一键切换 LIVE（既有 MapView 上 setTileSource——标记/精度圈/相机全保）。3 chip 标签 ×15 locale（+3 键）。
+- **osmdroid 管道调优（App.kt）：** tileDownloadThreads=6、cacheMapTileCount=48（内存瓦片 LRU——原厂默认仅 9 张，每次平移都从磁盘重解码，是拖拽卡顿的直接来源）、磁盘缓存 128 MB（配 112 MB 触发修剪——有界、系统"清除存储"路径仍可清）。UA=包名（OSMF 政策既有合规不变）。
+- **脏标记重绘（TrackingTab.kt）：** AndroidView.update 全程 dirty 跟踪——30 秒新鲜度 tick 不再无条件 invalidate 整张地图；标记位移/精度圈重建/相机 fit/风格切换才真正重绘。既有行为逐分支保留（含未变 pin 的 setPosition 跳过）。
+- **轮询 IO 化（MainActivity/SettingsTab/PermissionWizard）：** 全部 1.5–2.5 s 周期性 binder 读（Settings.Secure 辅助服务状态、PowerManager 电池豁免、POST_NOTIFICATIONS 检查）改 `withContext(Dispatchers.IO)`——低端 OEM 设备上设置提供者慢时不再持续占用主线程（"স্মুথ"要求）；节奏与取值零变化，首帧行为不变（一次性初读保持同步）。
+- **前端↔后端对齐（MainActivity.kt）：** 其余表面早已监听器实时（会话/家人/liveLocations/在线芯片）；唯一陈旧读是账户设备列表（原仅登录后一次性加载）——现 ON_RESUME 节流刷新（>60 s 才读一次、best-effort、一次有界读；恢复即用户动作，§75 兼容）。
+- **字符串：** +7 键 ×15 locale（map_style_2d/satellite/terrain + crash_title/sub/share/clear；BN 完整翻译，13 locale 镜像 EN——Phase 4 先例）。
+- **版本：** v0.44.0 / versionCode 64（CI APK 验证门自动取值）。
+
+**§75 姿态核查：** 零新监听/零定时器类新增/零后台；崩溃日志纯本地文件写（仅崩溃时一次）；地图切换纯客户端瓦片请求（无 Firebase 流量变化）；设备列表恢复刷新 = 用户动作驱动、60 s 节流、每次至多一次有界读；轮询 IO 化零流量增量。
+
+**推送与 CI：** 本波 28 文件（build.gradle.kts 最先、worklog 最后）逐文件 readback-verify SHA256 推送至 main；CI 门 = 最终 HEAD（44 单测预期不变 + Release-APK 64/0.44.0 验证门——结果见补记）。
+
+**Owner 动作（依序）：** ① 双机改装 **v0.44.0/64**。② 安装后首开若再遇"报告厂商"对话框：重开应用 → Settings → About → "ক্র্যাশ রিপোর্ট"行（出现即有捕获）→ 点开即见完整堆栈 → Share 发给助手即可精确诊断。③ 地图验收：Tracking 标签 → 地图上方三个 chips——2D ম্যাপ（默认，明显更快）/ স্যাটেলাইট / 3D টেরেইন——一键即时切换、选择持久；缩放按钮与精度圈行为不变。④ 安装期对话框本身多为 Android 对旁加载 APK 的扫描/崩溃报告 UI（非应用代码缺陷）——但若 v0.44.0 后仍现，②的堆栈会给出真因。⑤ §85 的 S-1~S-4 裁决仍开放；Phase 13（性能报告）仍待指令。
