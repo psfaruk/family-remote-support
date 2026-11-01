@@ -3215,3 +3215,105 @@ paused）+ 6 步向导走通（演示确认不启动真实服务）；③Ayesha 
 历史屏今日/昨日切换 + 虚线断档 + 汇总卡；④地点屏增删 + 半径/开关/冷却 chips；
 ⑤BN 1.3× 字号换行检查；⑥Settings→Privacy 新文案核对（仅实时、无历史）；
 ⑦4 个开放问题确认或否决（范围/50 m/无后台权限/预设）。
+
+---
+
+## §79 — Location 主计划 Phase 5–8 实现波（v0.39.0/58）：权限决策记录 + scope 感知引擎 + locationAuthorizations/历史规则发布 + 33 案探针套件 + 读配额事故（2026-11-01）
+
+**触发：** Owner 指令 "শুরু করো deeply"（深做）。上一波（§78）交付了 Phase 4 前端
+mock 与 Phase 5 审阅清单；本指令按最自洽解读记为 **D8：Phase 5 口头放行**——
+实现波开工（设备审阅反馈保持可操作性，后续波作为普通审阅输入处理）。三个
+phase（6 权限 / 7 引擎 / 8 后端）作为一个连贯波落地：引擎的历史入队与规则层
+只有同时在场才有意义（拆开会让 v0.38.x 客户端对着 catch-all 写历史 → 诚实性
+破坏）。
+
+**交付（8 变更 + 4 新文件）：**
+
+- **Phase 6（纯文档）：** `docs/ANDROID_PERMISSION_MATRIX.md` — M5 位置权限行
+  从 "Planned" 移入 "Current"；新增 §6 决策记录 **DR-P1**（v1 不申请
+  `ACTIVITY_RECOGNITION`——D4 分类只用 OS 提供的 speed/bearing 渲染期推导，
+  敏感权限换不来任何被存储的数据）与 **DR-P2**（不申请
+  `ACCESS_BACKGROUND_LOCATION`——D7 锁定，"服务运行期间"诚实范围）；向导
+  集成核验（FINE+COARSE 双请求复用 M5 launcher、拒绝面板、demo 不触发真实
+  launcher）。结论：**Location v1 全表面零新权限**（manifest 亲验：
+  ACCESS_BACKGROUND_LOCATION / ACTIVITY_RECOGNITION 均未声明）。
+- **Phase 7（引擎，`LocationShareService.kt`）：** `onFix` 改收完整
+  `Location`（OS 提供才存 speed/bearing/altitude——设计 §3 "绝不计算后冒充
+  测量"）；**ONCE** 在首个被接受的写入成功后走完整停止路径（"发送一个位置
+  后自动停止"——scope_once_help 原文；语义边界已记录于 PROGRESS 待审阅：
+  一次性位置只实时送达打开着的 Tracking 页，随后诚实缺席）；**TEMPORARY**
+  主线程 handler 到期闹钟 + 每 fix 墙钟兜底（深睡只会让停止迟到，不会错）；
+  **WITH_HISTORY + 留存≠NONE** 时按 50 m 节流在
+  `users/{uid}/locationHistory/{deviceId}_{epochMillis}` 追加不可变记录
+  （retentionExpiresAt = recordedAt + 策略）；写入结果经 Compose-free 的
+  `LocationUploadReporter`（engine 侧词汇 + 监听器注册表）驱动 own 卡片的
+  实时 up_* 行（OK 静音；UNAVAILABLE = 无 provider 可注册）；TEMPORARY 到期
+  行复用 setup_confirm_expiry 显示在 own 卡片。
+- **Phase 8（后端）：** `firestore.rules`（652→852 行， braces/parens 亲验
+  平衡）——顶层 `pairingActiveWith`（自 liveLocations 私有 myPairing 提升，
+  devicePresence 自己的同名私有函数不受影响）+ `locationAuthzActive/Feature/
+  FamilyOrPaired` 共享函数族；`locationAuthorizations` 块（owner-only 写、
+  docId 绑定 recipientUid_ownerUid_deviceId、字段围栏 update、**revokedAt 终
+  止性冻结**（再授权 = delete+recreate）、**D9(a)** enabledFeatures 拍平为
+  liveEnabled/historyEnabled 两布尔（规则可 hasOnly 文档键、不可嵌套映射键——
+  Phase 8 的全部意义就是服务端可验证的字段围栏；新集合 v0.39.0 起步，无迁移）
+  + **D9(b)** recipientKind('family'|'guest')（规则据此让过期 guest 窗口后
+  仍需活关系——family：授权即同意，设计 §4.4 原文）；
+  `users/{ownerUid}/locationHistory` 块（append-only、recordId
+  `[0-9a-f]{24}_[0-9]+`、±10 min recordedAt/receivedAt 窗、可选字段范围围栏
+  （speed 0–90 m/s、bearing 0–360、altitude -1000–10000）、provider 枚举、
+  **retentionExpiresAt > request.time 在每次 get 上对所有人生效（含 owner——
+  过期即隐形，先于物理删除）**、list 带 5 min 时钟偏斜缓冲（"规则不是过滤
+  器"——客户端必须带 retention 过滤否则整个查询 403））；liveLocations 读取
+  增加授权分支（旧分支逐字保留——老客户端零影响；短路语义由 M5 P0/P1 历史
+  探针实证存在，故新分支 exists()-先行的模式与旧 myPairing 同构）。
+- **Phase 8（客户端授权管线，新 `LocationAuthzRepo.kt`）：** 向导确认 → 逐
+  接收人 upsert（读一次判路：不存在→全量 create；未撤销→mergeFields 围栏
+  更新（expiresAt 用 FieldValue.delete() 可收）；已撤销→delete+recreate）；
+  每条停止路径（按钮/scope 自动停/登出拆解——全部经 stopLocationSharing）→
+  逐接收人 revokedAt 补丁（读一次判态：缺席/已撤销即完成）；**离线诚实队列**
+  （SharedPreferences：pendingGrant/pendingRevoke + 最后选择集 uid:kind）仅在
+  用户动作时冲刷（Tracking resume / 下次确认——§75 合规：零定时器、零监听
+  器、零后台）；服务端 expiresAt + 已删除的 live 文档共同约束漏发撤销的暴露
+  面（真·服务端验证撤销 = D1 递延类，Worker 需 Owner 批准）。
+- **基础设施：** `scripts/publish-firestore-rules.mjs` 路径修复（clone 迁移后
+  SCRIPT_DIR/../android-app/ 指向 android-app/android-app/——两布局候选回退）；
+  `scripts/rules-location-v2-probe.mjs` 新建（33 案：P0 + A1–A12 + H1–H14 +
+  L0–L6，子集合查询用 documents/{parent}:runQuery URL 形式 + body-parent 回
+  退；零残留清理 + 合成账号删除）。
+- **文档：** PROGRESS（D8/D9、Phase 5–8 行、Known honest edges——ONCE 语义
+  待审阅、历史屏/详情 E 真值 = Phase 9、撤销 best-effort 边界）；RELEASE_NOTES
+  / IMPLEMENTATION_STATUS 头部更新至 v0.39.0/58；ARCHITECTURE 新增 §11。
+
+**规则已发布（LIVE）：** ruleset `c1ac1396-0f59-4e94-982e-948e56ec38f8`
+（852 行）。**发布修复轮（诚实记录）：** 首发规则集 `917af482…` 被
+Rules API 语法校验放过，但协调者推送前复核发现 authz update 分支误写裸
+`affectedKeys()`（正确形式为 `request.resource.data.diff(resource.data)
+.affectedKeys()`——规则语言无裸函数；解析器不查未知函数名，会在求值期报
+错→所有 authz 更新被拒）。修复 + 重发布为 `c1ac1396…`（旧集留存可回滚）。
+此坑正是探针 A5/A6 案要抓的类缺陷——先于 CI 人工抓到，零影响窗口。
+
+**⚠ Phase 8 live 探针门：配额事故（诚实台账，全文如下）：** 首轮运行
+04:0x UTC：L1（旧路径 200）✓、L0（403）✓、P0 create ✓ 之后——P0 的 GET/DELETE
+吃到 **429**（"Free daily read units per project" **日配额耗尽**），删除未执行
+→ A1 fixture 409（残留文档）→ fixture 中止、清理未跑。后续追查：**沙盒
+零燃烧器**（mini-services/ 不存在、Worker `crons = []` 显式清零、Actions 仅
+workflow_dispatch、本会话进程仅 Next dev）——耗尽源为 PT 日（07:00 UTC 起）
+的真实设备使用 + 当日四套规则探针重跑（§72）+ 本会话操作，对着 50 K/天免费
+档。硬修复（已落地）：①探针头部 **配额金丝雀**（SA 读已知不存在文档：404=
+可跑；429=零 fixture 创建、exit 2 + 明确重跑指引）；②A1 前 **幂等守卫**
+（owner 侧预删本 run authzId）；③fixture 失败时 **打印部分结果表**（中途死
+亡不再静默）；④中断残留（本轮 devHex 的 authz/live 文档 + 3 合成账号）为惰
+性合成数据（无真实配对），由重跑的清理顺带清零。**门 = 复跑打出 33/33
+PASS 才算过——已排定于 PT 午夜配额重置（~07:00 UTC）后立即执行（协调者
+cron 触发）；在此之前一切文档只写 PENDING。**
+
+**推送与 CI：** 本波 12 文件全部经 readback-verify SHA256 逐文件核验推送；
+CI 编译门以最终 HEAD 为准（补记见下）。
+
+**Owner 动作（等探针门绿后）：** ①双机改装 **v0.39.0/58**；②真实向导走一
+遍（6 步 → 确认后 Firestore 控制台应见 locationAuthorizations 文档——或下次
+Tracking 打开时配额内自证）；③Stop 按一下 → 文档应现 revokedAt；④ONCE 语义
+裁决（见 Known honest edges：想要"最后已知位置多留一阵"是一行改动）；⑤若
+今日再现 429——把当时段设备使用情况（是否有长时间屏幕共享会话）回报给协调
+者做配额归因。
