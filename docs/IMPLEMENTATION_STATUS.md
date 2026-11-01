@@ -1,22 +1,27 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **LOCATION MASTER PLAN PHASE 11 (PLACE ALERTS) CLOSED —
+> Status: **LOCATION MASTER PLAN PHASE 12 (SECURITY REVIEW) CLOSED —
 > v0.43.0/63 (2026-11-01). All master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +
 > Location Phase 9 route-history UI + retention/deletion (§80) +
 > Location Phase 10 movement insights + first CI unit-test gate (§81) +
 > Phase 8 live gate PASSED + journey-tail units fix (§82) +
-> D11(e) detail-screen live movement card (§83) + Phase 11 place alerts (§84).**
-> §84 in one line: "My places & alerts" went real — rules-first `placeAlerts`
-> block (owner-only in every direction; live probe **25/25, zero residue**),
-> pure-Kotlin `PlaceAlertEngine` (silent init, ≤radius enter / ≥radius+25 m
-> exit hysteresis, per-place cooldown gating emission only; 19 CI unit
-> tests), the fences evaluate INSIDE the already-running location FGS on
-> fixes already flowing (DR-P2 realized — zero new permissions, zero engine
-> Firestore reads), name-only local notifications, Firestore persistence
-> with an offline-honest local mirror, the 20-place cap; Phases 12–14
-> (security review → release checklist) remain.
+> D11(e) detail-screen live movement card (§83) + Phase 11 place alerts (§84) +
+> Phase 12 security review delivered, no code changes (§85).**
+> §85 in one line: `LOCATION_SECURITY_REVIEW.md` closed the Phase 12 gate —
+> the RELEASED ruleset live-verified **byte-exact** vs the repo
+> (permanent read-only script `scripts/verify-released-rules.mjs`, exit-0
+> MATCH), design §10 checklist re-verified item-by-item (7 PASS · 1 FAIL ·
+> 2 open), a 9-class threat-model pass with **zero enforcement bypasses**,
+> and a 4-finding register routed to Owner rulings: **S-1 HIGH**
+> (`privacy_body` still claims history/places/movement are never collected —
+> false since v0.40.0/v0.43.0; string-only fix wave recommended),
+> **S-2 MEDIUM** (Firestore default disk cache holds location docs at rest —
+> the design's "persistence disabled" was never verified; decision record
+> needed), **S-3 LOW** (`locationAuditEvents` never implemented —
+> forensics-only impact), **S-4 LOW** (place mirror survives sign-out);
+> Phases 13–14 (performance → release checklist) remain.
 > §83 in one line: the detail screen's section C renders the live movement
 > card (optional rules-validated `speedMetersPerSecond` on liveLocations,
 > engine clears glitched speeds rather than clamping, probe 16/16, zero
