@@ -114,6 +114,8 @@ import com.family.remote.support.R
 import com.family.remote.support.RelationshipView
 import com.family.remote.support.describeFirestoreError
 import com.family.remote.support.flushPendingLocationAuthz
+import com.family.remote.support.cleanupExpiredOwnHistory
+import com.family.remote.support.flushPendingHistoryDeletion
 import com.family.remote.support.grantLocationAuthorizations
 import com.family.remote.support.hasAnyLocationPermission
 import com.family.remote.support.startLocationSharing
@@ -288,6 +290,10 @@ internal fun OwnSharingCard(
     }
     var permissionDenied by remember { mutableStateOf(false) }
     var showSetupSheet by remember { mutableStateOf(false) }
+    // Phase 9 — the owner-side "Delete my journey history" dialog (UX
+    // spec §9/§10: the affordance lives in the wizard's confirm step;
+    // Settings carries its own entry).
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Phase 7 — the engine's live upload verdict (UX spec §8: silent when
     // OK). The reporter is engine-side and Compose-free; this bridge maps
@@ -320,7 +326,9 @@ internal fun OwnSharingCard(
     // panel shows — the app never pretends a permission was granted. The
     // resume is also the §75-safe moment to retry any queued authorization
     // writes (grant/revoke) that failed offline — a user action, never a
-    // timer.
+    // timer — and, Phase 9, the D6 opportunistic retention cleanup plus
+    // any queued history deletion (design §6.2/§6.3: bounded batches,
+    // repeated per open until exhausted, zero timers).
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -329,6 +337,8 @@ internal fun OwnSharingCard(
                 scopeKind = LocationSharingPrefs.scopeKind(context)
                 scopeExpiry = LocationSharingPrefs.scopeExpiresAt(context)
                 flushPendingLocationAuthz(context)
+                cleanupExpiredOwnHistory(context)
+                flushPendingHistoryDeletion(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -417,6 +427,10 @@ internal fun OwnSharingCard(
             recipients = recipients,
             isDemo = false,
             onDismiss = { showSetupSheet = false },
+            // Phase 9 — "Delete existing journey history" rides the confirm
+            // step (spec §9's owner-side delete home #1); the dialog itself
+            // is the ONE shared implementation.
+            onDeleteHistory = { showDeleteDialog = true },
             onConfirmed = { selected, scope, tempMillis, retention ->
                 // Phase 4: the LOCAL consent record (scope/expiry/
                 // retention) — the engine's auto-stop reads exactly these.
@@ -442,6 +456,12 @@ internal fun OwnSharingCard(
                 showSetupSheet = false
             }
         )
+    }
+
+    if (showDeleteDialog) {
+        // Phase 9 — the shared owner-side delete flow (today / everything,
+        // verified-empty, offline-queued honestly).
+        DeleteHistoryDialog(onDismiss = { showDeleteDialog = false })
     }
 }
 
@@ -777,10 +797,16 @@ internal fun TrackingTab(
                 memberUis.forEach { ui ->
                     MemberLocationCard(
                         member = ui,
-                        onOpenDetails = { onOpenMember(ui.relId) }
-                        // NO history button on real cards in Phase 4: no
-                        // authorization source exists yet — an honest
-                        // absence until Phase 8 wires history grants.
+                        onOpenDetails = { onOpenMember(ui.relId) },
+                        // Phase 9 — the history button appears ONLY when the
+                        // sharer's authorization grants it (the ViewModel's
+                        // diffed one-shot read; a missing/unread grant = no
+                        // button — the honest absence, never a teaser).
+                        onOpenHistory = if (state.historyGrants[ui.relId] == true) {
+                            { onOpenHistory(ui.relId) }
+                        } else {
+                            null
+                        }
                     )
                 }
                 CounterpartMapSection(
