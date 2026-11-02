@@ -18,7 +18,12 @@
     <string name="cmn_ok">ठीक है</string>
     <string name="cmn_details">विवरण</string>
     <string name="home_tagline">परिवार के फ़ोन पर दूर से मदद — हमेशा साफ़ अनुमति के साथ।</string>
-    <string name="home_welcome">स्वागत है</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">सुप्रभात</string>
+    <string name="greet_afternoon">नमस्ते</string>
+    <string name="greet_evening">शुभ संध्या</string>
+    <string name="greet_night">शुभ रात्रि</string>
     <string name="home_signed_in_as">साइन इन: %1$s</string>
     <string name="home_not_signed_in">अभी साइन इन नहीं है</string>
     <string name="home_features">यह ऐप क्या-क्या कर सकता है</string>

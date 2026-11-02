@@ -3,5 +3,5 @@
     <color name="ic_launcher_background">#15803D</color>
     <!-- Phase 11.6 — theme-aware window background: kills the cold white
          flash before Compose draws, and follows dark mode via values-night. -->
-    <color name="window_background">#F7F9FC</color>
+    <color name="window_background">#F6F9F7</color>
 </resources>

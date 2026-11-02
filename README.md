@@ -5,7 +5,17 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **🟢 RELEASE-READY — v0.47.0 (versionCode 67), 2026-11-01 — audit-fix wave 2 +
+- **🟢 RELEASE-READY — v0.48.0 (versionCode 68), 2026-11-02 — design-detail wave
+  (worklog §92):** Owner-directed identity rebrand blue → **emerald** (Theme.kt's two
+  full M3 schemes swapped literal-for-literal; amber family-accent and rose error kept;
+  tertiary → teal so success-chips stay distinct from emerald info-chips; heals the old
+  launcher-was-green-but-theme-was-blue mismatch), the auth hero shield recolored,
+  SettingsTile/SectionCard leading icons moved into tonal primaryContainer circles,
+  EmptyState's fallback icon rests on a soft surfaceVariant circle, and the Home hero
+  greeting became time-aware (`greet_morning/afternoon/evening/night` — full ×15
+  locales; `home_welcome` retired). Zero behavioral change, zero new permissions, zero
+  Firestore traffic.
+  Previous: **v0.47.0 (67), 2026-11-01 — audit-fix wave 2 +
   build-rescue wave (worklog §90–91):** notification event-matrix filled (pairing /
   revoke / guest-expiry / permission-lost / presence events now reach the Notification
   Center AND an in-app banner), session-pipeline bug fixes B1–B4 (ServerClock tray

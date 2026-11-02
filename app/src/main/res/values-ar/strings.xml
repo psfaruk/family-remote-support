@@ -18,7 +18,12 @@
     <string name="cmn_ok">حسنًا</string>
     <string name="cmn_details">التفاصيل</string>
     <string name="home_tagline">مساعدة عن بُعد لهواتف العائلة — دائمًا بإذن واضح.</string>
-    <string name="home_welcome">مرحبًا</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">صباح الخير</string>
+    <string name="greet_afternoon">نهارك سعيد</string>
+    <string name="greet_evening">مساء الخير</string>
+    <string name="greet_night">ليلة سعيدة</string>
     <string name="home_signed_in_as">تم تسجيل الدخول: %1$s</string>
     <string name="home_not_signed_in">لم يتم تسجيل الدخول بعد</string>
     <string name="home_features">ماذا يفعل هذا التطبيق</string>

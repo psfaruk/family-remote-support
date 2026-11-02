@@ -18,7 +18,12 @@
     <string name="cmn_ok">Tamam</string>
     <string name="cmn_details">Ayrıntılar</string>
     <string name="home_tagline">Aile telefonlarına uzaktan yardım — her zaman açık izinle.</string>
-    <string name="home_welcome">Hoş geldiniz</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">Günaydın</string>
+    <string name="greet_afternoon">İyi günler</string>
+    <string name="greet_evening">İyi akşamlar</string>
+    <string name="greet_night">İyi geceler</string>
     <string name="home_signed_in_as">Oturum açan: %1$s</string>
     <string name="home_not_signed_in">Henüz oturum açılmadı</string>
     <string name="home_features">Bu uygulama ne yapabilir</string>

@@ -150,8 +150,24 @@ android {
         // imports de-duplicated; SessionPushWorker.notifyBlocking
         // qualified with the SessionPush object. See worklog §90–91 /
         // RELEASE_NOTES §14.
-        versionCode = 67
-        versionName = "0.47.0"
+        // v0.48.0 (68) — design-detail wave (Owner-directed after reviewing
+        // the web-edition blueprint): IDENTITY REBRAND blue → emerald —
+        // Theme.kt's two full M3 schemes swapped literal-for-literal
+        // (light #047857 / container #D1FAE5; dark #6EE7B7 / container
+        // #065F46; amber secondary and rose error kept; tertiary → teal so
+        // success-chips stay distinct from emerald info-chips). This heals
+        // the old launcher-vs-theme mismatch: the launcher was already
+        // green (#15803D) while the app was blue. Same wave: window
+        // backgrounds synced (values + values-night), the auth hero shield
+        // recolored to emerald (ic_auth_hero.xml), SettingsTile + SectionCard
+        // leading icons moved into tonal primaryContainer circles (the
+        // icon-chip language), EmptyState's fallback icon rests on a soft
+        // surfaceVariant circle, and the Home hero greeting became
+        // time-aware (greet_morning/afternoon/evening/night ×15 locales;
+        // home_welcome retired everywhere). Zero behavioral change, zero
+        // new permissions, zero Firestore traffic. See worklog §92.
+        versionCode = 68
+        versionName = "0.48.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

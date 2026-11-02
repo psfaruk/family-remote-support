@@ -55,8 +55,8 @@ is a hard design constraint.
 - Nested surfaces are overlays/bottom-sheets/dialogs, not routes (pairing sheet, QR scanner
   dialog, role-preview sheet, device detail panel, consent modal, privacy DocOverlay,
   fullscreen session viewer).
-- **Theme (`ui/Theme.kt`)**: two hand-authored M3 schemes (light primary `#246BFD`, dark bg
-  `#0B1220` — the exact master-plan palette), `SeniorTypography`, `AppShapes` (8/10/16/20/22dp),
+- **Theme (`ui/Theme.kt`)**: two hand-authored M3 schemes (light primary `#047857` emerald —
+  v0.48.0 rebrand, dark bg `#0D1512`), `SeniorTypography`, `AppShapes` (8/10/16/20/22dp),
   `Spacing` object, `ThemePrefBus` (system/light/dark, persisted). No dynamic color.
 - **i18n (`ui/Lang.kt`)**: `LangPrefBus`, 15 languages (bn/en/ar/de/es/fr/hi/id/ja/ne/pt/ru/tr/ur/zh),
   persisted `SharedPreferences`, `attachBaseContext` wrap, Activity recreate on change.
@@ -169,7 +169,7 @@ tracking/* = M5; settings/* sub-routes = later waves.
 
 Implemented in `ui/Theme.kt` and specified in `docs/UI_UX_DESIGN_SYSTEM.md` (Bengali,
 Phase 11.7-frozen; reconciliation appendix §26 added Phase 21). Tokens match the master-plan
-palette exactly (light `#246BFD/#F7F9FC/…`, dark `#0B1220/#121C2B/…`, success/warn/error
+palette (v0.48.0: light `#047857/#F6F9F7/…`, dark `#0D1512/#141D19/…`, success/warn/error
 semantics, ≥48 dp targets, shape scale). Component inventory + screen-by-screen rules live in
 that doc; gaps tracked in IMPLEMENTATION_STATUS.md.
 

@@ -19,7 +19,12 @@
     <string name="cmn_details">বিস্তারিত</string>
 
     <string name="home_tagline">পরিবারের ফোনে দূর থেকে সাহায্য — সবসময় স্পষ্ট অনুমতি নিয়ে।</string>
-    <string name="home_welcome">স্বাগতম</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">শুভ প্রভাত</string>
+    <string name="greet_afternoon">শুভ অপরাহ্ন</string>
+    <string name="greet_evening">শুভ সন্ধ্যা</string>
+    <string name="greet_night">শুভ রাত্রি</string>
     <string name="home_signed_in_as">সাইন-ইন করেছেন: %1$s</string>
     <string name="home_not_signed_in">এখনো সাইন-ইন নেই</string>
     <string name="home_features">এই অ্যাপ যা যা করতে পারে</string>

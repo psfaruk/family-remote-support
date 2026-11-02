@@ -39,7 +39,12 @@
 
     <!-- Home tab (Phase 16 showcase redesign) -->
     <string name="home_tagline">Remote help for family phones — always with clear consent.</string>
-    <string name="home_welcome">Welcome</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">Good morning</string>
+    <string name="greet_afternoon">Good afternoon</string>
+    <string name="greet_evening">Good evening</string>
+    <string name="greet_night">Good night</string>
     <string name="home_signed_in_as">Signed in as %1$s</string>
     <string name="home_not_signed_in">Not signed in yet</string>
     <string name="home_features">What this app can do</string>

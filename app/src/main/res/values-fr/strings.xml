@@ -18,7 +18,12 @@
     <string name="cmn_ok">OK</string>
     <string name="cmn_details">Détails</string>
     <string name="home_tagline">Aide à distance pour les téléphones de la famille — toujours avec un accord clair.</string>
-    <string name="home_welcome">Bienvenue</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">Bonjour</string>
+    <string name="greet_afternoon">Bon après-midi</string>
+    <string name="greet_evening">Bonsoir</string>
+    <string name="greet_night">Bonne nuit</string>
     <string name="home_signed_in_as">Connecté : %1$s</string>
     <string name="home_not_signed_in">Pas encore connecté</string>
     <string name="home_features">Ce que fait cette appli</string>

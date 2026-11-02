@@ -18,7 +18,12 @@
     <string name="cmn_ok">OK</string>
     <string name="cmn_details">詳細</string>
     <string name="home_tagline">家族の電話へのリモート支援 — いつも明確な同意のもとで。</string>
-    <string name="home_welcome">ようこそ</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">おはようございます</string>
+    <string name="greet_afternoon">こんにちは</string>
+    <string name="greet_evening">こんばんは</string>
+    <string name="greet_night">おやすみなさい</string>
     <string name="home_signed_in_as">ログイン：%1$s</string>
     <string name="home_not_signed_in">まだログインしていません</string>
     <string name="home_features">このアプリにできること</string>

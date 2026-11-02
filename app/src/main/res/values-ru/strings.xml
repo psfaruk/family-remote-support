@@ -18,7 +18,12 @@
     <string name="cmn_ok">ОК</string>
     <string name="cmn_details">Подробнее</string>
     <string name="home_tagline">Удалённая помощь для телефонов семьи — всегда с ясного разрешения.</string>
-    <string name="home_welcome">Добро пожаловать</string>
+    <!-- v0.48.0 (design-detail wave) — time-aware hero greeting
+         (replaces the retired home_welcome; HomeTab.timeGreetingRes). -->
+    <string name="greet_morning">Доброе утро</string>
+    <string name="greet_afternoon">Добрый день</string>
+    <string name="greet_evening">Добрый вечер</string>
+    <string name="greet_night">Доброй ночи</string>
     <string name="home_signed_in_as">Вход выполнен: %1$s</string>
     <string name="home_not_signed_in">Ещё не выполнен вход</string>
     <string name="home_features">Что умеет это приложение</string>

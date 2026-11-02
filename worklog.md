@@ -3697,3 +3697,23 @@ history → Everything → del_done 验证文案）。
 **স্পর্শিত ফাইল (৬):** values/strings.xml (apostrophe ×3), AskNotifier.kt (companion-একীকরণ), MainActivity.kt (import-ডিডুপ ×6), SessionPush.kt (কোয়ালিফায়ার), build.gradle.kts (67/0.47.0 + কমেন্ট), docs ×3 (RELEASE_NOTES §14, IMPLEMENTATION_STATUS, README banner) + এই worklog।
 
 **Owner-করণীয়:** ① এই push-এর CI রান সবুজ হওয়া নিশ্চিত করুন (run #865+)। ② Release-APK artifact ডাউনলোড করে দুই ফোনে §90-এর চেকলিস্ট চালান।
+
+## §92 — v0.48.0 ডিজাইন-ডিটেইল ওয়েভ: Owner-নির্দেশিত emerald-পরিচয় rebrand + কম্পোনেন্ট-ডিটেইল সম্প্রসারণ + সময়-সচেতন হিরো-শুভেচ্ছা (2026-11-02)
+
+**ট্রিগার:** Owner ওয়েব-এডিশন ব্লুপ্রিন্ট (অডিট-রিপোর্ট §9 — primary=emerald, warning=amber, danger=rose) দেখে নির্দেশ দিলেন: "GitHub-এ থাকা অ্যাপটার ডিজাইন এই রকম আরো বিস্তারিত করে দাও।" অর্থাৎ Phase 11.6-এর নীল-পরিচয় সিদ্ধান্তের (§3: "কেন্দ্র = Modern & Minimal-এর নীল") নতুন Owner-নির্দেশে সচেতন প্রত্যাবর্তন — ডকুমেন্টেশনে ইতিহাস সংরক্ষিত, বিতর্ক নয়।
+
+**১. পরিচয় rebrand (নীল → emerald), Theme.kt কেন্দ্রীয়:** দুটি পূর্ণ M3 স্কিমের literal-for-literal বিনিময় — লাইট: primary #047857 / primaryContainer #D1FAE5 / onPrimaryContainer #064E3B, ব্যাকগ্রাউন্ড #F6F9F7 (উষ্ণ-নিরপেক্ষ); ডার্ক: primary #6EE7B7 / primaryContainer #065F46, ব্যাকগ্রাউন্ড #0D1512। অ্যাম্বার secondary (পারিবারিক উষ্ণতা) ও রোজ error অপরিবর্তিত — ওয়েব-ব্লুপ্রিন্টের সেমান্টিক-ম্যাপের সাথে সঙ্গত। tertiary এখন teal (#0F766E/#CCFBF1) — কারণ success-চিপ (tertiaryContainer) ও emerald info-চিপ (primaryContainer) পাশাপাশি বসলে আর একই রঙ হয়ে যেত। **পার্শ্ব-লাভ:** পুরনো অসঙ্গতি নিরাময় — লঞ্চার-আইকন আবহাই সবুজ ছিল (#15803D, colors.xml), ভেতরের থিম নীল; এখন এক। ThemePreview সোয়াচ, window_background (values+values-night) সিঙ্কড। নীল-নির্ভর হার্ডকোড বাইরে ছিল না (grep-যাচাইকৃত — ডিজাইন-সিস্টেমের "একমাত্র উৎস Theme.kt" নিয়ম কাজ করল)।
+
+**২. ic_auth_hero recolor:** বিশ্বাস-ঢাল emerald (#047857, sheen #34D399, ব্যাকিং-বৃত্ত #D1FAE5), অ্যাম্বার-হৃদয় অপরিবর্তিত, সফলতা-ব্যাজ teal (#0F766E) — ঢাল থেকে পৃথক থাকল।
+
+**৩. কম্পোনেন্ট-ডিটেইল (ওয়েব-ব্লুপ্রিন্টের icon-chip ভাষা):** SettingsTile-এর প্রথমসারি-আইকন এখন 38dp tonal বৃত্তে (primaryContainer) — পুরনো খালি 24dp আইকনের জায়গায়; SectionCard-এর ঐচ্ছিক আইকন একই ভাষায় 36dp বৃত্তে; EmptyState-এর fallback আইকন 72dp surfaceVariant বৃত্তে বিশ্রাম নেয় (illustration-পথ অপরিবর্তিত) — খালি-অবস্থা এখন "ডিজাইন-করা মুহূর্ত", "অনুপস্থিত কনটেন্ট" নয়।
+
+**৪. সময়-সচেতন হিরো-শুভেচ্ছা:** HomeTab-হিরোর স্থির "Welcome/স্বাগতম" লেবেল এখন স্থানীয় ঘণ্টা-ভিত্তিক — ৫–১১ সকাল / ১২–১৬ দুপুর / ১৭–১৯ সন্ধ্যা / বাকি রাত (HomeTab.timeGreetingRes, java.util.Calendar)। স্থানীয় সময়ই সঠিক — শুভেচ্ছা পাঠকের সকাল মানে, সার্ভারের নয়; হোমে per-second recomposition নেই (M8 TickingBlock-বিচ্ছিন্নতা), তাই কার্যত একবার-প্রতি-ভিজিট।
+
+**৫. স্ট্রিং:** home_welcome অবসরপ্রাপ্ত (একমাত্র ভোক্তা ছিল হিরো-লেবেল; v0.38-এর orphan-শিকার প্রথা মেনে সব ১৫ লোকেল থেকে সরানো); greet_morning/afternoon/evening/night যোগ — **P8-শর্টকাট নয়, পূর্ণ ১৫-লোকেল অনুবাদ** (M8-মান: ar/bn/de/es/fr/hi/id/ja/ne/pt/ru/tr/ur/zh সবই স্থানীয় শুভেচ্ছা; es/pt-তে evening=night একই বাক্য — সেই ভাষার সত্য)। কোনো apostrophe/&, XML-এস্কেপ ঝুঁকিমুক্ত।
+
+**লোকাল গেট (CI-অভিন্ন টুলচেইন, §91-পুনর্নির্মাণ: Temurin 17.0.21 + Gradle 8.9 + platform-34/build-tools 34.0.0, 4GB-RAM টিউনিং -Xmx1536m/SerialGC/max-workers=1):** testReleaseUnitTest **সবুজ** (70/70 — MovementClassifier 25 + NotifCenter 25 + PlaceAlertEngine 20) · assembleDebug **সবুজ** (46.7 MB — §91-এর 46.8-এর সাথে সঙ্গত) · APK-AXML-verify: versionCode **68** / versionName **0.48.0** ✓, greet_* রিসোর্স উপস্থিত ✓, home_welcome অনুপস্থিত ✓। Maven-Central 429-ঝুঁকি aliyun-mirror init-script দিয়ে সামলানো (রিপোর বাইরে ~/.gradle/init.d — settings.gradle.kts অছুতে থাকল, FAIL_ON_PROJECT_REPOS সম্মানিত)।
+
+**স্পর্শিত ফাইল (২৩ + docs):** Theme.kt, Cards.kt, Core.kt, HomeTab.kt, ic_auth_hero.xml, colors.xml ×2, strings.xml ×15, build.gradle.kts (68/0.48.0 + কমেন্ট-ব্লক) + docs (UI_UX_DESIGN_SYSTEM §3/§4/§8/§9 + PROJECT_CONTEXT ×2 লাইন + README-স্ট্যাটাস) + এই worklog।
+
+**Owner-করণীয়:** ① push-এর CI রান সবুজ নিশ্চিত করুন (android-build.yml: debug+release APK)। ② দুই ফোনে v0.48.0 চালিয়ে চোখে-দেখুন: emerald হিরো/চিপ/ট্যাব, Settings-সারির tonal আইকন-বৃত্ত, খালি-তালিকার বৃত্ত-আইকন, সকালে খুললে "শুভ প্রভাত"। ③ ডার্ক মোডে একবার ঘুরে দেখুন — ডার্ক emerald (#6EE7B7) পড়ার-মতো উজ্জ্বল।
