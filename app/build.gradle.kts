@@ -166,8 +166,30 @@ android {
         // time-aware (greet_morning/afternoon/evening/night ×15 locales;
         // home_welcome retired everywhere). Zero behavioral change, zero
         // new permissions, zero Firestore traffic. See worklog §92.
-        versionCode = 68
-        versionName = "0.48.0"
+        // W1 FRONTEND REBUILD (v0.49.0) — the never-committed frontend
+        // (MainActivity + ui/) reconstructed and finally COMMITTED: CI on
+        // main had been red since run #867 because nine backend files
+        // import ui.LangPrefBus / ui.nav.AppRoutes / MainActivity —
+        // classes that no branch ever contained (the §89–92 waves that
+        // "touched" Theme.kt/HomeTab.kt/Cards.kt worked in a sandbox tree
+        // whose ui/ folder never reached git). This wave ships the shell
+        // per docs/FRONTEND_UI_PLAN_BN.md §7-W1 and NAVIGATION_MAP §2:
+        // Theme.kt (§92 emerald tokens + SeniorTypography + shape ladder +
+        // ThemePrefBus + warning CompositionLocal), Lang.kt (LangPrefBus:
+        // bn default, wrap() localized contexts for every notifier
+        // channel), nav/AppNav.kt (AppRoutes route table + RootShell: 4
+        // tabs, bell, crossfade 150ms / nested slide 200ms, saveState/
+        // restoreState, DeepLinks consumption cold-start + onNewIntent,
+        // never-dead-end routing), components/States.kt (EmptyState /
+        // LoadingSkeleton / ErrorPanel / PermissionDeniedPanel),
+        // DeviceId.kt (stableDeviceId: ANDROID_ID + persisted-UUID
+        // fallback, keys the FCM registry / presence / location-authz),
+        // slim MainActivity host (locale wrap, NotificationsLog.load,
+        // DeepLinks, edge-to-edge, singleTop onNewIntent), ph_wip ×15
+        // locales — honest wave placeholders, zero fabricated data, zero
+        // Firestore reads. Waves W2–W8 follow. See worklog §93.
+        versionCode = 69
+        versionName = "0.49.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

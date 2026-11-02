@@ -566,3 +566,36 @@ the signature check remains the CI runner's job (keystore secret).
 **Owner next steps:** watch this push's CI run go green, download the release APK
 artifact, and run the two-phone §90 checklist (killed-app ask → tray Allow; open-app
 ask → Home press → tray; the new event types in the Center + banners; Settings rows).
+
+## 15. v0.49.0/69 — the W1 frontend-rebuild wave (2026-11-02)
+
+**The rescue:** main's CI had been red since run #867 — nine backend files import
+`ui.LangPrefBus` / `ui.nav.AppRoutes` / `MainActivity`, classes that were never
+committed on any branch (the §89–92 waves that "touched" Theme.kt / HomeTab.kt /
+Cards.kt worked in a sandbox tree whose ui/ folder never reached git). v0.49.0
+reconstructs and COMMITS the missing frontend, wave 1 of the documented 8-wave
+plan (docs/FRONTEND_UI_PLAN_BN.md):
+
+- `ui/Theme.kt` — full emerald M3 schemes (§92 tokens), SeniorTypography,
+  shape ladder (8/10/16/20/22), ThemePrefBus (SYSTEM/LIGHT/DARK), warning
+  CompositionLocal
+- `ui/Lang.kt` — LangPrefBus: Bengali default on fresh install, `wrap()`
+  localized contexts for every notifier channel, 15 locales
+- `ui/nav/AppNav.kt` — AppRoutes route table (NAVIGATION_MAP §2, reused
+  verbatim by NotifCenter's notification taps) + RootShell: 4 tabs, top bar +
+  bell, crossfade 150 ms / nested slide 200 ms, saveState/restoreState,
+  DeepLinks consumption (cold start + onNewIntent), never-dead-end routing
+- `ui/components/States.kt` — EmptyState / LoadingSkeleton / ErrorPanel /
+  PermissionDeniedPanel (the mandated per-route states)
+- `DeviceId.kt` — `stableDeviceId()` (ANDROID_ID, persisted-UUID fallback):
+  keys the FCM registry, presence docs and location grants
+- `MainActivity.kt` — slim host: locale wrap in attachBaseContext,
+  NotificationsLog.load before first frame, DeepLinks, edge-to-edge,
+  singleTop onNewIntent
+- `ph_wip` ×15 locales — honest wave placeholders; zero fabricated data,
+  zero Firestore reads
+
+**Gate (CI-identical toolchain — Temurin 17.0.21 + Gradle 8.9 + SDK 34):**
+70/70 unit tests (25+25+20), assembleDebug 46.0 MB, assembleRelease+R8+
+lintVital 32.1 MB unsigned. Waves W2–W8 (AuthGate+Home, Pairing, Consent+
+Viewer, Tracking, Settings, NotifCenter, Places+History) follow.

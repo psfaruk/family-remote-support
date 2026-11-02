@@ -1,20 +1,20 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **AUDIT-FIX WAVE 2 + BUILD-RESCUE SHIPPED — v0.47.0/67 (2026-11-01),
-> full CI-identical local gate green: 70/70 unit tests (25+25+20), assembleDebug +
-> assembleRelease (R8) + AXML 67/0.47.0 (worklog §90–91, RELEASE_NOTES §14).**
-> The deep-audit report's P0/P1 items shipped: notification event-matrix filled
-> (Gap-1..5 from existing listeners, zero extra reads), in-app EventBannerBus +
-> routed banners, session-pipeline fixes B1–B4, P13 nickname completion, M1/M5/
-> BE5/P9 UX honesty items. The wave's own three-layer build breakage (privacy_body
-> apostrophes misreported by AGP 8.5.2's Kotlin aaptcompiler as "Invalid unicode
-> escape `{str}`"; duplicate companion object; duplicate imports; unqualified
-> notifyBlocking; forgotten version bump) was diagnosed by rebuilding the sandbox
-> toolchain (Temurin 17 + Gradle 8.9 + SDK 34) and decompiling aaptcompiler —
-> all fixed, gate green before push. The stack:
-> audit-fix wave v0.45.0/65 (§87) + external-audit response (§88) +
-> G1 notification-center v0.46.0/66 (§89) + audit-fix wave 2 & build-rescue
-> v0.47.0/67 (§90–91) on top of SMOOTH-APP WAVE v0.44.0/64:
+> Status: **W1 FRONTEND-REBUILD WAVE SHIPPED — v0.49.0/69 (2026-11-02, worklog
+> §93): the never-committed frontend (MainActivity + ui/) reconstructed and
+> committed — main's CI red era (#867–869, Unresolved ui/LangPrefBus/
+> MainActivity) ENDED. Gate green (CI-identical toolchain): 70/70 unit tests,
+> assembleDebug + assembleRelease+R8+lintVital (32.1 MB unsigned). Wave 1 of
+> the 8-wave plan (docs/FRONTEND_UI_PLAN_BN.md): emerald Theme.kt + SeniorTypography,
+> LangPrefBus (bn default), AppRoutes + RootShell on Navigation-Compose (4 tabs,
+> DeepLinks cold-start + onNewIntent, never-dead-end), States.kt design-system,
+> stableDeviceId(), slim MainActivity host, ph_wip ×15 honest placeholders, zero
+> Firestore reads. Waves W2–W8 (AuthGate+Home, Pairing, Consent+Viewer, Tracking,
+> Settings, NotifCenter, Places+History) follow on Owner approval.**
+> Previous waves: design-detail v0.48.0/68 (§92, emerald rebrand) +
+> audit-fix wave 2 & build-rescue v0.47.0/67 (§90–91) + G1 notification-center
+> v0.46.0/66 (§89) + audit-fix wave v0.45.0/65 (§87) + external-audit response
+> (§88) on top of SMOOTH-APP WAVE v0.44.0/64:
 > all master-plan milestones M0–M10 ✅ + Pre-M10 polish +
 > quota directive (§75) + QA/dedupe wave (§76) + Location master-plan docs (§77) +
 > Location Phase 4 frontend mock (§78) + Location Phases 6–8 implementation (§79) +

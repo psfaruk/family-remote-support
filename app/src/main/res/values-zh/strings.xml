@@ -724,4 +724,5 @@
     <string name="crash_share">Share</string>
     <string name="crash_clear">Delete</string>
 
+    <string name="ph_wip">此部分将在下次更新中推出。</string>
 </resources>

@@ -780,4 +780,5 @@
     <string name="set_demo_preview">ট্র্যাকিং স্ক্রিন দেখুন (ডেমো)</string>
     <string name="set_demo_preview_sub">নমুনা ডেটা দিয়ে ম্যাপ ও মেম্বার কার্ড দেখুন — কিছুই আসল শেয়ার হয় না।</string>
 
+    <string name="ph_wip">এই অংশটি পরের আপডেটে আসছে।</string>
 </resources>

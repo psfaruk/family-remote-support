@@ -5,8 +5,23 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **🟢 RELEASE-READY — v0.48.0 (versionCode 68), 2026-11-02 — design-detail wave
-  (worklog §92):** Owner-directed identity rebrand blue → **emerald** (Theme.kt's two
+- **🟢 RELEASE-READY — v0.49.0 (versionCode 69), 2026-11-02 — W1 frontend-rebuild
+  wave (worklog §93):** the never-committed frontend reconstructed and finally
+  committed — main's CI had been red since run #867 because nine backend files
+  import `ui.LangPrefBus` / `ui.nav.AppRoutes` / `MainActivity`, classes no branch
+  ever contained. Wave 1 of the documented 8-wave plan
+  (docs/FRONTEND_UI_PLAN_BN.md): full emerald Theme.kt (§92 tokens,
+  SeniorTypography, shape ladder), LangPrefBus (bn default), AppRoutes + RootShell
+  on Navigation-Compose (4 tabs, bell, crossfade 150 ms / nested slide 200 ms,
+  saveState/restoreState, DeepLinks cold-start + onNewIntent, never-dead-end
+  routing), States.kt design-system (EmptyState/LoadingSkeleton/ErrorPanel/
+  PermissionDeniedPanel), stableDeviceId() (ANDROID_ID), slim MainActivity host,
+  `ph_wip` ×15 honest placeholders. Gate green (CI-identical toolchain): 70/70
+  unit tests, assembleDebug, assembleRelease+R8+lintVital. Waves W2–W8
+  (AuthGate+Home, Pairing, Consent+Viewer, Tracking, Settings, NotifCenter,
+  Places+History) follow.
+  Previous: **v0.48.0 (68), 2026-11-02 — design-detail wave (worklog §92):**
+  Owner-directed identity rebrand blue → **emerald** (Theme.kt's two
   full M3 schemes swapped literal-for-literal; amber family-accent and rose error kept;
   tertiary → teal so success-chips stay distinct from emerald info-chips; heals the old
   launcher-was-green-but-theme-was-blue mismatch), the auth hero shield recolored,
@@ -15,7 +30,7 @@ A trusted family member helps fix another family phone — always with the recei
   greeting became time-aware (`greet_morning/afternoon/evening/night` — full ×15
   locales; `home_welcome` retired). Zero behavioral change, zero new permissions, zero
   Firestore traffic.
-  Previous: **v0.47.0 (67), 2026-11-01 — audit-fix wave 2 +
+  Previous-2: **v0.47.0 (67), 2026-11-01 — audit-fix wave 2 +
   build-rescue wave (worklog §90–91):** notification event-matrix filled (pairing /
   revoke / guest-expiry / permission-lost / presence events now reach the Notification
   Center AND an in-app banner), session-pipeline bug fixes B1–B4 (ServerClock tray
