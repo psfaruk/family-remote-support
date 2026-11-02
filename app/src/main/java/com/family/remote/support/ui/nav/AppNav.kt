@@ -64,6 +64,9 @@ import com.family.remote.support.ui.home.HomeViewModel
 import com.family.remote.support.ui.home.MemberDetailScreen
 import com.family.remote.support.ui.home.SessionDetailScreen
 import com.family.remote.support.ui.home.SessionsScreen
+import com.family.remote.support.ui.notifications.NotificationsScreen
+import com.family.remote.support.ui.settings.SettingsTab
+import com.family.remote.support.ui.tracking.TrackingTab
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.NonCancellable
@@ -508,7 +511,9 @@ private fun AppNavHost(
         }
 
         // ── Tab TRACKING ────────────────────────────────────────────────
-        composable(AppRoutes.TRACKING) { WipTab(Icons.Filled.LocationOn, R.string.nav_tracking) }
+        composable(AppRoutes.TRACKING) {
+            TrackingTab(onOpenRoute = go)
+        }
         composable(
             AppRoutes.TRACKING_DETAIL_ARG,
             arguments = listOf(navArgument("relId") { type = NavType.StringType }),
@@ -534,7 +539,14 @@ private fun AppNavHost(
         ) { WipTab(Icons.Filled.LocationOn, R.string.nav_tracking) }
 
         // ── Tab SETTINGS ────────────────────────────────────────────────
-        composable(AppRoutes.SETTINGS) { WipTab(Icons.Filled.Settings, R.string.nav_settings) }
+        composable(AppRoutes.SETTINGS) {
+            SettingsTab(
+                user = user,
+                onOpenRoute = go,
+                onSignOut = { /* sign-out callback wired by host */ },
+                onTestNotification = { /* test notification callback wired by host */ },
+            )
+        }
 
         // ── Notifications (bell target) ─────────────────────────────────
         composable(
@@ -543,8 +555,9 @@ private fun AppNavHost(
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Notifications, R.string.notif_title) }
-    }
+        ) {
+            NotificationsScreen(onOpenRoute = go)
+        }
 }
 
 // ── W1 placeholder screen ─────────────────────────────────────────────────
