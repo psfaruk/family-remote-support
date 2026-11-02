@@ -48,6 +48,8 @@
     <string name="loc_share_body">Seu familiar emparelhado verá a posição ao vivo deste telefone em um mapa enquanto o compartilhamento estiver ativado. Só a última posição é guardada — nunca um histórico — e você pode parar a qualquer momento.</string>
     <string name="loc_share_start">Começar a compartilhar</string>
     <string name="loc_share_stop">Parar de compartilhar</string>
+    <string name="loc_stop_confirm_title">Parar o compartilhamento de localização?</string>
+    <string name="loc_stop_confirm_body">Sua família não verá mais a localização deste telefone. Você pode retomar o compartilhamento quando quiser.</string>
     <string name="loc_share_on">O compartilhamento de localização está ATIVADO</string>
     <string name="loc_share_off">O compartilhamento de localização está desativado</string>
     <string name="loc_banner_on">Você está compartilhando a localização deste telefone agora</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">Compartilhamento de localização ativado</string>
     <string name="notif_ev_sharing_off">Compartilhamento de localização desativado</string>
     <string name="notif_filter_all">Todos</string>
-    <string name="notif_filter_unread">Não lidos</string>
+    <string name="notif_filter_unread">Não lidos (%1$d)</string>
     <string name="notif_filter_connection">Conexão</string>
     <string name="notif_filter_location">Localização</string>
     <string name="notif_filter_security">Segurança</string>

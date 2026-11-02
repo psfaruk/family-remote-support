@@ -10,6 +10,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -206,13 +208,22 @@ object ThemePrefBus {
  * The one theme every screen composes inside. Resolves the persisted
  * theme mode against the system setting, then installs the emerald
  * palette, the senior type scale, the shape ladder and the warning tone.
+ *
+ * W6 (v0.51.1): the mode is collected from [ThemePrefBus]'s live flow
+ * (seeded from the persisted choice), so a Settings theme row applies
+ * IMMEDIATELY — not only on the next launch. Explicit [mode] callers
+ * (previews) still win.
  */
 @Composable
 fun AppTheme(
     mode: ThemePrefBus.Mode? = null,
     content: @Composable () -> Unit,
 ) {
-    val resolved = mode ?: ThemePrefBus.current(androidx.compose.ui.platform.LocalContext.current)
+    val resolved = mode ?: run {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        remember(context) { ThemePrefBus.current(context) } // seed the flow from prefs
+        ThemePrefBus.mode.collectAsState().value
+    }
     val dark = when (resolved) {
         ThemePrefBus.Mode.SYSTEM -> isSystemInDarkTheme()
         ThemePrefBus.Mode.LIGHT -> false

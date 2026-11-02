@@ -48,6 +48,8 @@
     <string name="loc_share_body">शेयर चालू रहने तक आपके जोड़े हुए परिवार के सदस्य को मैप पर इस फ़ोन की लाइव स्थिति दिखाई देगी। सिर्फ़ आख़िरी स्थिति रखी जाती है — कभी पूरा इतिहास नहीं — और आप कभी भी बंद कर सकते हैं।</string>
     <string name="loc_share_start">शेयरिंग शुरू करें</string>
     <string name="loc_share_stop">शेयरिंग बंद करें</string>
+    <string name="loc_stop_confirm_title">लोकेशन शेयरिंग रोकें?</string>
+    <string name="loc_stop_confirm_body">आपका परिवार अब इस फ़ोन की लोकेशन नहीं देख पाएगा। आप कभी भी शेयरिंग दोबारा शुरू कर सकते हैं।</string>
     <string name="loc_share_on">लोकेशन शेयरिंग चालू है</string>
     <string name="loc_share_off">लोकेशन शेयरिंग बंद है</string>
     <string name="loc_banner_on">आप अभी इस फ़ोन की लोकेशन शेयर कर रहे हैं</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">लोकेशन शेयरिंग चालू हुई</string>
     <string name="notif_ev_sharing_off">लोकेशन शेयरिंग बंद हुई</string>
     <string name="notif_filter_all">सभी</string>
-    <string name="notif_filter_unread">अपठित</string>
+    <string name="notif_filter_unread">अपठित (%1$d)</string>
     <string name="notif_filter_connection">कनेक्शन</string>
     <string name="notif_filter_location">स्थान</string>
     <string name="notif_filter_security">सुरक्षा</string>

@@ -48,6 +48,8 @@
     <string name="loc_share_body">Votre membre de la famille apparié verra la position en direct de ce téléphone sur une carte pendant que le partage est activé. Seule la dernière position est conservée — jamais un historique — et vous pouvez l\'arrêter à tout moment.</string>
     <string name="loc_share_start">Démarrer le partage</string>
     <string name="loc_share_stop">Arrêter le partage</string>
+    <string name="loc_stop_confirm_title">Arrêter le partage de la position ?</string>
+    <string name="loc_stop_confirm_body">Votre famille ne verra plus la position de ce téléphone. Vous pourrez relancer le partage à tout moment.</string>
     <string name="loc_share_on">Le partage de position est ACTIVÉ</string>
     <string name="loc_share_off">Le partage de position est désactivé</string>
     <string name="loc_banner_on">Vous partagez actuellement la position de ce téléphone</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">Partage de position activé</string>
     <string name="notif_ev_sharing_off">Partage de position désactivé</string>
     <string name="notif_filter_all">Tous</string>
-    <string name="notif_filter_unread">Non lus</string>
+    <string name="notif_filter_unread">Non lus (%1$d)</string>
     <string name="notif_filter_connection">Connexion</string>
     <string name="notif_filter_location">Position</string>
     <string name="notif_filter_security">Sécurité</string>

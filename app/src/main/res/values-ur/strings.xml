@@ -48,6 +48,8 @@
     <string name="loc_share_body">شیئرنگ آن رہنے تک آپ کے جوڑے ہوئے فیملی ممبر کو نقشے پر اس فون کی لائیو پوزیشن نظر آئے گی۔ صرف آخری پوزیشن رکھی جاتی ہے — کبھی پوری تاریخ نہیں — اور آپ کسی بھی وقت بند کر سکتے ہیں۔</string>
     <string name="loc_share_start">شیئرنگ شروع کریں</string>
     <string name="loc_share_stop">شیئرنگ بند کریں</string>
+    <string name="loc_stop_confirm_title">لوکیشن شیئرنگ بند کریں؟</string>
+    <string name="loc_stop_confirm_body">آپ کا خاندان اب اس فون کی لوکیشن نہیں دیکھ سکے گا۔ آپ کسی بھی وقت دوبارہ شیئرنگ شروع کر سکتے ہیں۔</string>
     <string name="loc_share_on">لوکیشن شیئرنگ آن ہے</string>
     <string name="loc_share_off">لوکیشن شیئرنگ بند ہے</string>
     <string name="loc_banner_on">آپ اس وقت اس فون کی لوکیشن شیئر کر رہے ہیں</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">لوکیشن شیئرنگ آن ہو گئی</string>
     <string name="notif_ev_sharing_off">لوکیشن شیئرنگ بند ہو گئی</string>
     <string name="notif_filter_all">سب</string>
-    <string name="notif_filter_unread">غیر پڑھی ہوئی</string>
+    <string name="notif_filter_unread">غیر پڑھی ہوئی (%1$d)</string>
     <string name="notif_filter_connection">رابطہ</string>
     <string name="notif_filter_location">مقام</string>
     <string name="notif_filter_security">سیکیورٹی</string>

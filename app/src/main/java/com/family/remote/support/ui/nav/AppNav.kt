@@ -26,6 +26,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.family.remote.support.DeepLinks
+import com.family.remote.support.NotificationsLog
 import com.family.remote.support.R
 import com.family.remote.support.REL_KIND_FAMILY
 import com.family.remote.support.REL_KIND_GUEST
@@ -81,7 +83,8 @@ import kotlinx.coroutines.withContext
  * Settings) + the bell's notifications route, on Navigation-Compose 2.8
  * with saveState/restoreState tab semantics (Decision C3). Every route is
  * already registered so deep links from notifications can never dead-end;
- * the screens behind them land wave by wave (Home W2, Pairing W3, …).
+ * the screens behind them land wave by wave (Home W2, Pairing W3, Tracking
+ * W5, Settings W6, Notifications W7 — all five are real as of v0.51.1).
  *
  * Motion (§4): tab switches crossfade ≤150 ms; nested routes slide
  * ≈200 ms. Deep links arrive through the AskNotifier [DeepLinks] bus —
@@ -510,9 +513,10 @@ private fun AppNavHost(
             PermissionsScreen(onBack = back)
         }
 
-        // ── Tab TRACKING ────────────────────────────────────────────────
+        // ── Tab TRACKING (W5: the REAL sharing controls + partner list,
+        // rendered from the ONE shared HomeViewModel listener set) ────
         composable(AppRoutes.TRACKING) {
-            TrackingTab(onOpenRoute = go)
+            TrackingTab(user = user, vm = homeVm, onOpenRoute = go)
         }
         composable(
             AppRoutes.TRACKING_DETAIL_ARG,
@@ -540,11 +544,18 @@ private fun AppNavHost(
 
         // ── Tab SETTINGS ────────────────────────────────────────────────
         composable(AppRoutes.SETTINGS) {
+            val context = androidx.compose.ui.platform.LocalContext.current
             SettingsTab(
                 user = user,
                 onOpenRoute = go,
-                onSignOut = { /* sign-out callback wired by host */ },
-                onTestNotification = { /* test notification callback wired by host */ },
+                onSignOut = {
+                    // Sign-out hygiene (the documented clear() contract):
+                    // counterpart emails in the local log must not survive
+                    // the account, and a pending deep link dies with it.
+                    NotificationsLog.clear(context.applicationContext)
+                    DeepLinks.consume()
+                    FirebaseAuth.getInstance().signOut()
+                },
             )
         }
 
@@ -558,6 +569,7 @@ private fun AppNavHost(
         ) {
             NotificationsScreen(onOpenRoute = go)
         }
+    }
 }
 
 // ── W1 placeholder screen ─────────────────────────────────────────────────

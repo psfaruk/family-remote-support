@@ -3794,3 +3794,32 @@ history → Everything → del_done 验证文案）。
 **Owner-করণীয়:** ① এই push-এর CI রান সবুজ নিশ্চিত করুন (নতুন নিয়মে কম্পাইল-গেট CI-ই)। ② দুই ফোনে টেস্ট: A-ফোন Add Device → Family → QR তৈরি (কাউন্টডাউন দেখুন, ≤৩০সে warning) → B-ফোন Scan → QR → রোল-প্রিভিউ → Connect → ✓-pop; ম্যানুয়াল-পথে ৩২-অক্ষর কোডও। ③ W4 (Consent+Viewer+LiveHint) শুরুর অনুমোদন দিন।
 
 **CI-গেট (কর্তৃত্বপূর্ণ, লগ-স্বাক্ষরিত):** মেইডেন-রান **#872** (e6df954) `compileReleaseKotlin`-এ চার-জোড়া ত্রুটি ধরেছে — ① `Icons.Filled.Schedule` material-icons-core-এ নেই (extended-এ), ② SectionCard-এর বাধ্যতামূলক content-প্যারামিটার ছাড়া ডাকা হয়েছিল, ③ AddViewModel-এর মেম্বার-ফাংশন createInvitation ইমপোর্টেড রিপো-ফাংশনকে shadow করে রিকার্সিভ সেলফ-কল → Unit/InviteCode? মিসম্যাচ (ক্লাসিক স্কোপিং-ফাঁদ — W2-র ②-নম্বর ধরনেরই), ④ WideOutlinedButton-এ enabled প্যারামিটার ছিল না। চারটিই সংশোধিত (Schedule→Person; legend-কার্ডে family/guest running সারি; মেম্বার-ফাংশন startPairing-নামে — রিপো-চুক্তি অক্ষত; WideOutlinedButton-এ enabled:Boolean=true যোগ — সব পুরোনো কল-সাইট অক্ষত) → **রান #873 (fd57246) SUCCESS, লগ-যাচাই**: `:app:testReleaseUnitTest` BUILD SUCCESSFUL (70/70) · assembleDebug + assembleRelease SUCCESS · **APK-AXML গেট PASS: versionCode = 71 (INT_DEC) — expected 71 · versionName = "0.51.0" — expected "0.51.0"** — debug+release দ্বৈত artifact আপলোড। গেট-মূল্য আবারই প্রমাণিত (§78→§82→§84→§91→§94→§95)।
+
+---
+
+## §96 — v0.51.1/72 W5–W7 রেস্কিউ-ওয়েভ: "Complete frontend" কমিটের ১৪৯ কম্পাইল-এরর মেরামত + ফিচার-সম্প্রূর্ণতা (CI #874 → সবুজ)
+
+**ট্রিগার:** মেইনে `aa771cf` ("Complete frontend: implement Tracking, Settings, Notifications tabs") push-এর পর CI **রান #874 failure** — প্রথমবারের মতো একটি কমিট গেট-ছাড়া ঢুকেছিল (লেখক Kilo/local; প্রাক-পুশ লোকাল-কম্পাইল হয়নি)। compileReleaseKotlin-এ **১৪৯টি এরর, ৫ ফাইলজুড়ে**: TrackingTab 59, SettingsTab 44, NotificationsScreen 38, AppNav 5, TrackingViewModel 3।
+
+**মূল-কারণ বিশ্লেষণ (CI লগ থেকে):**
+- `com.family.remote.support.ui.R` — ভুল R-import (আসল: `com.family.remote.support.R`); ফলে ট্যাব-দুটির সব stringResource রেফারেন্সই অমীমাংসিত।
+- ভুল প্যাকেজ: `LangPrefBus` `com.family.remote.support`-এ খোঁজা (আসল: `ui`); `NotifCenter` object বলে ডাকা (আসলে টপ-লেভেল ফাংশনসেট — G1-ডিসিশন-লেয়ার)।
+- material3 1.3.0 API-বেমানানতা: `Chip` লাইব্রেরি-প্রাইভেট, `FilterChip`-এ `onCheckedChange` নেই (এখন `onClick`), `rememberDropdownMenuState` নাম-সহ কিছু নেই।
+- ম্যানুয়াল-আইকন সেট-নীতি লঙ্ঘন: `Icons.Filled.Language/PrivacyTip/Security/Shield` material-icons-core-এ নেই (§95-এর Schedule→Person-প্রিসেডেন্টেরই পুনরাবৃত্তি)।
+- **AppNav-এ একটি অনুপস্থিত সমাপনী-ব্রেস** — NavHost-ল্যাম্বডা বন্ধ হয়েছিল, AppNavHost ফাংশন হয়নি; WipTab "local function"-এ পরিণত (private-মডিফায়ার-ইস্যু সহ)।
+- watchDevicePresence-কে trailing-lambda দিয়ে ডাকা — শেষ প্যারামিটার onError-এ বসে গেছে, onChange অনুপস্থিত (PresenceRepo-চুক্তির স্কোপিং-ফাঁদ)।
+- ২টি স্ট্রিং-কী (loc_stop_confirm_title/body) কোথাও যোগই হয়নি; notif_filter_unread-এ কাউন্ট-প্লেসহোল্ডার নেই।
+
+**মেরামত-কৌশল — শুধু কম্পাইল-নয়, কোটা-শৃঙ্খলাসহ পূর্ণ সংশোধন:**
+- **TrackingViewModel অবসর (ফাইল মুছে ফেলা):** নিজের ডক-মতেই "কখনো নিজের listener খোলে না" — কিন্তু কোড প্রতি-সক্রিয়-rel-এ HomeViewModel-এর presence-ওয়াচের সদৃশ ডুপ্লিকেট খুলছিল (§75-লঙ্ঘন)। TrackingTab এখন FamilyScreens-প্যাটার্নে সরাসরি শেয়ার্ড homeVm থেকে রেন্ডার করে (user/vm/onOpenRoute)।
+- **TrackingTab পুনর্গঠন:** শেয়ারিং-কার্ড (BigButton start / নিশ্চিতকরণ-ডায়ালগ-সহ বিপদ-STOP + interval-picker AlertDialog + ক্লিকযোগ্য পার্মিশন-কার্ড → wizard), পার্টনার-তালিকা PresenceBadge (canonical কম্পোনেন্ট; হাতে-লেখা freshness-dot নয়), কাউন্টারপার্ট-নাম HomeTab-নীতিতে (helperUid==me → recipientEmail)। অব্যবহৃত MapPlaceholder ও মেনু-ডুপ্লিকেট সরানো।
+- **SettingsTab পূর্ণ-বাস্তবায়ন:** এডিট-নাম ডায়ালগ → সত্যিকারের Firebase profile-write (UserProfileChangeRequest+await, loading-স্পিনার); থিম-সারিগুলো এখন ThemePrefBus.mode-ফ্লো থেকে সিলেক্টেড-অবস্থা দেখায় এবং AppTheme ফ্লো কালেক্ট করে — পরিবর্তন সাথে-সাথে প্রযোজ্য; ১৫-ভাষা পিকার-ডায়ালগ (persist + activity.recreate — LangPrefBus-চুক্তি); প্রাইভেসি-পলিসি ও ব্যবহার-নিয়ম ডায়ালগ (privacy_body/rules_body স্ট্রিং প্রথমবার প্রয়োগ); টেস্ট-নোটিফিকেশন সত্যিকারের লোকাল পোস্ট (AskNotifier-চ্যানেল, পারমিশন-না-থাকলে সিস্টেম-সেটিংসে হ্যান্ড-অফ); সাইন-আউট AppNav-এ ওয়্যারড (NotificationsLog.clear + DeepLinks.consume + signOut — ডকুমেন্টেড হাইজিন)।
+- **NotificationsScreen:** NotifCenter-এর ইউনিট-টেস্টেড টপ-লেভেল-সারফেস ব্যবহার (লোকাল ডুপ্লিকেট applyNotifFilter মুছে ফেলা); FilterChip onClick-এ; ইভেন্ট-সারি এখন notif_ev_* ×18 লোকালাইজড লেবেল + relTime-টাইমস্ট্যাম্প + ক্যাটাগরি-চিপ (গোঁড়া type-স্ট্রিং নয়); Clear-history নিশ্চিতকরণ-ডায়ালগের পেছনে সত্যিকারের clearHistory কল।
+- **AppNav:** অনুপস্থিত `}` সংযোজন; ট্র্যাকিং-ট্যাব homeVm-ওয়্যারিং।
+- **স্ট্রিং:** loc_stop_confirm_title/body ×15 লোকেল (পূর্ণ-অনুবাদ) + notif_filter_unread-এ (%1$d) ×15।
+
+**লোকাল-গেট (এইবার স্যান্ডবক্সে টুলচেইন-রিবিল্ড):** JDK17-Temurin + Gradle 8.9 + SDK 34 স্থাপন করে সম্পূর্ণ CI-সমান চালানো হয়েছে — `compileReleaseKotlin` ✓ · `testReleaseUnitTest` **70/70** ✓ (MovementClassifier 25 + NotifCenter 25 + PlaceAlertEngine 20) · `assembleDebug` ✓ · `assembleRelease` (R8+lintVital) ✓ — 32.8MB unsigned (CI-তে কীস্টোর-সিক্রেট থেকে সাইনড হবে)।
+
+**Owner-করণীয়:** ① এই push-এর CI রান সবুজ নিশ্চিত করুন। ② ফোনে ট্র্যাকিং-ট্যাব (শেয়ার-টগল+interval+স্টপ-নিশ্চিতকরণ), সেটিংস (নাম-বদল, থিম-তাৎক্ষণিক-প্রয়োগ, ভাষা-পিকার, টেস্ট-নোটিফিকেশন, প্রাইভেসি/নিয়ম-ডায়ালগ), বেল (ফিল্টার-চিপ+কাউন্ট, ইভেন্ট-লেবেল, mark-read, ক্লিয়ার-হিস্টোরি) হাতে-নিয়ে যাচাই। ③ W4 (Consent+Viewer) ও ম্যাপ-ওয়েভ-এর অনুমোদন দিন।
+
+**স্পর্শিত ফাইল:** ui/tracking/TrackingTab.kt (পুনর্লিখন) + TrackingViewModel.kt (অবসর), ui/settings/SettingsTab.kt (পুনর্লিখন), ui/notifications/NotificationsScreen.kt (পুনর্লিখন), ui/nav/AppNav.kt, ui/Theme.kt (লাইভ-মোড), app/build.gradle.kts (72/0.51.1), values*/strings.xml ×15, .gitignore (.kotlin/)।

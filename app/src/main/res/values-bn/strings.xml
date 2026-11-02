@@ -50,6 +50,8 @@
     <string name="loc_share_body">শেয়ার চালু থাকা পর্যন্ত আপনার যুক্ত পরিবারের সদস্য ম্যাপে এই ফোনের লাইভ অবস্থান দেখতে পাবেন। শুধু সর্বশেষ অবস্থান রাখা হয় — কখনো পুরো ইতিহাস নয় — এবং আপনি যেকোনো সময় বন্ধ করতে পারেন।</string>
     <string name="loc_share_start">শেয়ার শুরু করুন</string>
     <string name="loc_share_stop">শেয়ার বন্ধ করুন</string>
+    <string name="loc_stop_confirm_title">লোকেশন শেয়ার বন্ধ করবেন?</string>
+    <string name="loc_stop_confirm_body">আপনার পরিবার আর এই ফোনের লোকেশন দেখতে পাবে না। যেকোনো সময় আবার শেয়ার শুরু করতে পারবেন।</string>
     <string name="loc_share_on">লোকেশন শেয়ার চালু আছে</string>
     <string name="loc_share_off">লোকেশন শেয়ার বন্ধ আছে</string>
     <string name="loc_banner_on">আপনি এখন এই ফোনের লোকেশন শেয়ার করছেন</string>
@@ -742,7 +744,7 @@
     <string name="notif_ev_cancelled">%1$s সাহায্যের অনুরোধ ফিরিয়ে নিয়েছেন</string>
     <string name="notif_ev_place">স্থান সতর্কতা: %1$s</string>
     <string name="notif_filter_all">সব</string>
-    <string name="notif_filter_unread">অপঠিত</string>
+    <string name="notif_filter_unread">অপঠিত (%1$d)</string>
     <string name="notif_filter_connection">সংযোগ</string>
     <string name="notif_filter_location">লোকেশন</string>
     <string name="notif_filter_security">নিরাপত্তা</string>

@@ -48,6 +48,8 @@
     <string name="loc_share_body">共有がオンの間、ペアリング済みの家族がこの端末の現在位置を地図で見られます。保存されるのは最新の位置だけ — 履歴は決して残りません — いつでも停止できます。</string>
     <string name="loc_share_start">共有を開始</string>
     <string name="loc_share_stop">共有を停止</string>
+    <string name="loc_stop_confirm_title">位置情報の共有を停止しますか？</string>
+    <string name="loc_stop_confirm_body">家族はこの電話の位置情報を表示できなくなります。いつでも再度共有を開始できます。</string>
     <string name="loc_share_on">位置情報の共有はオンです</string>
     <string name="loc_share_off">位置情報の共有はオフです</string>
     <string name="loc_banner_on">この端末の位置情報を共有しています</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">位置情報の共有をオンにしました</string>
     <string name="notif_ev_sharing_off">位置情報の共有をオフにしました</string>
     <string name="notif_filter_all">すべて</string>
-    <string name="notif_filter_unread">未読</string>
+    <string name="notif_filter_unread">未読 (%1$d)</string>
     <string name="notif_filter_connection">接続</string>
     <string name="notif_filter_location">位置情報</string>
     <string name="notif_filter_security">セキュリティ</string>

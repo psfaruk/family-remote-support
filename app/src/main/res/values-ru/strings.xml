@@ -48,6 +48,8 @@
     <string name="loc_share_body">Ваш сопряжённый родственник будет видеть местоположение этого телефона на карте, пока включён обмен. Хранится только последнее положение — никогда не история — и вы можете остановить обмен в любой момент.</string>
     <string name="loc_share_start">Начать обмен</string>
     <string name="loc_share_stop">Остановить обмен</string>
+    <string name="loc_stop_confirm_title">Остановить передачу местоположения?</string>
+    <string name="loc_stop_confirm_body">Ваша семья больше не будет видеть местоположение этого телефона. Вы сможете снова включить передачу в любой момент.</string>
     <string name="loc_share_on">Обмен местоположением ВКЛЮЧЁН</string>
     <string name="loc_share_off">Обмен местоположением выключен</string>
     <string name="loc_banner_on">Сейчас вы делитесь местоположением этого телефона</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">Передача местоположения включена</string>
     <string name="notif_ev_sharing_off">Передача местоположения выключена</string>
     <string name="notif_filter_all">Все</string>
-    <string name="notif_filter_unread">Непрочитанные</string>
+    <string name="notif_filter_unread">Непрочитанные (%1$d)</string>
     <string name="notif_filter_connection">Подключение</string>
     <string name="notif_filter_location">Геолокация</string>
     <string name="notif_filter_security">Безопасность</string>

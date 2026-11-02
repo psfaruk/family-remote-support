@@ -48,6 +48,8 @@
     <string name="loc_share_body">سيرى فرد العائلة المقترن معك موقع هذا الهاتف المباشر على الخريطة طالما كانت المشاركة مفعّلة. يُحتفظ فقط بآخر موقع — وليس سجلّ المواضع أبدًا — ويمكنك الإيقاف في أي وقت.</string>
     <string name="loc_share_start">بدء المشاركة</string>
     <string name="loc_share_stop">إيقاف المشاركة</string>
+    <string name="loc_stop_confirm_title">إيقاف مشاركة الموقع؟</string>
+    <string name="loc_stop_confirm_body">لن يتمكن أفراد عائلتك من رؤية موقع هذا الهاتف بعد الآن. يمكنك بدء المشاركة مرة أخرى في أي وقت.</string>
     <string name="loc_share_on">مشاركة الموقع مفعّلة</string>
     <string name="loc_share_off">مشاركة الموقع متوقفة</string>
     <string name="loc_banner_on">أنت تشارك موقع هذا الهاتف الآن</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">تم تشغيل مشاركة الموقع</string>
     <string name="notif_ev_sharing_off">تم إيقاف مشاركة الموقع</string>
     <string name="notif_filter_all">الكل</string>
-    <string name="notif_filter_unread">غير مقروءة</string>
+    <string name="notif_filter_unread">غير مقروءة (%1$d)</string>
     <string name="notif_filter_connection">الاتصال</string>
     <string name="notif_filter_location">الموقع</string>
     <string name="notif_filter_security">الأمان</string>

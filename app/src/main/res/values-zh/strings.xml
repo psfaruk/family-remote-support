@@ -47,6 +47,8 @@
     <string name="loc_share_body">共享开启期间，已配对的家人会在地图上看到此手机的实时位置。仅保留最新位置 — 绝不保存历史记录 — 您随时可以停止。</string>
     <string name="loc_share_start">开始共享</string>
     <string name="loc_share_stop">停止共享</string>
+    <string name="loc_stop_confirm_title">停止位置共享？</string>
+    <string name="loc_stop_confirm_body">家人将不再看到此手机的位置。您可以随时重新开始共享。</string>
     <string name="loc_share_on">位置共享已开启</string>
     <string name="loc_share_off">位置共享已关闭</string>
     <string name="loc_banner_on">您正在共享此手机的位置</string>
@@ -629,7 +631,7 @@
     <string name="notif_ev_sharing_on">位置共享已开启</string>
     <string name="notif_ev_sharing_off">位置共享已关闭</string>
     <string name="notif_filter_all">全部</string>
-    <string name="notif_filter_unread">未读</string>
+    <string name="notif_filter_unread">未读 (%1$d)</string>
     <string name="notif_filter_connection">连接</string>
     <string name="notif_filter_location">位置</string>
     <string name="notif_filter_security">安全</string>

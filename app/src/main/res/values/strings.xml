@@ -71,6 +71,8 @@
     <string name="loc_share_body">Your paired family member will see this phone\'s live position on a map while sharing is on. Only the latest position is kept — never a history — and you can stop at any time.</string>
     <string name="loc_share_start">Start sharing</string>
     <string name="loc_share_stop">Stop sharing</string>
+    <string name="loc_stop_confirm_title">Stop location sharing?</string>
+    <string name="loc_stop_confirm_body">Your family will no longer see this phone\'s location. You can start sharing again anytime.</string>
     <string name="loc_share_on">Location sharing is ON</string>
     <string name="loc_share_off">Location sharing is off</string>
     <string name="loc_banner_on">You are sharing this phone\'s location now</string>
@@ -770,7 +772,7 @@
     <string name="notif_ev_cancelled">%1$s took back the help request</string>
     <string name="notif_ev_place">Place alert: %1$s</string>
     <string name="notif_filter_all">All</string>
-    <string name="notif_filter_unread">Unread</string>
+    <string name="notif_filter_unread">Unread (%1$d)</string>
     <string name="notif_filter_connection">Connection</string>
     <string name="notif_filter_location">Location</string>
     <string name="notif_filter_security">Security</string>

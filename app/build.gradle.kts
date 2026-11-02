@@ -218,8 +218,28 @@ android {
         // ADD_PROGRESS stays deep-link resolvable through PairScreen).
         // Most strings reuse the ×15-translated Phase-19 pairing block;
         // 10 new keys ×15 locales. See worklog §95.
-        versionCode = 71
-        versionName = "0.51.0"
+        // v0.51.1/72 (W5-W7 rescue wave) — the never-gated "Complete
+        // frontend" commit (aa771cf) arrived with 149 compile errors across
+        // TrackingTab/SettingsTab/NotificationsScreen/AppNav/
+        // TrackingViewModel: wrong R/LangPrefBus/NotifCenter imports,
+        // non-core icons (Language/PrivacyTip/Security/Shield), a private
+        // material3 Chip call, FilterChip's retired onCheckedChange param,
+        // a missing AppNavHost closing brace, watchDevicePresence's
+        // onChange/onError mixup, and 2 missing string keys. This wave
+        // repairs all of it AND finishes the feature work honestly:
+        // TrackingTab renders from the ONE shared HomeViewModel listener
+        // set (the duplicate per-partner presence watches in the added
+        // TrackingViewModel violated §75 quota discipline — the file is
+        // retired), Settings gets real dialogs (edit-name → Firebase
+        // profile write, theme rows apply live, 15-language picker with
+        // persist+recreate, privacy/rules bodies, a real local test
+        // notification) and wired sign-out hygiene, NotificationsScreen
+        // renders the unit-tested NotifCenter surface with localized
+        // event labels, per-category chips, mark-read and a confirmed
+        // Clear-history; notif_filter_unread gained its (%1$d) count.
+        // 2 new string keys ×15 locales. See worklog §96.
+        versionCode = 72
+        versionName = "0.51.1"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

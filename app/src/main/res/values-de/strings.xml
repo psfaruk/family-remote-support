@@ -48,6 +48,8 @@
     <string name="loc_share_body">Ihr gekoppeltes Familienmitglied sieht den Live-Standort dieses Telefons auf einer Karte, solange das Teilen läuft. Es wird nur die jeweils letzte Position behalten — nie ein Verlauf — und Sie können jederzeit aufhören.</string>
     <string name="loc_share_start">Teilen starten</string>
     <string name="loc_share_stop">Teilen stoppen</string>
+    <string name="loc_stop_confirm_title">Standortfreigabe beenden?</string>
+    <string name="loc_stop_confirm_body">Deine Familie sieht den Standort dieses Telefons nicht mehr. Du kannst die Freigabe jederzeit wieder starten.</string>
     <string name="loc_share_on">Standort-Freigabe ist AN</string>
     <string name="loc_share_off">Standort-Freigabe ist aus</string>
     <string name="loc_banner_on">Sie teilen gerade den Standort dieses Telefons</string>
@@ -630,7 +632,7 @@
     <string name="notif_ev_sharing_on">Standort-Freigabe aktiviert</string>
     <string name="notif_ev_sharing_off">Standort-Freigabe deaktiviert</string>
     <string name="notif_filter_all">Alle</string>
-    <string name="notif_filter_unread">Ungelesen</string>
+    <string name="notif_filter_unread">Ungelesen (%1$d)</string>
     <string name="notif_filter_connection">Verbindung</string>
     <string name="notif_filter_location">Standort</string>
     <string name="notif_filter_security">Sicherheit</string>
