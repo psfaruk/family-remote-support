@@ -17,7 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -93,7 +93,7 @@ fun AddTab(
 
         // ── feature card 2: temporary guest (2-hour) ──
         AddFeatureCard(
-            icon = Icons.Filled.Schedule,
+            icon = Icons.Filled.Person,
             title = stringResource(R.string.ph_guest_code_title),
             desc = stringResource(R.string.ph_guest_code_desc),
             tag = stringResource(R.string.ph_kind_guest_short),
@@ -106,7 +106,16 @@ fun AddTab(
             onClick = { onOpenRoute(AppRoutes.ADD_SCAN) },
         )
 
-        SectionCard(title = stringResource(R.string.ph_badge_legend))
+        SectionCard(title = stringResource(R.string.ph_badge_legend)) {
+            Text(
+                text = stringResource(R.string.ph_family_running),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = stringResource(R.string.ph_guest_running),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 

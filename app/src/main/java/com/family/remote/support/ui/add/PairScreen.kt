@@ -123,7 +123,7 @@ fun PairScreen(
                 BigButton(
                     text = stringResource(R.string.pair_create_btn),
                     onClick = {
-                        vm.createInvitation(
+                        vm.startPairing(
                             user = user,
                             deviceId = stableDeviceId(context),
                             deviceModel = deviceModelName(),
@@ -168,7 +168,7 @@ fun PairScreen(
                                 BigButton(
                                     text = stringResource(R.string.pair_create_btn),
                                     onClick = {
-                                        vm.createInvitation(
+                                        vm.startPairing(
                                             user = user,
                                             deviceId = stableDeviceId(context),
                                             deviceModel = deviceModelName(),
@@ -219,7 +219,7 @@ fun PairScreen(
                     BigButton(
                         text = stringResource(R.string.pair_create_btn),
                         onClick = {
-                            vm.createInvitation(
+                            vm.startPairing(
                                 user = user,
                                 deviceId = stableDeviceId(context),
                                 deviceModel = deviceModelName(),

@@ -71,13 +71,13 @@ class AddViewModel : ViewModel() {
      * The expiry comparison is UI-side against ServerClock — the FSM here
      * only knows PENDING → PAIRED / CANCELLED.
      */
-    fun createInvitation(user: FirebaseUser, deviceId: String, deviceModel: String, kind: String) {
+    fun startPairing(user: FirebaseUser, deviceId: String, deviceModel: String, kind: String) {
         if (_pairing.value.phase == PairPhase.CREATING) return
         stopWatch()
         _pairing.value = PairingState(phase = PairPhase.CREATING, kind = kind)
         viewModelScope.launch {
             try {
-                val invite = createInvitation(user, deviceId, deviceModel, kind)
+                val invite = createInvitation(user, deviceId, deviceModel, kind) // repo-level (imported)
                 _pairing.update {
                     it.copy(phase = PairPhase.PENDING, invite = invite, error = null)
                 }

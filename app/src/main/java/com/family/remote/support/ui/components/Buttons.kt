@@ -95,6 +95,7 @@ fun WideOutlinedButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     danger: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
 ) {
@@ -105,6 +106,7 @@ fun WideOutlinedButton(
     }
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         shape = MaterialTheme.shapes.small,
         border = BorderStroke(2.dp, color),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
