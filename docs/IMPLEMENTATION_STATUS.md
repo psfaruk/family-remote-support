@@ -1,16 +1,28 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **W1 FRONTEND-REBUILD WAVE SHIPPED — v0.49.0/69 (2026-11-02, worklog
-> §93): the never-committed frontend (MainActivity + ui/) reconstructed and
+> Status: **W2 HOME-SUBTREE WAVE SHIPPED — v0.50.0/70 (2026-11-02, worklog
+> §94): the REAL home subtree lands behind the auth gate — AuthGate (Google
+> Credential Manager + email/password + reset), ONE shared HomeViewModel
+> (the whole subtree reads one listener set: sessions ×2, relationships ×2,
+> one presence doc per live link), HomeTab dashboard (consent hero card,
+> live/awaiting cards, 2×2 status grid, quick actions, linked phones,
+> session activity), family list + member detail (local nicknames, ask /
+> revoke / remove with confirmations), sessions list + session detail
+> (facts, deadlines, ended-by), presence ticker (5-min heartbeat while
+> RESUMED + final beat, NonCancellable) + one-shot FCM registration owned
+> by the shell. 64 new strings ×15 locales (full translation, no fallback
+> shortcuts). Wave 2 of the 8-wave plan (docs/FRONTEND_UI_PLAN_BN.md).
+> Waves W3–W8 (Pairing, Consent+Viewer, Tracking, Settings, NotifCenter,
+> Places+History) follow on Owner approval.**
+> Previous wave: **W1 frontend-rebuild v0.49.0/69 (§93)** — the
+> never-committed frontend (MainActivity + ui/) reconstructed and
 > committed — main's CI red era (#867–869, Unresolved ui/LangPrefBus/
 > MainActivity) ENDED. Gate green (CI-identical toolchain): 70/70 unit tests,
-> assembleDebug + assembleRelease+R8+lintVital (32.1 MB unsigned). Wave 1 of
-> the 8-wave plan (docs/FRONTEND_UI_PLAN_BN.md): emerald Theme.kt + SeniorTypography,
+> assembleDebug + assembleRelease+R8+lintVital (32.1 MB unsigned): emerald Theme.kt + SeniorTypography,
 > LangPrefBus (bn default), AppRoutes + RootShell on Navigation-Compose (4 tabs,
 > DeepLinks cold-start + onNewIntent, never-dead-end), States.kt design-system,
 > stableDeviceId(), slim MainActivity host, ph_wip ×15 honest placeholders, zero
-> Firestore reads. Waves W2–W8 (AuthGate+Home, Pairing, Consent+Viewer, Tracking,
-> Settings, NotifCenter, Places+History) follow on Owner approval.**
+> Firestore reads.
 > Previous waves: design-detail v0.48.0/68 (§92, emerald rebrand) +
 > audit-fix wave 2 & build-rescue v0.47.0/67 (§90–91) + G1 notification-center
 > v0.46.0/66 (§89) + audit-fix wave v0.45.0/65 (§87) + external-audit response

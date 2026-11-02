@@ -43,8 +43,9 @@ import com.family.remote.support.ui.LocalWarningColor
  */
 
 /**
- * Friendly empty state — centered icon medallion, title, body. Used for
- * "no devices yet", "no history", and the W1 wave placeholders.
+ * Friendly empty state — centered icon medallion, title, body, and an
+ * optional action button ("Add a device"…). Used for "no devices yet",
+ * "no history", and the W1 wave placeholders.
  */
 @Composable
 fun EmptyState(
@@ -52,6 +53,8 @@ fun EmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.padding(horizontal = 32.dp, vertical = 24.dp),
@@ -87,6 +90,15 @@ fun EmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        if (actionLabel != null && onAction != null) {
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onAction,
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(actionLabel)
+            }
+        }
     }
 }
 

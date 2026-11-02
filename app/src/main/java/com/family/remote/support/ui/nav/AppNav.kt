@@ -1,5 +1,6 @@
 package com.family.remote.support.ui.nav
 
+import android.os.Build
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,12 +16,15 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,8 +33,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavHostController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -39,7 +46,22 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.family.remote.support.DeepLinks
 import com.family.remote.support.R
+import com.family.remote.support.registerFcmToken
+import com.family.remote.support.sendHeartbeat
+import com.family.remote.support.stableDeviceId
+import com.family.remote.support.ui.AuthGate
 import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.home.FamilyListScreen
+import com.family.remote.support.ui.home.HomeTab
+import com.family.remote.support.ui.home.HomeViewModel
+import com.family.remote.support.ui.home.MemberDetailScreen
+import com.family.remote.support.ui.home.SessionDetailScreen
+import com.family.remote.support.ui.home.SessionsScreen
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * ui/nav/AppNav.kt — the route table + the app shell
@@ -135,13 +157,50 @@ private fun tabForRoute(route: String?): AppTab? = when {
 }
 
 /**
- * The root shell: top bar (title + bell), bottom navigation, NavHost.
- * The only public surface MainActivity needs.
+ * The root shell: auth gate OR top bar (title + bell) + bottom
+ * navigation + NavHost. The only public surface MainActivity needs.
+ *
+ * W2 (v0.50.0): the signed-out user gets the full-screen [AuthGate]
+ * (no bars — the prototype's contract); the signed-in user gets the
+ * shell plus the foreground-only presence ticker + one-time push
+ * registration (PresenceRepo's documented contract), and the home
+ * subtree renders the REAL screens (dashboard, family list, member
+ * detail, sessions, session detail) against ONE shared
+ * [HomeViewModel].
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun RootShell() {
     val nav = rememberNavController()
+
+    // ── auth state: the ONE source of truth ──
+    val auth = remember { FirebaseAuth.getInstance() }
+    var user by remember { mutableStateOf<FirebaseUser?>(auth.currentUser) }
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { user = it.currentUser }
+        auth.addAuthStateListener(listener)
+        onDispose { auth.removeAuthStateListener(listener) }
+    }
+
+    val current = user
+    if (current == null) {
+        // Full-screen gate — no top bar, no tabs (prototype contract).
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            AuthGate()
+        }
+        return
+    }
+
+    // ── the home subtree's ONE listener set ──
+    val homeVm: HomeViewModel = viewModel()
+    LaunchedEffect(current.uid) { homeVm.setUser(current) }
+
+    // ── foreground-only presence + push registration ──
+    PresenceTickerEffect(current)
+
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
 
@@ -191,10 +250,56 @@ fun RootShell() {
     ) { padding ->
         AppNavHost(
             nav = nav,
+            user = current,
+            homeVm = homeVm,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
         )
+    }
+}
+
+// ── Presence + push (the shell owns them — not the host, not a tab) ─────
+
+/**
+ * The foreground-only presence ticker (v0.36 quota directive):
+ * heartbeat on entry + every 5 min while RESUMED + a final beat when
+ * the user leaves (NonCancellable — a cancelled coroutine may still
+ * suspend inside [withContext]). Plus the one-shot FCM registration
+ * per signed-in uid, best effort (a push hiccup must never block UI).
+ */
+@Composable
+private fun PresenceTickerEffect(user: FirebaseUser) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val owner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    LaunchedEffect(user.uid) {
+        val appContext = context.applicationContext
+        val deviceId = stableDeviceId(appContext)
+        val model = ((Build.MANUFACTURER?.trim())?.plus(" ") ?: "") + (Build.MODEL ?: "")
+        owner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            try {
+                sendHeartbeat(user.uid, deviceId, model)
+                while (true) {
+                    delay(5 * 60_000L)
+                    sendHeartbeat(user.uid, deviceId, model)
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    try {
+                        sendHeartbeat(user.uid, deviceId, model)
+                    } catch (_: Exception) {
+                        // best effort — the 20-min online window covers it
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(user.uid, user.email) {
+        try {
+            registerFcmToken(user.uid, stableDeviceId(context.applicationContext))
+        } catch (_: Exception) {
+            // best effort — AskNotifier's alive-process path still works
+        }
     }
 }
 
@@ -267,7 +372,14 @@ private const val TAB_MS = 150
 private const val NESTED_MS = 200
 
 @Composable
-private fun AppNavHost(nav: NavHostController, modifier: Modifier = Modifier) {
+private fun AppNavHost(
+    nav: NavHostController,
+    user: FirebaseUser,
+    homeVm: HomeViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val go: (String) -> Unit = remember(nav) { { route -> goRoute(nav, route) } }
+    val back: () -> Unit = remember(nav) { { nav.popBackStack() } }
     NavHost(
         navController = nav,
         startDestination = AppRoutes.HOME,
@@ -277,15 +389,19 @@ private fun AppNavHost(nav: NavHostController, modifier: Modifier = Modifier) {
         popEnterTransition = { fadeIn(tween(TAB_MS)) },
         popExitTransition = { fadeOut(tween(TAB_MS)) },
     ) {
-        // ── Tab HOME ────────────────────────────────────────────────────
-        composable(AppRoutes.HOME) { WipTab(Icons.Filled.Home, R.string.nav_home) }
+        // ── Tab HOME (W2: the REAL screens, one shared HomeViewModel) ───
+        composable(AppRoutes.HOME) {
+            HomeTab(user = user, vm = homeVm, onOpenRoute = go)
+        }
         composable(
             AppRoutes.HOME_FAMILY,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Home, R.string.nav_home) }
+        ) {
+            FamilyListScreen(user = user, vm = homeVm, onOpenRoute = go, onBack = back)
+        }
         composable(
             AppRoutes.HOME_FAMILY_ARG,
             arguments = listOf(navArgument("relId") { type = NavType.StringType }),
@@ -293,14 +409,19 @@ private fun AppNavHost(nav: NavHostController, modifier: Modifier = Modifier) {
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Home, R.string.nav_home) }
+        ) { entry ->
+            val relId = entry.arguments?.getString("relId").orEmpty()
+            MemberDetailScreen(user = user, vm = homeVm, relId = relId, onBack = back)
+        }
         composable(
             AppRoutes.HOME_SESSIONS,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Home, R.string.nav_home) }
+        ) {
+            SessionsScreen(user = user, vm = homeVm, onOpenRoute = go, onBack = back)
+        }
         composable(
             AppRoutes.HOME_SESSION_ARG,
             arguments = listOf(navArgument("id") { type = NavType.StringType }),
@@ -308,7 +429,10 @@ private fun AppNavHost(nav: NavHostController, modifier: Modifier = Modifier) {
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Home, R.string.nav_home) }
+        ) { entry ->
+            val id = entry.arguments?.getString("id").orEmpty()
+            SessionDetailScreen(sessionId = id, user = user, vm = homeVm, onOpenRoute = go, onBack = back)
+        }
         composable(
             AppRoutes.HOME_ADD,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },

@@ -188,8 +188,21 @@ android {
         // DeepLinks, edge-to-edge, singleTop onNewIntent), ph_wip ×15
         // locales — honest wave placeholders, zero fabricated data, zero
         // Firestore reads. Waves W2–W8 follow. See worklog §93.
-        versionCode = 69
-        versionName = "0.49.0"
+        //
+        // v0.50.0/70 (W2) — the REAL home subtree lands: AuthGate (Google
+        // Credential Manager + email/password + reset), the ONE
+        // HomeViewModel (sessions ×2 + relationships ×2 + one presence doc
+        // per live link — the whole subtree shares one listener set),
+        // HomeTab dashboard (consent hero, live/awaiting cards, 2×2 status
+        // grid, quick actions, linked phones, session activity), family
+        // list + member detail (nickname, ask, revoke/remove with confirm),
+        // sessions list + session detail (facts, deadlines, ended-by), all
+        // wired into AppNav behind the auth gate; presence ticker
+        // (heartbeat every 5 min while RESUMED + final beat) + one-shot
+        // FCM registration owned by the shell. 64 new strings ×15
+        // locales. See worklog §94.
+        versionCode = 70
+        versionName = "0.50.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

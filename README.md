@@ -5,20 +5,37 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **🟢 RELEASE-READY — v0.49.0 (versionCode 69), 2026-11-02 — W1 frontend-rebuild
-  wave (worklog §93):** the never-committed frontend reconstructed and finally
+- **🟢 RELEASE-READY — v0.50.0 (versionCode 70), 2026-11-02 — W2 home-subtree
+  wave (worklog §94):** the REAL home subtree lands behind the auth gate —
+  wave 2 of the documented 8-wave plan (docs/FRONTEND_UI_PLAN_BN.md) on top
+  of W1's reconstructed shell. AuthGate (Google Credential Manager bottom
+  sheet + email/password sign-in/create/reset, every failure localized);
+  ONE shared HomeViewModel — the whole subtree reads a single listener set
+  (open sessions as helper+recipient, relationships as helper+recipient, one
+  presence doc per live link), swapped deterministically on sign-in/out;
+  HomeTab dashboard (the incoming ask is the consent hero, live/awaiting
+  countdown cards against ServerClock, 2×2 status grid with 30 s-isolated
+  security tick, quick actions, top-3 linked phones with presence, open +
+  just-ended session activity); family list + member detail (local-only
+  nicknames, ask-session, revoke/remove behind confirmation dialogs);
+  sessions list + session detail (facts, deadlines, ended-by — cold deep
+  links filled by a one-shot read); the shell owns the foreground-only
+  presence ticker (heartbeat on entry + every 5 min while RESUMED + a
+  NonCancellable final beat) and the one-shot FCM registration. 64 new
+  strings ×15 locales — full translations, no fallback shortcuts.
+  Previous: **v0.49.0 (69) — W1 frontend-rebuild wave (worklog §93):**
+  the never-committed frontend reconstructed and finally
   committed — main's CI had been red since run #867 because nine backend files
   import `ui.LangPrefBus` / `ui.nav.AppRoutes` / `MainActivity`, classes no branch
-  ever contained. Wave 1 of the documented 8-wave plan
-  (docs/FRONTEND_UI_PLAN_BN.md): full emerald Theme.kt (§92 tokens,
+  ever contained. Wave 1: full emerald Theme.kt (§92 tokens,
   SeniorTypography, shape ladder), LangPrefBus (bn default), AppRoutes + RootShell
   on Navigation-Compose (4 tabs, bell, crossfade 150 ms / nested slide 200 ms,
   saveState/restoreState, DeepLinks cold-start + onNewIntent, never-dead-end
   routing), States.kt design-system (EmptyState/LoadingSkeleton/ErrorPanel/
   PermissionDeniedPanel), stableDeviceId() (ANDROID_ID), slim MainActivity host,
   `ph_wip` ×15 honest placeholders. Gate green (CI-identical toolchain): 70/70
-  unit tests, assembleDebug, assembleRelease+R8+lintVital. Waves W2–W8
-  (AuthGate+Home, Pairing, Consent+Viewer, Tracking, Settings, NotifCenter,
+  unit tests, assembleDebug, assembleRelease+R8+lintVital. Waves W3–W8
+  (Pairing, Consent+Viewer, Tracking, Settings, NotifCenter,
   Places+History) follow.
   Previous: **v0.48.0 (68), 2026-11-02 — design-detail wave (worklog §92):**
   Owner-directed identity rebrand blue → **emerald** (Theme.kt's two

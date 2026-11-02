@@ -599,3 +599,54 @@ plan (docs/FRONTEND_UI_PLAN_BN.md):
 70/70 unit tests (25+25+20), assembleDebug 46.0 MB, assembleRelease+R8+
 lintVital 32.1 MB unsigned. Waves W2–W8 (AuthGate+Home, Pairing, Consent+
 Viewer, Tracking, Settings, NotifCenter, Places+History) follow.
+
+## 16. v0.50.0/70 — the W2 home-subtree wave (2026-11-02)
+
+**What ships:** the app's first REAL screens behind W1's shell — wave 2 of the
+8-wave plan (docs/FRONTEND_UI_PLAN_BN.md):
+
+- `ui/AuthGate.kt` — the full-screen sign-in gate: Google via Credential
+  Manager (the snooze-friendly bottom-sheet picker) with the project's Web
+  Client ID, email/password sign-in + account creation + password reset,
+  every failure routed through the localized fe_*/auth_* strings. The gate
+  performs sign-in only — the shell's AuthStateListener flips the whole UI.
+- `ui/home/HomeViewModel.kt` — the ONE watcher of the home subtree
+  (FRONTEND_ARCHITECTURE §4): open sessions as helper + recipient,
+  relationships as helper + recipient, one presence doc per LIVE link,
+  swapped deterministically on sign-in/out. Finished sessions are fetched
+  one-shot only when an open id disappears (the documented SessionRepo
+  pattern — deliberately no history query). Consent actions (allow/deny/
+  cancel/end/expire/ask/revoke/remove) all throw the localized
+  SessionException message on failure.
+- `ui/home/HomeTab.kt` — the dashboard: time-aware greeting, the incoming
+  REQUESTED ask as the consent hero (Allow/Deny ≥52/48 dp, 1 s countdown
+  against ServerClock), the live-session hint / awaiting-answer cards, the
+  2×2 status grid (setup checklist, linked count, location sharing,
+  security — the guest-expiry tile owns its own 30 s tick), quick actions,
+  top-3 linked phones with presence badges, open + just-ended session
+  activity. Permission checklist + sharing state refresh on every ON_RESUME.
+- `ui/home/FamilyScreens.kt` — family list (active links with presence,
+  past links dimmed with the honest Revoked/Expired labels) + member detail
+  (connection facts, local-only nickname, ask-session disabled while a
+  session runs, revoke / remove-guest behind confirmation dialogs).
+- `ui/home/SessionScreens.kt` — sessions list (running + just-ended) +
+  session detail (counterpart, kind, requested-at, answer deadline, ends-at
+  with countdown, ended-at + ended-by incl. timeout; cold deep links filled
+  by a one-shot getSession). 
+- `ui/components/` — Cards.kt (SectionCard with tonal icon chip + info
+  popover, AppListTile, BackTitleRow, DetailRow, SettingsTile), Buttons.kt
+  (BigButton, WideOutlinedButton, TextActionButton, QuickActionTile,
+  IconStatusTile), Badges.kt (StatusBadge, KindChip, PresenceBadge +
+  presenceMeta), Fmt.kt (mmss/hms countdowns, clockTime, relTime,
+  appLocale, tickingNow) — the §6 component library, one variant per widget.
+- `ui/nav/AppNav.kt` — the home subtree wired to the real screens behind
+  the auth gate; the shell owns the foreground-only presence ticker
+  (heartbeat on entry + every 5 min while RESUMED + a NonCancellable final
+  beat — the v0.36 quota directive) and the one-shot FCM registration.
+- 64 new string keys ×15 locales — full translations (bn/hi/ur/ar/zh/ja/ne/
+  tr/ru/de/es/fr/pt/id), no fallback shortcuts.
+
+**Owner next steps:** watch this push's CI run go green, install the debug or
+release APK, sign in with a real account, and walk the home subtree
+(dashboard → family list → member detail → sessions → session detail) on
+two paired phones. Waves W3–W8 follow on approval.
