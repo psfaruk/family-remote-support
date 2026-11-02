@@ -902,4 +902,15 @@
     <string name="sess_ender_recipient">Recipient</string>
     <string name="sess_you">you</string>
     <string name="sess_this_phone">this phone</string>
+
+    <string name="pair_create_btn">Create the QR code</string>
+    <string name="pair_waiting_hint">On the other phone open Add Device → Scan, point the camera at this QR — or type the code below.</string>
+    <string name="pair_expired_new">The 5 minutes are up — create a new code.</string>
+    <string name="pair_cancelled_new">Code cancelled — you can create a new one.</string>
+    <string name="pair_paired_with">%1$s is now linked ✓ — every session still asks for approval first.</string>
+    <string name="pair_copied">Code copied</string>
+    <string name="scan_screen_t">Scan or type the code</string>
+    <string name="scan_manual_hint">Type or paste the 32-character code shown on the other phone.</string>
+    <string name="scan_wizard_btn">Next: permission setup</string>
+    <string name="perm_route_intro">Reliable help needs a few permissions on this phone. The wizard explains each one and opens the right settings page — you can run it any time.</string>
 </resources>

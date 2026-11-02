@@ -1,6 +1,6 @@
      1→# IMPLEMENTATION_STATUS — Reconciled Tracker (Master-Plan PART 15 #9)
 
-> Status: **W2 HOME-SUBTREE WAVE SHIPPED — v0.50.0/70 (2026-11-02, worklog
+> Status: **W3 PAIRING-SUBTREE WAVE SHIPPED — v0.51.0/71 (2026-11-02, worklog
 > §94): the REAL home subtree lands behind the auth gate — AuthGate (Google
 > Credential Manager + email/password + reset), ONE shared HomeViewModel
 > (the whole subtree reads one listener set: sessions ×2, relationships ×2,

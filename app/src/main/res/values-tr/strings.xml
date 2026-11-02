@@ -793,4 +793,15 @@
     <string name="sess_ender_recipient">Yardımı alan</string>
     <string name="sess_you">siz</string>
     <string name="sess_this_phone">bu telefon</string>
+
+    <string name="pair_create_btn">QR kodu oluştur</string>
+    <string name="pair_waiting_hint">Diğer telefonda Cihaz Ekle → Tara\'yı açıp kamerayı bu QR\'ya doğrultun — ya da aşağıdaki kodu yazın.</string>
+    <string name="pair_expired_new">5 dakika doldu — yeni bir kod oluşturun.</string>
+    <string name="pair_cancelled_new">Kod iptal edildi — yenisini oluşturabilirsiniz.</string>
+    <string name="pair_paired_with">%1$s artık bağlı ✓ — her oturum yine önce izin ister.</string>
+    <string name="pair_copied">Kod kopyalandı</string>
+    <string name="scan_screen_t">Kodu tara veya yaz</string>
+    <string name="scan_manual_hint">Diğer telefonda gösterilen 32 karakterlik kodu yazın veya yapıştırın.</string>
+    <string name="scan_wizard_btn">Sıradaki: izin kurulumu</string>
+    <string name="perm_route_intro">Güvenilir yardım bu telefonda birkaç izin gerektirir. Sihirbaz her adımı açıklar ve doğru ayar sayfasını açar — istediğiniz zaman çalıştırabilirsiniz.</string>
 </resources>

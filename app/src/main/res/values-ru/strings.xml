@@ -793,4 +793,15 @@
     <string name="sess_ender_recipient">Получатель помощи</string>
     <string name="sess_you">вы</string>
     <string name="sess_this_phone">этот телефон</string>
+
+    <string name="pair_create_btn">Создать QR-код</string>
+    <string name="pair_waiting_hint">На другом телефоне откройте «Добавить устройство» → «Сканировать» и наведите камеру на этот QR — или введите код ниже.</string>
+    <string name="pair_expired_new">5 минут истекли — создайте новый код.</string>
+    <string name="pair_cancelled_new">Код отменён — можно создать новый.</string>
+    <string name="pair_paired_with">%1$s теперь связан ✓ — каждый сеанс по-прежнему сначала запрашивает разрешение.</string>
+    <string name="pair_copied">Код скопирован</string>
+    <string name="scan_screen_t">Отсканируйте или введите код</string>
+    <string name="scan_manual_hint">Введите или вставьте 32-символьный код, показанный на другом телефоне.</string>
+    <string name="scan_wizard_btn">Далее: настройка разрешений</string>
+    <string name="perm_route_intro">Надёжной помощи нужны некоторые разрешения на этом телефоне. Мастер объясняет каждый шаг и открывает нужную страницу настроек — запускать можно в любое время.</string>
 </resources>

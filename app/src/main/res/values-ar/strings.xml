@@ -793,4 +793,15 @@
     <string name="sess_ender_recipient">طالب المساعدة</string>
     <string name="sess_you">أنت</string>
     <string name="sess_this_phone">هذا الهاتف</string>
+
+    <string name="pair_create_btn">إنشاء رمز QR</string>
+    <string name="pair_waiting_hint">على الهاتف الآخر: افتح إضافة جهاز ← مسح، ثم وجّه الكاميرا نحو رمز QR هذا — أو اكتب الرمز أدناه.</string>
+    <string name="pair_expired_new">انتهت الخمس دقائق — أنشئ رمزًا جديدًا.</string>
+    <string name="pair_cancelled_new">تم إلغاء الرمز — يمكنك إنشاء رمز جديد.</string>
+    <string name="pair_paired_with">تم الربط مع %1$s ✓ — كل جلسة تظل تطلب الموافقة أولًا.</string>
+    <string name="pair_copied">تم نسخ الرمز</string>
+    <string name="scan_screen_t">امسح الرمز أو اكتبه</string>
+    <string name="scan_manual_hint">اكتب أو الصق رمز 32 حرفًا الظاهر على الهاتف الآخر.</string>
+    <string name="scan_wizard_btn">التالي: إعداد الأذونات</string>
+    <string name="perm_route_intro">المساعدة الموثوقة تحتاج بعض الأذونات على هذا الهاتف. يشرح المعالج كل خطوة ويفتح صفحة الإعدادات الصحيحة — يمكنك تشغيله في أي وقت.</string>
 </resources>

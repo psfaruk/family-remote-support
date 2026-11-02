@@ -792,4 +792,15 @@
     <string name="sess_ender_recipient">Yang dibantu</string>
     <string name="sess_you">Anda</string>
     <string name="sess_this_phone">telepon ini</string>
+
+    <string name="pair_create_btn">Buat kode QR</string>
+    <string name="pair_waiting_hint">Di ponsel lain buka Tambah Perangkat → Pindai, arahkan kamera ke QR ini — atau ketik kode di bawah.</string>
+    <string name="pair_expired_new">5 menit sudah habis — buat kode baru.</string>
+    <string name="pair_cancelled_new">Kode dibatalkan — Anda dapat membuat yang baru.</string>
+    <string name="pair_paired_with">%1$s kini tertaut ✓ — setiap sesi tetap meminta izin lebih dulu.</string>
+    <string name="pair_copied">Kode disalin</string>
+    <string name="scan_screen_t">Pindai atau ketik kode</string>
+    <string name="scan_manual_hint">Ketik atau tempel kode 32 karakter yang tampil di ponsel lain.</string>
+    <string name="scan_wizard_btn">Lanjut: penyiapan izin</string>
+    <string name="perm_route_intro">Bantuan yang andal memerlukan beberapa izin di ponsel ini. Wizard menjelaskan tiap langkah dan membuka halaman pengaturan yang tepat — bisa dijalankan kapan saja.</string>
 </resources>

@@ -650,3 +650,41 @@ Viewer, Tracking, Settings, NotifCenter, Places+History) follow.
 release APK, sign in with a real account, and walk the home subtree
 (dashboard → family list → member detail → sessions → session detail) on
 two paired phones. Waves W3–W8 follow on approval.
+
+## 17. v0.51.0/71 — the W3 pairing-subtree wave (2026-11-02)
+
+The Add-Device tab stops being a placeholder and becomes the full pairing
+flow (FRONTEND_UI_PLAN_BN §2.3), rebuilt 1:1 from the interactive prototype:
+
+- `ui/add/AddTab.kt` — the tab root: the two-ways explainer card, two
+  ≥140 dp feature cards (Family code / Guest code · 2 hours) and the
+  helper CTA ("QR scan · I will help"). The nested home/add route shares
+  the same composable with a back row.
+- `ui/add/PairScreen.kt` — the INVITER side: one tap creates a 5-minute
+  invitation; the QR renders on an always-white plate (ECC-H, the 👪/⏳
+  center badge), next to the mono 32-char code with copy + share
+  (PNG + text). The 1-second countdown chip turns warning inside the last
+  30 s; past expiry the honest EXPIRED card highlights "create again"
+  (derived against ServerClock — a wrong clock never kills a live code).
+  PAIRED lands with a 200 ms ✓-pop and names who joined; cancel is one
+  honest write.
+- `ui/add/ScanScreen.kt` — the HELPER side: the existing CameraX + ML Kit
+  dialog, or the typed 32-char fallback (imePadding) — then the role
+  preview sheet (what this code will make you; unknown kinds get the
+  honest legacy note), then the one-shot atomic redemption. Success pops
+  ✓ and offers the permission-wizard shortcut; failures stay inside the
+  sheet so the code stays editable.
+- `ui/add/PermissionsScreen.kt` — hosts the ONE canonical permission
+  wizard (auto-opens once per entry).
+- `ui/add/AddViewModel.kt` — the ONE pairing FSM: IDLE → CREATING →
+  PENDING → PAIRED/CANCELLED, at most one snapshot listener for the whole
+  subtree; the helper side is a listener-free one-shot.
+- `ui/nav/AppNav.kt` — five WipTabs replaced by the real screens;
+  ADD_PROGRESS stays deep-link resolvable through PairScreen.
+- Strings: 56 references in the new subtree, only 10 NEW keys ×15 locales —
+  everything else reuses the Phase-19 pairing block that has been fully
+  translated since v0.28.0.
+- Process note (worklog §95): this wave ships with the new
+  commit-immediately discipline — the previous session's un-pushed W3 work
+  was lost to a sandbox recycle and is fully rewritten here, pushed in the
+  same step.

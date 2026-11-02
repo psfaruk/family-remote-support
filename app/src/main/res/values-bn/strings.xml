@@ -847,4 +847,15 @@
     <string name="sess_ender_recipient">সাহায্য গ্রহীতা</string>
     <string name="sess_you">আপনি</string>
     <string name="sess_this_phone">এই ফোন</string>
+
+    <string name="pair_create_btn">QR কোড তৈরি করুন</string>
+    <string name="pair_waiting_hint">অন্য ফোনে ডিভাইস যোগ → স্ক্যান খুলে এই QR-এর দিকে ক্যামেরা ধরুন — অথবা নিচের কোডটি লিখুন।</string>
+    <string name="pair_expired_new">৫ মিনিট পেরিয়ে গেছে — নতুন কোড তৈরি করুন।</string>
+    <string name="pair_cancelled_new">কোড বাতিল হয়েছে — চাইলে নতুন কোড তৈরি করতে পারেন।</string>
+    <string name="pair_paired_with">%1$s এখন যুক্ত ✓ — প্রতিটি সেশনের জন্য আগে অনুমতি চাওয়া হবে।</string>
+    <string name="pair_copied">কোড কপি হয়েছে</string>
+    <string name="scan_screen_t">কোড স্ক্যান বা লিখুন</string>
+    <string name="scan_manual_hint">অন্য ফোনে দেখানো ৩২-অক্ষরের কোডটি লিখুন বা পেস্ট করুন।</string>
+    <string name="scan_wizard_btn">পরের ধাপ: পারমিশন সেটআপ</string>
+    <string name="perm_route_intro">নির্ভরযোগ্য সাহায্যের জন্য এই ফোনে কিছু পারমিশন দরকার। উইজার্ড প্রতিটি ধাপ বুঝিয়ে সঠিক সেটিংস-পাতা খুলে দেয় — যেকোনো সময় চালাতে পারেন।</string>
 </resources>

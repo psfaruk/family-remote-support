@@ -792,4 +792,15 @@
     <string name="sess_ender_recipient">Personne aidée</string>
     <string name="sess_you">vous</string>
     <string name="sess_this_phone">ce téléphone</string>
+
+    <string name="pair_create_btn">Créer le code QR</string>
+    <string name="pair_waiting_hint">Sur l\'autre téléphone, ouvrez Ajouter un appareil → Scanner et pointez la caméra vers ce QR — ou saisissez le code ci-dessous.</string>
+    <string name="pair_expired_new">Les 5 minutes sont écoulées — créez un nouveau code.</string>
+    <string name="pair_cancelled_new">Code annulé — vous pouvez en créer un nouveau.</string>
+    <string name="pair_paired_with">%1$s est maintenant associé ✓ — chaque session demande toujours d\'abord l\'autorisation.</string>
+    <string name="pair_copied">Code copié</string>
+    <string name="scan_screen_t">Scanner ou saisir le code</string>
+    <string name="scan_manual_hint">Saisissez ou collez le code de 32 caractères affiché sur l\'autre téléphone.</string>
+    <string name="scan_wizard_btn">Suivant : configuration des autorisations</string>
+    <string name="perm_route_intro">Une aide fiable nécessite quelques autorisations sur ce téléphone. L\'assistant explique chaque étape et ouvre la bonne page de réglages — utilisable à tout moment.</string>
 </resources>

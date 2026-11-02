@@ -3761,3 +3761,34 @@ history → Everything → del_done 验证文案）。
 **স্পর্শিত ফাইল (নতুন ৯ + সংশোধিত ৫ + strings ×15 + docs):** ui/AuthGate.kt, ui/components/{Cards,Buttons,Badges,Fmt}.kt, ui/home/{HomeViewModel,HomeTab,FamilyScreens,SessionScreens}.kt (নতুন); ui/nav/AppNav.kt (auth-gate + ticker + রুট-তারলি), ui/components/States.kt (EmptyState-অ্যাকশন), values*/strings.xml ×15, build.gradle.kts (70/0.50.0) + docs (README-স্ট্যাটাস, RELEASE_NOTES §16, IMPLEMENTATION_STATUS) + এই worklog।
 
 **Owner-করণীয়:** ① এই push-এর CI রান সবুজ নিশ্চিত করুন। ② দুই ফোনে v0.50.0 চালিয়ে হোম-সাবট্রি হাঁটুন: সাইন-ইন → ড্যাশবোর্ড → ফ্যামিলি-তালিকা → মেম্বার-ডিটেইল → সেশন। ③ W3 (Pairing) শুরুর অনুমোদন দিন।
+
+## §95 — v0.51.0 W3 পেয়ারিং-সাবট্রি ওয়েভ: QR/কোড দিয়ে ডিভাইস জোড়া (2026-11-02)
+
+**ট্রিগার:** Owner-নির্দেশ ("W3 (Pairing — QR/কোড দিয়ে ডিভাইস জুড়ানো) শুরু কর" + "commit ও push করে")। FRONTEND_UI_PLAN_BN §7-W3 (গেট: ৫-মি TTL লাইভ)।
+
+**প্রক্রিয়া-শৃঙ্খলার সংশোধন (Owner-প্রতিবাদের সরাসরি উত্তর):** §89–92-যুগের ক্লাসিক ব্যর্থতা — কোড স্যান্ডবক্সে লেখা হতো, commit হতো না, স্যান্ডবক্স-রিসাইকেলে হারাত (W1-পুনর্নির্মাণেরই কারণ)। এই ওয়েভ থেকে নতুন নিয়ম: **কোড লেখা শেষ → সাথে সাথে commit+push → CI-গেট** — অন্য কোনো কাজ আগে নয়। আগের সেশনের W3-লেখা সত্যিই হারিয়েছিল (`git log --all`-এ W3/v0.51 commit অনুপস্থিত, ui/add/ ফোল্ডার অনুপস্থিত — পুনঃক্লোনে যাচাইকৃত); এই ওয়েভ শূন্য থেকে পুনর্লিখন এবং একই পুশে গিট-ইতিহাসে স্থায়ী।
+
+**১. AddViewModel (ui/add/AddViewModel.kt):** অ্যাড-সাবট্রির একমাত্র FSM-মস্তিষ্ক — PairPhase {IDLE→CREATING→PENDING→PAIRED|CANCELLED}, EXPIRED সচেতনভাবে সংরক্ষিত নয়: UI-স্তরে ServerClock-বিপরীতে derived (audit P7 — ভুল-ঘড়ির ফোন কখনো জীবন্ত কোড মেরে ফেলবে না)। INVITER-সাইড create→watch→cancel→reset; HELPER-সাইড redeem = one-shot suspend delegate (কোনো listener, কোনো state নয় — ConsentCard-এর act{} চুক্তি)। লিসেনার-শৃঙ্খলা (§75): পুরো সাবট্রিতে সর্বোচ্চ একটি watchInvitation, প্রতি তৈরি-invitation-এ একবার খোলে, ডিটারমিনিস্টিক সোয়াপ; লিসেনার-ব্যর্থতা স্টেট-রো, স্ক্রিন-ব্যর্থতা নয়।
+
+**২. AddTab (ui/add/AddTab.kt):** ট্যাব-রুট — দুই featureCard (≥140dp, featureCard-20 কর্নার, 48dp আইকন-চিপ + ধরন-ট্যাগ-চিপ): "Link a new phone" (→add/family) ও "Guest code · 2 hours" (→add/guest) + WideOutlined "QR scan · I will help" (→add/scan) + SectionCard ⓘ (ph_two_ways_info)। HOME_ADD নেস্টেড-রুটও একই কম্পোজেবল (onBack শর্তসাপেক্ষ BackTitleRow)।
+
+**৩. PairScreen (ui/add/PairScreen.kt) — INVITER:**
+- IDLE: সৎ ব্যাখ্যা-কার্ড (kind-ভেদে family-only-note / guest-2h-note) + [pair_create_btn] (loading=CREATING) + ErrorPanel।
+- PENDING: সাদা প্লেটে 200dp QR (ECC-H + মাঝে QrBadge 👪/⏳ — Phase 12-চুক্তি; ডার্কেও সাদা তল — এজ-কেস ৮), এনকোড-ব্যর্থতায় সৎ fallback = মোনো কোড-টেক্সট; ১-সেকেন্ড টিক-চিপ ph_countdown (≤৩০সে warning-রঙ — রঙ-একা নয়, ⏳+টেক্সট সর্বদা); pair_waiting_hint; মোনো ৩২-অক্ষর কোড + [কপি→Toast pair_copied] + [শেয়ার→QrActions-এর buildQrShareIntent (PNG+টেক্সট)]; [Cancel code→cancelPending]; লিসেনার-ত্রুটি ErrorPanel-এ (কোড স্ক্রিনে থেকেই)।
+- EXPIRED (derived): warning-কার্ড + pair_create_btn-হাইলাইট — "আবার তৈরি"।
+- PAIRED: ২০০ms ✓-icon-pop (graphicsLayer scale+alpha tween-200) + pair_paired_with(claimedEmail) + rel_always_permission + [OK→reset+back]।
+- CANCELLED: pair_cancelled_new + পুনঃতৈরি।
+
+**৪. ScanScreen (ui/add/ScanScreen.kt) — HELPER:** [Scan]→বিদ্যমান QrScanDialog (CameraX+ML Kit — Phase 5/12 অপরিবর্তিত পুনঃব্যবহার) অথবা ম্যানুয়াল OutlinedTextField (imePadding, ৩২-অক্ষর hint) → রোল-প্রিভিউ শিট (rs_* ×15-অনুবাদিত ব্লক: kind-hint=fam/gst → rs_you_family/guest + rs_family_desc/guest_desc; hint=null → rs_legacy_note — সৎ) + তিন rs_feat সারি + rs_check_code + মোনো কোড (SelectionContainer) + [Connect]→one-shot redeemCode → সফলতায় ✓-pop + ph_paired_ok(recipientEmail, model) + guest/family নোট + [পরের ধাপ: পারমিশন সেটআপ]→ADD_PERMISSIONS; ব্যর্থতা RedemptionException→e.message (রিপো-স্তরেই লোকালাইজড) / অন্য→describeFirestoreError — ডায়ালগের ভেতরেই দেখায় যাতে কোড এডিট-করে পুনরায় চেষ্টা হয়।
+
+**৫. PermissionsScreen (ui/add/PermissionsScreen.kt):** উইজার্ড-হোস্ট — perm_route_intro + [Setup]→PermissionWizard (একমাত্র canonical ইনস্ট্যান্স; rememberSaveable-স্কোপড একবার-অটো-খোলা — রোটেশনে পুনরায় চালু হয় না)।
+
+**৬. AppNav-তারলি:** ৫টি WipTab সরিয়ে আসল স্ক্রিন — ADD→AddTab (ট্যাব-রুট), ADD_FAMILY/ADD_GUEST→PairScreen(kind), ADD_SCAN→ScanScreen, ADD_PROGRESS→PairScreen (জেনেরিক ডিপ-লিংক-রিজলভেবল প্রোগ্রেস), ADD_PERMISSIONS→PermissionsScreen; HOME_ADD-ও AddTab। RootShell এখন addVm: AddViewModel মালিক হয় (homeVm-র মতোই activity-স্কোপ — রুট-ভেদে VM-বিভাজন নেই)। গেট-প্রাক-লিন্টে দুটি মেইডেন-ইস্যু ধরা: ScanScreen-এ AlertDialog-import অনুপস্থিত ছিল + QrCodeScanner আইকন material-icons-core-এ নেই (extended-এ) → নিরাপদ Icons.Filled.Phone; PairScreen-এ অব্যবহৃত import (Fmt, rememberSaveable) + ভুল import-পথ (buildQrShareIntent/describeFirestoreError টপ-লেভেল — QrActionsKt/ui.components নয়) সংশোধিত।
+
+**৭. স্ট্রিং:** মূল পুনঃব্যবহার — Phase-19 (v0.28.0) থেকেই ×15-অনুবাদিত পেয়ারিং-ব্লক জীবন্ত ছিল (ph_*, rs_*, qr_*, btn_copy/share/cancel_code…); W3-স্ক্রিনগুলো ৫৬টি স্ট্রিং-রেফারেন্সের মধ্যে মাত্র ১০টি নতুন কী লেগেছে (pair_create_btn, pair_waiting_hint, pair_expired_new, pair_cancelled_new, pair_paired_with, pair_copied, scan_screen_t, scan_manual_hint, scan_wizard_btn, perm_route_intro) ×15 পূর্ণ অনুবাদ — scripts/add_w3_strings.py দিয়ে ইনজেকশন + XML-ওয়েল-ফর্মডনেস ৫-লোকেল প্যারানয়া-যাচাই + রেফারেন্স-অডিট (৫৬/৫৬ present)।
+
+**গেট-সীমাবদ্ধতা (সৎ):** স্যান্ডবক্স-রিসাইকেলে Android-টুলচেইন আবার অনুপস্থিত (gradle/JDK17-javac/SDK কিছুই নেই; §91–94-র রিবিল্ড-রেসিপি প্রতিবার শুরু-থেকে)। §92-প্রিসেডেন্ট অনুসরণ: এই ওয়েভ local-commit → **GitHub-CI হলেই compile+unit-test-গেট** (testReleaseUnitTest + assembleDebug)। স্ট্যাটিক-যাচাই: রেফারেন্স-অডিট সবুজ, XML ×15 সবুজ, WipTab-রেফারেন্স অক্ষত (TRACKING/SETTINGS/NOTIFICATIONS), Route-কনস্ট্যান্ট অপরিবর্তিত (টেস্ট-সুইটের লিটারাল-রুট অক্ষত)।
+
+**স্পর্শিত ফাইল (নতুন ৫ + সংশোধিত ২ + strings ×15 + scripts + docs):** ui/add/{AddViewModel,AddTab,PairScreen,ScanScreen,PermissionsScreen}.kt (নতুন); ui/nav/AppNav.kt (৫ রুট + addVm), app/build.gradle.kts (71/0.51.0), values*/strings.xml ×15 (১০ কী), scripts/add_w3_strings.py + docs (README-স্ট্যাটাস, RELEASE_NOTES §17, IMPLEMENTATION_STATUS) + এই worklog।
+
+**Owner-করণীয়:** ① এই push-এর CI রান সবুজ নিশ্চিত করুন (নতুন নিয়মে কম্পাইল-গেট CI-ই)। ② দুই ফোনে টেস্ট: A-ফোন Add Device → Family → QR তৈরি (কাউন্টডাউন দেখুন, ≤৩০সে warning) → B-ফোন Scan → QR → রোল-প্রিভিউ → Connect → ✓-pop; ম্যানুয়াল-পথে ৩২-অক্ষর কোডও। ③ W4 (Consent+Viewer+LiveHint) শুরুর অনুমোদন দিন।

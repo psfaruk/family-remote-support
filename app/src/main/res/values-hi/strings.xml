@@ -793,4 +793,15 @@
     <string name="sess_ender_recipient">सहायता लेने वाला</string>
     <string name="sess_you">आप</string>
     <string name="sess_this_phone">यह फोन</string>
+
+    <string name="pair_create_btn">QR कोड बनाएँ</string>
+    <string name="pair_waiting_hint">दूसरे फ़ोन पर डिवाइस जोड़ें → स्कैन खोलकर इस QR पर कैमरा लगाएँ — या नीचे दिया कोड टाइप करें।</string>
+    <string name="pair_expired_new">5 मिनट पूरे हो गए — नया कोड बनाएँ।</string>
+    <string name="pair_cancelled_new">कोड रद्द हुआ — आप नया कोड बना सकते हैं।</string>
+    <string name="pair_paired_with">%1$s अब जुड़ गया ✓ — हर सेशन से पहले अनुमति पूछी जाएगी।</string>
+    <string name="pair_copied">कोड कॉपी हुआ</string>
+    <string name="scan_screen_t">कोड स्कैन या टाइप करें</string>
+    <string name="scan_manual_hint">दूसरे फ़ोन पर दिखा 32-अक्षरों का कोड टाइप या पेस्ट करें।</string>
+    <string name="scan_wizard_btn">अगला: अनुमति सेटअप</string>
+    <string name="perm_route_intro">भरोसेमंद मदद के लिए इस फ़ोन पर कुछ अनुमतियाँ चाहिए। विज़ार्ड हर कदम समझाता है और सही सेटिंग्स-पेज खोलता है — कभी भी चला सकते हैं।</string>
 </resources>

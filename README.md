@@ -5,7 +5,7 @@ A trusted family member helps fix another family phone — always with the recei
 
 ## Status
 
-- **🟢 RELEASE-READY — v0.50.0 (versionCode 70), 2026-11-02 — W2 home-subtree
+- **🟢 RELEASE-READY — v0.51.0 (versionCode 71), 2026-11-02 — W3 pairing-subtree
   wave (worklog §94):** the REAL home subtree lands behind the auth gate —
   wave 2 of the documented 8-wave plan (docs/FRONTEND_UI_PLAN_BN.md) on top
   of W1's reconstructed shell. AuthGate (Google Credential Manager bottom

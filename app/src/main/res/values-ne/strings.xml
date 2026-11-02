@@ -793,4 +793,15 @@
     <string name="sess_ender_recipient">सहायता लिने</string>
     <string name="sess_you">तपाईं</string>
     <string name="sess_this_phone">यो फोन</string>
+
+    <string name="pair_create_btn">QR कोड बनाउनुहोस्</string>
+    <string name="pair_waiting_hint">अर्को फोनमा डिभाइस थप्नुहोस् → स्क्यान खोलेर यो QR मा क्यामेरा राख्नुहोस् — वा तलको कोड टाइप गर्नुहोस्।</string>
+    <string name="pair_expired_new">५ मिनेट बित्यो — नयाँ कोड बनाउनुहोस्।</string>
+    <string name="pair_cancelled_new">कोड रद्द भयो — नयाँ कोड बनाउन सक्नुहुन्छ।</string>
+    <string name="pair_paired_with">%1$s अब जोडियो ✓ — हरेक सेसनअघि अनुमति सोधिनेछ।</string>
+    <string name="pair_copied">कोड प्रतिलिपि भयो</string>
+    <string name="scan_screen_t">कोड स्क्यान वा टाइप गर्नुहोस्</string>
+    <string name="scan_manual_hint">अर्को फोनमा देखाइएको ३२-अक्षरको कोड टाइप वा पेस्ट गर्नुहोस्।</string>
+    <string name="scan_wizard_btn">अर्को: अनुमति सेटअप</string>
+    <string name="perm_route_intro">भरपर्दो सहयोगका लागि यो फोनमा केही अनुमति चाहिन्छ। विजार्डले हरेक चरण बुझाउँछ र सही सेटिङ-पृष्ठ खोल्छ — जुनसुकै बेला चलाउन सकिन्छ।</string>
 </resources>

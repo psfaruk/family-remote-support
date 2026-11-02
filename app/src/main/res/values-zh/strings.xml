@@ -791,4 +791,15 @@
     <string name="sess_ender_recipient">受助方</string>
     <string name="sess_you">您</string>
     <string name="sess_this_phone">此手机</string>
+
+    <string name="pair_create_btn">生成二维码</string>
+    <string name="pair_waiting_hint">在另一部手机上打开「添加设备 → 扫描」，将相机对准此二维码 — 或在下方输入配对码。</string>
+    <string name="pair_expired_new">5 分钟已过 — 请生成新的配对码。</string>
+    <string name="pair_cancelled_new">配对码已取消 — 您可以重新生成。</string>
+    <string name="pair_paired_with">已与 %1$s 关联 ✓ — 每次会话仍会先请求批准。</string>
+    <string name="pair_copied">配对码已复制</string>
+    <string name="scan_screen_t">扫描或输入配对码</string>
+    <string name="scan_manual_hint">输入或粘贴另一部手机上显示的 32 位配对码。</string>
+    <string name="scan_wizard_btn">下一步：权限设置</string>
+    <string name="perm_route_intro">可靠的协助需要本手机上的几项权限。向导会逐步说明并打开正确的设置页面 — 可随时运行。</string>
 </resources>

@@ -201,8 +201,25 @@ android {
         // (heartbeat every 5 min while RESUMED + final beat) + one-shot
         // FCM registration owned by the shell. 64 new strings ×15
         // locales. See worklog §94.
-        versionCode = 70
-        versionName = "0.50.0"
+        // v0.51.0/71 (W3) — the Add-Device subtree goes real: AddTab (the
+        // two-ways role chooser — FAMILY/GUEST feature cards ≥140 dp + the
+        // helper CTA + the explainer card), PairScreen (the INVITER side:
+        // createInvitation → white QR plate 200 dp with the ECC-H center
+        // badge → 5-min TTL countdown chip vs ServerClock (≤30 s warning,
+        // EXPIRED derived honestly) → mono 32-char code + copy + share
+        // (PNG + text via QrActions) → cancel → PAIRED ✓-pop 200 ms /
+        // CANCELLED), ScanScreen (the HELPER side: the existing QrScanDialog
+        // + manual 32-char entry (imePadding) + the Phase-12 role-preview
+        // sheet (rs_* contract, legacy-note path) → one-shot atomic redeem
+        // → ✓-pop + permission-wizard shortcut), PermissionsScreen (the
+        // wizard host), AddViewModel (the ONE pairing FSM — one snapshot
+        // listener per created invitation, swapped deterministically), all
+        // wired into AppNav (5 WipTabs replaced; HOME_ADD shares AddTab;
+        // ADD_PROGRESS stays deep-link resolvable through PairScreen).
+        // Most strings reuse the ×15-translated Phase-19 pairing block;
+        // 10 new keys ×15 locales. See worklog §95.
+        versionCode = 71
+        versionName = "0.51.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

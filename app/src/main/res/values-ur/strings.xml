@@ -793,4 +793,15 @@
     <string name="sess_ender_recipient">مدد لینے والا</string>
     <string name="sess_you">آپ</string>
     <string name="sess_this_phone">یہ فون</string>
+
+    <string name="pair_create_btn">QR کوڈ بنائیں</string>
+    <string name="pair_waiting_hint">دوسرے فون پر ڈیوائس شامل کریں ← اسکین کھول کر اس QR پر کیمرہ رکھیں — یا نیچے دیا کوڈ ٹائپ کریں۔</string>
+    <string name="pair_expired_new">۵ منٹ ختم ہو گئے — نیا کوڈ بنائیں۔</string>
+    <string name="pair_cancelled_new">کوڈ منسوخ ہو گیا — آپ نیا بنا سکتے ہیں۔</string>
+    <string name="pair_paired_with">%1$s اب جڑ گیا ✓ — ہر سیشن سے پہلے اجازت پوچھی جائے گی۔</string>
+    <string name="pair_copied">کوڈ کاپی ہو گیا</string>
+    <string name="scan_screen_t">کوڈ اسکین یا ٹائپ کریں</string>
+    <string name="scan_manual_hint">دوسرے فون پر دکھایا گیا ۳۲ حروف کا کوڈ ٹائپ یا پیسٹ کریں۔</string>
+    <string name="scan_wizard_btn">اگلا: اجازت کی ترتیب</string>
+    <string name="perm_route_intro">قابلِ اعتماد مدد کے لیے اس فون پر کچھ اجازتوں کی ضرورت ہے۔ وزرڈ ہر مرحلہ سمجھاتا ہے اور درست ترتیبات کا صفحہ کھولتا ہے — کبھی بھی چلا سکتے ہیں۔</string>
 </resources>

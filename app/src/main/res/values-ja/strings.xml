@@ -792,4 +792,15 @@
     <string name="sess_ender_recipient">支援を受ける人</string>
     <string name="sess_you">あなた</string>
     <string name="sess_this_phone">この電話</string>
+
+    <string name="pair_create_btn">QRコードを作成</string>
+    <string name="pair_waiting_hint">相手の携帯で「デバイス追加 → スキャン」を開き、このQRにカメラを向けてください。下のコードを入力しても構いません。</string>
+    <string name="pair_expired_new">5分が経過しました — 新しいコードを作成してください。</string>
+    <string name="pair_cancelled_new">コードを取消しました — 新しく作成できます。</string>
+    <string name="pair_paired_with">%1$s と連携しました ✓ — 毎回のセッション前に許可を求めます。</string>
+    <string name="pair_copied">コードをコピーしました</string>
+    <string name="scan_screen_t">コードをスキャンまたは入力</string>
+    <string name="scan_manual_hint">相手の携帯に表示された32桁のコードを入力・貼り付けしてください。</string>
+    <string name="scan_wizard_btn">次へ: 権限の設定</string>
+    <string name="perm_route_intro">確実なサポートにはいくつかの権限が必要です。ウィザードが各ステップを説明し、正しい設定画面を開きます。いつでも実行できます。</string>
 </resources>

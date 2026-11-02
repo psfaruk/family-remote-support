@@ -46,10 +46,17 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.family.remote.support.DeepLinks
 import com.family.remote.support.R
+import com.family.remote.support.REL_KIND_FAMILY
+import com.family.remote.support.REL_KIND_GUEST
 import com.family.remote.support.registerFcmToken
 import com.family.remote.support.sendHeartbeat
 import com.family.remote.support.stableDeviceId
 import com.family.remote.support.ui.AuthGate
+import com.family.remote.support.ui.add.AddTab
+import com.family.remote.support.ui.add.AddViewModel
+import com.family.remote.support.ui.add.PairScreen
+import com.family.remote.support.ui.add.PermissionsScreen
+import com.family.remote.support.ui.add.ScanScreen
 import com.family.remote.support.ui.components.EmptyState
 import com.family.remote.support.ui.home.FamilyListScreen
 import com.family.remote.support.ui.home.HomeTab
@@ -198,6 +205,9 @@ fun RootShell() {
     val homeVm: HomeViewModel = viewModel()
     LaunchedEffect(current.uid) { homeVm.setUser(current) }
 
+    // ── the add subtree's ONE pairing FSM (W3) ──
+    val addVm: AddViewModel = viewModel()
+
     // ── foreground-only presence + push registration ──
     PresenceTickerEffect(current)
 
@@ -252,6 +262,7 @@ fun RootShell() {
             nav = nav,
             user = current,
             homeVm = homeVm,
+            addVm = addVm,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -376,6 +387,7 @@ private fun AppNavHost(
     nav: NavHostController,
     user: FirebaseUser,
     homeVm: HomeViewModel,
+    addVm: AddViewModel,
     modifier: Modifier = Modifier,
 ) {
     val go: (String) -> Unit = remember(nav) { { route -> goRoute(nav, route) } }
@@ -439,45 +451,61 @@ private fun AppNavHost(
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Home, R.string.nav_home) }
+        ) {
+            AddTab(onOpenRoute = go, onBack = back)
+        }
 
-        // ── Tab ADD DEVICE ──────────────────────────────────────────────
-        composable(AppRoutes.ADD) { WipTab(Icons.Filled.Add, R.string.nav_add_device) }
+        // ── Tab ADD DEVICE (W3: the REAL pairing subtree — plan §2.3) ──
+        composable(AppRoutes.ADD) {
+            AddTab(onOpenRoute = go)
+        }
         composable(
             AppRoutes.ADD_FAMILY,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Add, R.string.nav_add_device) }
+        ) {
+            PairScreen(user = user, vm = addVm, kind = REL_KIND_FAMILY, onBack = back)
+        }
         composable(
             AppRoutes.ADD_GUEST,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Add, R.string.nav_add_device) }
+        ) {
+            PairScreen(user = user, vm = addVm, kind = REL_KIND_GUEST, onBack = back)
+        }
         composable(
             AppRoutes.ADD_SCAN,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Add, R.string.nav_add_device) }
+        ) {
+            ScanScreen(user = user, vm = addVm, onBack = back, onOpenRoute = go)
+        }
         composable(
             AppRoutes.ADD_PROGRESS,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Add, R.string.nav_add_device) }
+        ) {
+            // Generic pairing-progress route (deep-link resolvable): the
+            // PairScreen IS the live progress UI (5-min TTL + snapshot watch).
+            PairScreen(user = user, vm = addVm, kind = REL_KIND_FAMILY, onBack = back)
+        }
         composable(
             AppRoutes.ADD_PERMISSIONS,
             enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.Add, R.string.nav_add_device) }
+        ) {
+            PermissionsScreen(onBack = back)
+        }
 
         // ── Tab TRACKING ────────────────────────────────────────────────
         composable(AppRoutes.TRACKING) { WipTab(Icons.Filled.LocationOn, R.string.nav_tracking) }
