@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ import com.family.remote.support.readPermChecklist
 import com.family.remote.support.ui.LangPrefBus
 import com.family.remote.support.ui.ThemePrefBus
 import com.family.remote.support.ui.components.DetailRow
+import com.family.remote.support.ui.components.LocationSharingControls
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.SettingsTile
 import com.family.remote.support.ui.components.WideOutlinedButton
@@ -128,19 +130,29 @@ fun SettingsTab(
         // ── 3. Privacy & Security ──
         var privacyOpen by remember { mutableStateOf(false) }
         var rulesOpen by remember { mutableStateOf(false) }
+        // v0.52.0 (per-tab sequence wave): the Location partition is REAL
+        // here again (v0.35.0's design — sharing toggle + interval rows in
+        // Settings) instead of jumping to the Tracking tab; the permission
+        // row opens the wizard as a MODAL dialog (NAVIGATION_MAP §3) — no
+        // more cross-tab route pushes.
+        var locOpen by rememberSaveable { mutableStateOf(false) }
+        var wizardOpen by rememberSaveable { mutableStateOf(false) }
         SectionCard(title = stringResource(R.string.set_section_privacysec), icon = Icons.Filled.Lock) {
             SettingsTile(
                 title = stringResource(R.string.loc_share_title),
                 desc = stringResource(R.string.set_loc_now),
                 icon = Icons.Filled.LocationOn,
-                onClick = { onOpenRoute(AppRoutes.TRACKING) },
+                onClick = { locOpen = !locOpen },
             )
+            if (locOpen) {
+                LocationSharingControls()
+            }
             SettingsTile(
                 title = stringResource(R.string.set_perm_info),
                 desc = if (perms.allDone) stringResource(R.string.set_perm_alldone)
                 else stringResource(R.string.pw_progress, perms.doneCount, perms.missingNames(context)),
                 icon = Icons.Filled.CheckCircle,
-                onClick = { onOpenRoute(AppRoutes.ADD_PERMISSIONS) },
+                onClick = { wizardOpen = true },
             )
             SettingsTile(
                 title = stringResource(R.string.set_privacy),
@@ -167,6 +179,14 @@ fun SettingsTab(
                 title = stringResource(R.string.rules_title),
                 body = stringResource(R.string.rules_body),
                 onDismiss = { rulesOpen = false },
+            )
+        }
+        // The permission wizard, MODAL in THIS tab (NAVIGATION_MAP §3) —
+        // the sequence never leaves the screen that started it.
+        if (wizardOpen) {
+            com.family.remote.support.PermissionWizard(
+                visible = true,
+                onDismiss = { wizardOpen = false },
             )
         }
 

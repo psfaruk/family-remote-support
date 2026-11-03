@@ -308,16 +308,13 @@ fun SessionDetailScreen(
                 }
 
                 if (session.status == "ACTIVE") {
+                    // W4 (v0.52.0): the LIVE session surfaces, in-tab:
+                    // the helper watches + touches HERE; the recipient
+                    // shares HERE (and on Home, right under the live hint).
                     if (isHelper) {
-                        BigButton(
-                            text = stringResource(R.string.btn_return_session),
-                            onClick = {
-                                // W2: Home's live card; W4 replaces with the viewer.
-                                onOpenRoute(AppRoutes.HOME)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        HelperViewerSection(session = session, user = user, vm = vm)
                     } else {
+                        RecipientShareCard(session = session, user = user)
                         BigButton(
                             text = stringResource(R.string.btn_end_session),
                             danger = true,

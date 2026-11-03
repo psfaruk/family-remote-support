@@ -181,6 +181,13 @@ fun HomeTab(
             // ── live session hint / awaiting own ask ──
             if (active != null) {
                 LiveHintCard(active, user.uid, vm, onOpenRoute)
+                // W4 (v0.52.0): the recipient's share surface — in the SAME
+                // tab/screen where they allowed the ask (the Owner's per-tab
+                // sequence directive); the helper's viewer lives in the
+                // session detail the live card opens.
+                if (active.recipientUid == user.uid) {
+                    RecipientShareCard(session = active, user = user)
+                }
             } else if (outgoingAsk != null) {
                 AwaitingCard(outgoingAsk, vm)
             }
@@ -809,7 +816,12 @@ internal fun OpenSessionRow(
     }
     val subtitle = when {
         session.status == "ACTIVE" ->
-            stringResource(R.string.feed_in_progress, Fmt.clockTime(session.sessionEndsAtMillis, locale))
+            // v0.52.0: feed_in_progress said "video in the 'Add Device' tab"
+            // — a stale pointer from the pre-rebuild navigation; the live
+            // view is the session detail this very row opens. Composed from
+            // existing localized keys (sess_ends_at + clock), zero new strings.
+            stringResource(R.string.sess_ends_at) + " " +
+                Fmt.clockTime(session.sessionEndsAtMillis, locale)
         !isHelper -> stringResource(
             R.string.feed_need_decision,
             Fmt.mmss(session.respondDeadlineMillis - now, locale),

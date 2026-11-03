@@ -27,7 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -37,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.family.remote.support.PermissionWizard
 import com.family.remote.support.R
 import com.family.remote.support.REL_KIND_GUEST
 import com.family.remote.support.QrBadge
@@ -349,7 +353,13 @@ private fun PairingPendingCard(
 
 /**
  * PAIRED ✓ — the 200 ms icon-pop (plan §1.3: "PAIRED ✓(icon-pop 200ms)"),
- * who joined, and the standing rule: linked ≠ permission.
+ * who joined, the standing rule (linked ≠ permission), and — v0.52.0,
+ * the Owner's per-tab sequence directive — the PERMISSION STEP ITSELF:
+ * the wizard opens right here in the Add flow (once per PAIRED arrival,
+ * modal per NAVIGATION_MAP §3: Back/“Later” dismisses without leaving
+ * the flow). The inviter is the phone being helped — notifications +
+ * assist + battery matter MOST on this side, so the sequence must not
+ * end at a bare ✓ and push the setup to other tabs' cards.
  */
 @Composable
 private fun PairedDoneCard(vm: AddViewModel, claimedEmail: String?, onBack: () -> Unit) {
@@ -358,6 +368,8 @@ private fun PairedDoneCard(vm: AddViewModel, claimedEmail: String?, onBack: () -
         animationSpec = tween(durationMillis = 200),
         label = "paired-pop",
     )
+    // Auto-open once per PAIRED arrival (saveable: rotation never re-fires).
+    var wizardOpen by rememberSaveable { mutableStateOf(true) }
     SectionCard(
         title = stringResource(R.string.ph_status_paired),
         modifier = Modifier.graphicsLayer {
@@ -395,6 +407,11 @@ private fun PairedDoneCard(vm: AddViewModel, claimedEmail: String?, onBack: () -
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        BigButton(
+            text = stringResource(R.string.scan_wizard_btn),
+            onClick = { wizardOpen = true },
+            modifier = Modifier.fillMaxWidth(),
+        )
         WideOutlinedButton(
             text = stringResource(R.string.cmn_ok),
             onClick = {
@@ -402,6 +419,13 @@ private fun PairedDoneCard(vm: AddViewModel, claimedEmail: String?, onBack: () -
                 onBack()
             },
             modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    if (wizardOpen) {
+        PermissionWizard(
+            visible = true,
+            onDismiss = { wizardOpen = false },
         )
     }
 }

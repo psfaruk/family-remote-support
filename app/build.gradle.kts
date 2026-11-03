@@ -253,8 +253,27 @@ android {
         // best-effort telemetry and can never kill the app again; the
         // badge degrades to "Last seen…" instead. registerFcmToken stays
         // guarded as before. See worklog §97.
-        versionCode = 73
-        versionName = "0.51.2"
+        // v0.52.0/74 (per-tab sequences + live-session wave) — the Owner
+        // report: (1) device-add permissions must run INSIDE the Add
+        // Device tab (they were surfacing in other tabs); every tab owns
+        // its own sequences now; (2) "video share and touch control do
+        // not work" — the W4 viewer/share front door was never wired into
+        // the rebuilt frontend: NOTHING called ScreenShareEngine.
+        // startHelper / ScreenShareService.start (createScreenCaptureIntent
+        // had zero call sites). This wave wires W4 for real: the helper's
+        // viewer (video + normalized-coordinate touch control + nav/type/
+        // data-saver + diagnostics) and the recipient's share card
+        // (MediaProjection consent → foreground service → engine), both
+        // hosted in the HOME session surfaces; PairScreen PAIRED gains the
+        // in-flow permission step; Tracking/Settings host their sequences
+        // (shared LocationSharingControls, in-tab wizard dialogs, in-flow
+        // location permission ask); home/add mis-hosting route removed;
+        // tracking/{relId} becomes the REAL Location Details screen.
+        // Firestore rules re-audited path-by-path against the code — the
+        // repo rules are coherent (see worklog §98); the failure was the
+        // missing UI wiring, not the rules. See worklog §98.
+        versionCode = 74
+        versionName = "0.52.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

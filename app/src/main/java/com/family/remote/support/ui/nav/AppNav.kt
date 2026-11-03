@@ -68,6 +68,7 @@ import com.family.remote.support.ui.home.SessionDetailScreen
 import com.family.remote.support.ui.home.SessionsScreen
 import com.family.remote.support.ui.notifications.NotificationsScreen
 import com.family.remote.support.ui.settings.SettingsTab
+import com.family.remote.support.ui.tracking.TrackingDetailScreen
 import com.family.remote.support.ui.tracking.TrackingTab
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -100,7 +101,11 @@ object AppRoutes {
     const val HOME_FAMILY_ARG = "home/family/{relId}"
     const val HOME_SESSIONS = "home/sessions"
     const val HOME_SESSION_ARG = "home/sessions/{id}"
-    const val HOME_ADD = "home/add"
+    // v0.52.0: HOME_ADD ("home/add") REMOVED — it hosted the ADD tab's root
+    // composable under the HOME tab's stack (nothing navigated to it, but
+    // the plan's contract was "home/add (quick action) → routes INTO the
+    // Add Device tab"; FamilyScreens' CTA already switchTabs to ADD).
+    // A tab's screens live only in that tab's own subtree (Owner directive).
 
     // Tab ADD DEVICE
     const val ADD = "add"
@@ -130,7 +135,7 @@ object AppRoutes {
 
     /** Every concrete route the NavHost can resolve (patterns excluded). */
     val concrete = setOf(
-        HOME, HOME_FAMILY, HOME_SESSIONS, HOME_ADD,
+        HOME, HOME_FAMILY, HOME_SESSIONS,
         ADD, ADD_FAMILY, ADD_GUEST, ADD_SCAN, ADD_PROGRESS, ADD_PERMISSIONS,
         TRACKING, TRACKING_PLACES,
         SETTINGS, NOTIFICATIONS,
@@ -474,15 +479,6 @@ private fun AppNavHost(
             val id = entry.arguments?.getString("id").orEmpty()
             SessionDetailScreen(sessionId = id, user = user, vm = homeVm, onOpenRoute = go, onBack = back)
         }
-        composable(
-            AppRoutes.HOME_ADD,
-            enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
-            exitTransition = { fadeOut(tween(TAB_MS)) },
-            popEnterTransition = { fadeIn(tween(TAB_MS)) },
-            popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) {
-            AddTab(onOpenRoute = go, onBack = back)
-        }
 
         // ── Tab ADD DEVICE (W3: the REAL pairing subtree — plan §2.3) ──
         composable(AppRoutes.ADD) {
@@ -548,7 +544,12 @@ private fun AppNavHost(
             exitTransition = { fadeOut(tween(TAB_MS)) },
             popEnterTransition = { fadeIn(tween(TAB_MS)) },
             popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
-        ) { WipTab(Icons.Filled.LocationOn, R.string.nav_tracking) }
+        ) { entry ->
+            // v0.52.0 — the REAL Location Details screen (was a WIP
+            // placeholder: every partner row dead-ended here).
+            val relId = entry.arguments?.getString("relId").orEmpty()
+            TrackingDetailScreen(user = user, vm = homeVm, relId = relId, onBack = back)
+        }
         composable(
             AppRoutes.TRACKING_HISTORY_ARG,
             arguments = listOf(navArgument("relId") { type = NavType.StringType }),
