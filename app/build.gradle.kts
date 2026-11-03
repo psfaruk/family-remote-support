@@ -238,8 +238,23 @@ android {
         // event labels, per-category chips, mark-read and a confirmed
         // Clear-history; notif_filter_unread gained its (%1$d) count.
         // 2 new string keys ×15 locales. See worklog §96.
-        versionCode = 72
-        versionName = "0.51.1"
+        // v0.51.2/73 (crash-fix wave) — the Owner device report on 72:
+        // "the app installs, opens, and closes a few seconds later."
+        // Root cause chain: (1) W1's stableDeviceId returned raw
+        // ANDROID_ID (16 hex) / dashed UUID (36) while every LIVE rules
+        // device-scoped path pins [0-9a-f]{24} — EVERY presence/location/
+        // authz/history write was PERMISSION_DENIED; (2) AppNav's
+        // PresenceTickerEffect awaited sendHeartbeat with NO catch in the
+        // RESUMED block, so the first denied beat escaped the
+        // LaunchedEffect and killed the process seconds after sign-in.
+        // Fix: deriveDeviceId folds any seed through SHA-256 → exactly 24
+        // lowercase hex (deterministic, JVM-tested: DeviceIdTest, 6
+        // cases), and the heartbeat became beatBestEffort — presence is
+        // best-effort telemetry and can never kill the app again; the
+        // badge degrades to "Last seen…" instead. registerFcmToken stays
+        // guarded as before. See worklog §97.
+        versionCode = 73
+        versionName = "0.51.2"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

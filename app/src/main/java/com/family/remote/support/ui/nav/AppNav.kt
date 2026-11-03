@@ -284,6 +284,18 @@ fun RootShell() {
  * the user leaves (NonCancellable — a cancelled coroutine may still
  * suspend inside [withContext]). Plus the one-shot FCM registration
  * per signed-in uid, best effort (a push hiccup must never block UI).
+ *
+ * v0.51.2 (crash-fix wave): the heartbeat is BEST-EFFORT telemetry and
+ * can never kill the process. The W2 version awaited sendHeartbeat
+ * with no catch inside the RESUMED block — a rejected write (rules
+ * drift, quota, offline) propagated out of the LaunchedEffect
+ * coroutine and the whole app died seconds after sign-in (the Owner's
+ * "opens, closes after a few seconds" report; the rules/deviceId
+ * mismatch of the same wave made every heartbeat a PERMISSION_DENIED).
+ * Every beat is now wrapped by [beatBestEffort]; the final
+ * NonCancellable beat keeps its own guard. The badge honestly degrades
+ * to "Last seen…" instead. Cancellation still propagates (structured
+ * concurrency) so the effect tears down cleanly.
  */
 @Composable
 private fun PresenceTickerEffect(user: FirebaseUser) {
@@ -295,18 +307,14 @@ private fun PresenceTickerEffect(user: FirebaseUser) {
         val model = ((Build.MANUFACTURER?.trim())?.plus(" ") ?: "") + (Build.MODEL ?: "")
         owner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             try {
-                sendHeartbeat(user.uid, deviceId, model)
+                beatBestEffort(user.uid, deviceId, model)
                 while (true) {
                     delay(5 * 60_000L)
-                    sendHeartbeat(user.uid, deviceId, model)
+                    beatBestEffort(user.uid, deviceId, model)
                 }
             } finally {
                 withContext(NonCancellable) {
-                    try {
-                        sendHeartbeat(user.uid, deviceId, model)
-                    } catch (_: Exception) {
-                        // best effort — the 20-min online window covers it
-                    }
+                    beatBestEffort(user.uid, deviceId, model)
                 }
             }
         }
@@ -317,6 +325,21 @@ private fun PresenceTickerEffect(user: FirebaseUser) {
         } catch (_: Exception) {
             // best effort — AskNotifier's alive-process path still works
         }
+    }
+}
+
+/**
+ * One heartbeat, guarded: presence is "was this device around recently?"
+ * telemetry — a failed write becomes a stale badge, never a dead app.
+ * Cancellation must still propagate (structured concurrency).
+ */
+private suspend fun beatBestEffort(uid: String, deviceId: String, model: String) {
+    try {
+        sendHeartbeat(uid, deviceId, model)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        // best effort — the 20-min online window covers the gap
     }
 }
 

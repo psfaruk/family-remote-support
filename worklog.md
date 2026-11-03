@@ -3823,3 +3823,27 @@ history → Everything → del_done 验证文案）。
 **Owner-করণীয়:** ① এই push-এর CI রান সবুজ নিশ্চিত করুন। ② ফোনে ট্র্যাকিং-ট্যাব (শেয়ার-টগল+interval+স্টপ-নিশ্চিতকরণ), সেটিংস (নাম-বদল, থিম-তাৎক্ষণিক-প্রয়োগ, ভাষা-পিকার, টেস্ট-নোটিফিকেশন, প্রাইভেসি/নিয়ম-ডায়ালগ), বেল (ফিল্টার-চিপ+কাউন্ট, ইভেন্ট-লেবেল, mark-read, ক্লিয়ার-হিস্টোরি) হাতে-নিয়ে যাচাই। ③ W4 (Consent+Viewer) ও ম্যাপ-ওয়েভ-এর অনুমোদন দিন।
 
 **স্পর্শিত ফাইল:** ui/tracking/TrackingTab.kt (পুনর্লিখন) + TrackingViewModel.kt (অবসর), ui/settings/SettingsTab.kt (পুনর্লিখন), ui/notifications/NotificationsScreen.kt (পুনর্লিখন), ui/nav/AppNav.kt, ui/Theme.kt (লাইভ-মোড), app/build.gradle.kts (72/0.51.1), values*/strings.xml ×15, .gitignore (.kotlin/)।
+
+---
+
+## §97 — v0.51.2/73 ক্র্যাশ-ফিক্স ওয়েভ: "ইনস্টল হয়, ওপেন হয়, কয়েক সেকেন্ড পরে ক্লোজ হয়ে যায়"
+
+**Owner-রিপোর্ট (v0.51.1/72 ইনস্টলের পর):** অ্যাপ এখন ইনস্টল হয়, ওপেনও হয় — কিন্তু কয়েক সেকেন্ড পরে নিজে-নিজে ক্লোজ হয়ে যায়।
+
+**ডায়াগনোসিস-পথ (logcat ছাড়া, স্ট্যাটিক-ফরেনসিক):**
+1. **APK-নিরপেক্ষকরণ:** CI artifact থেকে release+debug APK ডাউনলোড করে যাচাই — manifest অক্ষত (সব activity/service/receiver/permission), R8-keep ক্লাস সব উপস্থিত (Firebase/osmdroid/WebRTC/manifest-কম্পোনেন্ট), resources.arsc-এ সব ড্রয়েবল+স্ট্রিং, native lib চার-ABI — অর্থাৎ R8-স্ট্রিপিং নয়।
+2. **স্টার্টআপ-পথ অডিট:** App.onCreate (CrashJournal/SessionPush.attach/osmdroid-config — সব নিরাপদ), MainActivity.onCreate (NotificationsLog.load/DeepLinks — সব try-সংরক্ষিত), AuthGate (সব coroutine try-catch-বেষ্টিত)।
+3. **আসল ফাঁদ — দুই স্তরের ত্রুটি একসাথে:**
+   - **ডেটা-চুক্তি ভাঙন:** W1-এর `stableDeviceId` রিটার্ন করত raw ANDROID_ID (১৬ hex) বা dashed UUID (৩৬) — কিন্তু LIVE rules-এর প্রতিটি ডিভাইস-স্কোপড পাথ `[0-9a-f]{24}` পিন করে: devicePresence docId, liveLocations docId, locationAuthorizations.deviceId ফিল্ড, locationHistory recordId। ফল: **প্রতিটি presence/location/authz/history রাইট PERMISSION_DENIED** (rules-টি verify-released-rules.mjs-এর চুক্তি অনুযায়ী byte-exact live — repo-ই প্রোডাকশন)।
+   - **আনগার্ডেড কোরুটিন:** `AppNav.PresenceTickerEffect`-এর RESUMED-ব্লকে প্রথম `sendHeartbeat` await-টির কোনো catch ছিল না — denied রাইটের exception LaunchedEffect ভেদ করে উঠে প্রসেস-ডেথ ঘটায়। টাইমিং হুবহু মিলে যায়: Firestore রাউন্ড-ট্রিপ ~১-৩ সেকেন্ড → "কয়েক সেকেন্ড পরে ক্লোজ"। (সাইন-ইন থাকা ইনস্টলের ক্ষেত্রে — Owner-র ফোনে পুরনো ডেটা টিকে ছিল, একই release-কী দিয়ে আপডেট।)
+
+**ফিক্স (দুই স্তর, এক ওয়েভ):**
+- **`DeviceId.kt`:** `deriveDeviceId(seed)` — SHA-256 → প্রথম ২৪ lowercase hex। ডিটারমিনিস্টিক (একই seed → একই id, রিস্টার্ট/রিইনস্টল-জুড়ে স্থায়ী), সব rules-regex পূরণ করে, আর raw ANDROID_ID ডকুমেন্ট-id-তে লিকও করে না। Fallback-UUID আগের মতোই একবার persist হয়ে seed হিসেবে কাজ করে।
+- **`AppNav.kt`:** heartbeat-চক্র `beatBestEffort`-এ মোড়া — presence সর্বোচ্চ-প্রয়াস টেলিমেট্রি; রাইট ব্যর্থ হলে ব্যাজ সৎভাবে "Last seen…"-এ নামে, অ্যাপ মরে না। Cancellation প্রচারিত থাকে (structured concurrency), NonCancellable ফাইনাল-বিট নিজ-গার্ডে।
+- **`DeviceIdTest` (৬ কেস):** exact-24-hex, determinism, seed-sensitivity, ANDROID_ID↔UUID নন-কোলিশন, প্রতিটি rules-regex-শেপে গ্রহণযোগ্যতা, seed-দৈর্ঘ্য-স্বাধীনতা। CI-gate (testReleaseUnitTest) এখন ৭৬/৭৬।
+
+**আগে-কেন-কাজ-করত-না:** পুরনো ফ্রন্টএন্ড (কখনো commit হয়নি) নিজস্ব deviceId-ফরম্যাট ব্যবহার করত; W1-পুনর্নির্মাণে DeviceId.kt নতুন করে লেখা হয় — rules-এর 24-hex চুক্তি টেস্ট-কভারেশনে ধরা পড়েনি (unit-গেট শুধু pure-Kotlin ইঞ্জিন পরীক্ষা করে, Firestore-রাইট নয়)।
+
+**Owner-করণীয়:** ① নতুন APK (73/0.51.2) পুরনোটার উপরেই ইনস্টল করুন (একই কী — ডেটা/সাইন-ইন থাকবে)। ② অ্যাপ এখন খোলা থাকবে; Home-ড্যাশবোর্ড/পরিবার-তালিকা/সেশন লোড হবে, presence-ব্যাজ "Online" দেখাবে। ③ CrashJournal খালি থাকা উচিত (Settings → About → Crash report)।
+
+**স্পর্শিত ফাইল:** DeviceId.kt (deriveDeviceId+contract), ui/nav/AppNav.kt (beatBestEffort), app/src/test/.../DeviceIdTest.kt (নতুন, ৬ কেস), app/build.gradle.kts (73/0.51.2), worklog.md (§97)।
