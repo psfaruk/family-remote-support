@@ -40,6 +40,11 @@ class App : Application() {
         // v0.44.0 — capture any uncaught exception locally BEFORE the
         // system dialog appears (the system flow itself is unchanged).
         CrashJournal.install(this)
+        // v0.56.0 (worklog §103) — restore the persisted server-clock offset
+        // so the FIRST ask of a freshly-started (skewed) phone is already
+        // time-correct; the ask/grant path re-verifies it with an explicit
+        // ping (syncServerClockBestEffort) before any rules-checked write.
+        ServerClock.attach(this)
         // v0.47.0 (audit B3) — the push retry worker needs the app context;
         // attached before anything can call SessionPush.notify().
         SessionPush.attach(this)

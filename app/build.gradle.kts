@@ -306,8 +306,30 @@ android {
         // returns localized strings only, AuthGate's fallback is argless,
         // AskNotifier's worker catch never shows e.message, and all eight
         // ScreenShareEngine failure sites keep the detail in diagLog only.
-        versionCode = 77
-        versionName = "0.55.0"
+        // v0.56.0/78 (permanent session-start wave, worklog §103) — the
+        // Owner report: "এখন আবার সেশন সরু করা যাচ্ছে না কেনো? এটার কি
+        // কোনো স্থায়ী সমাধান নাই।" The recurring "can't start a session"
+        // had two clock-shaped roots, both closed permanently: (1) the
+        // stale-session cleanup compared SERVER-written deadlines against
+        // the RAW DEVICE clock — a 5–10-min-slow phone (common on the
+        // family's elderly devices) saw a long-dead ask as "still waiting"
+        // FOREVER and the zombie blocked every new ask; the ask's own
+        // deadline WRITE could also fall outside the rules' server-time
+        // window at process start (offset not yet learned → PERMISSION_
+        // DENIED). Fixes: ServerClock gained an explicit rules-legal clock
+        // ping (syncServerClockBestEffort — serverTimestamp write +
+        // forced-server read on the user's own profile, once per process,
+        // before every ask/grant) plus persisted-offset restore at app
+        // start; requestSession/expireSession now decide staleness on
+        // SERVER time; PairingRepo's three rules-checked expiry writes
+        // (invite/guest windows) use ServerClock too. (2) A session doc
+        // whose respondDeadline/sessionEndsAt was missing (zero) was
+        // IMMUNE to every staleness check forever — isStaleOpen (moved to
+        // the SDK-free SessionModel.kt with a JVM suite, SessionStaleTest)
+        // now falls back to the ask's own age: REQUESTED > 10 min or
+        // ACTIVE > 25 min with no deadline/end is stale regardless.
+        versionCode = 78
+        versionName = "0.56.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

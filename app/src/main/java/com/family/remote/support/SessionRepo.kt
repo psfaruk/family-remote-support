@@ -79,42 +79,11 @@ const val SESSION_RESPONSE_TTL_MILLIS = 4 * 60 * 1000L
 /** How long an ALLOWED session stays active before it auto-ends. */
 const val SESSION_ACTIVE_TTL_MILLIS = 15 * 60 * 1000L
 
-data class SessionView(
-    val id: String,
-    /** Relationship doc id == pairKey == helperUid_recipientUid. */
-    val relId: String,
-    val helperUid: String,
-    val helperEmail: String,
-    val recipientUid: String,
-    val recipientEmail: String,
-    val recipientDeviceModel: String,
-    val status: String, // REQUESTED | ACTIVE | ENDED | DENIED | CANCELLED | EXPIRED
-    val requestedAtMillis: Long,
-    val respondDeadlineMillis: Long,
-    /** 0 until the session is granted. */
-    val sessionEndsAtMillis: Long,
-    /** "helperEmail" | "recipientEmail" of the ender, or "timeout". */
-    val endedBy: String?,
-    /** Phase 10 — family | guest. A guest session can never outlive the
-     *  guest link's window (enforced at grant time and by the rules). */
-    val kind: String = "family"
-)
-
-/**
- * v0.22.0 (Phase 18.1 — Owner bug: "রিবুটের পর family আর কানেক্ট হয় না") —
- * a REQUESTED ask whose 2-min answer window is over, or an ACTIVE session
- * past its 15-min lifetime (+4 s skew grace on both), is a ZOMBIE left
- * behind by a killed/rebooted phone. Any participant may perform the
- * matching cleanup (REQUESTED→EXPIRED / ACTIVE→ENDED("timeout") — both
- * transitions are already allowed by the security rules).
+/*
+ * v0.56.0 (§103): [SessionView], [isStaleOpen] and the STALE_* constants
+ * moved to SessionModel.kt (SDK-free, JVM-testable). Same package, so every
+ * existing reference keeps compiling unchanged.
  */
-fun SessionView.isStaleOpen(nowMillis: Long): Boolean = when (status) {
-    "REQUESTED" ->
-        respondDeadlineMillis > 0L && nowMillis > respondDeadlineMillis + STALE_GRACE_MILLIS
-    "ACTIVE" ->
-        sessionEndsAtMillis > 0L && nowMillis > sessionEndsAtMillis + STALE_GRACE_MILLIS
-    else -> false
-}
 
 private fun DocumentSnapshot.toSessionView(): SessionView? {
     val helperUid = getString("helperUid") ?: return null
@@ -137,20 +106,11 @@ private fun DocumentSnapshot.toSessionView(): SessionView? {
 }
 
 /**
- * v0.22.0 (Phase 18.1 — Owner bug: "রিবুটের পর family আর কানেক্ট হয় না") —
- * a STALE open session no longer blocks a fresh ask. A reboot mid-session
- * (or an unanswered ask from before the reboot) leaves a zombie REQUESTED/
- * ACTIVE doc behind; the old code threw "already waiting/active" and the
- * Owner's only escape was tearing the pairing apart. Now the ask itself
- * performs the SAME validated cleanups the lazy UI expiry does — each is a
- * read-validate-write transaction the rules re-check server-side, so a
- * genuine grant/deny racing the cleanup simply wins and the loop reports
- * the honest "still open" error instead.
- *
- * Stale = REQUESTED past its 2-min deadline, or ACTIVE past its 15-min
- * lifetime (+4 s grace, matching the UI lazy-expiry's skew allowance).
+ * v0.56.0 (§103): the same cleanup the ask performs, now decided by the
+ * HARDENED isStaleOpen (SessionModel.kt): server clock via ServerClock, and
+ * a doc whose deadline/end timestamp is missing is stale by its own age
+ * instead of being immune forever.
  */
-private const val STALE_GRACE_MILLIS = 4_000L
 
 /** One cleanup attempt per stale doc, bounded so a hostile doc set cannot loop. */
 private const val STALE_CLEANUP_ROUNDS = 4
@@ -173,6 +133,14 @@ private const val STALE_CLEANUP_ROUNDS = 4
  */
 suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionView {
     val db = Fb.db
+    // ---------- clock (v0.56.0 §103) ----------
+    // Every time comparison below (stale cleanup + the deadline write) must
+    // run on SERVER time. At process start the offset may still be the raw
+    // device clock — a 5–10-min-slow phone then wrote a deadline outside the
+    // rules' server window (PERMISSION_DENIED on the ask itself) and saw
+    // long-dead asks as "still waiting" forever. The ping is two bounded
+    // round-trips, once per process, best effort.
+    syncServerClockBestEffort(user.uid)
     // ---------- direction (v0.54.0 §101 — both-ways family) ----------
     val reverse = user.uid == rel.recipientUid && user.uid != rel.helperUid
     if (user.uid != rel.helperUid && user.uid != rel.recipientUid) {
@@ -234,7 +202,10 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
                     "(পুরনো সেশন রেকর্ড পড়া যাচ্ছে না — এক মুহূর্ত পরে আবার চেষ্টা করুন।)"
             break
         }
-        val now = System.currentTimeMillis()
+        // v0.56.0 (§103): SERVER time — the deadlines were written from a
+        // server-corrected clock and the rules re-check them server-side;
+        // the raw device clock let a slow phone block on a zombie forever.
+        val now = ServerClock.now()
         val stale = views.filter { it.isStaleOpen(now) }
         if (stale.isEmpty()) {
             // Genuinely open: a live ask is pending, or a live session runs.
@@ -349,6 +320,9 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
  */
 suspend fun grantSession(sessionId: String, uid: String): SessionView {
     val db = Fb.db
+    // v0.56.0 (§103): the grant writes sessionEndsAt inside the rules'
+    // server-time window — make sure the offset is real before trusting it.
+    syncServerClockBestEffort(uid)
     val grantResult = db.runTransaction { tx ->
         // ---------- read ----------
         val ref = db.collection(SESSION_COLLECTION).document(sessionId)
@@ -533,6 +507,11 @@ suspend fun endSession(sessionId: String, uid: String, byTimeout: Boolean = fals
  * unconditional update could race a just-granted session (helper-side lazy
  * expire flipping an ACTIVE session straight to EXPIRED seconds after
  * consent) if the rules were ever stale/loose.
+ *
+ * v0.56.0 (§103): the guard is the hardened isStaleOpen on SERVER time —
+ * previously the raw device clock, so a slow phone refused the expiry of a
+ * long-dead ask forever (the zombie that blocked every new session), and a
+ * REQUESTED doc with a missing respondDeadline could never expire at all.
  */
 suspend fun expireSession(sessionId: String) {
     val db = Fb.db
@@ -540,10 +519,8 @@ suspend fun expireSession(sessionId: String) {
         val ref = db.collection(SESSION_COLLECTION).document(sessionId)
         val snap = tx.get(ref)
         val session = if (snap.exists()) snap.toSessionView() else null
-        val deadlineMillis = session?.respondDeadlineMillis ?: 0L
         if (session != null && session.status == "REQUESTED" &&
-            deadlineMillis > 0 &&
-            System.currentTimeMillis() > deadlineMillis + 2000
+            session.isStaleOpen(ServerClock.now())
         ) {
             tx.update(
                 ref,

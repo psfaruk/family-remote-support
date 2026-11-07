@@ -151,10 +151,12 @@ data class RelationshipView(
     /** 0 for family links; live-until for guest links (Phase 10). */
     val guestExpiresAtMillis: Long = 0L
 ) {
-    /** True while a guest window is live (family links are always live). */
+    /** True while a guest window is live (family links are always live).
+     * v0.56.0 (§103): SERVER time — guestExpiresAt was written from a
+     * server-corrected clock and the rules re-check it against request.time. */
     val guestLive: Boolean
         get() = kind != "guest" ||
-            (guestExpiresAtMillis > 0L && System.currentTimeMillis() < guestExpiresAtMillis)
+            (guestExpiresAtMillis > 0L && ServerClock.now() < guestExpiresAtMillis)
 }
 
 private const val INVITATION_COLLECTION = "pairingInvitations"
@@ -298,7 +300,10 @@ suspend fun createInvitation(
         }
         if (exists) return@repeat
 
-        val expiryMillis = System.currentTimeMillis() + INVITE_TTL_MILLIS
+        // v0.56.0 (§103): the invitation's expiresAt must sit inside the
+        // rules' SERVER-time window (request.time .. +10 m) — a 5-min-slow
+        // phone wrote an already-past expiry and the create was denied.
+        val expiryMillis = ServerClock.now() + INVITE_TTL_MILLIS
         val doc = hashMapOf(
             "inviterUid" to user.uid,
             "inviterEmail" to (user.email ?: ""),
@@ -442,7 +447,9 @@ suspend fun redeemCode(context: Context, user: FirebaseUser, rawCode: String): R
                 context.getString(R.string.err_pair_guest_exists)
             )
         }
-        val guestEndsMillis = System.currentTimeMillis() + GUEST_RELATIONSHIP_TTL_MILLIS
+        // v0.56.0 (§103): same as every other rules-checked expiry — the
+        // guest window is validated against SERVER time on every later ask.
+        val guestEndsMillis = ServerClock.now() + GUEST_RELATIONSHIP_TTL_MILLIS
 
         // ---------- writes (only after every read above) ----------
         if (!alreadyMine) {

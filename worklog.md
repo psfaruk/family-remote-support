@@ -3942,3 +3942,25 @@ history → Everything → del_done 验证文案）。
 **গেট:** res-স্ক্যান শূন্য-ফায়ার + কল-সাইট/প্লেসহোল্ডার সামঞ্জস্য যাচাই + লোকাল XML-গেট (১৬ ফাইল well-formed, স্ট্রিং-মানে অব্যক্ত-অ্যাপস্ট্রফি শূন্য — fr এস্কেপ-ফিক্সসহ); বাকি গেট CI-তে (testReleaseUnitTest + assembleRelease + AXML versionCode=77/versionName="0.55.0" + v2-sig)। **গেট-ফিক্স ২ (CI-ধরা):** প্রথম CI-রান লাল — onError-এর diagLog-এ টেমপ্লেটের ভিতরে `\"unknown\"` লেখা হয়েছিল, Kotlin লেক্সার টেমপ্লেট-এন্ট্রিতে ব্যাক-স্ল্যাশ-এস্কেপ মানে না (Incorrect template entry, ScreenShareEngine.kt:1278) — ওই এক লাইনেই ক্লাস-ব্লক ভেঙে পরের ~১২০টি এরর (unresolved reference + private-local-function) ক্যাসকেড হয়েছিল; ফিক্স: টেমপ্লেটে সরাসরি নেস্টেড `"unknown"` লিটারেল — repo-স্ক্যানে দুর্বল প্যাটার্ন এটাই একটাই ছিল, ব্রেস-ব্যালান্স ৪২৫/৪২৫ পুনঃস্থাপিত।
 
 **Owner-করণীয়:** নতুন 77/0.55.0 দুই ফোনেই বসান — ব্যর্থতার পর্দায় আর কোনো ইঞ্জিন-জিব্বারিশ আসবে না, সব বার্তা অ্যাপের নিজের ভাষায়।
+
+## §103 — v0.56.0/78 permanent session-start wave: "এখন আবার সেশন সরু করা যাচ্ছে না কেনো? এটার কি কোনো স্থায়ী সমাধান নাই।"
+
+**Owner-রিপোর্ট:** সেশন আবার চালু করা যাচ্ছে না — আগেও এই রকম হয়েছে, ঠিক হয়েছে, আবার ফিরে এসেছে; স্থায়ী সমাধান চাই।
+
+**ফরেনসিক — বারবার ফেরার দুটো ঘড়ি-সর্প:** v0.22.0 (Phase 18.1) জম্বি-সেশন ব্লকার সারিয়েছিল, v0.45.0 (audit P7) ডেডলাইন-লেখা ও UI-কাউন্টডাউন ServerClock-এ তুলেছিল — কিন্তু চারটা তুলনার মধ্যে দুটো এখনো কাঁচা ডিভাইস-ঘড়িতে ছিল:
+1. **requestSession-এর stale-পরীক্ষা (`System.currentTimeMillis()`):** respondDeadline/sessionEndsAt লেখা হয় সার্ভার-সংশোধিত ঘড়ি থেকে, rules পুনঃযাচাই করে সার্ভার-টাইমে — কিন্তু "মৃত কিনা" পরীক্ষা করত ফোনের নিজের ঘড়িতে। "Automatic date & time" বন্ধ ফোন (এই ফ্লিটের বয়স্ক ডিভাইসে খুবই সাধারণ, ServerClock-এর নিজের KDoc-ই বলে ৫–১০ মিনিট skew) সার্ভারের চোখে মৃত-হওয়া ask-কে "এখনও অপেক্ষমাণ" দেখে **চিরকাল** — জম্বি প্রতিটি নতুন ask ব্লক করে (v0.54 থেকে দুই-দিক চেকের কারণে দুই দিক থেকেই)। expireSession-এর ট্রানজ্যাকশন-গার্ডও একই কাঁচা ঘড়ি — মৃত ask-এর মৃত্যু-লেখা পর্যন্ত আটকে দেয়।
+2. **ServerClock-এর বুটস্ট্র্যাপ-ফাঁক:** অফসেট শেখে শুধু স্ন্যাপশট-ফিডার থেকে (ask এলে / FCM এলে)। প্রসেস শুরুতে, প্রথম ask পাঠানোর মুহূর্তে অফসেট = ০ = কাঁচা ডিভাইস-ঘড়ি — skew করা ফোনের ask-এর respondDeadline সার্ভার-উইন্ডোর বাইরে গিয়ে **লেখাই PERMISSION_DENIED**।
+
+আরও একটা অমর-জম্বি: respondDeadline/sessionEndsAt ফিল্ড নেই-এমন (০) ডক প্রতিটি stale-পরীক্ষা চিরকাল পাস করে — ক্লিনআপের বাইরে অমর।
+
+**স্থায়ী ফিক্স (চার স্তর):**
+1. **ServerClock-এ নিজেই ঘড়ি-জ্ঞান:** `syncServerClockBestEffort(uid)` — ask/grant-এর আগে, প্রসেসে একবার: নিজের users/{uid} ডকে `updatedAt=serverTimestamp()` merge-সেট (rules-বৈধ ফিল্ড) + `Source.SERVER` জোর-পড়া → syncFrom। দুইটা bounded রাউন্ড-ট্রিপ (~১ সে), Mutex-এ ভাগ, best-effort। শেখা অফসেট SharedPreferences-এ স্থায়ী — App.onCreate-এ ServerClock.attach() পরের প্রসেসও সংশোধিত শুরু করে (২৪ ঘণ্টা TTL), প্রথম ask-এ পুনঃযাচাই।
+2. **stale-গণিত সর্বত্র সার্ভার-টাইমে:** requestSession-এর `now` ও expireSession-এর গার্ড এখন ServerClock.now() + হার্ডেনড isStaleOpen — ফিল্ড-মিসিং জম্বিও বয়সে মরে (REQUESTED >১০ মিন, ACTIVE >২৫ মিন — rules-সিলিং ৫/২০-এর উপরে; দুই ফিল্ডই শূন্য = corrupt → সরাসরি stale)।
+3. **PairingRepo-র তিনটি rules-যাচাই এক্সপায়ারি-লেখাও** (invite expiresAt, guest উইন্ডো, guestLive পরীক্ষা) ServerClock-এ — একই PERMISSION_DENIED-গল্প পেয়ারিং-পথে।
+4. **টেস্টেবল মডেল:** SessionView + isStaleOpen + STALE_* নতুন SDK-মুক্ত SessionModel.kt-এ — SessionStaleTest (১৩ কেস: grace-সীমা, মৃত-deadline, স্লো-ফোন, ফিল্ড-মিসিং ফলব্যাক, টার্মিনাল-কখনো-না) JVM-গেটে।
+
+**স্পর্শিত ফাইল:** ServerClock.kt (attach/persist/ping-সহ পুনর্লিখন), SessionRepo.kt (ask/grant-পিং + সার্ভার-ঘড়ি stale + হার্ডেনড expireSession-গার্ড, মডেল-সরানো), SessionModel.kt (নতুন), SessionStaleTest.kt (নতুন), PairingRepo.kt (৩টি ঘড়ি-সাইট), App.kt (ServerClock.attach), app/build.gradle.kts (78/0.56.0 + ওয়েভ-নোট), worklog.md (§103)।
+
+**গেট:** লোকাল-স্মোক (SessionView একবার-ই-সংজ্ঞিত, isStaleOpen-রেফারেন্স সম্পূর্ণ, SessionRepo-তে কাঁচা ঘড়ি-শূন্য [শুধু লোকাল echo requestedAtMillis], ৫ ফাইলের ব্রেস-ব্যালান্স সমান); বাকি গেট CI-তে (testReleaseUnitTest ৮৯ টেস্ট — ৭৬ + নতুন ১৩ — + assembleRelease + AXML versionCode=78/versionName="0.56.0" + v2-sig)।
+
+**Owner-করণীয়:** দুই ফোনেই **78/0.56.0** বসান। এরপর সেশন-চালু না-হওয়ার যে-কোনো পুরনো কারণ (মৃত ask ব্লক, ঘড়ি-skew-এ ask-ব্যর্থ) আর ফিরবে না — প্রথম ask-এ ~১ সেকেন্ড বাড়তে পারে (ঘড়ি-শেখা), তারপর স্বাভাবিক। ফোনের Settings-এ "Automatic date & time" চালু রাখা তবুও ভালো অভ্যাস (app এখন নিজেই সার্ভার-ঘড়ি শেখে, কিন্তু সিস্টেম-ঘড়ি ঠিক থাকলে সব দিক থেকে নিরাপদ)।
