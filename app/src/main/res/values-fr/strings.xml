@@ -239,7 +239,7 @@
     <string name="set_section_activity">Activité</string>
     <string name="set_section_about">À propos</string>
     <string name="set_about_sub">Version, paquet et politiques</string>
-    <string name="about_storage">Votre compte et les données de l'appareil restent uniquement dans le cloud sécurisé propre à cette app. Le contenu de l'écran n'est jamais enregistré ni stocké.</string>
+    <string name="about_storage">Votre compte et les données de l\'appareil restent uniquement dans le cloud sécurisé propre à cette app. Le contenu de l\'écran n\'est jamais enregistré ni stocké.</string>
     <string name="set_sign_out">Se déconnecter</string>
     <string name="set_test_notif">Envoyer une notif de test</string>
     <string name="set_test_notif_sent">Notif de test envoyée — regardez le volet ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">Mot de passe oublié ?</string>
     <string name="auth_or">ou</string>
     <string name="auth_google">Continuer avec Google</string>
-    <string name="auth_footer">Votre compte et les données du téléphone restent uniquement dans le cloud sécurisé propre à l'app. Être jumelé ne signifie jamais un accès permanent — chaque session redemande.</string>
+    <string name="auth_footer">Votre compte et les données du téléphone restent uniquement dans le cloud sécurisé propre à l\'app. Être jumelé ne signifie jamais un accès permanent — chaque session redemande.</string>
     <string name="privacy_title">Politique de confidentialité</string>
     <string name="rules_title">Règles d’utilisation</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -553,8 +553,8 @@
     <string name="td_placeholder">Saisir du texte…</string>
     <string name="btn_cancel_plain">Annuler</string>
     <string name="btn_send">Envoyer</string>
-    <string name="err_perm_denied">La protection de l'app a bloqué la connexion pour des raisons de sécurité — concrètement, l'un des deux téléphones utilise une ancienne version de l'app. Mettez les DEUX téléphones à jour puis refaites le jumelage. Si le problème persiste, réessayez plus tard.</string>
-    <string name="err_db_missing">Le service n'est pas encore tout à fait prêt — réessayez dans quelques minutes. Si cela persiste, mettez l'app à jour.</string>
+    <string name="err_perm_denied">La protection de l\'app a bloqué la connexion pour des raisons de sécurité — concrètement, l\'un des deux téléphones utilise une ancienne version de l\'app. Mettez les DEUX téléphones à jour puis refaites le jumelage. Si le problème persiste, réessayez plus tard.</string>
+    <string name="err_db_missing">Le service n\'est pas encore tout à fait prêt — réessayez dans quelques minutes. Si cela persiste, mettez l\'app à jour.</string>
     <string name="err_unreachable">Impossible de joindre le service — vérifiez la connexion internet et réessayez.</string>
     <string name="err_code_length">Un code d\'appairage comporte %1$d caractères (%2$d + %3$d ; les anciennes versions utilisent %4$d). Celui-ci en a %5$d.</string>
     <string name="err_code_not_found">Code introuvable — vérifiez les %1$d premiers caractères.</string>
@@ -565,7 +565,7 @@
     <string name="err_pair_family_exists">Cette paire est déjà liée en Family (permanent) — pas besoin de code invité ici.</string>
     <string name="err_pair_guest_exists">Cette paire est liée en invité. Pour la passer en Family, retirez le lien invité du téléphone qui reçoit l\'aide et émettez un nouveau code Family.</string>
     <string name="err_generic">Une erreur est survenue. Veuillez réessayer.</string>
-    <string name="err_quota">La limite d'utilisation quotidienne de cette app est atteinte — tout remarchera après la réinitialisation quotidienne (vers midi). Aucune donnée n'est perdue.</string>
+    <string name="err_quota">La limite d\'utilisation quotidienne de cette app est atteinte — tout remarchera après la réinitialisation quotidienne (vers midi). Aucune donnée n\'est perdue.</string>
     <string name="cd_details">Détails</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,8 +705,8 @@
     <string name="ss_recover_answer_failed">Impossible de répondre — l\'aide réessaiera automatiquement.</string>
     <string name="ss_recover_apply_failed">Impossible d\'appliquer la réponse de l\'aide — l\'aide réessaiera.</string>
     <string name="ss_fail_projection_stopped">La projection de l\'écran a été arrêtée par le système — touchez à nouveau « Partager l\'écran ».</string>
-    <string name="ss_fail_capture">Échec de la capture d'écran. Veuillez réessayer.</string>
-    <string name="ss_fail_watch">Impossible de demander à voir l'écran. Veuillez réessayer.</string>
+    <string name="ss_fail_capture">Échec de la capture d\'écran. Veuillez réessayer.</string>
+    <string name="ss_fail_watch">Impossible de demander à voir l\'écran. Veuillez réessayer.</string>
     <string name="ss_fail_viewer">Impossible de démarrer la visionneuse. Veuillez réessayer.</string>
     <string name="ss_fail_conn_stopped">Connexion échouée — touchez « Arrêter le partage », puis partagez à nouveau.</string>
     <string name="ss_fail_no_engine">Impossible de créer le moteur WebRTC sur ce téléphone.</string>

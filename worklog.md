@@ -3939,6 +3939,6 @@ history → Everything → del_done 验证文案）。
 3. **কোড-স্তর (raw message UI-তে আর যাবেই না):** describeFirestoreError-এর সব শাখা এখন লোকালাইজড স্ট্রিং (FirestoreUnreachableException-এর ইংরেজি কনসোল-নির্দেশসহ বার্তা আর পর্দায় আসে না, e.code/e.message কোথাও ফরম্যাট হয় না); AuthGate-এর দুই ফলব্যাক আর্গলেস auth_failed; AskNotifier-এর worker-catch e.message বাদ দিয়ে notif_result_open_app; ScreenShareEngine-এর ৮টি fail()-সাইটে বিস্তার শুধু diagLog-এ (লগ-ফাইল), পর্দায় স্ট্রিংটাই। SessionPush/PushTokenService-এর বার্তা লগ-লেবেল, UI-পথ নয়।
 4. **অক্ষত যা রাখা হয়েছে:** "Continue with Google" ও privacy-পলিসির Google অ্যাকাউন্ট-উল্লেখ (সাইন-ইন প্রোভাইডার-ব্র্যান্ডিং, Firebase-অবকাঠামো নয়); CrashJournal-এর স্ট্যাক-ট্রেস (স্থানীয় ফাইল, পর্দা নয়); RedemptionException-বার্তা (আগে থেকেই লোকালাইজড err_*)।
 
-**গেট:** res-স্ক্যান শূন্য-ফায়ার + কল-সাইট/প্লেসহোল্ডার সামঞ্জস্য যাচাই; বাকি গেট CI-তে (testReleaseUnitTest + assembleRelease + AXML versionCode=77/versionName="0.55.0" + v2-sig)।
+**গেট:** res-স্ক্যান শূন্য-ফায়ার + কল-সাইট/প্লেসহোল্ডার সামঞ্জস্য যাচাই + লোকাল XML-গেট (১৬ ফাইল well-formed, স্ট্রিং-মানে অব্যক্ত-অ্যাপস্ট্রফি শূন্য — fr এস্কেপ-ফিক্সসহ); বাকি গেট CI-তে (testReleaseUnitTest + assembleRelease + AXML versionCode=77/versionName="0.55.0" + v2-sig)।
 
 **Owner-করণীয়:** নতুন 77/0.55.0 দুই ফোনেই বসান — ব্যর্থতার পর্দায় আর কোনো ইঞ্জিন-জিব্বারিশ আসবে না, সব বার্তা অ্যাপের নিজের ভাষায়।
