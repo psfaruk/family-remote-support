@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -254,12 +253,7 @@ fun SessionFlowScreen(
                         vm = vm,
                         onExit = onExit,
                     )
-                    FlowWin.NOTIF -> NotifWindow(
-                        onGranted = {
-                            // The 1.2 s poll flips the window on its own;
-                            // nothing to do here but wait honestly.
-                        },
-                    )
+                    FlowWin.NOTIF -> NotifWindow()
                     FlowWin.ASSIST -> AssistWindow(
                         onSkip = { assistSkipped = true },
                     )
@@ -318,7 +312,7 @@ private fun FlowChrome(
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cmn_ok),
+                        contentDescription = stringResource(R.string.set_cancel),
                     )
                 }
             }
@@ -487,11 +481,13 @@ private fun ConsentWindow(
  * poll sees the grant and the window walks on by itself.
  */
 @Composable
-private fun NotifWindow(onGranted: () -> Unit) {
-    val context = LocalContext.current
+private fun NotifWindow() {
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ -> onGranted() }
+    ) { _ ->
+        // The ON_RESUME observer + the 1.2 s poll advance the window;
+        // nothing else to do here but wait honestly.
+    }
 
     FlowMessageBody(
         title = stringResource(R.string.pw_perm_notif),
