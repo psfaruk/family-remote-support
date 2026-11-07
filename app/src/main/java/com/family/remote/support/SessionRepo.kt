@@ -156,20 +156,44 @@ private const val STALE_GRACE_MILLIS = 4_000L
 private const val STALE_CLEANUP_ROUNDS = 4
 
 /**
- * Helper side: ask permission to start a support session on the paired
- * recipient's phone. The duplicate-check runs as a plain query (the Android
- * Firestore SDK does not support query reads inside transactions); the write
- * itself is one atomic set whose conditions the security rules re-verify.
- * The UI keeps this action single-shot, so the check + write gap is not a
- * realistic race: only the helper's phone can start a session.
+ * Asker side: ask permission to start a support session on the paired
+ * counterpart's phone. The duplicate-check runs as plain queries (the
+ * Android Firestore SDK does not support query reads inside transactions);
+ * the write itself is one atomic set whose conditions the security rules
+ * re-verify. The UI keeps this action single-shot, so the check + write gap
+ * is not a realistic race: only a link participant can start a session.
+ *
+ * v0.54.0 (worklog §101 — the Owner's "উভয় সাইড থেকে স্ক্রিন শেয়ার ও
+ * কন্ট্রোল করা যাবে"): FAMILY links are TWO-WAY. The asker may be the
+ * relationship's helper (forward — the original pairing direction) or its
+ * recipient (reverse — asking "back"). The ASKER is always the session's
+ * helper and the OTHER side its recipient, so grant/deny, screen share and
+ * touch control are symmetric by construction downstream. Guest links
+ * stay one-way (the guest is by definition the outsider who helps).
  */
 suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionView {
     val db = Fb.db
+    // ---------- direction (v0.54.0 §101 — both-ways family) ----------
+    val reverse = user.uid == rel.recipientUid && user.uid != rel.helperUid
+    if (user.uid != rel.helperUid && user.uid != rel.recipientUid) {
+        throw SessionException(
+            "This link does not belong to this account. " +
+                "(এই লিংকটি এই অ্যাকাউন্টের নয়।)"
+        )
+    }
+    if (reverse && rel.kind == REL_KIND_GUEST) {
+        throw SessionException(
+            "Guest links work one way only — the guest asks, the owner allows. " +
+                "(গেস্ট লিংক একমুখী — শুধু গেস্টই সেশন চাইতে পারে, মালিক অনুমতি দেন।)"
+        )
+    }
+    val counterpartEmail = if (reverse) rel.helperEmail else rel.recipientEmail
     // ---------- duplicate-check: one open session per pair ----------
-    // The query MUST constrain helperUid to the caller: the security rules can
-    // only prove `list` permission for queries that pin helperUid/recipientUid
-    // to request.auth.uid (a bare relId filter proves nothing to the rules
-    // engine and would fail with PERMISSION_DENIED even with correct rules).
+    // Each query MUST constrain helperUid or recipientUid to the caller: the
+    // security rules can only prove `list` permission for queries that pin
+    // one of those roles to request.auth.uid (a bare relId filter proves
+    // nothing to the rules engine and would fail with PERMISSION_DENIED
+    // even with correct rules).
     //
     // v0.22.0 (Phase 18.1): stale open docs are cleaned here (the same
     // transitions the rules already allow either participant to perform)
@@ -178,19 +202,31 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
     var round = 0
     while (round < STALE_CLEANUP_ROUNDS) {
         round += 1
-        val open = db.collection(SESSION_COLLECTION)
-            .whereEqualTo("relId", rel.id)
-            .whereEqualTo("helperUid", user.uid)
-            .whereIn("status", listOf("REQUESTED", "ACTIVE"))
-            .limit(10)
-            .get()
-            .awaitWithTimeout("checking for an open session")
-        if (open.isEmpty) {
+        // v0.54.0 §101: BOTH directions are checked — a reverse ask must
+        // never stack on an open forward session (or vice versa): one open
+        // session per PAIR, any direction. Each query pins one session
+        // role to the caller so the rules can prove `list` permission (a
+        // bare relId filter proves nothing — see the note above).
+        val openDocs = listOf(
+            db.collection(SESSION_COLLECTION)
+                .whereEqualTo("relId", rel.id)
+                .whereEqualTo("helperUid", user.uid),
+            db.collection(SESSION_COLLECTION)
+                .whereEqualTo("relId", rel.id)
+                .whereEqualTo("recipientUid", user.uid),
+        ).flatMap { q ->
+            q.whereIn("status", listOf("REQUESTED", "ACTIVE"))
+                .limit(10)
+                .get()
+                .awaitWithTimeout("checking for an open session")
+                .documents
+        }.distinctBy { it.id }
+        if (openDocs.isEmpty()) {
             blockedMessage = null
             break // nothing open — proceed to the write below
         }
 
-        val views = open.documents.mapNotNull { it.toSessionView() }
+        val views = openDocs.mapNotNull { it.toSessionView() }
         if (views.isEmpty()) {
             // Docs exist but are unreadable — do NOT write a duplicate on top.
             blockedMessage =
@@ -207,11 +243,11 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
             val existing = views.first()
             blockedMessage =
                 if (existing.status == "REQUESTED") {
-                    "A request is already waiting for ${rel.recipientEmail} — " +
+                    "A request is already waiting for $counterpartEmail — " +
                         "wait for the answer or cancel it from the card below. " +
                         "(অনুরোধ এখনও অপেক্ষমাণ — নিচের কার্ড থেকে বাতিল করা যায়।)"
                 } else {
-                    "A support session is already active with ${rel.recipientEmail} — " +
+                    "A support session is already active with $counterpartEmail — " +
                         "end it from the card below. " +
                         "(সেশন চালু আছে — নিচের কার্ড থেকে শেষ করা যায়।)"
                 }
@@ -248,17 +284,31 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
     // a few minutes used to push respondDeadline outside the rules' server
     //-time window and the ask write itself failed with PERMISSION_DENIED.
     val deadline = Date(ServerClock.now() + SESSION_RESPONSE_TTL_MILLIS)
+    // v0.54.0 §101 — the ask's OWN direction fills the session roles: the
+    // asker is the helper, the counterpart the recipient. A reverse ask on
+    // a family link therefore produces a session whose recipient is the
+    // RELATIONSHIP's helper — every engine/UI surface reads the SESSION's
+    // roles, so share/control simply point the other way.
+    val sessRecipientUid = if (reverse) rel.helperUid else rel.recipientUid
+    val sessRecipientEmail = if (reverse) rel.helperEmail else rel.recipientEmail
+    // A reverse ask cannot take the model from the rel doc (that field is
+    // the pairing-recipient's phone) — best-effort read of the
+    // counterpart's live presence doc instead; any failure degrades
+    // honestly to "" (the UIs render without the model chip).
+    val sessRecipientModel =
+        if (reverse) counterpartDeviceModel(rel.helperUid) else rel.recipientDeviceModel
+    val sessKind = if (reverse) REL_KIND_FAMILY else rel.kind
     val ref = db.collection(SESSION_COLLECTION).document()
     ref.set(
         mapOf(
             "relId" to rel.id,
             "helperUid" to user.uid,
             "helperEmail" to (user.email ?: ""),
-            "recipientUid" to rel.recipientUid,
-            "recipientEmail" to rel.recipientEmail,
-            "recipientDeviceModel" to rel.recipientDeviceModel,
+            "recipientUid" to sessRecipientUid,
+            "recipientEmail" to sessRecipientEmail,
+            "recipientDeviceModel" to sessRecipientModel,
             "status" to "REQUESTED",
-            "kind" to rel.kind,
+            "kind" to sessKind,
             "requestedAt" to FieldValue.serverTimestamp(),
             "respondDeadline" to Timestamp(deadline),
             "createdAt" to FieldValue.serverTimestamp(),
@@ -274,15 +324,15 @@ suspend fun requestSession(user: FirebaseUser, rel: RelationshipView): SessionVi
         relId = rel.id,
         helperUid = user.uid,
         helperEmail = user.email ?: "",
-        recipientUid = rel.recipientUid,
-        recipientEmail = rel.recipientEmail,
-        recipientDeviceModel = rel.recipientDeviceModel,
+        recipientUid = sessRecipientUid,
+        recipientEmail = sessRecipientEmail,
+        recipientDeviceModel = sessRecipientModel,
         status = "REQUESTED",
         requestedAtMillis = System.currentTimeMillis(),
         respondDeadlineMillis = deadline.time,
         sessionEndsAtMillis = 0L,
         endedBy = null,
-        kind = rel.kind
+        kind = sessKind
     )
 }
 

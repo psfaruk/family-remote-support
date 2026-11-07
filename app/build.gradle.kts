@@ -272,8 +272,29 @@ android {
         // Firestore rules re-audited path-by-path against the code — the
         // repo rules are coherent (see worklog §98); the failure was the
         // missing UI wiring, not the rules. See worklog §98.
-        versionCode = 75
-        versionName = "0.53.0"
+        // v0.54.0/76 (both-ways family + Add-tab migration wave) — the
+        // Owner's two directives: (1) "Home tab থেকে get help give help
+        // conected family list গুলো add ডিভাইস ট্যাব এ নিয়ে যান" — the
+        // Get-help/Give-help quick actions and the linked-phones list
+        // moved from the Home dashboard to the TOP of the Add Device tab,
+        // always rendered (the Owner "কখন এই গুলো আসে আমি টের পাইনা" —
+        // nothing here appears/disappears anymore); Home is the session
+        // surface (consent hero, live cards, status grid, activity). (2)
+        // "যে ডিভাইস টি ফ্যামেলি কানেক্টেড হবে, উভয় সাইড থেকে স্ক্রিন
+        // শেয়ার ও কন্ট্রোল করা যাবে" — FAMILY links are two-way now:
+        // firestore.rules accepts a session whose asker is the rel's
+        // helper (forward) OR its recipient (reverse, family only; guests
+        // stay one-way), SessionRepo.requestSession fills the session's
+        // roles from the ask's own direction (asker = helper, counterpart
+        // = recipient — grant/deny, share/control and all UI surfaces
+        // already key off the SESSION's roles, so they simply point the
+        // other way), the duplicate-check covers both directions (one open
+        // session per PAIR), and a reverse ask's device model comes from
+        // the counterpart's live presence doc (best-effort, "" honest
+        // fallback). The member detail's ask tile renders on BOTH sides of
+        // a family link. See worklog §101.
+        versionCode = 76
+        versionName = "0.54.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

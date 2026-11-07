@@ -518,8 +518,12 @@ private fun AppNavHost(
         }
 
         // ── Tab ADD DEVICE (W3: the REAL pairing subtree — plan §2.3) ──
+        // v0.54.0 (§101): the Add tab also hosts the moved Get-help /
+        // Give-help quick actions + the connected family list — it renders
+        // from the SAME shared HomeViewModel listener set (no new
+        // listeners; the tab is a reader, exactly like Tracking).
         composable(AppRoutes.ADD) {
-            AddTab(onOpenRoute = go)
+            AddTab(user = user, vm = homeVm, onOpenRoute = go)
         }
         composable(
             AppRoutes.ADD_FAMILY,

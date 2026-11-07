@@ -264,25 +264,34 @@ fun MemberDetailScreen(
                 icon = Icons.Filled.Favorite,
             ) {
                 Column {
-                    SettingsTile(
-                        title = stringResource(R.string.md_ask_title),
-                        desc = if (usable) {
-                            stringResource(R.string.md_ask_desc, name)
-                        } else {
-                            stringResource(R.string.md_ask_disabled)
-                        },
-                        icon = Icons.Filled.PlayArrow,
-                        onClick = if (usable && !busy) {
-                            {
-                                act {
-                                    vm.ask(rel)
-                                    notice = context.getString(R.string.ph_req_sent, name)
+                    // v0.54.0 (§101 — both-ways family): EITHER side of a
+                    // FAMILY link may ask for a session — the asker becomes
+                    // the session's helper, so from the rel recipient's
+                    // phone the session simply points the other way. A
+                    // GUEST link's owner (the rel recipient) never sees the
+                    // ask tile: guest sessions are one-way by design (the
+                    // guest — the rel helper — asks, the owner allows).
+                    if (rel.helperUid == user.uid || rel.kind != REL_KIND_GUEST) {
+                        SettingsTile(
+                            title = stringResource(R.string.md_ask_title),
+                            desc = if (usable) {
+                                stringResource(R.string.md_ask_desc, name)
+                            } else {
+                                stringResource(R.string.md_ask_disabled)
+                            },
+                            icon = Icons.Filled.PlayArrow,
+                            onClick = if (usable && !busy) {
+                                {
+                                    act {
+                                        vm.ask(rel)
+                                        notice = context.getString(R.string.ph_req_sent, name)
+                                    }
                                 }
-                            }
-                        } else {
-                            null
-                        },
-                    )
+                            } else {
+                                null
+                            },
+                        )
+                    }
                     if (rel.kind == REL_KIND_GUEST) {
                         SettingsTile(
                             title = stringResource(R.string.md_remove_guest),

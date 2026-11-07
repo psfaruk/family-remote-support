@@ -57,6 +57,42 @@ data class PresenceView(
 
 fun presenceDocId(uid: String, deviceId: String): String = "${uid}_$deviceId"
 
+/**
+ * v0.54.0 (worklog §101 — both-ways family sessions): a REVERSE ask (the
+ * relationship's recipient asking its helper for a session) has no device
+ * model to put in the session doc — the rel doc's recipientDeviceModel
+ * belongs to the pairing RECIPIENT's phone, not the helper's. The
+ * counterpart's live presence doc carries their model instead.
+ *
+ * Best-effort, cosmetic only: the rules let a paired counterpart LIST the
+ * other side's presence docs (myPairing), so the whereEqualTo("uid") query
+ * is rules-provable for exactly the rel the ask rides on; any failure
+ * (offline, no presence doc yet, rules drift) degrades honestly to "" and
+ * the consent/live cards simply render without the model suffix.
+ */
+suspend fun counterpartDeviceModel(uid: String): String {
+    if (uid.isBlank()) return ""
+    return try {
+        Fb.db.collection(PRESENCE_COLLECTION)
+            .whereEqualTo("uid", uid)
+            .limit(1)
+            .get()
+            .awaitWithTimeout("reading the linked phone's model")
+            .documents.firstOrNull()
+            ?.getString("model")
+            // Keep the same cap the session rules enforce (< 120 chars) so
+            // a hostile-but-allowed long model string can never break the
+            // ask write itself.
+            ?.take(119)
+            ?: ""
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        // best effort — "" is always an honest answer for "unknown model"
+        ""
+    }
+}
+
 /** One heartbeat write for this device (merge — the document is upserted). */
 suspend fun sendHeartbeat(uid: String, deviceId: String, model: String) {
     Fb.db.collection(PRESENCE_COLLECTION)

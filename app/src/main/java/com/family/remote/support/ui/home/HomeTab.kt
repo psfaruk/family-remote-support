@@ -15,9 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
@@ -68,7 +66,6 @@ import com.family.remote.support.ui.components.IconStatusTile
 import com.family.remote.support.ui.components.KindChip
 import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.PresenceBadge
-import com.family.remote.support.ui.components.QuickActionTile
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.StatusBadge
 import com.family.remote.support.ui.components.StatusTone
@@ -92,8 +89,10 @@ import kotlinx.coroutines.launch
  *
  * Order (top → bottom): greeting + signed-in line → consent card (an
  * incoming REQUESTED ask — the hero, per the plan) → live hint / awaiting
- * card → the 2×2 status grid → the two quick actions → linked phones
- * (top 3) → session activity (open + just-ended). Every countdown ticks
+ * card → the 2×2 status grid → session activity (open + just-ended).
+ * (v0.54.0 §101 — the Owner's directive: the Get-help/Give-help quick
+ * actions and the linked-phones list moved OUT of Home into the Add
+ * Device tab; Home is the session surface now.) Every countdown ticks
  * ONLY inside its own card (M8 ticking-block isolation), every deadline
  * compares against ServerClock (audit P7), every string is a resource.
  */
@@ -224,26 +223,13 @@ fun HomeTab(
                 onOpenWizard = { wizardOpen = true },
             )
 
-            // ── quick actions ──
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickActionTile(
-                    icon = Icons.Filled.Call,
-                    title = stringResource(R.string.qa_get_help),
-                    hint = stringResource(R.string.qa_get_help_h),
-                    onClick = { onOpenRoute(AppRoutes.HOME_FAMILY) },
-                    modifier = Modifier.weight(1f),
-                )
-                QuickActionTile(
-                    icon = Icons.Filled.Favorite,
-                    title = stringResource(R.string.qa_give_help),
-                    hint = stringResource(R.string.qa_give_help_h),
-                    onClick = { onOpenRoute(AppRoutes.HOME_FAMILY) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            // ── linked phones (top 3) ──
-            DevicesCard(user.uid, ui, onOpenRoute)
+            // v0.54.0 (§101 — the Owner's directive “হোম ট্যাব এ এই গুলো থাকা
+            // দরকার নাই”): the Get-help / Give-help quick actions and the
+            // linked-phones list NO LONGER live here — their permanent home
+            // is the Add Device tab (always rendered there, never a card
+            // that only appears once pairing succeeds). Home stays the
+            // session surface: consent hero, live/awaiting cards, status
+            // grid, session activity.
 
             // ── session activity ──
             ActivityCard(user.uid, ui, onOpenRoute)
@@ -694,48 +680,12 @@ private fun activeRelsOf(rels: List<RelationshipView>, myUid: String): List<Rela
 
 // ── Linked phones ─────────────────────────────────────────────────────────
 
-/** The dashboard's linked-phones card: top-3 rows + the see-all action. */
-@Composable
-private fun DevicesCard(
-    myUid: String,
-    ui: HomeViewModel.UiState,
-    onOpenRoute: (String) -> Unit,
-) {
-    val active = activeRelsOf(ui.rels, myUid)
-    SectionCard(
-        title = stringResource(R.string.devices_title),
-        icon = Icons.Filled.Person,
-        infoText = stringResource(R.string.devices_info),
-        trailing = if (active.size > 3) {
-            {
-                TextActionButton(
-                    text = stringResource(R.string.home_see_all),
-                    onClick = { onOpenRoute(AppRoutes.HOME_FAMILY) },
-                )
-            }
-        } else {
-            null
-        },
-    ) {
-        if (active.isEmpty()) {
-            EmptyState(
-                icon = Icons.Filled.Phone,
-                title = stringResource(R.string.devices_empty_title),
-                body = stringResource(R.string.devices_empty_hint),
-                actionLabel = stringResource(R.string.devices_add_cta),
-                onAction = { onOpenRoute(AppRoutes.ADD) },
-            )
-        } else {
-            Column {
-                active.take(3).forEach { rel ->
-                    RelRow(myUid, rel, ui.presence[rel.id], onOpenRoute)
-                }
-            }
-        }
-    }
-}
-
-/** One linked-phone row: avatar, name, presence label, kind chip. */
+/**
+ * One linked-phone row: avatar, name, presence label, kind chip.
+ * (v0.54.0 §101: the dashboard's linked-phones card moved to the Add Device
+ * tab — this ROW stays shared; the Add tab's list and the family screens
+ * both render it.)
+ */
 @Composable
 internal fun RelRow(
     myUid: String,

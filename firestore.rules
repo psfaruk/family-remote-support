@@ -448,6 +448,15 @@ service cloud.firestore {
     //   legacy docs). kind must match the relationship's kind, a guest rel
     //   only authorizes asks while guestExpiresAt is live, and a granted
     //   guest session's sessionEndsAt can never pass that window.
+    // v0.54.0 (worklog §101): FAMILY links are TWO-WAY. The asker is always
+    //   the session's helper, but may be the rel's helper (forward, the
+    //   original pairing direction) OR the rel's recipient (reverse). The
+    //   relationship doc keeps its original pairKey id either way; a
+    //   reverse session simply swaps the two uids into its own
+    //   helperUid/recipientUid fields, and every downstream surface (grant
+    //   /deny, signaling, share/control) already keys off the SESSION's
+    //   roles, so it points the other way with no further changes. Guest
+    //   links stay strictly one-way (guest = the outsider who helps).
     match /supportSessions/{sessionId} {
       function isSessionParticipant() {
         return resource.data.helperUid == request.auth.uid
@@ -462,8 +471,11 @@ service cloud.firestore {
       allow get: if signedIn() && isSessionParticipant();
       allow list: if signedIn() && isSessionParticipant();
 
-      // Only the helper of an ACTIVE relationship may ask, only for that
+      // A participant of an ACTIVE relationship may ask, only for that
       // relationship, and only with a sane (0 < deadline <= 5 min) deadline.
+      // v0.54.0: on a FAMILY relationship either participant may ask — see
+      // the direction block below (forward OR reverse); guests remain
+      // helper-only.
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(
           ['relId', 'helperUid', 'helperEmail', 'recipientUid', 'recipientEmail',
@@ -487,7 +499,23 @@ service cloud.firestore {
         // present, must be one of the two modes and must MATCH the rel.
         && (!('kind' in request.resource.data)
             || request.resource.data.kind in ['family', 'guest'])
-        && request.resource.data.relId == (request.resource.data.helperUid + '_' + request.resource.data.recipientUid)
+        // v0.54.0 (§101 — both-ways family): the direction check. The
+        // relationship doc keeps its original pairKey id; the SESSION's
+        // helperUid/recipientUid carry this ask's own direction:
+        //   forward — the asker is the rel's helper (relId == the session's
+        //     own helper_recipient pair, and the rel agrees);
+        //   reverse — the asker is the rel's RECIPIENT (relId == the
+        //     session's recipient_helper pair, i.e. the original pairKey,
+        //     and the rel agrees), FAMILY rels only.
+        && (
+          (request.resource.data.relId == request.resource.data.helperUid + '_' + request.resource.data.recipientUid
+            && relNow().helperUid == request.resource.data.helperUid
+            && relNow().recipientUid == request.resource.data.recipientUid)
+          || (request.resource.data.relId == request.resource.data.recipientUid + '_' + request.resource.data.helperUid
+            && relNow().recipientUid == request.resource.data.helperUid
+            && relNow().helperUid == request.resource.data.recipientUid
+            && (!('kind' in relNow()) || relNow().kind == 'family'))
+        )
         && exists(/databases/$(database)/documents/trustedDeviceRelationships/$(request.resource.data.relId))
         && relNow().status == 'ACTIVE'
         && (

@@ -17,7 +17,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,10 +35,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.family.remote.support.R
+import com.family.remote.support.REL_KIND_GUEST
 import com.family.remote.support.ui.components.BackTitleRow
+import com.family.remote.support.ui.components.EmptyState
+import com.family.remote.support.ui.components.QuickActionTile
 import com.family.remote.support.ui.components.SectionCard
+import com.family.remote.support.ui.components.TextActionButton
 import com.family.remote.support.ui.components.WideOutlinedButton
+import com.family.remote.support.ui.home.HomeViewModel
+import com.family.remote.support.ui.home.RelRow
 import com.family.remote.support.ui.nav.AppRoutes
+import com.google.firebase.auth.FirebaseUser
 
 /**
  * ui/add/AddTab.kt — the Add-Device tab root (W3; FRONTEND_UI_PLAN_BN
@@ -44,16 +53,34 @@ import com.family.remote.support.ui.nav.AppRoutes
  * + the explanation card. A tab root has no back row; the same composable
  * also serves the nested home/add route with one.
  *
- * W3 strings: most of this subtree reuses the Phase-19 pairing block that
- * has been translated ×15 locales since v0.28.0 (ph_two_ways_*,
- * ph_add_new_*, ph_guest_code_*, ph_btn_scan) — zero duplicate keys.
+ * v0.54.0 (worklog §101 — the Owner's directive "Home tab থেকে get help
+ * give help conected family list গুলো add ডিভাইস ট্যাব এ নিয়ে যান" +
+ * "কখন এই গুলো আসে আমি টের পাইনা"): this tab is now ALSO the permanent
+ * home of the Get-help / Give-help quick actions and the CONNECTED FAMILY
+ * LIST — both ALWAYS rendered at the top of the tab, never cards that
+ * only appear once pairing succeeds. The list reads the ONE shared
+ * HomeViewModel listener set (rels + presence — the same source the home
+ * subtree renders from); the Add tab opens no listeners of its own.
+ *
+ * W3 strings: this subtree reuses the Phase-19 pairing block that has been
+ * translated ×15 locales since v0.28.0 (ph_two_ways, ph_add_new,
+ * ph_guest_code, ph_btn_scan) plus the qa_ and devices_ string block that
+ * moved here from the Home dashboard — zero duplicate keys.
  */
 @Composable
 fun AddTab(
+    user: FirebaseUser,
+    vm: HomeViewModel,
     onOpenRoute: (String) -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
 ) {
+    val ui by vm.ui.collectAsState()
+    // Family first, guests after — same ordering contract as the family
+    // list screen; the FULL list lives here (no top-3 truncation).
+    val active = ui.rels.filter { it.status == "ACTIVE" && it.guestLive }
+        .sortedByDescending { it.kind != REL_KIND_GUEST }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -68,6 +95,62 @@ fun AddTab(
                 text = stringResource(R.string.nav_add_device),
                 style = MaterialTheme.typography.titleLarge,
             )
+        }
+
+        // ── quick actions: Get help / Give help (moved from Home, §101) ──
+        // Persistently visible from the moment the tab opens — the Owner's
+        // "কখন এই গুলো আসে আমি টের পাইনা" is answered by making them
+        // unconditional, not by making them appear louder. v0.54.0 §101's
+        // both-ways family sessions mean EITHER tile is honest from either
+        // side: both open the member picker, and every FAMILY member's
+        // detail now offers the support session in both directions.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuickActionTile(
+                icon = Icons.Filled.Call,
+                title = stringResource(R.string.qa_get_help),
+                hint = stringResource(R.string.qa_get_help_h),
+                onClick = { onOpenRoute(AppRoutes.HOME_FAMILY) },
+                modifier = Modifier.weight(1f),
+            )
+            QuickActionTile(
+                icon = Icons.Filled.Favorite,
+                title = stringResource(R.string.qa_give_help),
+                hint = stringResource(R.string.qa_give_help_h),
+                onClick = { onOpenRoute(AppRoutes.HOME_FAMILY) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // ── the connected family list (moved from Home, §101) ──
+        // Every ACTIVE link with its live presence, always rendered — the
+        // empty state points at the pairing cards directly below it.
+        SectionCard(
+            title = stringResource(R.string.devices_title),
+            icon = Icons.Filled.Person,
+            trailing = if (active.size > 3) {
+                {
+                    TextActionButton(
+                        text = stringResource(R.string.home_see_all),
+                        onClick = { onOpenRoute(AppRoutes.HOME_FAMILY) },
+                    )
+                }
+            } else {
+                null
+            },
+        ) {
+            if (active.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Filled.Phone,
+                    title = stringResource(R.string.devices_empty_title),
+                    body = stringResource(R.string.devices_empty_hint),
+                )
+            } else {
+                Column {
+                    active.forEach { rel ->
+                        RelRow(user.uid, rel, ui.presence[rel.id], onOpenRoute)
+                    }
+                }
+            }
         }
 
         // ── the two-ways explainer (ⓘ carries the full text) ──
@@ -122,8 +205,8 @@ fun AddTab(
 /**
  * The Add-tab feature card (plan §2.3: featureCard 20 dp corners, ≥140 dp,
  * icon chip + title + description + the small kind tag). File-private —
- * the home tab keeps its own 88 dp QuickActionTile, this one is the
- * Add-tab's bigger sibling, not a second global widget.
+ * the moved quick actions above use the shared 88 dp QuickActionTile, this
+ * one is the Add-tab's bigger pairing sibling, not a second global widget.
  */
 @Composable
 private fun AddFeatureCard(
