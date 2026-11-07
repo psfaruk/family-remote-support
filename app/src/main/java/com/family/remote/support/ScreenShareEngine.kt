@@ -1275,7 +1275,7 @@ object ScreenShareEngine {
             onSignal = { type, ep, payload, createdAt ->
                 main.post { handleSignal(type, ep, payload, createdAt) }
             },
-            onError = { e -> main.post { diagLog("signal error: ${e.message ?: \"unknown\"}"); fail(loc(R.string.ss_fail_signal)) } }
+            onError = { e -> main.post { diagLog("signal error: ${e.message ?: "unknown"}"); fail(loc(R.string.ss_fail_signal)) } }
         )
         signalStop = stop
         // Clear stale documents addressed to me from earlier rounds.
