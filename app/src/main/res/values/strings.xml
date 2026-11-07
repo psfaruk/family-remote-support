@@ -382,6 +382,16 @@
     <string name="msg_deny_ok">Request denied.</string>
     <string name="msg_deny_fail">Could not deny: %1$s</string>
     <string name="btn_deny">Deny</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Step %1$d of %2$d</string>
+    <string name="sf_why_now">Needed now, before the screen share can start.</string>
+    <string name="sf_assist_later">Skip for now (the helper can only watch)</string>
+    <string name="sf_share_title">Share your screen</string>
+    <string name="sf_live_next">Next: the helper taps “Watch screen” on their phone — your screen appears there and they can help.</string>
+    <string name="sf_continue_title">Continue session setup</string>
+    <string name="sf_continue_desc">One window at a time: the missing permissions first, then the screen share.</string>
+    <string name="sf_continue_btn">Continue</string>
+    <string name="sf_consent_open">Allow &amp; set up</string>
     <string name="dlg_consent_title">Help request</string>
     <string name="dlg_guest_note">Guest (temporary) helper — the link removes itself after 2 hours.</string>
     <string name="act_title">Activity</string>

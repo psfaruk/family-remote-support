@@ -80,6 +80,8 @@ import com.family.remote.support.ui.components.relTime
 import com.family.remote.support.ui.components.tickingNow
 import com.family.remote.support.ui.components.timeGreetingRes
 import com.family.remote.support.ui.nav.AppRoutes
+import com.family.remote.support.ScreenShareEngine
+import com.family.remote.support.ShareState
 import com.google.firebase.auth.FirebaseUser
 import java.util.Calendar
 import kotlinx.coroutines.launch
@@ -132,6 +134,11 @@ fun HomeTab(
     }
     val active = ui.sessions.firstOrNull { it.status == "ACTIVE" }
 
+    // v0.53.0 — the engine's own truth decides which recipient surface
+    // Home hosts: the flow LAUNCHER (not sharing yet) or the live card.
+    val engineState by ScreenShareEngine.state.collectAsState()
+    val sharingNow = engineState !in setOf(ShareState.IDLE, ShareState.ENDED)
+
     when {
         ui.loading && ui.rels.isEmpty() && ui.sessions.isEmpty() ->
             LoadingSkeleton(rows = 4, modifier = Modifier.fillMaxSize())
@@ -176,7 +183,11 @@ fun HomeTab(
             }
 
             // ── the consent hero ──
-            if (incomingAsk != null) ConsentCard(incomingAsk, vm)
+            // v0.53.0 — Allow no longer grants in-place: it opens the
+            // SEQUENTIAL FULL-SCREEN flow (consent → each missing permission
+            // as its own window → share → live). The card stays as the
+            // compact preview of the ask; Deny remains a one-tap refusal.
+            if (incomingAsk != null) ConsentCard(incomingAsk, vm, onOpenRoute)
 
             // ── live session hint / awaiting own ask ──
             if (active != null) {
@@ -185,8 +196,18 @@ fun HomeTab(
                 // tab/screen where they allowed the ask (the Owner's per-tab
                 // sequence directive); the helper's viewer lives in the
                 // session detail the live card opens.
+                // v0.53.0 — while NOT yet sharing, the entry is the flow
+                // LAUNCHER (one button → the state machine re-enters exactly
+                // where it stands, granted windows skipped); once sharing,
+                // the live status card renders as before.
                 if (active.recipientUid == user.uid) {
-                    RecipientShareCard(session = active, user = user)
+                    if (sharingNow) {
+                        RecipientShareCard(session = active, user = user)
+                    } else {
+                        SessionFlowLauncher(
+                            onOpen = { onOpenRoute(AppRoutes.sessionFlow(active.id)) },
+                        )
+                    }
                 }
             } else if (outgoingAsk != null) {
                 AwaitingCard(outgoingAsk, vm)
@@ -246,10 +267,12 @@ private fun isSharingEnabledCompat(context: android.content.Context): Boolean =
 /**
  * The incoming REQUESTED ask — this card IS the consent hero (the event
  * banner deliberately excludes session_asked). 1-second countdown chip,
- * honest error row, [btn_allow]/[btn_deny] at ≥52/48 dp.
+ * honest error row, [btn_deny] at ≥48 dp; v0.53.0 — the ALLOW action is
+ * [sf_consent_open] and it OPENS the full-screen sequential flow (the
+ * grant itself happens in the flow's window 1, one place, ever).
  */
 @Composable
-private fun ConsentCard(session: SessionView, vm: HomeViewModel) {
+private fun ConsentCard(session: SessionView, vm: HomeViewModel, onOpenRoute: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val locale = appLocale()
@@ -356,14 +379,16 @@ private fun ConsentCard(session: SessionView, vm: HomeViewModel) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 BigButton(
-                    text = stringResource(R.string.btn_allow),
-                    onClick = { act { vm.allow(session.id) } },
-                    loading = busy,
+                    text = stringResource(R.string.sf_consent_open),
+                    onClick = {
+                        onOpenRoute(AppRoutes.sessionFlow(session.id))
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 WideOutlinedButton(
                     text = stringResource(R.string.btn_deny),
                     onClick = { act { vm.deny(session.id) } },
+                    enabled = !busy,
                     modifier = Modifier.weight(1f),
                 )
             }

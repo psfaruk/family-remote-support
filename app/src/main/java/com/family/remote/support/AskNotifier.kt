@@ -168,7 +168,11 @@ object AskNotifier {
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(contentIntent(context, sessionId.hashCode(), "home"))
+            // v0.53.0 (worklog §100) — the tap lands DIRECTLY in the
+            // full-screen sequential flow's consent window (was "home":
+            // the recipient then had to hunt the consent card down the
+            // dashboard). The shade's Allow/Deny ACTIONS stay broadcasts.
+            .setContentIntent(contentIntent(context, sessionId.hashCode(), "home/session-flow/$sessionId"))
             // v0.45.0 (audit P4): answer WITHOUT opening the app.
             .addAction(0, lc.getString(R.string.notif_allow), actionIntent(context, sessionId, "allow"))
             .addAction(0, lc.getString(R.string.notif_deny), actionIntent(context, sessionId, "deny"))
@@ -266,8 +270,20 @@ object AskNotifier {
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setContentIntent(
-                contentIntent(context, sessionId.hashCode(), "home/sessions/$sessionId")
+                // v0.53.0 — after an ALLOW from the shade, the natural next
+                // step IS the sequential setup flow (permissions → share);
+                // anything else (deny/error) keeps the session detail.
+                contentIntent(
+                    context,
+                    sessionId.hashCode(),
+                    if (error == null && allowed) {
+                        "home/session-flow/$sessionId"
+                    } else {
+                        "home/sessions/$sessionId"
+                    }
+                )
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()

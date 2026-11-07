@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">Anfrage abgelehnt.</string>
     <string name="msg_deny_fail">Ablehnen nicht möglich: %1$s</string>
     <string name="btn_deny">Ablehnen</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Schritt %1$d von %2$d</string>
+    <string name="sf_why_now">Jetzt nötig, bevor die Bildschirmfreigabe starten kann.</string>
+    <string name="sf_assist_later">Vorerst überspringen (der Helfer kann nur zusehen)</string>
+    <string name="sf_share_title">Bildschirm freigeben</string>
+    <string name="sf_live_next">Als Nächstes: Der Helfer tippt auf seinem Telefon auf „Bildschirm ansehen“ — dein Bildschirm erscheint dort und er kann helfen.</string>
+    <string name="sf_continue_title">Sitzungs-Setup fortsetzen</string>
+    <string name="sf_continue_desc">Ein Fenster nach dem anderen: zuerst die fehlenden Berechtigungen, dann die Bildschirmfreigabe.</string>
+    <string name="sf_continue_btn">Fortsetzen</string>
+    <string name="sf_consent_open">Erlauben &amp; einrichten</string>
     <string name="dlg_consent_title">Hilfeanfrage</string>
     <string name="dlg_guest_note">Gast-Helfer (temporär) — der Link löscht sich nach 2 Stunden selbst.</string>
     <string name="act_title">Aktivität</string>

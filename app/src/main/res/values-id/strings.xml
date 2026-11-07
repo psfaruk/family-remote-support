@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">Permintaan ditolak.</string>
     <string name="msg_deny_fail">Tidak bisa menolak: %1$s</string>
     <string name="btn_deny">Tolak</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Langkah %1$d dari %2$d</string>
+    <string name="sf_why_now">Diperlukan sekarang, sebelum berbagi layar bisa dimulai.</string>
+    <string name="sf_assist_later">Lewati dulu (pembantu hanya bisa menonton)</string>
+    <string name="sf_share_title">Bagikan layar Anda</string>
+    <string name="sf_live_next">Berikutnya: pembantu mengetuk “Lihat layar” di teleponnya — layar Anda muncul di sana dan ia bisa membantu.</string>
+    <string name="sf_continue_title">Lanjutkan penyiapan sesi</string>
+    <string name="sf_continue_desc">Satu jendela demi satu jendela: izin yang kurang dulu, lalu berbagi layar.</string>
+    <string name="sf_continue_btn">Lanjutkan</string>
+    <string name="sf_consent_open">Izinkan &amp; siapkan</string>
     <string name="dlg_consent_title">Permintaan bantuan</string>
     <string name="dlg_guest_note">Pembantu tamu (sementara) — tautan terhapus sendiri setelah 2 jam.</string>
     <string name="act_title">Aktivitas</string>

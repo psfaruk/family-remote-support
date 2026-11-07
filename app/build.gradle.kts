@@ -272,8 +272,8 @@ android {
         // Firestore rules re-audited path-by-path against the code — the
         // repo rules are coherent (see worklog §98); the failure was the
         // missing UI wiring, not the rules. See worklog §98.
-        versionCode = 74
-        versionName = "0.52.0"
+        versionCode = 75
+        versionName = "0.53.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

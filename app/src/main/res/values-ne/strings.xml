@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">अनुरोध अस्वीकृत भयो।</string>
     <string name="msg_deny_fail">अस्वीकार गर्न सकिएन: %1$s</string>
     <string name="btn_deny">अस्वीकार</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">चरण %1$d / %2$d</string>
+    <string name="sf_why_now">स्क्रिन साझा सुरु हुनुअघि अहिले यो चाहिन्छ।</string>
+    <string name="sf_assist_later">अहिलेका लागि छाड्नुहोस् (सहयोगीले हेर्न मात्र सक्नुहुन्छ)</string>
+    <string name="sf_share_title">आफ्नो स्क्रिन साझा गर्नुहोस्</string>
+    <string name="sf_live_next">अर्को: सहयोगीले आफ्नो फोनमा «स्क्रिन हेर्नुहोस्» थिच्नुहुन्छ — तपाईंको स्क्रिन त्यहाँ देखिन्छ र उहाँले मद्दत गर्न सक्नुहुन्छ।</string>
+    <string name="sf_continue_title">सत्र सेटअप जारी राख्नुहोस्</string>
+    <string name="sf_continue_desc">एक पटकमा एक सञ्झ्याल: पहिले बाँकी अनुमतिहरू, त्यसपछि स्क्रिन साझा।</string>
+    <string name="sf_continue_btn">जारी राख्नुहोस्</string>
+    <string name="sf_consent_open">अनुमति दिएर सेटअप सुरु गर्नुहोस्</string>
     <string name="dlg_consent_title">सहयोगको अनुरोध</string>
     <string name="dlg_guest_note">अतिथि (अस्थायी) सहयोगी — लिंक २ घण्टापछि आफै मेटिन्छ।</string>
     <string name="act_title">गतिविधि</string>

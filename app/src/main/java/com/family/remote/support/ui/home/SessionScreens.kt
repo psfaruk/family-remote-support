@@ -26,7 +26,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.family.remote.support.Nicknames
 import com.family.remote.support.R
+import com.family.remote.support.ScreenShareEngine
 import com.family.remote.support.SessionView
+import com.family.remote.support.ShareState
 import com.family.remote.support.describeFirestoreError
 import com.family.remote.support.getSession
 import com.family.remote.support.localizedMessage
@@ -39,6 +41,7 @@ import com.family.remote.support.ui.components.Fmt
 import com.family.remote.support.ui.components.LoadingSkeleton
 import com.family.remote.support.ui.components.SectionCard
 import com.family.remote.support.ui.components.StatusBadge
+import com.family.remote.support.ui.components.WideOutlinedButton
 import com.family.remote.support.ui.components.appLocale
 import com.family.remote.support.ui.components.relTime
 import com.family.remote.support.ui.components.tickingNow
@@ -307,14 +310,82 @@ fun SessionDetailScreen(
                     )
                 }
 
+                // v0.53.0 (worklog §100) — the deep-link fix: the ask
+                // notification lands on THIS screen, which used to offer
+                // the REQUESTED recipient NO way to answer — they had to
+                // press Back, find the consent card on Home, grant, then
+                // navigate forward again (the Owner's core complaint).
+                // The full answer — consent window first — starts here.
+                if (session.status == "REQUESTED" && !isHelper) {
+                    BigButton(
+                        text = stringResource(R.string.sf_consent_open),
+                        onClick = { onOpenRoute(AppRoutes.sessionFlow(session.id)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    WideOutlinedButton(
+                        text = stringResource(R.string.btn_deny),
+                        onClick = {
+                            scope.launch {
+                                busy = true
+                                error = null
+                                try {
+                                    vm.deny(session.id)
+                                } catch (e: com.family.remote.support.SessionException) {
+                                    error = e.localizedMessage(context)
+                                } catch (e: Exception) {
+                                    error = describeFirestoreError(context, e)
+                                } finally {
+                                    busy = false
+                                }
+                            }
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
                 if (session.status == "ACTIVE") {
                     // W4 (v0.52.0): the LIVE session surfaces, in-tab:
                     // the helper watches + touches HERE; the recipient
                     // shares HERE (and on Home, right under the live hint).
+                    // v0.53.0 — the recipient's NOT-sharing entry is the
+                    // full-screen flow launcher (state-aware: granted
+                    // permission windows are skipped); the live share card
+                    // renders only while the engine is actually sharing.
+                    val engineState by ScreenShareEngine.state.collectAsState()
+                    val sharingNow =
+                        engineState !in setOf(ShareState.IDLE, ShareState.ENDED)
                     if (isHelper) {
                         HelperViewerSection(session = session, user = user, vm = vm)
-                    } else {
+                    } else if (sharingNow) {
                         RecipientShareCard(session = session, user = user)
+                        BigButton(
+                            text = stringResource(R.string.btn_end_session),
+                            danger = true,
+                            loading = busy,
+                            onClick = {
+                                scope.launch {
+                                    busy = true
+                                    error = null
+                                    try {
+                                        vm.end(session.id)
+                                    } catch (e: com.family.remote.support.SessionException) {
+                                        error = e.localizedMessage(context)
+                                    } catch (e: Exception) {
+                                        error = describeFirestoreError(context, e)
+                                    } finally {
+                                        busy = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        // v0.53.0 — recipient, ACTIVE, not sharing yet: the
+                        // one-button door back into the sequential flow.
+                        SessionFlowLauncher(
+                            onOpen = { onOpenRoute(AppRoutes.sessionFlow(session.id)) },
+                        )
                         BigButton(
                             text = stringResource(R.string.btn_end_session),
                             danger = true,

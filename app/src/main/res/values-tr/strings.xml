@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">İstek reddedildi.</string>
     <string name="msg_deny_fail">Reddedilemedi: %1$s</string>
     <string name="btn_deny">Reddet</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Adım %1$d / %2$d</string>
+    <string name="sf_why_now">Ekran paylaşımı başlamadan önce şu an gerekiyor.</string>
+    <string name="sf_assist_later">Şimdilik atla (yardımcı yalnızca izleyebilir)</string>
+    <string name="sf_share_title">Ekranınızı paylaşın</string>
+    <string name="sf_live_next">Sıradaki: yardımcı kendi telefonunda “Ekranı gör”e dokunur — ekranınız orada görünür ve size yardım edebilir.</string>
+    <string name="sf_continue_title">Oturum kurulumuna devam et</string>
+    <string name="sf_continue_desc">Tek seferde bir pencere: önce eksik izinler, sonra ekran paylaşımı.</string>
+    <string name="sf_continue_btn">Devam et</string>
+    <string name="sf_consent_open">İzin ver ve kur</string>
     <string name="dlg_consent_title">Yardım isteği</string>
     <string name="dlg_guest_note">Misafir (geçici) yardımcı — bağlantı 2 saat sonra kendiliğinden silinir.</string>
     <string name="act_title">Etkinlik</string>

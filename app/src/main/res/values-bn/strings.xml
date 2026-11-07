@@ -355,6 +355,16 @@
     <string name="msg_deny_ok">অনুরোধ প্রত্যাখ্যাত হয়েছে।</string>
     <string name="msg_deny_fail">প্রত্যাখ্যান করা যায়নি: %1$s</string>
     <string name="btn_deny">Deny · না</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">ধাপ %1$d / %2$d</string>
+    <string name="sf_why_now">স্ক্রিন শেয়ার শুরু হওয়ার আগেই এখন এটি লাগবে।</string>
+    <string name="sf_assist_later">আপাতত বাদ দিন (সাহায্যকারী শুধু দেখতে পারবেন)</string>
+    <string name="sf_share_title">আপনার স্ক্রিন শেয়ার করুন</string>
+    <string name="sf_live_next">এরপর: সাহায্যকারী ওঁনার ফোনে “স্ক্রিন দেখুন” চাপবেন — আপনার স্ক্রিন সেখানে দেখা যাবে এবং তিনি সাহায্য করতে পারবেন।</string>
+    <string name="sf_continue_title">সেশন সেটআপ চালিয়ে যান</string>
+    <string name="sf_continue_desc">একবারে একটি উইন্ডো: আগে বাকি পারমিশনগুলো, তারপর স্ক্রিন শেয়ার।</string>
+    <string name="sf_continue_btn">চালিয়ে যান</string>
+    <string name="sf_consent_open">অনুমতি দিয়ে সেটআপ শুরু করুন</string>
     <string name="dlg_consent_title">সাহায্যের অনুরোধ</string>
     <string name="dlg_guest_note">Guest (সাময়িক) সাহায্যকারী — লিংক ২ ঘণ্টা পরে নিজেই মুছে যাবে।</string>
     <string name="act_title">একটিভিটি</string>

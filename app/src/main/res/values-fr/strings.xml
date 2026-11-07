@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">Demande refusée.</string>
     <string name="msg_deny_fail">Impossible de refuser : %1$s</string>
     <string name="btn_deny">Refuser</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Étape %1$d sur %2$d</string>
+    <string name="sf_why_now">Nécessaire maintenant, avant que le partage d\'écran puisse commencer.</string>
+    <string name="sf_assist_later">Ignorer pour l\'instant (l\'assistant pourra seulement regarder)</string>
+    <string name="sf_share_title">Partagez votre écran</string>
+    <string name="sf_live_next">Ensuite : l\'assistant appuie sur « Voir l\'écran » sur son téléphone — votre écran y apparaît et il peut vous aider.</string>
+    <string name="sf_continue_title">Continuer la configuration de la session</string>
+    <string name="sf_continue_desc">Une fenêtre à la fois : d\'abord les autorisations manquantes, puis le partage d\'écran.</string>
+    <string name="sf_continue_btn">Continuer</string>
+    <string name="sf_consent_open">Autoriser et configurer</string>
     <string name="dlg_consent_title">Demande d\'aide</string>
     <string name="dlg_guest_note">Aide invité (temporaire) — le lien s\'efface tout seul après 2 heures.</string>
     <string name="act_title">Activité</string>

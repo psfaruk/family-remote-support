@@ -681,9 +681,13 @@ fun RecipientShareCard(session: SessionView, user: FirebaseUser) {
     }
 }
 
-/** Small local-preview surface (the sharer's own picture-in-picture). */
+/**
+ * Small local-preview surface (the sharer's own picture-in-picture).
+ * v0.53.0 — module-visible: the full-screen session flow's LIVE window
+ * reuses the EXACT same surface (one variant, ever).
+ */
 @Composable
-private fun SelfPreview() {
+internal fun SelfPreview() {
     var renderer by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
     // Same EGL-readiness gate as the helper's viewer (the engine creates
     // its factory after the ≤5 s config fetch, while state is PREPARING).

@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">Запрос отклонён.</string>
     <string name="msg_deny_fail">Не удалось отклонить: %1$s</string>
     <string name="btn_deny">Отклонить</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Шаг %1$d из %2$d</string>
+    <string name="sf_why_now">Нужно сейчас, до начала трансляции экрана.</string>
+    <string name="sf_assist_later">Пока пропустить (помощник сможет только смотреть)</string>
+    <string name="sf_share_title">Поделитесь своим экраном</string>
+    <string name="sf_live_next">Далее: помощник нажмёт «Смотреть экран» на своём телефоне — ваш экран появится там, и он сможет помочь.</string>
+    <string name="sf_continue_title">Продолжить настройку сеанса</string>
+    <string name="sf_continue_desc">По одному окну за раз: сначала недостающие разрешения, затем трансляция экрана.</string>
+    <string name="sf_continue_btn">Продолжить</string>
+    <string name="sf_consent_open">Разрешить и настроить</string>
     <string name="dlg_consent_title">Запрос помощи</string>
     <string name="dlg_guest_note">Гостевой (временный) помощник — ссылка удалится сама через 2 часа.</string>
     <string name="act_title">Активность</string>

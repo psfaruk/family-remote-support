@@ -65,6 +65,7 @@ import com.family.remote.support.ui.home.HomeTab
 import com.family.remote.support.ui.home.HomeViewModel
 import com.family.remote.support.ui.home.MemberDetailScreen
 import com.family.remote.support.ui.home.SessionDetailScreen
+import com.family.remote.support.ui.home.SessionFlowScreen
 import com.family.remote.support.ui.home.SessionsScreen
 import com.family.remote.support.ui.notifications.NotificationsScreen
 import com.family.remote.support.ui.settings.SettingsTab
@@ -101,6 +102,9 @@ object AppRoutes {
     const val HOME_FAMILY_ARG = "home/family/{relId}"
     const val HOME_SESSIONS = "home/sessions"
     const val HOME_SESSION_ARG = "home/sessions/{id}"
+
+    /** v0.53.0 — the sequential full-screen session flow (worklog §100). */
+    const val HOME_SESSION_FLOW_ARG = "home/session-flow/{id}"
     // v0.52.0: HOME_ADD ("home/add") REMOVED — it hosted the ADD tab's root
     // composable under the HOME tab's stack (nothing navigated to it, but
     // the plan's contract was "home/add (quick action) → routes INTO the
@@ -130,6 +134,9 @@ object AppRoutes {
     /** Filled helpers (arg-bearing patterns take values at call time). */
     fun homeFamily(relId: String): String = HOME_FAMILY_ARG.replace("{relId}", relId)
     fun homeSession(id: String): String = HOME_SESSION_ARG.replace("{id}", id)
+
+    /** v0.53.0 — the immersive route each session-flow window lives at. */
+    fun sessionFlow(id: String): String = HOME_SESSION_FLOW_ARG.replace("{id}", id)
     fun trackingDetail(relId: String): String = TRACKING_DETAIL_ARG.replace("{relId}", relId)
     fun trackingHistory(relId: String): String = TRACKING_HISTORY_ARG.replace("{relId}", relId)
 
@@ -151,6 +158,7 @@ object AppRoutes {
         route in concrete -> true
         route.startsWith("home/family/") -> true
         route.startsWith("home/sessions/") -> true
+        route.startsWith("home/session-flow/") -> true
         route.startsWith("tracking/") -> true
         else -> false
     }
@@ -225,6 +233,12 @@ fun RootShell() {
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
 
+    // v0.53.0 — the session flow is IMMERSIVE: its windows fit the WHOLE
+    // screen (the Owner's "প্রত্যেকটি উইন্ডো স্ক্রিন এ ফিট থাকবে"), so both
+    // bars step aside and the host takes the full size. Any other route
+    // keeps the standard shell.
+    val immersive = route?.startsWith("home/session-flow/") == true
+
     // Which tab is lit: the owning tab of the current route; a route that
     // belongs to no tab (notifications) keeps the last tab lit.
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.HOME) }
@@ -246,27 +260,31 @@ fun RootShell() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    IconButton(
-                        onClick = { goRoute(nav, AppRoutes.NOTIFICATIONS) }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Notifications,
-                            contentDescription = stringResource(R.string.notif_title),
-                        )
-                    }
-                },
-            )
+            if (!immersive) {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.app_name)) },
+                    actions = {
+                        IconButton(
+                            onClick = { goRoute(nav, AppRoutes.NOTIFICATIONS) }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Notifications,
+                                contentDescription = stringResource(R.string.notif_title),
+                            )
+                        }
+                    },
+                )
+            }
         },
         bottomBar = {
-            AppBottomNav(
-                selected = selectedTab,
-                onSelect = { tab ->
-                    if (tab != selectedTab) switchTab(nav, tab.route)
-                },
-            )
+            if (!immersive) {
+                AppBottomNav(
+                    selected = selectedTab,
+                    onSelect = { tab ->
+                        if (tab != selectedTab) switchTab(nav, tab.route)
+                    },
+                )
+            }
         },
     ) { padding ->
         AppNavHost(
@@ -276,7 +294,7 @@ fun RootShell() {
             addVm = addVm,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .then(if (immersive) Modifier else Modifier.padding(padding)),
         )
     }
 }
@@ -478,6 +496,25 @@ private fun AppNavHost(
         ) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             SessionDetailScreen(sessionId = id, user = user, vm = homeVm, onOpenRoute = go, onBack = back)
+        }
+        composable(
+            AppRoutes.HOME_SESSION_FLOW_ARG,
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            enterTransition = { slideInHorizontally(tween(NESTED_MS)) { it / 4 } + fadeIn(tween(NESTED_MS)) },
+            exitTransition = { fadeOut(tween(TAB_MS)) },
+            popEnterTransition = { fadeIn(tween(TAB_MS)) },
+            popExitTransition = { slideOutHorizontally(tween(NESTED_MS)) { it / 4 } + fadeOut(tween(NESTED_MS)) },
+        ) { entry ->
+            // v0.53.0 (worklog §100) — the sequential full-screen session
+            // flow: one window per permission, in order, at the moment each
+            // is actually needed; the shell hides both bars for it above.
+            val id = entry.arguments?.getString("id").orEmpty()
+            SessionFlowScreen(
+                sessionId = id,
+                user = user,
+                vm = homeVm,
+                onExit = back,
+            )
         }
 
         // ── Tab ADD DEVICE (W3: the REAL pairing subtree — plan §2.3) ──

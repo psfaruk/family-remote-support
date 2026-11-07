@@ -349,6 +349,16 @@
     <string name="msg_deny_ok">已拒绝请求。</string>
     <string name="msg_deny_fail">无法拒绝：%1$s</string>
     <string name="btn_deny">拒绝</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">第 %1$d 步，共 %2$d 步</string>
+    <string name="sf_why_now">在屏幕共享开始之前，现在就需要它。</string>
+    <string name="sf_assist_later">暂时跳过（帮助者只能观看）</string>
+    <string name="sf_share_title">共享您的屏幕</string>
+    <string name="sf_live_next">下一步：帮助者在其手机上点按“观看屏幕”——您的屏幕将显示在那里，他们即可提供帮助。</string>
+    <string name="sf_continue_title">继续会话设置</string>
+    <string name="sf_continue_desc">一次一个窗口：先补齐缺失的权限，然后进行屏幕共享。</string>
+    <string name="sf_continue_btn">继续</string>
+    <string name="sf_consent_open">允许并开始设置</string>
     <string name="dlg_consent_title">帮助请求</string>
     <string name="dlg_guest_note">访客（临时）帮助者 — 链接将在 2 小时后自动删除。</string>
     <string name="act_title">活动</string>

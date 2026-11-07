@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">リクエストを拒否しました。</string>
     <string name="msg_deny_fail">拒否できませんでした: %1$s</string>
     <string name="btn_deny">拒否</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">ステップ %1$d / %2$d</string>
+    <string name="sf_why_now">画面共有を始める前に、今必要です。</string>
+    <string name="sf_assist_later">今はスキップ（支援者は閲覧のみ可能）</string>
+    <string name="sf_share_title">画面を共有する</string>
+    <string name="sf_live_next">次のステップ：支援者が自分のスマホで「画面を見る」をタップすると、あなたの画面がそこに表示され、支援を受けられます。</string>
+    <string name="sf_continue_title">セッションのセットアップを続ける</string>
+    <string name="sf_continue_desc">一度に 1 つのウィンドウ：まず足りない権限、次に画面共有。</string>
+    <string name="sf_continue_btn">続ける</string>
+    <string name="sf_consent_open">許可してセットアップ</string>
     <string name="dlg_consent_title">サポートのリクエスト</string>
     <string name="dlg_guest_note">ゲスト（一時的）ヘルパー — リンクは2時間後に自動的に消えます।</string>
     <string name="act_title">アクティビティ</string>

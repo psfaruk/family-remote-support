@@ -2,6 +2,7 @@ package com.family.remote.support.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.family.remote.support.ConfigRepo
 import com.family.remote.support.PresenceView
 import com.family.remote.support.RelationshipView
 import com.family.remote.support.SessionView
@@ -69,6 +70,9 @@ class HomeViewModel : ViewModel() {
     private val stopPresence = mutableMapOf<String, () -> Unit>()
     private var seenOpenIds: Set<String> = emptySet()
 
+    /** v0.53.0 — session ids already config-prewarmed (the latency fix). */
+    private val prewarmedIds = mutableSetOf<String>()
+
     /** The signed-in user changed (sign-in, sign-out) — swap every listener. */
     fun setUser(newUser: FirebaseUser?) {
         if (newUser?.uid == user?.uid) return
@@ -91,6 +95,7 @@ class HomeViewModel : ViewModel() {
         stopSessions = watchSessions(
             u,
             onUpdate = { open ->
+                prewarmSessionConfig(open)
                 trackJustClosed(open)
                 _ui.update { it.copy(sessions = open, loading = false, error = null) }
             },
@@ -104,6 +109,39 @@ class HomeViewModel : ViewModel() {
             },
             onError = { e -> _ui.update { it.copy(loading = false, error = e) } },
         )
+    }
+
+    /**
+     * v0.53.0 (worklog §100 — the "স্লো করে কাজ করছে, late এ কাজ করছে"
+     * wave) — CONFIG PREWARM. The engine used to fetch config/turn +
+     * config/quality (each with a 5 s cold-cache ceiling) at the very
+     * moment a share/watch starts — the helper's "Watch screen" tap could
+     * stall up to 5 s BEFORE its "watch" signal, and the recipient's offer
+     * another 5 s after that, on every cold session. This listener sees a
+     * REQUESTED/ACTIVE session the moment it exists — seconds or minutes
+     * before anyone taps anything — so both fetches run there, once per
+     * session id, best-effort. By the time the engine calls
+     * ConfigRepo.fetchTurnServers()/fetchQuality() they hit the warm
+     * 10-min/60-s caches and return instantly. Both fetches swallow their
+     * own failures (documented ConfigRepo contract) — a config hiccup
+     * still never blocks a session.
+     */
+    private fun prewarmSessionConfig(open: List<SessionView>) {
+        val fresh = open.asSequence()
+            .filter { it.status == "REQUESTED" || it.status == "ACTIVE" }
+            .map { it.id }
+            .filter { it !in prewarmedIds }
+            .toList()
+        if (fresh.isEmpty()) return
+        prewarmedIds += fresh
+        viewModelScope.launch {
+            try {
+                ConfigRepo.fetchTurnServers()
+                ConfigRepo.fetchQuality()
+            } catch (_: Exception) {
+                // best-effort only; the engine re-fetches on its own anyway
+            }
+        }
     }
 
     /**
@@ -185,6 +223,7 @@ class HomeViewModel : ViewModel() {
         stopPresence.values.forEach { it() }
         stopPresence.clear()
         seenOpenIds = emptySet()
+        prewarmedIds.clear()
     }
 
     override fun onCleared() {

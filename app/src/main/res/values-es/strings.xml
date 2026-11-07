@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">Solicitud rechazada.</string>
     <string name="msg_deny_fail">No se pudo rechazar: %1$s</string>
     <string name="btn_deny">Rechazar</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">Paso %1$d de %2$d</string>
+    <string name="sf_why_now">Se necesita ahora, antes de que pueda comenzar el uso compartido de pantalla.</string>
+    <string name="sf_assist_later">Omitir por ahora (el ayudante solo podrá mirar)</string>
+    <string name="sf_share_title">Comparte tu pantalla</string>
+    <string name="sf_live_next">A continuación: el ayudante toca «Ver pantalla» en su teléfono — tu pantalla aparecerá allí y podrá ayudarte.</string>
+    <string name="sf_continue_title">Continuar la configuración de la sesión</string>
+    <string name="sf_continue_desc">Una ventana a la vez: primero los permisos que faltan y luego el uso compartido de pantalla.</string>
+    <string name="sf_continue_btn">Continuar</string>
+    <string name="sf_consent_open">Permitir y configurar</string>
     <string name="dlg_consent_title">Solicitud de ayuda</string>
     <string name="dlg_guest_note">Ayudante invitado (temporal) — el enlace se elimina solo tras 2 horas.</string>
     <string name="act_title">Actividad</string>

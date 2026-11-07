@@ -350,6 +350,16 @@
     <string name="msg_deny_ok">تم رفض الطلب.</string>
     <string name="msg_deny_fail">تعذّر الرفض: %1$s</string>
     <string name="btn_deny">رفض</string>
+    <!-- v0.53.0 (worklog §100) — the sequential full-screen session flow. -->
+    <string name="sf_step_of">خطوة %1$d من %2$d</string>
+    <string name="sf_why_now">مطلوبة الآن قبل بدء مشاركة الشاشة.</string>
+    <string name="sf_assist_later">تخطَّ الآن (سيتمكن المساعد من المشاهدة فقط)</string>
+    <string name="sf_share_title">شارك شاشتك</string>
+    <string name="sf_live_next">التالي: يضغط المساعد «مشاهدة الشاشة» على هاتفه — ستظهر شاشتك هناك ويستطيع المساعدة.</string>
+    <string name="sf_continue_title">متابعة إعداد الجلسة</string>
+    <string name="sf_continue_desc">نافذة واحدة في كل مرة: الأذونات الناقصة أولًا ثم مشاركة الشاشة.</string>
+    <string name="sf_continue_btn">متابعة</string>
+    <string name="sf_consent_open">السماح وبدء الإعداد</string>
     <string name="dlg_consent_title">طلب مساعدة</string>
     <string name="dlg_guest_note">مساعد ضيف (مؤقت) — يُحذف الرابط تلقائيًا بعد ساعتين.</string>
     <string name="act_title">النشاط</string>
