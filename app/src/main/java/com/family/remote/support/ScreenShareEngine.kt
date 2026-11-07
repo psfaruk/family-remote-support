@@ -696,7 +696,8 @@ object ScreenShareEngine {
             watchSignals()
         } catch (e: Exception) {
             captureAlive = false
-            fail(loc(R.string.ss_fail_capture, e.message ?: e.javaClass.simpleName))
+            diagLog("capture failed: ${e.message ?: e.javaClass.simpleName}")
+            fail(loc(R.string.ss_fail_capture))
         }
     }
 
@@ -974,11 +975,13 @@ object ScreenShareEngine {
                     diagLog("watch sent → waiting for the offer")
                     startTicker()
                 } catch (e: Exception) {
-                    fail(loc(R.string.ss_fail_watch, e.message ?: e.javaClass.simpleName))
+                    diagLog("watch failed: ${e.message ?: e.javaClass.simpleName}")
+                    fail(loc(R.string.ss_fail_watch))
                 }
             }
         } catch (e: Exception) {
-            fail(loc(R.string.ss_fail_viewer, e.message ?: e.javaClass.simpleName))
+            diagLog("viewer failed: ${e.message ?: e.javaClass.simpleName}")
+            fail(loc(R.string.ss_fail_viewer))
         }
     }
 
@@ -1272,7 +1275,7 @@ object ScreenShareEngine {
             onSignal = { type, ep, payload, createdAt ->
                 main.post { handleSignal(type, ep, payload, createdAt) }
             },
-            onError = { e -> main.post { fail(loc(R.string.ss_fail_signal, e.message ?: "unknown")) } }
+            onError = { e -> main.post { diagLog("signal error: ${e.message ?: \"unknown\"}"); fail(loc(R.string.ss_fail_signal)) } }
         )
         signalStop = stop
         // Clear stale documents addressed to me from earlier rounds.
@@ -1872,7 +1875,8 @@ object ScreenShareEngine {
         try {
             createPeer()
         } catch (e: Exception) {
-            fail(loc(R.string.ss_fail_viewer, e.message ?: e.javaClass.simpleName))
+            diagLog("recreate peer failed: ${e.message ?: e.javaClass.simpleName}")
+            fail(loc(R.string.ss_fail_viewer))
             return
         }
         SignalingRepo.clearAsync(sid, me)
@@ -1883,7 +1887,8 @@ object ScreenShareEngine {
                 _info.value = loc(R.string.ss_retried_watch, reason)
                 startTicker()
             } catch (e: Exception) {
-                fail(loc(R.string.ss_fail_watch, e.message ?: e.javaClass.simpleName))
+                diagLog("watch failed: ${e.message ?: e.javaClass.simpleName}")
+                fail(loc(R.string.ss_fail_watch))
             }
         }
     }
@@ -1943,8 +1948,8 @@ object ScreenShareEngine {
                         _state.value = ShareState.CONNECTING
                         _info.value = loc(R.string.ss_info_offer_sent)
                     } catch (e: Exception) {
-                        diagLog("offer send FAILED: ${e.message ?: e.javaClass.simpleName}")
-                        fail(loc(R.string.ss_fail_offer, e.message ?: e.javaClass.simpleName))
+                        diagLog("offer failed: ${e.message ?: e.javaClass.simpleName}")
+                        fail(loc(R.string.ss_fail_offer))
                     }
                 }
             }
@@ -2008,8 +2013,8 @@ object ScreenShareEngine {
                                         _state.value = ShareState.CONNECTING
                                         _info.value = loc(R.string.ss_info_answer_sent)
                                     } catch (e: Exception) {
-                                        diagLog("answer send FAILED: ${e.message ?: e.javaClass.simpleName}")
-                                        fail(loc(R.string.ss_fail_answer, e.message ?: e.javaClass.simpleName))
+                                        diagLog("answer failed: ${e.message ?: e.javaClass.simpleName}")
+                                        fail(loc(R.string.ss_fail_answer))
                                     }
                                 }
                             }

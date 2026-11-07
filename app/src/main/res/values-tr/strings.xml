@@ -239,7 +239,7 @@
     <string name="set_section_activity">Etkinlik</string>
     <string name="set_section_about">Hakkında</string>
     <string name="set_about_sub">Sürüm, paket ve politikalar</string>
-    <string name="about_storage">Hesabınız ve cihaz verileri yalnızca bu uygulamanın kendi Firebase projesinde durur. Ekran içeriği asla kaydedilmez.</string>
+    <string name="about_storage">Hesabınız ve cihaz verileriniz yalnızca bu uygulamanın kendi güvenli bulutunda durur. Ekran içeriği asla kaydedilmez veya saklanmaz.</string>
     <string name="set_sign_out">Oturumu kapat</string>
     <string name="set_test_notif">Test bildirimi gönder</string>
     <string name="set_test_notif_sent">Test bildirimi gönderildi — bildirim paneline bakın ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">Şifremi unuttum</string>
     <string name="auth_or">veya</string>
     <string name="auth_google">Google ile devam et</string>
-    <string name="auth_footer">Hesabınız ve cihaz verileri yalnızca kendi Firebase projenizde durur. Eşleşmek kalıcı erişim demek değildir — her oturum yeniden sorar.</string>
+    <string name="auth_footer">Hesabınız ve telefon verileriniz yalnızca uygulamanın kendi güvenli bulutunda durur. Eşleşmek kalıcı izin demek değildir — her oturum yeniden sorar.</string>
     <string name="privacy_title">Gizlilik politikası</string>
     <string name="rules_title">Kullanım kuralları</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">Aileden biri</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Bu kurallar Family Remote Support\'u herkes için güvende tutar.\n\n1. Önce izin. Her yardım oturumu, yardımı alan telefonda taze ve açık bir onay gerektirir. Yalnızca eşleştirme asla erişim sağlamaz.\n\n2. Eşleştirme kodları tek kullanımlıktır ve yaklaşık 5 dakika içinde geçersiz olur. Bir kod yalnızca bir kez ve yalnızca onu zamanında tarayan veya yazan kişi tarafından kullanılabilir.\n\n3. Konuk yardımı geçicidir. Konuk bağlantısı 2 saat sonra kendiliğinden sona erer ve asla kendiliğinden kalıcı bir aile eşleştirmesine dönüşemez.\n\n4. Her zaman durdurabilirsiniz. Yardım alan kişi bir isteği reddedebilir, devam eden bir oturumu her an bitirebilir veya eşleştirilmiş bir telefonu tamamen iptal edebilir.\n\n5. Yardımcı güvenilir olmalıdır. Kodunuzu veya QR\'ınızı yalnızca gerçekten güvendiğiniz kişilerle paylaşın. Oturum sürerken yardımcı ekranınızı görür — emin değilseniz önce hassas uygulamaları kapatın.\n\n6. Atlatma yok. Uygulama asla bir telefonun kilidini açmaya, şifre okumaya, sessizce izin vermeye veya oturumun sürdüğünü gizlemeye çalışmaz. Yalnızca Android\'in açıkça izin verdiği çerçevede çalışır.\n\n7. Yalnızca adil kullanım. Uygulamayı kimseyi rahatsız etmek, casusluk yapmak veya baskı kurmak için kullanmayın. Kötüye kullanım erişimin iptaline yol açar.\n\n8. Önce aile. Bu uygulama, aile üyelerine ve yakın arkadaşlara telefonlarında yardım etmek için yapılmıştır — başka hiçbir şey için değil.</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">Oturum açma iptal edildi veya başarısız</string>
-    <string name="auth_failed">Oturum açılamadı: %1$s</string>
+    <string name="auth_failed">Oturum açılamadı. Lütfen tekrar deneyin.</string>
     <string name="auth_reset_sent">Şifre sıfırlama bağlantısı %1$s adresine gönderildi — e-postayı (spam dahil) kontrol edin.</string>
     <string name="so_cleanup_failed">Çıkış yapıldı — ancak ağ sorunu nedeniyle bu telefonun varlık/push jetonu silinemedi. Daha sonra internetle giriş yapıp tekrar çıkın, temizlenir.</string>
     <string name="so_cleanup_ok">Çıkış tamamlandı — bu telefonun varlığı ve push jetonu sunucudan silindi.</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">Metin yazın…</string>
     <string name="btn_cancel_plain">İptal</string>
     <string name="btn_send">Gönder</string>
-    <string name="err_perm_denied">Güvenlik kuralları izin vermedi — pratikte bu, iki telefondan birinin ESKİ uygulama sürümü kullandığı anlamına gelir (eşleştirme sürüme kilitli). Her İKİ telefonu da en son sürüme güncelleyip yeniden eşleştirin. Hâlâ başarısız olursa, depodan en yeni android-app/firestore.rules dosyasını yayınlayın (Firebase konsolu → Firestore Database → Rules).</string>
-    <string name="err_db_missing">Firestore veritabanı bulunamadı — Firebase konsolunda Build → Firestore Database bölümünü açıp veritabanı oluşturmayı tamamlayın.</string>
-    <string name="err_unreachable">Firestore\'a ulaşılamadı — internet bağlantısını kontrol edip tekrar deneyin.</string>
+    <string name="err_perm_denied">Uygulamanın güvenlik koruması bağlantıyı engelledi — pratikte bu, iki telefondan birinin eski bir uygulama sürümü kullandığı anlamına gelir. İKİ telefonu da en yeni sürüme güncelleyip yeniden eşleştirin. Sorun sürerse birazdan tekrar deneyin.</string>
+    <string name="err_db_missing">Hizmet henüz tam hazır değil — birkaç dakika sonra tekrar deneyin. Sürüyorsa uygulamayı en yeni sürüme güncelleyin.</string>
+    <string name="err_unreachable">Hizmete ulaşılamadı — internet bağlantısını kontrol edip tekrar deneyin.</string>
     <string name="err_code_length">Eşleştirme kodu %1$d karakterden oluşur (%2$d + %3$d; eski uygulama sürümleri %4$d kullanır). Bu kodda %5$d var.</string>
     <string name="err_code_not_found">Kod bulunamadı — ilk %1$d karakteri kontrol edin.</string>
     <string name="err_own_code">Bu sizin kendi kodunuz — yardımcı bunu KENDİ telefonuna, kendi Google hesabıyla giriş yaparak yazmalı.</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">Yanlış kod — her karakteri diğer telefonla karşılaştırın.</string>
     <string name="err_pair_family_exists">Bu çift zaten Family (kalıcı) olarak bağlandı — burada misafir kodu gerekmez.</string>
     <string name="err_pair_guest_exists">Bu çift Misafir olarak bağlandı. Family yapmak için yardımı alan telefondan Misafir bağlantısını kaldırın ve yeni bir Family kodu oluşturun.</string>
-    <string name="err_generic">Firestore hatası %1$s: %2$s</string>
-    <string name="err_quota">Firebase\'in ücretsiz günlük kullanım limiti doldu — günlük kota sıfırlandığında (öğle civarı) her şey yeniden çalışacak. Veri kaybı yok.</string>
+    <string name="err_generic">Bir şeyler ters gitti. Lütfen tekrar deneyin.</string>
+    <string name="err_quota">Bu uygulamanın günlük kullanım limiti doldu — günlük sıfırlamadan (öğlen civarı) sonra her şey yeniden çalışacak. Hiçbir veri kaybolmadı.</string>
     <string name="cd_details">Ayrıntılar</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">Yanıt verilemedi — yardımcı otomatik olarak yeniden deneyecek.</string>
     <string name="ss_recover_apply_failed">Yardımcının yanıtı uygulanamadı — yardımcı yeniden deneyecek.</string>
     <string name="ss_fail_projection_stopped">Ekran yansıtma sistem tarafından durduruldu — \"Ekranı paylaş\" düğmesine yeniden dokunun.</string>
-    <string name="ss_fail_capture">Ekran yakalanamadı: %1$s</string>
-    <string name="ss_fail_watch">İzleme isteği gönderilemedi: %1$s</string>
-    <string name="ss_fail_viewer">Görüntüleyici başlatılamadı: %1$s</string>
+    <string name="ss_fail_capture">Ekran yakalama başarısız oldu. Lütfen tekrar deneyin.</string>
+    <string name="ss_fail_watch">Ekranı izleme isteği gönderilemedi. Lütfen tekrar deneyin.</string>
+    <string name="ss_fail_viewer">Görüntüleyici başlatılamadı. Lütfen tekrar deneyin.</string>
     <string name="ss_fail_conn_stopped">Bağlantı kurulamadı — \"Paylaşımı durdur\" düğmesine dokunun, sonra yeniden paylaşın.</string>
     <string name="ss_fail_no_engine">Bu telefonda WebRTC motoru oluşturulamadı.</string>
-    <string name="ss_fail_signal">Sinyal kanalı hatası: %1$s</string>
+    <string name="ss_fail_signal">Canlı bağlantı kesildi. Lütfen tekrar deneyin.</string>
     <string name="ss_fail_conn_retry">Bağlantı kurulamadı — iki telefon birbirine bağlanamadı. \"Ekranı izle\" düğmesine yeniden dokunun; sürerse iki telefonu da aynı Wi-Fi ağına alın (ya da bir telefonun erişim noktasına).</string>
-    <string name="ss_fail_offer">Teklif gönderilemedi: %1$s</string>
-    <string name="ss_fail_answer">Yanıt gönderilemedi: %1$s</string>
+    <string name="ss_fail_offer">Canlı bağlantı başlatılamadı. Lütfen tekrar deneyin.</string>
+    <string name="ss_fail_answer">Canlı bağlantı tamamlanamadı. Lütfen tekrar deneyin.</string>
     <string name="ss_fail_apply">Yardımcının yanıtı uygulanamadı.</string>
     <string name="ss_ack_back">Geri iletildi ✓</string>
     <string name="ss_ack_home">Ana ekran iletildi ✓</string>

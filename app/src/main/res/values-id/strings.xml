@@ -239,7 +239,7 @@
     <string name="set_section_activity">Aktivitas</string>
     <string name="set_section_about">Tentang</string>
     <string name="set_about_sub">Versi, paket, dan kebijakan</string>
-    <string name="about_storage">Akun dan data perangkat Anda hanya berada di proyek Firebase milik aplikasi ini. Isi layar tidak pernah direkam atau disimpan.</string>
+    <string name="about_storage">Akun dan data perangkat Anda hanya tersimpan di awan aman milik aplikasi ini. Isi layar tidak pernah direkam atau disimpan.</string>
     <string name="set_sign_out">Keluar</string>
     <string name="set_test_notif">Kirim notifikasi uji</string>
     <string name="set_test_notif_sent">Notifikasi uji terkirim — cek panel notifikasi ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">Lupa kata sandi?</string>
     <string name="auth_or">atau</string>
     <string name="auth_google">Lanjut dengan Google</string>
-    <string name="auth_footer">Akun dan data perangkat Anda hanya berada di proyek Firebase Anda sendiri. Tertaut bukan berarti akses permanen — setiap sesi bertanya lagi.</string>
+    <string name="auth_footer">Akun dan data ponsel Anda hanya tersimpan di awan aman milik aplikasi. Terhubung bukan berarti akses permanen — setiap sesi selalu bertanya lagi.</string>
     <string name="privacy_title">Kebijakan privasi</string>
     <string name="rules_title">Aturan penggunaan</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">Anggota keluarga</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Aturan ini menjaga Family Remote Support tetap aman untuk semua orang.\n\n1. Persetujuan dulu. Setiap sesi bantuan membutuhkan persetujuan baru yang jelas di ponsel yang menerima bantuan. Pasangan saja tidak pernah memberi akses.\n\n2. Kode pemasangan sekali pakai dan kedaluwarsa dalam sekitar 5 menit. Kode hanya bisa ditukarkan satu kali dan hanya oleh orang yang memindai atau mengetiknya tepat waktu.\n\n3. Bantuan tamu bersifat sementara. Koneksi tamu berakhir sendiri setelah 2 jam dan tidak pernah bisa menjadi pemasangan keluarga permanen dengan sendirinya.\n\n4. Anda selalu bisa menghentikan. Penerima bantuan dapat menolak permintaan, mengakhiri sesi yang berjalan kapan saja, atau mencabut ponsel yang dipasangkan sepenuhnya.\n\n5. Pembantu harus terpercaya. Bagikan kode atau QR Anda hanya kepada orang yang benar-benar Anda percayai. Pembantu melihat layar Anda selama sesi berjalan — jika ragu, tutup dulu aplikasi yang sensitif.\n\n6. Tanpa jalan pintas. Aplikasi tidak pernah mencoba membuka kunci ponsel, membaca kata sandi, memberi izin diam-diam, atau menyembunyikan bahwa sesi sedang berjalan. Ia hanya bekerja dalam batas yang Android izinkan secara eksplisit.\n\n7. Hanya penggunaan wajar. Jangan gunakan aplikasi untuk melecehkan, memata-matai, atau menekan siapa pun. Penyalahgunaan berujung pada pencabutan akses.\n\n8. Keluarga utama. Aplikasi ini dibuat untuk membantu anggota keluarga dan teman dekat dengan ponsel mereka — bukan untuk hal lain.</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">Masuk dibatalkan atau gagal</string>
-    <string name="auth_failed">Masuk gagal: %1$s</string>
+    <string name="auth_failed">Gagal masuk. Silakan coba lagi.</string>
     <string name="auth_reset_sent">Tautan reset kata sandi dikirim ke %1$s — periksa email (termasuk spam).</string>
     <string name="so_cleanup_failed">Berhasil keluar — tetapi masalah jaringan mencegah penghapusan presence/token push ponsel ini. Nanti, masuk dengan internet lalu keluar lagi untuk membersihkannya.</string>
     <string name="so_cleanup_ok">Keluar selesai — presence dan token push ponsel ini dihapus dari server.</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">Ketik teks…</string>
     <string name="btn_cancel_plain">Batal</string>
     <string name="btn_send">Kirim</string>
-    <string name="err_perm_denied">Ditolak oleh aturan keamanan — artinya salah satu ponsel masih memakai versi aplikasi LAMA (pemasangan terkunci versi). Perbarui KEDUA ponsel ke versi terbaru lalu pasangkan lagi. Jika tetap gagal, terbitkan android-app/firestore.rules terbaru dari repo (konsol Firebase → Firestore Database → Rules).</string>
-    <string name="err_db_missing">Database Firestore tidak ditemukan — di konsol Firebase buka Build → Firestore Database dan selesaikan pembuatannya.</string>
-    <string name="err_unreachable">Tidak dapat menghubungi Firestore — periksa koneksi internet dan coba lagi.</string>
+    <string name="err_perm_denied">Proteksi keamanan aplikasi memblokir koneksi — biasanya artinya salah satu dari dua ponsel memakai versi aplikasi lama. Perbarui KEDUA ponsel ke versi terbaru lalu pasangkan lagi. Jika masih gagal, coba lagi nanti.</string>
+    <string name="err_db_missing">Layanan belum sepenuhnya siap — coba lagi dalam beberapa menit. Jika terus terjadi, perbarui aplikasi ke versi terbaru.</string>
+    <string name="err_unreachable">Tidak dapat terhubung ke layanan — periksa koneksi internet lalu coba lagi.</string>
     <string name="err_code_length">Kode pemasangan terdiri dari %1$d karakter (%2$d + %3$d; versi aplikasi lama memakai %4$d). Kode ini %5$d.</string>
     <string name="err_code_not_found">Kode tidak ditemukan — periksa %1$d karakter pertama.</string>
     <string name="err_own_code">Ini kode Anda sendiri — penolong harus mengetiknya di PONSELNYA sambil masuk dengan akun Google miliknya.</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">Kode salah — bandingkan setiap karakter dengan ponsel lainnya.</string>
     <string name="err_pair_family_exists">Pasangan ini sudah tertaut sebagai Family (permanen) — kode tamu tidak diperlukan di sini.</string>
     <string name="err_pair_guest_exists">Pasangan ini tertaut sebagai Guest. Untuk menjadikan Family, hapus tautan Guest dari ponsel penerima bantuan lalu buat kode Family baru.</string>
-    <string name="err_generic">Kesalahan Firestore %1$s: %2$s</string>
-    <string name="err_quota">Batas penggunaan harian gratis Firebase sudah habis — semuanya akan berfungsi lagi setelah kuota harian direset (sekitar tengah hari). Tidak ada data yang hilang.</string>
+    <string name="err_generic">Terjadi kesalahan. Silakan coba lagi.</string>
+    <string name="err_quota">Batas penggunaan harian aplikasi ini sudah habis — semuanya akan berfungsi lagi setelah reset harian (sekitar tengah hari). Tidak ada data yang hilang.</string>
     <string name="cd_details">Detail</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">Tidak dapat menjawab — penolong akan mencoba ulang otomatis.</string>
     <string name="ss_recover_apply_failed">Tidak dapat menerapkan jawaban penolong — penolong akan mencoba lagi.</string>
     <string name="ss_fail_projection_stopped">Proyeksi layar dihentikan oleh sistem — ketuk \"Bagikan layar\" lagi.</string>
-    <string name="ss_fail_capture">Tangkapan layar gagal: %1$s</string>
-    <string name="ss_fail_watch">Tidak dapat meminta menonton: %1$s</string>
-    <string name="ss_fail_viewer">Tidak dapat memulai penampil: %1$s</string>
+    <string name="ss_fail_capture">Gagal menangkap layar. Silakan coba lagi.</string>
+    <string name="ss_fail_watch">Tidak dapat meminta izin menonton layar. Silakan coba lagi.</string>
+    <string name="ss_fail_viewer">Tidak dapat memulai penampil. Silakan coba lagi.</string>
     <string name="ss_fail_conn_stopped">Koneksi gagal — ketuk \"Hentikan berbagi\", lalu bagikan lagi.</string>
     <string name="ss_fail_no_engine">Tidak dapat membuat mesin WebRTC di ponsel ini.</string>
-    <string name="ss_fail_signal">Galat kanal sinyal: %1$s</string>
+    <string name="ss_fail_signal">Koneksi langsung terputus. Silakan coba lagi.</string>
     <string name="ss_fail_conn_retry">Koneksi gagal — kedua ponsel tidak berhasil tersambung. Ketuk \"Lihat layar\" lagi; jika terus gagal, sambungkan kedua ponsel ke jaringan Wi-Fi yang sama (atau hotspot salah satu ponsel).</string>
-    <string name="ss_fail_offer">Tidak dapat mengirim penawaran: %1$s</string>
-    <string name="ss_fail_answer">Tidak dapat mengirim jawaban: %1$s</string>
+    <string name="ss_fail_offer">Tidak dapat memulai koneksi langsung. Silakan coba lagi.</string>
+    <string name="ss_fail_answer">Tidak dapat menyelesaikan koneksi langsung. Silakan coba lagi.</string>
     <string name="ss_fail_apply">Tidak dapat menerapkan jawaban penolong.</string>
     <string name="ss_ack_back">Kembali terkirim ✓</string>
     <string name="ss_ack_home">Beranda terkirim ✓</string>

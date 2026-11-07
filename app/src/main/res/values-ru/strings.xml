@@ -239,7 +239,7 @@
     <string name="set_section_activity">Активность</string>
     <string name="set_section_about">О приложении</string>
     <string name="set_about_sub">Версия, пакет и политики</string>
-    <string name="about_storage">Ваш аккаунт и данные устройства живут только в собственном Firebase-проекте этого приложения. Содержимое экрана никогда не записывается и не хранится.</string>
+    <string name="about_storage">Ваш аккаунт и данные устройства хранятся только в собственном защищённом облаке этого приложения. Содержимое экрана никогда не записывается и не сохраняется.</string>
     <string name="set_sign_out">Выйти</string>
     <string name="set_test_notif">Отправить тестовое уведомление</string>
     <string name="set_test_notif_sent">Тестовое уведомление отправлено — проверьте шторку ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">Забыли пароль?</string>
     <string name="auth_or">или</string>
     <string name="auth_google">Продолжить с Google</string>
-    <string name="auth_footer">Ваш аккаунт и данные устройства живут только в вашем собственном Firebase-проекте. Сопряжение — не постоянный доступ: каждая сессия спрашивает снова.</string>
+    <string name="auth_footer">Ваш аккаунт и данные телефона хранятся только в собственном защищённом облаке приложения. Сопряжение не даёт постоянного доступа — каждая сессия спрашивает заново.</string>
     <string name="privacy_title">Политика конфиденциальности</string>
     <string name="rules_title">Правила использования</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">Член семьи</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Эти правила сохраняют Family Remote Support безопасным для всех.\n\n1. Сначала согласие. Каждая сессия помощи требует свежего явного одобрения на телефоне, который получает помощь. Одной только привязки доступ никогда не даёт.\n\n2. Коды привязки одноразовые и истекают примерно через 5 минут. Код можно использовать только один раз и только тем человеком, который вовремя его сканирует или вводит.\n\n3. Помощь гостя временная. Гостевое подключение само истекает через 2 часа и само по себе никогда не становится постоянной семейной привязкой.\n\n4. Вы всегда можете остановить. Тот, кому помогают, может отклонить запрос, завершить идущую сессию в любую секунду или полностью отозвать подключённый телефон.\n\n5. Помощник должен быть доверенным. Делитесь кодом или QR только с теми, кому вы действительно доверяете. Помощник видит ваш экран, пока идёт сессия — если сомневаетесь, сначала закройте чувствительные приложения.\n\n6. Никакого обхода. Приложение никогда не пытается разблокировать телефон, читать пароли, незаметно выдавать разрешения или скрывать, что сессия идёт. Оно работает только в рамках того, что Android явно разрешает.\n\n7. Только добросовестное использование. Не используйте приложение для преследования, слежки или давления. Злоупотребление ведёт к отзыву доступа.\n\n8. Семьи прежде всего. Это приложение создано, чтобы помогать членам семьи и близким друзьям с их телефонами — и ничему больше.</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">Вход отменён или не удался</string>
-    <string name="auth_failed">Не удалось войти: %1$s</string>
+    <string name="auth_failed">Не удалось войти. Попробуйте ещё раз.</string>
     <string name="auth_reset_sent">Ссылка для сброса пароля отправлена на %1$s — проверьте почту (включая спам).</string>
     <string name="so_cleanup_failed">Выход выполнен — но из-за сети не удалось удалить присутствие/push-токен этого телефона. Позже войдите с интернетом и снова выйдите — всё очистится.</string>
     <string name="so_cleanup_ok">Выход завершён — присутствие и push-токен этого телефона удалены с сервера.</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">Введите текст…</string>
     <string name="btn_cancel_plain">Отмена</string>
     <string name="btn_send">Отправить</string>
-    <string name="err_perm_denied">В доступе отказано правилами безопасности — на практике это значит, что один из двух телефонов работает на СТАРОЙ версии приложения (сопряжение привязано к версии). Обновите ОБА телефона до новейшей версии и выполните сопряжение снова. Если не поможет, опубликуйте новейший android-app/firestore.rules из репозитория (консоль Firebase → Firestore Database → Rules).</string>
-    <string name="err_db_missing">База данных Firestore не найдена — в консоли Firebase откройте Build → Firestore Database и завершите её создание.</string>
-    <string name="err_unreachable">Не удалось подключиться к Firestore — проверьте интернет и попробуйте снова.</string>
+    <string name="err_perm_denied">Защита приложения заблокировала соединение по соображениям безопасности — обычно это значит, что на одном из двух телефонов стоит старая версия приложения. Обновите ОБА телефона до новейшей версии и выполните сопряжение заново. Если не поможет — попробуйте позже.</string>
+    <string name="err_db_missing">Сервис ещё не полностью готов — попробуйте снова через несколько минут. Если повторяется, обновите приложение до новейшей версии.</string>
+    <string name="err_unreachable">Не удалось связаться с сервисом — проверьте интернет-соединение и попробуйте снова.</string>
     <string name="err_code_length">Код сопряжения содержит %1$d символов (%2$d + %3$d; старые версии приложения используют %4$d). В этом — %5$d.</string>
     <string name="err_code_not_found">Код не найден — проверьте первые %1$d символов.</string>
     <string name="err_own_code">Это ваш собственный код — помощник должен ввести его на СВОЁМ телефоне, войдя в свой аккаунт Google.</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">Неверный код — сверьте каждый символ с другим телефоном.</string>
     <string name="err_pair_family_exists">Эта пара уже связана как Family (постоянно) — гостевой код здесь не нужен.</string>
     <string name="err_pair_guest_exists">Эта пара связана как гость. Чтобы сделать её семейной, удалите гостевую связь на принимающем помощь телефоне и выдайте новый код Family.</string>
-    <string name="err_generic">Ошибка Firestore %1$s: %2$s</string>
-    <string name="err_quota">Бесплатный дневной лимит Firebase исчерпан — всё снова заработает после ежедневного сброса квоты (около полудня). Данные не потеряны.</string>
+    <string name="err_generic">Что-то пошло не так. Попробуйте ещё раз.</string>
+    <string name="err_quota">Дневной лимит использования этого приложения исчерпан — всё снова заработает после ежедневного сброса (около полудня). Данные не потеряны.</string>
     <string name="cd_details">Подробности</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">Не удалось ответить — помощник повторит попытку автоматически.</string>
     <string name="ss_recover_apply_failed">Не удалось применить ответ помощника — помощник повторит попытку.</string>
     <string name="ss_fail_projection_stopped">Проецирование экрана остановлено системой — нажмите «Показать экран» ещё раз.</string>
-    <string name="ss_fail_capture">Не удалось захватить экран: %1$s</string>
-    <string name="ss_fail_watch">Не удалось запросить просмотр: %1$s</string>
-    <string name="ss_fail_viewer">Не удалось запустить окно просмотра: %1$s</string>
+    <string name="ss_fail_capture">Не удалось захватить экран. Попробуйте ещё раз.</string>
+    <string name="ss_fail_watch">Не удалось отправить запрос на просмотр экрана. Попробуйте ещё раз.</string>
+    <string name="ss_fail_viewer">Не удалось запустить просмотр. Попробуйте ещё раз.</string>
     <string name="ss_fail_conn_stopped">Соединение не удалось — нажмите «Прекратить показ», затем передайте экран снова.</string>
     <string name="ss_fail_no_engine">Не удалось создать движок WebRTC на этом телефоне.</string>
-    <string name="ss_fail_signal">Ошибка канала сигнализации: %1$s</string>
+    <string name="ss_fail_signal">Прямое соединение прервалось. Попробуйте ещё раз.</string>
     <string name="ss_fail_conn_retry">Соединение не удалось — телефонам не удалось связаться друг с другом. Нажмите «Смотреть экран» ещё раз; если не помогает, подключите оба телефона к одной сети Wi-Fi (или к точке доступа одного из них).</string>
-    <string name="ss_fail_offer">Не удалось отправить предложение: %1$s</string>
-    <string name="ss_fail_answer">Не удалось отправить ответ: %1$s</string>
+    <string name="ss_fail_offer">Не удалось начать прямое соединение. Попробуйте ещё раз.</string>
+    <string name="ss_fail_answer">Не удалось завершить прямое соединение. Попробуйте ещё раз.</string>
     <string name="ss_fail_apply">Не удалось применить ответ помощника.</string>
     <string name="ss_ack_back">Команда «Назад» доставлена ✓</string>
     <string name="ss_ack_home">Команда «Домой» доставлена ✓</string>

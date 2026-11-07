@@ -293,8 +293,21 @@ android {
         // the counterpart's live presence doc (best-effort, "" honest
         // fallback). The member detail's ask tile renders on BOTH sides of
         // a family link. See worklog §101.
-        versionCode = 76
-        versionName = "0.54.0"
+        // v0.55.0/77 (no-backend-words wave) — the Owner directive:
+        // "অ্যাপ এর fronted এ যেনো কোনো Firebase সম্পর্কিত তথ্য না দেখায়,
+        // যদি কোনো কিছু বসাতে হয় অ্যাপ নিজের ভাষায় বলবে।" The family must
+        // never read backend internals: (1) strings — about_storage,
+        // auth_footer, privacy_body, err_perm_denied, err_db_missing,
+        // err_unreachable, err_quota, err_generic, auth_failed and the six
+        // ss_fail_* no longer mention Firebase/Firestore/console/rules in
+        // ANY of the 15 locales (app's own words: "the app's own secure
+        // cloud", "the service", retry advice); (2) code — the raw
+        // exception text can never reach the UI again: describeFirestoreError
+        // returns localized strings only, AuthGate's fallback is argless,
+        // AskNotifier's worker catch never shows e.message, and all eight
+        // ScreenShareEngine failure sites keep the detail in diagLog only.
+        versionCode = 77
+        versionName = "0.55.0"
 
         // Phase 7 — WebRTC screen share ships native .so libraries for all four
         // ABIs; the family fleet is ARM-only, so drop x86/x86_64 to keep the

@@ -239,7 +239,7 @@
     <string name="set_section_activity">गतिविधि</string>
     <string name="set_section_about">एपबारे</string>
     <string name="set_about_sub">संस्करण, प्याकेज र नीति</string>
-    <string name="about_storage">तपाईंको खाता र डिभाइस तथ्याङ्क यही एपको आफ्नै Firebase प्रोजेक्टमा मात्र रहन्छ। स्क्रिनको सामग्री कहिल्यै रेकर्ड वा भण्डारण गरिँदैन।</string>
+    <string name="about_storage">तपाईंको खाता र डिभाइसको तथ्याङ्क यसै एपको आफ्नै सुरक्षित क्लाउडमा मात्र रहन्छ। स्क्रिनको सामग्री कहिल्यै रेकर्ड वा भण्डारण गरिँदैन।</string>
     <string name="set_sign_out">साइन आउट</string>
     <string name="set_test_notif">टेस्ट नोटिफिकेशन पठाउनुहोस्</string>
     <string name="set_test_notif_sent">टेस्ट नोटिफिकेशन पठाइयो — नोटिफिकेशन शेड हेर्नुहोस् ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">पासवर्ड बिर्सनुभयो?</string>
     <string name="auth_or">वा</string>
     <string name="auth_google">Google बाट जारी राख्नुहोस्</string>
-    <string name="auth_footer">तपाईंको खाता र डिभाइस तथ्याङ्क तपाईंकै Firebase प्रोजेक्टमा मात्र रहन्छ। जोडिनु भनेको स्थायी अनुमति होइन — हरेक सेसनमा फेरि सोधिन्छ।</string>
+    <string name="auth_footer">तपाईंको खाता र फोनको तथ्याङ्क एपको आफ्नै सुरक्षित क्लाउडमा मात्र रहन्छ। जोडिनु भनेको स्थायी अनुमति होइन — हरेक सेसनमा फेरि सोधिन्छ।</string>
     <string name="privacy_title">गोपनीयता नीति</string>
     <string name="rules_title">प्रयोग नियम</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">परिवारका एक सदस्य</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">यी नियमहरूले Family Remote Support लाई सबैका लागि सुरक्षित राख्छन्।\n\n१. पहिले सहमति। हरेक सहयोग सेसनमा सहयोग पाउने फोनमा नयाँ र स्पष्ट स्वीकृति आवश्यक हुन्छ। पेयरिङ मात्र गर्दा पहुँच कहिल्यै दिइँदैन।\n\n२. पेयरिङ कोड एकचोटि मात्र प्रयोग हुने हुन् र करिब ५ मिनेटमा म्याद सकिन्छ। कोड एकचोटि मात्र, र समयमै स्क्यान वा टाइप गर्ने व्यक्तिले मात्र प्रयोग गर्न सकिन्छ।\n\n३. पाहुना सहयोग अस्थायी हो। पाहुना जडान २ घण्टापछि आफैँ सकिन्छ र आफैँले कहिल्यै स्थायी पारिवारिक पेयरिङ बन्दैन।\n\n४. तपाईं जुनसुकै बेला रोक्न सक्नुहुन्छ। सहयोग पाउने व्यक्तिले अनुरोध अस्वीकार गर्न, चालु सेसन जुनसुकै क्षण बन्द गर्न, वा पेयर गरिएको फोन पूर्ण रूपमा रद्द गर्न सक्छ।\n\n५. सहायक भरपर्दो हुनुपर्छ। आफ्नो कोड वा QR केवल साँचो अर्थमा विश्वास गर्ने मान्छेसँग मात्र साझा गर्नुहोस्। सेसन चलिरहँदा सहायकले तपाईंको स्क्रिन देख्छ — शङ्का भए पहिले संवेदनशील एपहरू बन्द गर्नुहोस्।\n\n६. बाइपास छैन। एपले कहिल्यै फोन अनलक गर्न, पासवर्ड पढ्न, लुकाइँचे अनुमति दिन वा सेसन चलिरहेको लुकाउन प्रयास गर्दैन। यो Android ले स्पष्ट रूपमा अनुमति दिएको भित्र मात्र काम गर्छ।\n\n७. उचित प्रयोग मात्र। एपलाई कसैलाई सताउन, जासुसी गर्न वा दबाब दिन प्रयोग नगर्नुहोस्। दुरुपयोग भए पहुँच रद्द गरिन्छ।\n\n८. परिवार पहिले। यो एप परिवारका सदस्य र नजिकका साथीहरूको फोनमा सहयोग गर्न बनाइएको हो — अरू कुनै कामका लागि होइन。</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">साइन-इन रद्द वा असफल</string>
-    <string name="auth_failed">साइन-इन असफल: %1$s</string>
+    <string name="auth_failed">साइन-इन हुन सकेन। फेरि प्रयास गर्नुहोस्।</string>
     <string name="auth_reset_sent">पासवर्ड-रिसेट लिंक %1$s मा पठाइयो — इमेल (स्प्यामसहित) जाँच्नुहोस्।</string>
     <string name="so_cleanup_failed">साइन-आउट भयो — तर नेटवर्क-समस्याले यो फोनको उपस्थिति/पुश-टोकन मेट्न सकिएन। पछि इन्टरनेटसहित साइन-इन गरेर फेरि साइन-आउट गर्नुभयो भी सफा हुन्छ।</string>
     <string name="so_cleanup_ok">साइन-आउट सम्पन्न — यो फोनको उपस्थिति र पुश-टोकन सर्भरबाट मेटाइयो।</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">टेक्स्ट लेख्नुहोस्…</string>
     <string name="btn_cancel_plain">रद्द</string>
     <string name="btn_send">पठाउनुहोस्</string>
-    <string name="err_perm_denied">सुरक्षा-नियमले अनुमति दिएन — व्यवहारमा यसको अर्थ दुईमध्ये एक फोनले पुरानो एप-संस्करण चलाइरहेको छ (पेयरिङ संस्करण-लक हो)। दुवै फोन नवीनतममा अपडेट गरेर फेरि पेयर गर्नुहोस्। अझै असफल भए repo बाट नवीनतम android-app/firestore.rules प्रकाशित गर्नुहोस् (Firebase कन्सोल → Firestore Database → Rules)।</string>
-    <string name="err_db_missing">Firestore डाटाबेस भेटिएन — Firebase कन्सोलमा Build → Firestore Database खोलेर डाटाबेस बनाउने काम पूरा गर्नुहोस्।</string>
-    <string name="err_unreachable">Firestore सम्म पुग्न सकिएन — इन्टरनेट जडान जाँच्नुहोस् र फेरि प्रयास गर्नुहोस्।</string>
+    <string name="err_perm_denied">एपको सुरक्षा-रक्षाले जोडाइ रोकियो — सामान्यतया यसको अर्थ दुई फोनमध्ये एकमा पुरानो एप संस्करण चलिरहेको छ। दुवै फोन नयाँ संस्करणमा अद्यावधिक गरेर फेरि जोड्नुहोस्। अझै समस्या भए अलि पछि फेरि प्रयास गर्नुहोस्।</string>
+    <string name="err_db_missing">सेवा अझै पूर्ण रूपमा तयार छैन — केही मिनेटपछि फेरि प्रयास गर्नुहोस्। दोहोरिएमा एप नयाँ संस्करणमा अद्यावधिक गर्नुहोस्।</string>
+    <string name="err_unreachable">सेवासम्म पुग्न सकेन — इन्टरनेट जडान जाँच गरेर फेरि प्रयास गर्नुहोस्।</string>
     <string name="err_code_length">पेयरिङ कोडमा %1$d अक्षर हुन्छ (%2$d + %3$d; पुराना एप-संस्करणले %4$d प्रयोग गर्छन्)। यसमा %5$d छ।</string>
     <string name="err_code_not_found">कोड भेटिएन — पहिला %1$d अक्षर जाँच्नुहोस्।</string>
     <string name="err_own_code">यो तपाईंकै कोड हो — सहयोगीले आफ्नै फोनमा, आफ्नै Google खाताबाट साइन-इन भएर हाल्नुपर्छ।</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">गलत कोड — हर अक्षर अर्को फोनसँग मिलाउनुहोस्।</string>
     <string name="err_pair_family_exists">यो जोडी पहिले नै Family (स्थायी) रूपमा जोडिएको छ — यहाँ Guest कोड चाहिँदैन।</string>
     <string name="err_pair_guest_exists">यो जोडी Guest रूपमा जोडिएको छ। Family बनाउन सहयोग-लिने फोनबाट Guest लिंक हटाएर (Remove) नयाँ Family कोड दिनुपर्छ।</string>
-    <string name="err_generic">Firestore त्रुटि %1$s: %2$s</string>
-    <string name="err_quota">Firebase को आजको निःशुल्क उपयोग-सीमा सकियो — दैनिक कोटा रिसेट (दिउँसो नजिक) भएपछि सबै फेरि काम गर्छ। कुनै डाटा हराएको छैन।</string>
+    <string name="err_generic">केही समस्या भयो। फेरि प्रयास गर्नुहोस्।</string>
+    <string name="err_quota">आज यो एपको प्रयोग सीमा सकियो — दैनिक रिसेट (दिउँसो करिब बीच) पछि सबै फेरि चल्नेछ। कुनै तथ्याङ्क हराएको छैन।</string>
     <string name="cd_details">विवरण</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">जवाफ दिन सकिएन — सहयोगीले आफैँ पुनः प्रयास गर्नेछ।</string>
     <string name="ss_recover_apply_failed">सहयोगीको जवाफ लागू गर्न सकिएन — सहयोगीले पुनः प्रयास गर्नेछ।</string>
     <string name="ss_fail_projection_stopped">सिस्टमले स्क्रिन प्रोजेक्सन रोक्यो — फेरि \"स्क्रिन सेयर गर्नुहोस्\" ट्याप गर्नुहोस्।</string>
-    <string name="ss_fail_capture">स्क्रिन क्याप्चर असफल: %1$s</string>
-    <string name="ss_fail_watch">हेर्न अनुरोध गर्न सकिएन: %1$s</string>
-    <string name="ss_fail_viewer">भ्युअर सुरु गर्न सकिएन: %1$s</string>
+    <string name="ss_fail_capture">स्क्रिन क्याप्चर भएन। फेरि प्रयास गर्नुहोस्।</string>
+    <string name="ss_fail_watch">स्क्रिन हेर्ने अनुरोध पठाउन सकिएन। फेरि प्रयास गर्नुहोस्।</string>
+    <string name="ss_fail_viewer">भ्यूअर सुरु गर्न सकिएन। फेरि प्रयास गर्नुहोस्।</string>
     <string name="ss_fail_conn_stopped">जडान असफल — \"सेयर रोक्नुहोस्\" ट्याप गर्नुहोस्, त्यसपछि फेरि सेयर गर्नुहोस्।</string>
     <string name="ss_fail_no_engine">यो फोनमा WebRTC इन्जिन बनाउन सकिएन।</string>
-    <string name="ss_fail_signal">सिग्नल च्यानल त्रुटि: %1$s</string>
+    <string name="ss_fail_signal">प्रत्यक्ष जडान छिच्छिएको छ। फेरि प्रयास गर्नुहोस्।</string>
     <string name="ss_fail_conn_retry">जडान असफल — दुई फोन जोडिन सकेनन्। फेरि \"स्क्रिन हेर्नुहोस्\" ट्याप गर्नुहोस्; बारम्बार असफल भए दुवै फोन एउटै Wi-Fi नेटवर्कमा राख्नुहोस् (वा कुनै एक फोनको हटस्पटमा)।</string>
-    <string name="ss_fail_offer">अफर पठाउन सकिएन: %1$s</string>
-    <string name="ss_fail_answer">जवाफ पठाउन सकिएन: %1$s</string>
+    <string name="ss_fail_offer">प्रत्यक्ष जडान सुरु गर्न सकिएन। फेरि प्रयास गर्नुहोस्।</string>
+    <string name="ss_fail_answer">प्रत्यक्ष जडान पूरा गर्न सकिएन। फेरि प्रयास गर्नुहोस्।</string>
     <string name="ss_fail_apply">सहयोगीको जवाफ लागू गर्न सकिएन।</string>
     <string name="ss_ack_back">ब्याक पुग्यो ✓</string>
     <string name="ss_ack_home">होम पुग्यो ✓</string>

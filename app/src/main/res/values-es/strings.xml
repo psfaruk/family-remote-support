@@ -239,7 +239,7 @@
     <string name="set_section_activity">Actividad</string>
     <string name="set_section_about">Acerca de</string>
     <string name="set_about_sub">Versión, paquete y políticas</string>
-    <string name="about_storage">Tu cuenta y los datos del dispositivo viven solo en el proyecto Firebase de esta app. El contenido de la pantalla nunca se graba ni se almacena.</string>
+    <string name="about_storage">Tu cuenta y los datos del dispositivo viven solo en la nube segura propia de esta app. El contenido de la pantalla nunca se graba ni se almacena.</string>
     <string name="set_sign_out">Cerrar sesión</string>
     <string name="set_test_notif">Enviar notificación de prueba</string>
     <string name="set_test_notif_sent">Notificación de prueba enviada — mira la bandeja ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">¿Olvidaste la contraseña?</string>
     <string name="auth_or">o</string>
     <string name="auth_google">Continuar con Google</string>
-    <string name="auth_footer">Tu cuenta y los datos del dispositivo viven solo en tu propio proyecto Firebase. Estar emparejado nunca es acceso permanente — cada sesión vuelve a preguntar.</string>
+    <string name="auth_footer">Tu cuenta y los datos del teléfono viven solo en la nube segura propia de la app. Estar emparejado nunca es acceso permanente — cada sesión vuelve a preguntar.</string>
     <string name="privacy_title">Política de privacidad</string>
     <string name="rules_title">Reglas de uso</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">Un familiar</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">Estas reglas mantienen Family Remote Support seguro para todos.\n\n1. Primero el consentimiento. Cada sesión de ayuda necesita una aprobación nueva y explícita en el teléfono que recibe la ayuda. Emparejar por sí solo nunca otorga acceso.\n\n2. Los códigos de emparejamiento son de un solo uso y caducan en unos 5 minutos. Un código solo se puede canjear una vez y únicamente por la persona que lo escanea o lo escribe a tiempo.\n\n3. La ayuda de invitado es temporal. Una conexión de invitado caduca sola a las 2 horas y nunca puede convertirse por sí misma en un emparejamiento familiar permanente.\n\n4. Siempre puedes detener. La persona que recibe ayuda puede rechazar una solicitud, terminar una sesión en cualquier segundo o revocar por completo un teléfono emparejado.\n\n5. El asistente debe ser de confianza. Comparte tu código o QR solo con personas en las que realmente confías. Un asistente ve tu pantalla mientras la sesión está activa — cierra primero las aplicaciones sensibles si tienes dudas.\n\n6. Sin atajos. La app nunca intenta desbloquear un teléfono, leer contraseñas, otorgar permisos en silencio ni ocultar que una sesión está en curso. Solo funciona dentro de lo que Android permite explícitamente.\n\n7. Solo uso justo. No uses la app para acosar, espiar ni presionar a nadie. El abuso conlleva la revocación del acceso.\n\n8. Las familias primero. Esta app está hecha para ayudar a familiares y amigos cercanos con sus teléfonos — nada más.</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">Inicio de sesión cancelado o fallido</string>
-    <string name="auth_failed">Error al iniciar sesión: %1$s</string>
+    <string name="auth_failed">No se pudo iniciar sesión. Inténtalo de nuevo.</string>
     <string name="auth_reset_sent">Enlace para restablecer la contraseña enviado a %1$s — revise el correo (incluida la carpeta de spam).</string>
     <string name="so_cleanup_failed">Se cerró la sesión — pero un problema de red impidió eliminar la presencia/el token de este teléfono. Más adelante, inicie sesión con internet y cierre sesión de nuevo para limpiar.</string>
     <string name="so_cleanup_ok">Cierre de sesión completado — la presencia y el token de este teléfono se eliminaron del servidor.</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">Escriba texto…</string>
     <string name="btn_cancel_plain">Cancelar</string>
     <string name="btn_send">Enviar</string>
-    <string name="err_perm_denied">Permiso denegado por las reglas de seguridad — en la práctica significa que uno de los dos teléfonos usa una versión ANTIGUA (el emparejamiento está ligado a versiones). Actualice AMBOS teléfonos a la versión más reciente y empareje de nuevo. Si sigue fallando, publique el android-app/firestore.rules más reciente del repositorio (consola de Firebase → Firestore Database → Rules).</string>
-    <string name="err_db_missing">Base de datos de Firestore no encontrada — en la consola de Firebase abra Build → Firestore Database y termine de crearla.</string>
-    <string name="err_unreachable">No se pudo conectar con Firestore — compruebe la conexión a internet e inténtelo de nuevo.</string>
+    <string name="err_perm_denied">La protección de seguridad de la app bloqueó la conexión — en la práctica, uno de los dos teléfonos tiene una versión antigua de la app. Actualiza AMBOS teléfonos a la versión más reciente y emparéjalos de nuevo. Si sigue fallando, inténtalo más tarde.</string>
+    <string name="err_db_missing">El servicio aún no está del todo listo — inténtalo de nuevo en unos minutos. Si sigue pasando, actualiza la app a la versión más reciente.</string>
+    <string name="err_unreachable">No se pudo conectar con el servicio — revisa la conexión a internet e inténtalo de nuevo.</string>
     <string name="err_code_length">Un código de emparejamiento tiene %1$d caracteres (%2$d + %3$d; versiones antiguas usan %4$d). Este tiene %5$d.</string>
     <string name="err_code_not_found">Código no encontrado — compruebe los primeros %1$d caracteres.</string>
     <string name="err_own_code">Este es su propio código — quien ayuda debe escribirlo en SU teléfono con sesión iniciada en su propia cuenta de Google.</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">Código incorrecto — compare cada carácter con el otro teléfono.</string>
     <string name="err_pair_family_exists">Este par ya está vinculado como Family (permanente) — aquí no se necesita código de invitado.</string>
     <string name="err_pair_guest_exists">Este par está vinculado como invitado. Para convertirlo en Family, quite el vínculo de invitado del teléfono que recibe ayuda y emita un nuevo código Family.</string>
-    <string name="err_generic">Error de Firestore %1$s: %2$s</string>
-    <string name="err_quota">Se agotó el límite diario gratuito de Firebase: todo volverá a funcionar tras el reinicio diario de la cuota (alrededor del mediodía). No se pierde ningún dato.</string>
+    <string name="err_generic">Algo salió mal. Inténtalo de nuevo.</string>
+    <string name="err_quota">El límite diario de uso de esta app se agotó — todo volverá a funcionar tras el reinicio diario (sobre el mediodía). No se perdió ningún dato.</string>
     <string name="cd_details">Detalles</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">No se pudo responder — quien ayuda reintentará automáticamente.</string>
     <string name="ss_recover_apply_failed">No se pudo aplicar la respuesta de quien ayuda — quien ayuda reintentará.</string>
     <string name="ss_fail_projection_stopped">El sistema detuvo la proyección de pantalla — toque «Compartir pantalla» de nuevo.</string>
-    <string name="ss_fail_capture">Falló la captura de pantalla: %1$s</string>
-    <string name="ss_fail_watch">No se pudo pedir ver la pantalla: %1$s</string>
-    <string name="ss_fail_viewer">No se pudo iniciar el visor: %1$s</string>
+    <string name="ss_fail_capture">Falló la captura de pantalla. Inténtalo de nuevo.</string>
+    <string name="ss_fail_watch">No se pudo pedir ver la pantalla. Inténtalo de nuevo.</string>
+    <string name="ss_fail_viewer">No se pudo iniciar el visor. Inténtalo de nuevo.</string>
     <string name="ss_fail_conn_stopped">Conexión fallida — toque «Dejar de compartir» y vuelva a compartir.</string>
     <string name="ss_fail_no_engine">No se pudo crear el motor WebRTC en este teléfono.</string>
-    <string name="ss_fail_signal">Error del canal de señalización: %1$s</string>
+    <string name="ss_fail_signal">La conexión en vivo se cortó. Inténtalo de nuevo.</string>
     <string name="ss_fail_conn_retry">Conexión fallida — los dos teléfonos no pudieron vincularse. Toque «Ver pantalla» de nuevo; si sigue fallando, ponga ambos teléfonos en la misma red Wi-Fi (o en el punto de acceso de uno de ellos).</string>
-    <string name="ss_fail_offer">No se pudo enviar la oferta: %1$s</string>
-    <string name="ss_fail_answer">No se pudo enviar la respuesta: %1$s</string>
+    <string name="ss_fail_offer">No se pudo iniciar la conexión en vivo. Inténtalo de nuevo.</string>
+    <string name="ss_fail_answer">No se pudo completar la conexión en vivo. Inténtalo de nuevo.</string>
     <string name="ss_fail_apply">No se pudo aplicar la respuesta de quien ayuda.</string>
     <string name="ss_ack_back">Atrás entregado ✓</string>
     <string name="ss_ack_home">Inicio entregado ✓</string>

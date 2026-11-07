@@ -85,7 +85,9 @@ suspend fun <T> Task<T>.awaitWithTimeout(
  * gets an honest localized message instead of the raw English dump).
  */
 fun describeFirestoreError(context: Context, e: Exception): String = when (e) {
-    is FirestoreUnreachableException -> e.message ?: "Could not reach Firestore."
+    // v0.55.0 — the raw exception text (which can carry backend internals) is
+    // NEVER shown to the family; every branch speaks the app's own language.
+    is FirestoreUnreachableException -> context.getString(R.string.err_unreachable)
     is FirebaseFirestoreException -> when (e.code) {
         FirebaseFirestoreException.Code.PERMISSION_DENIED ->
             context.getString(R.string.err_perm_denied)
@@ -99,9 +101,9 @@ fun describeFirestoreError(context: Context, e: Exception): String = when (e) {
             context.getString(R.string.err_unreachable)
         FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED ->
             context.getString(R.string.err_quota)
-        else -> context.getString(R.string.err_generic, e.code, e.message ?: "unknown")
+        else -> context.getString(R.string.err_generic)
     }
-    else -> e.message ?: "Unknown error"
+    else -> context.getString(R.string.err_generic)
 }
 
 data class InviteCode(

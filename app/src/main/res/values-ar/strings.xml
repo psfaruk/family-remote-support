@@ -239,7 +239,7 @@
     <string name="set_section_activity">النشاط</string>
     <string name="set_section_about">حول التطبيق</string>
     <string name="set_about_sub">الإصدار والحزمة والسياسات</string>
-    <string name="about_storage">تُحفظ بيانات حسابك وجهازك في مشروع Firebase الخاص بهذا التطبيق فقط. لا يُسجَّل محتوى الشاشة ولا يُخزَّن أبدًا.</string>
+    <string name="about_storage">حسابك وبيانات جهازك تبقى فقط في السحابة الآمنة الخاصة بهذا التطبيق. محتوى الشاشة لا يُسجَّل ولا يُخزَّن أبداً.</string>
     <string name="set_sign_out">تسجيل الخروج</string>
     <string name="set_test_notif">إرسال إشعار تجريبي</string>
     <string name="set_test_notif_sent">تم إرسال إشعار تجريبي — انظر لوحة الإشعارات ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">نسيت كلمة المرور؟</string>
     <string name="auth_or">أو</string>
     <string name="auth_google">المتابعة عبر Google</string>
-    <string name="auth_footer">تُحفظ بيانات حسابك وجهازك في مشروع Firebase الخاص بك فقط. الاقتران لا يعني إذنًا دائمًا — كل جلسة تسأل من جديد.</string>
+    <string name="auth_footer">حسابك وبيانات هاتفك تبقى فقط في السحابة الآمنة الخاصة بالتطبيق. الاقتران لا يعني وصولاً دائماً — كل جلسة تطلب الموافقة من جديد.</string>
     <string name="privacy_title">سياسة الخصوصية</string>
     <string name="rules_title">قواعد الاستخدام</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">أحد أفراد العائلة</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">تحافظ هذه القواعد على أمان Family Remote Support للجميع.\n\n١. الموافقة أولًا. كل جلسة مساعدة تحتاج إلى موافقة جديدة صريحة على الهاتف الذي يتلقى المساعدة. الاقتران وحده لا يمنح أي وصول أبدًا.\n\n٢. أكواد الاقتران تُستخدم مرة واحدة وتنتهي صلاحيتها بعد نحو ٥ دقائق. يمكن استخدام الكود مرة واحدة فقط وفقط من الشخص الذي يمسحه أو يكتبه في الوقت المناسب.\n\n٣. مساعدة الزائر مؤقتة. ينتهي اتصال الزائر تلقائيًا بعد ٢ ساعة ولا يمكن أن يتحول بذاته أبدًا إلى اقتران عائلي دائم.\n\n٤. يمكنك الإيقاف دائمًا. الشخص الذي يتلقى المساعدة يمكنه رفض الطلب، أو إنهاء الجلسة الجارية في أي لحظة، أو إلغاء اقتران الهاتف نهائيًا.\n\n٥. يجب أن يكون المساعد موثوقًا. لا تشارك كودك أو رمز QR إلا مع أشخاص تثق بهم فعلًا. يرى المساعد شاشتك أثناء الجلسة — إن لم تكن متأكدًا فأغلق التطبيقات الحساسة أولًا.\n\n٦. لا التفاف. لا يحاول التطبيق أبدًا فتح قفل هاتف، أو قراءة كلمات المرور، أو منح الأذونات بصمت، أو إخفاء أن جلسة جارية. يعمل فقط ضمن ما يسمح به Android صراحةً.\n\n٧. الاستخدام العادل فقط. لا تستخدم التطبيق لمضايقة أحد أو التجسس عليه أو الضغط عليه. الإساءة تؤدي إلى إلغاء الوصول.\n\n٨. العائلة أولًا. صُمّم هذا التطبيق لمساعدة أفراد العائلة والأصدقاء المقربين في هواتفهم — ولا شيء غير ذلك.</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">تم إلغاء تسجيل الدخول أو فشل</string>
-    <string name="auth_failed">فشل تسجيل الدخول: %1$s</string>
+    <string name="auth_failed">تعذّر تسجيل الدخول. حاول مجدداً.</string>
     <string name="auth_reset_sent">تم إرسال رابط إعادة تعيين كلمة المرور إلى %1$s — تحقق من البريد (بما في ذلك الرسائل غير المرغوبة).</string>
     <string name="so_cleanup_failed">تم تسجيل الخروج — لكن مشكلة في الشبكة منعت حذف حالة الحضور/رمز الإشعارات لهذا الهاتف. لاحقًا، سجّل الدخول مع توفر الإنترنت ثم سجّل الخروج مرة أخرى للتنظيف.</string>
     <string name="so_cleanup_ok">تم تسجيل الخروج — تم حذف حالة الحضور ورمز الإشعارات لهذا الهاتف من الخادم.</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">اكتب نصًا…</string>
     <string name="btn_cancel_plain">إلغاء</string>
     <string name="btn_send">إرسال</string>
-    <string name="err_perm_denied">رفض الإذن بواسطة قواعد الأمان — عمليًا يعني أن أحد الهاتفين يعمل بإصدار قديم (الإقران مقيد بالإصدار). حدّث كلا الهاتفين إلى أحدث إصدار وأعد الإقران. إن استمر الفشل، انشر أحدث android-app/firestore.rules من المستودع (وحدة تحكم Firebase → Firestore Database → Rules).</string>
-    <string name="err_db_missing">قاعدة بيانات Firestore غير موجودة — في وحدة تحكم Firebase افتح Build → Firestore Database وأكمل إنشاء القاعدة.</string>
-    <string name="err_unreachable">تعذّر الوصول إلى Firestore — تحقق من اتصال الإنترنت وأعد المحاولة.</string>
+    <string name="err_perm_denied">منعت حماية التطبيق الاتصال لأسباب أمنية — يعني هذا عادةً أن أحد الهاتفين يعمل بإصدار قديم. حدِّث كلا الهاتفين إلى أحدث إصدار وأعد الاقتران. إن استمرت المشكلة فجرِّب بعد قليل.</string>
+    <string name="err_db_missing">الخدمة غير جاهزة تماماً بعد — جرِّب بعد بضع دقائق. إن تكرر الأمر فحدِّث التطبيق إلى أحدث إصدار.</string>
+    <string name="err_unreachable">تعذّر الوصول إلى الخدمة — تحقق من اتصال الإنترنت وحاول مجدداً.</string>
     <string name="err_code_length">رمز الإقران يتكوّن من %1$d حرفًا (%2$d + %3$d؛ الإصدارات القديمة تستخدم %4$d). هذا الرمز يحتوي %5$d.</string>
     <string name="err_code_not_found">الرمز غير موجود — تحقق من أول %1$d حرفًا.</string>
     <string name="err_own_code">هذا رمزك أنت — يجب أن يكتبه المساعد على هاتفه وهو مسجّل الدخول بحساب Google الخاص به.</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">رمز خاطئ — قارن كل حرف مع الهاتف الآخر.</string>
     <string name="err_pair_family_exists">هذا الزوج مرتبط بالفعل كـ Family (دائم) — لا حاجة لرمز ضيف هنا.</string>
     <string name="err_pair_guest_exists">هذا الزوج مرتبط كضيف. لتحويله إلى Family، أزل ربط الضيف من هاتف المتلقي وأصدر رمز Family جديدًا.</string>
-    <string name="err_generic">خطأ Firestore %1$s: %2$s</string>
-    <string name="err_quota">تم استهلاك حد الاستخدام اليومي المجاني لـ Firebase — سيعود كل شيء للعمل بعد إعادة تعيين الحصة اليومية (حوالي منتصف النهار). لم تُفقد أي بيانات.</string>
+    <string name="err_generic">حدث خطأ ما. حاول مجدداً.</string>
+    <string name="err_quota">انتهى حد الاستخدام اليومي لهذا التطبيق — سيعود كل شيء للعمل بعد إعادة التعيين اليومية (حوالي الظهر). لم تُفقد أي بيانات.</string>
     <string name="cd_details">التفاصيل</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">تعذّر الرد — سيعيد المساعد المحاولة تلقائيًا.</string>
     <string name="ss_recover_apply_failed">تعذّر تطبيق ردّ المساعد — سيعيد المساعد المحاولة.</string>
     <string name="ss_fail_projection_stopped">أوقف النظام عرض الشاشة — انقر «شارك الشاشة» مجددًا.</string>
-    <string name="ss_fail_capture">فشل التقاط الشاشة: %1$s</string>
-    <string name="ss_fail_watch">تعذّر طلب المشاهدة: %1$s</string>
-    <string name="ss_fail_viewer">تعذّر تشغيل العارض: %1$s</string>
+    <string name="ss_fail_capture">تعذّر التقاط الشاشة. حاول مجدداً.</string>
+    <string name="ss_fail_watch">تعذّر إرسال طلب مشاهدة الشاشة. حاول مجدداً.</string>
+    <string name="ss_fail_viewer">تعذّر بدء العارض. حاول مجدداً.</string>
     <string name="ss_fail_conn_stopped">فشل الاتصال — انقر «إيقاف المشاركة» ثم شارك مجددًا.</string>
     <string name="ss_fail_no_engine">تعذّر إنشاء محرك WebRTC على هذا الهاتف.</string>
-    <string name="ss_fail_signal">خطأ في قناة الإشارة: %1$s</string>
+    <string name="ss_fail_signal">انقطع الاتصال المباشر. حاول مجدداً.</string>
     <string name="ss_fail_conn_retry">فشل الاتصال — تعذّر على الهاتفين الارتباط ببعضهما. انقر «شاهد الشاشة» مجددًا؛ إن استمر الفشل فضع الهاتفين على شبكة Wi-Fi نفسها (أو نقطة اتصال أحدهما).</string>
-    <string name="ss_fail_offer">تعذّر إرسال العرض: %1$s</string>
-    <string name="ss_fail_answer">تعذّر إرسال الرد: %1$s</string>
+    <string name="ss_fail_offer">تعذّر بدء الاتصال المباشر. حاول مجدداً.</string>
+    <string name="ss_fail_answer">تعذّر إكمال الاتصال المباشر. حاول مجدداً.</string>
     <string name="ss_fail_apply">تعذّر تطبيق ردّ المساعد.</string>
     <string name="ss_ack_back">تم إيصال «الرجوع» ✓</string>
     <string name="ss_ack_home">تم إيصال «الرئيسية» ✓</string>

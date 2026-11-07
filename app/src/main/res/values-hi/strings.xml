@@ -239,7 +239,7 @@
     <string name="set_section_activity">गतिविधि</string>
     <string name="set_section_about">ऐप के बारे में</string>
     <string name="set_about_sub">संस्करण, पैकेज और नीतियाँ</string>
-    <string name="about_storage">आपका खाता और डिवाइस डेटा केवल इस ऐप के अपने Firebase प्रोजेक्ट में रहता है। स्क्रीन सामग्री कभी रिकॉर्ड या संग्रहित नहीं होती।</string>
+    <string name="about_storage">आपका खाता और डिवाइस डेटा केवल इस ऐप के अपने सुरक्षित क्लाउड में रहते हैं। स्क्रीन की सामग्री कभी रिकॉर्ड या सेव नहीं की जाती।</string>
     <string name="set_sign_out">साइन आउट</string>
     <string name="set_test_notif">टेस्ट नोटिफिकेशन भेजें</string>
     <string name="set_test_notif_sent">टेस्ट नोटिफिकेशन भेजा गया — नोटिफिकेशन शेड देखें ✓</string>
@@ -269,7 +269,7 @@
     <string name="auth_forgot">पासवर्ड भूल गए?</string>
     <string name="auth_or">या</string>
     <string name="auth_google">Google से जारी रखें</string>
-    <string name="auth_footer">आपका खाता और डिवाइस डेटा केवल आपके अपने Firebase प्रोजेक्ट में रहता है। जुड़े होने का मतलब स्थायी अनुमति नहीं — हर सेशन में फिर पूछा जाता है।</string>
+    <string name="auth_footer">आपका खाता और फ़ोन डेटा केवल ऐप के अपने सुरक्षित क्लाउड में रहते हैं। जुड़े रहने का मतलब स्थायी अनुमति नहीं है — हर सेशन में दोबारा पूछा जाता है।</string>
     <string name="privacy_title">गोपनीयता नीति</string>
     <string name="rules_title">उपयोग नियम</string>
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
@@ -281,7 +281,7 @@
     <!-- v0.26.0 (Phase 18.7): localized notification text (session request). -->
     <string name="notif_fallback_helper">परिवार का एक सदस्य</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
-    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in the Firebase project that belongs to this app. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
+    <string name="privacy_body">Family Remote Support helps trusted people help each other with phones. This policy explains exactly what data the app uses.\n\nWhat is collected\n• Your account: name, email and Google account id you sign in with.\n• Your device: model, manufacturer, Android version and app version.\n• A random, app-scoped device id so your phones can be listed.\n• Push token: used only to tell your phone that someone asked to help you.\n• Session records: who asked whom, start/end time and the final status. This is the honest activity history you see in the app.\n• Live location: only while you turn sharing on, this phone\'s latest position (with its accuracy and time) is shared with the paired family members you chose. Only the latest position is kept — no location history is collected in this version. You can stop sharing at any time, and stopping deletes the shared position.\n\nWhat is NEVER collected\n• Screen content. Live screen video exists only during a session you approved; it is streamed directly between the two phones and is not stored.\n• Passwords, screen text, key strokes or photos.\n• Location history, saved places, or movement profiles in this version.\n\nWhere your data lives\nOnly in this app\'s own secure cloud. It is not sold, not shared with advertisers, and not used for tracking.\n\nWho can see what\nA paired helper can see your device\'s online status and can open a session only after you explicitly approve each request. Live location is visible only to paired members while your sharing is on, and never without it. You can revoke a paired phone at any time, and signing out deletes this phone\'s presence, push token and shared position.\n\nYou stay in control: every session needs your live approval, shows a clear indicator while it runs, and can be stopped by you at any moment. Location sharing is off unless you turn it on, and it is a single visible switch you can end anytime.</string>
     <!-- v0.26.0 (Phase 18.7): privacy/rules policy translation completed. -->
     <string name="rules_body">ये नियम Family Remote Support को सबके लिए सुरक्षित रखते हैं।\n\n१. पहले सहमति। हर सहायता सेशन के लिए जिस फ़ोन पर मदद मिलेगी वहाँ नई और स्पष्ट स्वीकृति आवश्यक है। केवल पेयरिंग से पहुँच कभी नहीं मिलती।\n\n२. पेयरिंग कोड केवल एक बार उपयोग होते हैं और लगभग ५ मिनट में समाप्त हो जाते हैं। कोड केवल एक बार, और केवल उसी व्यक्ति द्वारा उपयोग किया जा सकता है जो उसे समय पर स्कैन या टाइप करता है।\n\n३. अतिथि सहायता अस्थायी है। अतिथि कनेक्शन २ घंटे बाद स्वयं समाप्त हो जाता है और अपने आप कभी स्थायी पारिवारिक पेयरिंग नहीं बन सकता।\n\n४. आप हमेशा रोक सकते हैं। जिसे मदद मिल रही है वह अनुरोध अस्वीकार कर सकता है, चल रहे सेशन को किसी भी सेकंड में बंद कर सकता है, या पेयर किए फ़ोन को पूरी तरह रद्द कर सकता है।\n\n५. सहायक भरोसेमंद होना चाहिए। अपना कोड या QR केवल उन्हीं लोगों से साझा करें जिन पर आप वास्तव में भरोसा करते हैं। सेशन चलते समय सहायक आपकी स्क्रीन देखता है — संदेह हो तो पहले संवेदनशील ऐप्स बंद कर दें।\n\n६. कोई शॉर्टकट नहीं। ऐप कभी फ़ोन अनलॉक करने, पासवर्ड पढ़ने, चुपचाप अनुमति देने या सेशन चलने की बात छिपाने की कोशिश नहीं करता। यह केवल वहीं काम करता है जहाँ Android स्पष्ट रूप से अनुमति देता है।\n\n७. केवल उचित उपयोग। किसी को परेशान करने, जासूसी करने या दबाव बनाने के लिए ऐप का उपयोग न करें। दुरुपयोग पर पहुँच रद्द कर दी जाती है।\n\n८. पहले परिवार। यह ऐप परिवार के सदस्यों और करीबी दोस्तों की फ़ोन में मदद के लिए बना है — और किसी और काम के लिए नहीं।</string>
 
@@ -328,7 +328,7 @@
 
     <!-- Phase 19.2 (v0.28.0): MainActivity + pairing-error extraction -->
     <string name="auth_cancelled">साइन-इन रद्द या विफल</string>
-    <string name="auth_failed">साइन-इन विफल: %1$s</string>
+    <string name="auth_failed">साइन-इन नहीं हो सका। फिर से कोशिश करें।</string>
     <string name="auth_reset_sent">पासवर्ड-रीसेट लिंक %1$s पर भेजा गया — ईमेल (स्पैम सहित) देखें।</string>
     <string name="so_cleanup_failed">साइन-आउट हो गया — लेकिन नेटवर्क-समस्या से इस फ़ोन की उपस्थिति/पुश-टोकन नहीं मिटा। बाद में इंटरनेट सहित साइन-इन कर फिर साइन-आउट करें, सब साफ हो जाएगा।</string>
     <string name="so_cleanup_ok">साइन-आउट पूर्ण — इस फ़ोन की उपस्थिति और पुश-टोकन सर्वर से मिटा दिए गए।</string>
@@ -553,9 +553,9 @@
     <string name="td_placeholder">टेक्स्ट लिखें…</string>
     <string name="btn_cancel_plain">रद्द</string>
     <string name="btn_send">भेजें</string>
-    <string name="err_perm_denied">सुरक्षा-नियमों ने अनुमति नहीं दी — व्यवहार में इसका मतलब है कि दोनों में से एक फ़ोन पुराना ऐप-संस्करण चला रहा है (पेयरिंग संस्करण-लॉक है)। दोनों फ़ोन नवीनतम पर अपडेट कर दोबारा पेयर करें। अभी भी विफल हो तो repo से नवीनतम android-app/firestore.rules प्रकाशित करें (Firebase कंसोल → Firestore Database → Rules)।</string>
-    <string name="err_db_missing">Firestore डेटाबेस नहीं मिला — Firebase कंसोल में Build → Firestore Database खोलकर डेटाबेस बनाना पूरा करें।</string>
-    <string name="err_unreachable">Firestore तक नहीं पहुँच पा रहे — इंटरनेट कनेक्शन जाँचें और फिर कोशिश करें।</string>
+    <string name="err_perm_denied">ऐप की सुरक्षा-रक्षा की वजह से कनेक्शन रोक दिया गया — आमतौर पर इसका मतलब है कि दो फ़ोन में से किसी एक पर पुराना ऐप वर्शन चल रहा है। दोनों फ़ोन को नए वर्शन पर अपडेट करें और दोबारा जोड़ें। फिर भी दिक्कत हो तो थोड़ी देर बाद कोशिश करें।</string>
+    <string name="err_db_missing">सेवा अभी पूरी तरह तैयार नहीं है — कुछ मिनट बाद फिर कोशिश करें। बार-बार हो तो ऐप को नए वर्शन पर अपडेट करें।</string>
+    <string name="err_unreachable">सेवा तक नहीं पहुँच पाए — इंटरनेट कनेक्शन जाँचें और फिर कोशिश करें।</string>
     <string name="err_code_length">पेयरिंग कोड में %1$d अक्षर होते हैं (%2$d + %3$d; पुराने ऐप-संस्करण %4$d उपयोग करते हैं)। इसमें %5$d हैं।</string>
     <string name="err_code_not_found">कोड नहीं मिला — पहले %1$d अक्षर जाँचें।</string>
     <string name="err_own_code">यह आपका अपना कोड है — सहायक को इसे अपने ही फ़ोन पर, अपने ही Google खाते से साइन-इन होकर डालना चाहिए।</string>
@@ -564,8 +564,8 @@
     <string name="err_wrong_code">गलत कोड — हर अक्षर दूसरे फ़ोन से मिलाएँ।</string>
     <string name="err_pair_family_exists">यह जोड़ा पहले से Family (स्थायी) के रूप में जुड़ा है — यहाँ Guest कोड की ज़रूरत नहीं।</string>
     <string name="err_pair_guest_exists">यह जोड़ा Guest के रूप में जुड़ा है। Family बनाने के लिए मदद-लेने वाले फ़ोन से Guest लिंक हटाकर (Remove) नया Family कोड दें।</string>
-    <string name="err_generic">Firestore त्रुटि %1$s: %2$s</string>
-    <string name="err_quota">Firebase की आज की मुफ़्त उपयोग-सीमा पूरी हो गई है — रोज़ाना कोटा रीसेट (दोपहर के आसपास) होने पर सब फिर काम करेगा। कोई डेटा नहीं खोया।</string>
+    <string name="err_generic">कुछ गड़बड़ हो गई। फिर से कोशिश करें।</string>
+    <string name="err_quota">आज इस ऐप की उपयोग सीमा पूरी हो गई — रोज़ाना रीसेट (दोपहर के आसपास) के बाद सब फिर काम करेगा। कोई डेटा नहीं खोया है।</string>
     <string name="cd_details">विवरण</string>
 
     <!-- Phase 19.2 fixup: error-prefix keys -->
@@ -705,15 +705,15 @@
     <string name="ss_recover_answer_failed">जवाब नहीं दे पाए — सहायक अपने आप दोबारा कोशिश करेगा।</string>
     <string name="ss_recover_apply_failed">सहायक का जवाब लागू नहीं कर पाए — सहायक दोबारा कोशिश करेगा।</string>
     <string name="ss_fail_projection_stopped">सिस्टम ने स्क्रीन प्रोजेक्शन रोक दिया — दोबारा \"स्क्रीन शेयर करें\" टैप करें।</string>
-    <string name="ss_fail_capture">स्क्रीन कैप्चर विफल: %1$s</string>
-    <string name="ss_fail_watch">देखने का अनुरोध नहीं भेज पाए: %1$s</string>
-    <string name="ss_fail_viewer">व्यूअर शुरू नहीं कर पाए: %1$s</string>
+    <string name="ss_fail_capture">स्क्रीन कैप्चर नहीं हो सका। फिर से कोशिश करें।</string>
+    <string name="ss_fail_watch">स्क्रीन देखने का अनुरोध भेजा नहीं जा सका। फिर से कोशिश करें।</string>
+    <string name="ss_fail_viewer">व्यूअर शुरू नहीं हो सका। फिर से कोशिश करें।</string>
     <string name="ss_fail_conn_stopped">कनेक्शन विफल — \"शेयर बंद करें\" टैप करें, फिर दोबारा शेयर करें।</string>
     <string name="ss_fail_no_engine">इस फ़ोन पर WebRTC इंजन नहीं बनाया जा सका।</string>
-    <string name="ss_fail_signal">सिग्नल चैनल की त्रुटि: %1$s</string>
+    <string name="ss_fail_signal">लाइव कनेक्शन बीच में टूट गया। फिर से कोशिश करें।</string>
     <string name="ss_fail_conn_retry">कनेक्शन विफल — दोनों फ़ोन आपस में जुड़ नहीं पाए। दोबारा \"स्क्रीन देखें\" टैप करें; बार-बार विफल हो तो दोनों फ़ोन एक ही Wi-Fi नेटवर्क पर रखें (या किसी एक फ़ोन के हॉटस्पॉट पर)।</string>
-    <string name="ss_fail_offer">ऑफ़र नहीं भेज पाए: %1$s</string>
-    <string name="ss_fail_answer">जवाब नहीं भेज पाए: %1$s</string>
+    <string name="ss_fail_offer">लाइव कनेक्शन शुरू नहीं हो सका। फिर से कोशिश करें।</string>
+    <string name="ss_fail_answer">लाइव कनेक्शन पूरा नहीं हो सका। फिर से कोशिश करें।</string>
     <string name="ss_fail_apply">सहायक का जवाब लागू नहीं कर पाए।</string>
     <string name="ss_ack_back">बैक पहुँच गया ✓</string>
     <string name="ss_ack_home">होम पहुँच गया ✓</string>

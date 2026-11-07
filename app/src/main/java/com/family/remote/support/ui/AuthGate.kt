@@ -406,9 +406,9 @@ private fun friendlyAuthError(context: Context, e: Exception): String? = when {
         "ERROR_TOO_MANY_REQUESTS" -> context.getString(R.string.fe_too_many)
         "ERROR_NETWORK_REQUEST_FAILED" -> context.getString(R.string.fe_no_internet)
         "ERROR_OPERATION_NOT_ALLOWED" -> context.getString(R.string.fe_not_allowed)
-        else -> context.getString(R.string.auth_failed, e.localizedMessage ?: "")
+        else -> context.getString(R.string.auth_failed)
     }
-    else -> context.getString(R.string.auth_failed, e.localizedMessage ?: "")
+    else -> context.getString(R.string.auth_failed)
 }
 
 // ── The Google "G" brand mark (the official four-color glyph; a brand

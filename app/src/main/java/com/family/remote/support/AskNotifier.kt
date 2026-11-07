@@ -359,7 +359,9 @@ class SessionActionReceiver : BroadcastReceiver() {
                 val message = if (e is SessionException) {
                     e.localizedMessage(appContext)
                 } else {
-                    e.message ?: appContext.getString(R.string.notif_result_open_app)
+                    // v0.55.0 — never surface the raw backend exception text in
+                    // a notification; the app speaks its own language only.
+                    appContext.getString(R.string.notif_result_open_app)
                 }
                 AskNotifier.postResult(appContext, sessionId, allowed = false, error = message)
             } finally {
